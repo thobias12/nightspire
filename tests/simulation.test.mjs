@@ -10,7 +10,7 @@ const { blockedCells, cellKey } = require('../.test-build/game/simulation/Naviga
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
-const { RAID_SIZE, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
+const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
@@ -318,6 +318,28 @@ test('night spawns one deterministic raid per day and does not duplicate it', ()
   assert.equal(s.raid.wave,1)
 })
 
+test('raid pressure scales from 20 to 40 and caps deterministically', () => {
+  assert.deepEqual([1,2,3,4,5,6,7].map(raidSizeForWave),[20,24,28,32,36,40,40])
+  assert.equal(RAID_SIZE,20)
+  assert.equal(RAID_MAX_SIZE,40)
+})
+
+test('a capped 40-raider wave stays inside the shared path budget', () => {
+  const s=createInitialWorldState()
+  s.raid.wave=5
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  assert.equal(s.enemies.length,40)
+  assert.equal(s.raid.wave,6)
+  for(let i=0;i<800;i++) {
+    sim.step()
+    assert.ok(sim.navigation.solved<=PATH_BUDGET)
+    if(i%100===0) validateWorld(s)
+  }
+  validateWorld(s)
+  assert.equal(sim.navigation.failures,0)
+})
+
 test('raiders share the bounded navigation queue and reach the settlement', () => {
   const s=createInitialWorldState(), sim=new Simulation(s)
   sim.setTimeOfDay(21/24)
@@ -344,9 +366,9 @@ test('raiders retreat with daylight and a new day can spawn the next wave', () =
   s.day=2
   sim.setTimeOfDay(12/24)
   sim.setTimeOfDay(21/24)
-  assert.equal(s.enemies.length,RAID_SIZE)
+  assert.equal(s.enemies.length,raidSizeForWave(2))
   assert.equal(s.raid.wave,2)
-  assert.equal(s.raid.totalSpawned,RAID_SIZE*2)
+  assert.equal(s.raid.totalSpawned,raidSizeForWave(1)+raidSizeForWave(2))
   assert.equal(s.raid.lastSpawnDay,2)
   validateWorld(s)
 })
