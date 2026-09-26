@@ -20,6 +20,7 @@ const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('.
 const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
+const { constructionProgress, constructionVisualStage, damageVisualState, nightAmount } = require('../.test-build/game/render/BuildingPresentation.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -1291,4 +1292,43 @@ test('invalid and incompatible saves are rejected without touching current state
   }
   assert.throws(()=>deserializeWorld('{bad json'))
   assert.equal(serializeWorld(s),original)
+})
+
+
+test('M3.5 presentation stages distinguish foundation, frame and finished construction', () => {
+  const s=createInitialWorldState()
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  const def=require('../.test-build/game/data/buildings.js').BUILDINGS.house
+  assert.equal(constructionVisualStage(site,def),'foundation')
+  assert.ok(constructionProgress(site,def)<0.34)
+  site.delivered.wood=20
+  site.work=6
+  assert.equal(constructionVisualStage(site,def),'frame')
+  assert.ok(constructionProgress(site,def)>=0.34)
+  site.complete=true
+  site.work=def.constructionWork
+  assert.equal(constructionVisualStage(site,def),'finished')
+  assert.equal(constructionProgress(site,def),1)
+})
+
+test('M3.5 presentation damage states track healthy, damaged, critical and ruined structures', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  assert.equal(damageVisualState(house),'healthy')
+  house.health=Math.floor(house.maxHealth*0.6)
+  assert.equal(damageVisualState(house),'damaged')
+  house.health=Math.floor(house.maxHealth*0.2)
+  assert.equal(damageVisualState(house),'critical')
+  house.destroyed=true
+  assert.equal(damageVisualState(house),'ruined')
+})
+
+test('M3.5 night atmosphere ramps at dusk and stays bounded through the night', () => {
+  assert.equal(nightAmount(12/24),0)
+  assert.equal(nightAmount(18/24),0)
+  assert.ok(nightAmount(19/24)>0 && nightAmount(19/24)<1)
+  assert.equal(nightAmount(20/24),1)
+  assert.equal(nightAmount(2/24),1)
+  assert.ok(nightAmount(5.5/24)>0 && nightAmount(5.5/24)<1)
+  assert.equal(nightAmount(6/24),0)
 })
