@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { createInitialWorldState, spawnSettler } = require('../.test-build/game/simulation/WorldState.js')
 const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
-const { placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
+const { cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
@@ -100,6 +100,43 @@ test('exhausted nodes and no storage space do not create invalid work', () => {
   const s=createInitialWorldState(); s.nodes.forEach(n=>n.remaining=0)
   const sim=new Simulation(s); advance(sim,3)
   assert.equal(s.jobs.length,0); assert.ok(s.settlers.every(a=>a.status==='No resources left'))
+  validateWorld(s)
+})
+test('cancelling a blueprint releases reservations and refunds in-flight materials without loss', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.wood=30
+  const initial=total(s,'wood')
+  assert.equal(placeBuilding(s,'house',{x:7,z:0}),null)
+  const site=s.buildings.at(-1)
+  const sim=new Simulation(s)
+  let carrying=false
+  for(let i=0;i<800;i++) {
+    sim.step()
+    if(s.jobs.some(j=>j.kind==='deliver' && j.targetId===site.id && j.stage==='target')) { carrying=true; break }
+  }
+  assert.ok(carrying)
+  assert.equal(cancelBuilding(s,site.id),null)
+  assert.ok(!s.buildings.some(b=>b.id===site.id))
+  assert.ok(!s.jobs.some(j=>j.targetId===site.id))
+  assert.equal(total(s,'wood'),initial)
+  validateWorld(s)
+})
+test('cancelling construction in progress returns delivered materials and clears the builder', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.wood=20
+  const initial=total(s,'wood')
+  assert.equal(placeBuilding(s,'house',{x:7,z:0}),null)
+  const site=s.buildings.at(-1)
+  const sim=new Simulation(s)
+  let building=false
+  for(let i=0;i<1400;i++) {
+    sim.step()
+    if(site.work>0 && !site.complete) { building=true; break }
+  }
+  assert.ok(building)
+  assert.equal(cancelBuilding(s,site.id),null)
+  assert.equal(total(s,'wood'),initial)
+  assert.ok(!s.jobs.some(j=>j.targetId===site.id))
   validateWorld(s)
 })
 test('invalid and incompatible saves are rejected without touching current state', () => {
