@@ -20,12 +20,14 @@ import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld }
 import { Simulation } from '../simulation/Simulation'
 import {
   backyardForPlot,
+  buildingPlacementPreview,
   normalizeRoadPoints,
   residentialPlotBuildingError,
   residentialPlotError,
   residentialPlotPreview,
   residentialPlotResourceError,
   roadPlacementError,
+  snapRoadControlPoint,
   type ResidentialPlotPreview,
 } from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
@@ -47,6 +49,9 @@ export class Game {
   private roadDraft: Point[] = []
   private plotDraft: ResidentialPlotPreview | null = null
   private pointer: Point | null = null
+  private rawPointer: Point | null = null
+  private gridSnap = true
+  private roadSnap = true
   private dragStart: Point | null = null
   private dragPoints: Point[] = []
   private suppressClick = false
@@ -65,21 +70,27 @@ export class Game {
     this.input = new InputController(this.renderer, this.simulation, () => this.action('cancel'), () => this.action('attack'))
     const signal = this.abort.signal
     this.renderer.canvas.addEventListener('pointermove', e => {
-      const point = this.planningTool
-        ? this.renderer.worldPointPrecise(e.clientX, e.clientY)
-        : this.renderer.worldPoint(e.clientX, e.clientY)
+      const precise = this.renderer.worldPointPrecise(e.clientX, e.clientY)
+      this.rawPointer = precise
+      const point = this.planningTool ? precise : (precise ? { x: Math.round(precise.x), z: Math.round(precise.z) } : null)
       if (
         !this.planningTool
         && point?.x === this.pointer?.x
         && point?.z === this.pointer?.z
         && !(this.dragStart && this.buildType === 'wood-wall')
+        && !(this.buildType && this.roadSnap)
       ) return
       this.pointer = point
 
-      if (this.planningTool === 'road' && this.planningStart && point) {
-        this.roadDraft = normalizeRoadPoints([...this.roadDraft, point])
-      } else if (this.planningTool === 'residential-plot' && this.planningStart && point) {
-        this.plotDraft = residentialPlotPreview(this.simulation.state.roads, this.planningStart, point)
+      if (this.planningTool === 'road' && this.planningStart && precise) {
+        if (this.gridSnap) {
+          const end = snapRoadControlPoint(this.simulation.state.roads, precise, this.planningStart, true)
+          this.roadDraft = normalizeRoadPoints([this.planningStart, end])
+        } else {
+          this.roadDraft = normalizeRoadPoints([...this.roadDraft, precise])
+        }
+      } else if (this.planningTool === 'residential-plot' && this.planningStart && precise) {
+        this.plotDraft = residentialPlotPreview(this.simulation.state.roads, this.planningStart, precise, 2.2, this.gridSnap)
       } else if (this.dragStart && point && this.buildType === 'wood-wall') {
         this.dragPoints = wallLinePoints(this.dragStart, point)
       }
@@ -88,17 +99,22 @@ export class Game {
     this.renderer.canvas.addEventListener('pointerleave', () => {
       if (this.dragStart || this.planningStart) return
       this.pointer = null
+      this.rawPointer = null
       this.updateGhost()
     }, { signal })
     this.renderer.canvas.addEventListener('pointerdown', e => {
       if (e.button !== 0) return
 
       if (this.planningTool) {
-        const point = this.renderer.worldPointPrecise(e.clientX, e.clientY)
-        if (!point) return
+        const raw = this.renderer.worldPointPrecise(e.clientX, e.clientY)
+        if (!raw) return
         this.renderer.canvas.focus()
+        const point = this.planningTool === 'road'
+          ? snapRoadControlPoint(this.simulation.state.roads, raw, null, this.gridSnap)
+          : raw
         this.planningStart = point
         this.pointer = point
+        this.rawPointer = raw
         this.roadDraft = this.planningTool === 'road' ? [point] : []
         this.plotDraft = null
         this.renderer.canvas.setPointerCapture(e.pointerId)
@@ -123,10 +139,15 @@ export class Game {
 
       if (this.planningStart && this.planningTool) {
         const s = this.simulation.state
-        const end = this.renderer.worldPointPrecise(e.clientX, e.clientY) ?? this.pointer ?? this.planningStart
+        const rawEnd = this.renderer.worldPointPrecise(e.clientX, e.clientY) ?? this.rawPointer ?? this.pointer ?? this.planningStart
 
         if (this.planningTool === 'road') {
-          const points = normalizeRoadPoints([...this.roadDraft, end])
+          const end = this.gridSnap
+            ? snapRoadControlPoint(s.roads, rawEnd, this.planningStart, true)
+            : snapRoadControlPoint(s.roads, rawEnd, null, false)
+          const points = this.gridSnap
+            ? normalizeRoadPoints([this.planningStart, end])
+            : normalizeRoadPoints([...this.roadDraft, end])
           const error = roadPlacementError(points)
           if (error) {
             this.message = error
@@ -136,7 +157,7 @@ export class Game {
             this.message = 'Road placed · ' + length.toFixed(1) + 'm. Draw another road or Esc to finish.'
           }
         } else {
-          const preview = residentialPlotPreview(s.roads, this.planningStart, end)
+          const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap)
           let error = residentialPlotError(preview, s.residentialPlots)
           if (!error) error = residentialPlotBuildingError(preview, s.buildings)
           if (!error) error = residentialPlotResourceError(preview, s.nodes)
@@ -172,6 +193,7 @@ export class Game {
         this.planningStart = null
         this.roadDraft = []
         this.plotDraft = null
+        this.rawPointer = null
         this.suppressClick = true
         setTimeout(() => { this.suppressClick = false }, 0)
         if (this.renderer.canvas.hasPointerCapture(e.pointerId)) this.renderer.canvas.releasePointerCapture(e.pointerId)
@@ -204,17 +226,26 @@ export class Game {
         return
       }
       this.renderer.canvas.focus()
-      const p = this.renderer.worldPoint(e.clientX, e.clientY)
-      if (!p) return
+      const precise = this.renderer.worldPointPrecise(e.clientX, e.clientY)
+      const p = precise ? { x: Math.round(precise.x), z: Math.round(precise.z) } : null
+      if (!p || !precise) return
       const s = this.simulation.state
       if (this.buildType) {
         const type = this.buildType
-        const error = placeBuilding(s, type, p, this.buildRotation)
-        this.message = error ?? (e.shiftKey
-          ? BUILDINGS[type].label + ' blueprint placed. Shift-place again or Esc to finish.'
-          : BUILDINGS[type].label + ' blueprint placed. Settlers will supply and construct it during daylight.')
+        const preview = buildingPlacementPreview(s.roads, precise, type, this.roadSnap, this.buildRotation)
+        const beforeId = s.nextId
+        const error = placeBuilding(s, type, preview.point, preview.rotation)
+        this.message = error ?? (preview.snappedToRoad
+          ? BUILDINGS[type].label + ' snapped to the road and faced toward it.'
+          : e.shiftKey
+            ? BUILDINGS[type].label + ' blueprint placed. Shift-place again or Esc to finish.'
+            : BUILDINGS[type].label + ' blueprint placed. Settlers will supply and construct it during daylight.')
         if (!error) {
-          const placed = [...s.buildings].reverse().find(b => b.x === p.x && b.z === p.z)
+          const placed = s.buildings.find(b => b.id === beforeId)
+            ?? [...s.buildings].reverse().find(b => b.x === preview.point.x && b.z === preview.point.z)
+          if (placed && preview.snappedToRoad && preview.facingAngle !== null && !BUILDINGS[type].fortification) {
+            placed.facingAngle = preview.facingAngle
+          }
           this.selectedId = placed?.id ?? null
           if (!e.shiftKey) this.buildType = null
         }
@@ -250,6 +281,16 @@ export class Game {
       if (hotkey) {
         e.preventDefault()
         this.action(hotkey)
+        return
+      }
+      if (e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        this.action('grid-snap')
+        return
+      }
+      if (e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        this.action('road-snap')
         return
       }
       if (e.key.toLowerCase() === 'r' && this.buildType) {
@@ -301,7 +342,9 @@ export class Game {
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
-          this.message = 'Road tool: click-drag a road through the landscape. Roads are persisted but do not affect pathfinding yet.'
+          this.message = this.gridSnap
+            ? 'Road tool · Grid Snap ON: each drag creates a clean 0°/45°/90° segment. Press G for freeform.'
+            : 'Road tool · Grid Snap OFF: click-drag a freeform road. Press G for aligned roads.'
           break
         case 'residential-plot':
           if (s.roads.length === 0) {
@@ -316,7 +359,7 @@ export class Game {
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
-          this.message = 'Residential Plot: start close to a road, then drag diagonally along the frontage and back into the lot. Min 4m frontage × 5m depth.'
+          this.message = 'Residential Plot: start close to a road, then drag frontage + backyard depth. ' + (this.gridSnap ? 'Grid Snap rounds width/depth to 1m.' : 'Freeform dimensions enabled.')
           break
         case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith':
           this.buildType = action
@@ -330,12 +373,27 @@ export class Game {
           this.renderer.mode = 'settlement'
           this.message = action === 'wood-wall'
             ? 'Drag across the grid to plan a wall line. Esc cancels.'
-            : 'Click clear ground to place ' + BUILDINGS[action].label + '. Hold Shift to keep placing; R rotates.'
+            : 'Place ' + BUILDINGS[action].label + '. ' + (this.roadSnap && !BUILDINGS[action].fortification && action !== 'campfire'
+              ? 'Road Snap ON: move near a road to magnetically align and face it. Press F to disable.'
+              : 'Grid placement active; R rotates.')
           break
         case 'rotate-build':
           if (!this.buildType) { this.message = 'Choose a building first.'; break }
           this.buildRotation = (this.buildRotation + 1) % 4
           this.message = BUILDINGS[this.buildType].label + ' rotated to ' + ['South', 'East', 'North', 'West'][this.buildRotation] + '.'
+          break
+        case 'grid-snap':
+          this.gridSnap = !this.gridSnap
+          this.message = 'Grid Snap ' + (this.gridSnap ? 'ON · roads prefer 0°/45°/90° and plot dimensions snap to 1m.' : 'OFF · roads and plot dimensions are freeform.')
+          if (this.planningStart) {
+            this.planningStart = null
+            this.roadDraft = []
+            this.plotDraft = null
+          }
+          break
+        case 'road-snap':
+          this.roadSnap = !this.roadSnap
+          this.message = 'Road Snap ' + (this.roadSnap ? 'ON · conventional buildings magnetically align and face nearby roads.' : 'OFF · conventional buildings use manual grid placement/rotation.')
           break
         case 'cancel':
           this.buildType = null
@@ -616,7 +674,7 @@ export class Game {
     if (this.planningTool === 'road') {
       const points = this.planningStart ? this.roadDraft : []
       const error = points.length >= 2 ? roadPlacementError(points) : null
-      this.renderer.showRoadGhost(points, !error)
+      this.renderer.showRoadGhost(points, !error, this.gridSnap)
       if (this.planningStart) {
         const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
         this.message = error ?? ('Road preview · ' + length.toFixed(1) + 'm. Release to place.')
@@ -630,7 +688,7 @@ export class Game {
       if (!error) error = residentialPlotBuildingError(preview, this.simulation.state.buildings)
       if (!error) error = residentialPlotResourceError(preview, this.simulation.state.nodes)
       if (!error && preview) error = placementError(this.simulation.state, 'house', preview.housePoint)
-      this.renderer.showResidentialPlotGhost(preview, !error)
+      this.renderer.showResidentialPlotGhost(preview, !error, this.gridSnap)
       if (this.planningStart) {
         this.message = error ?? (preview
           ? 'Residential plot preview · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth. Release to plan.'
@@ -649,14 +707,19 @@ export class Game {
       return
     }
 
-    const error = this.buildType && this.pointer ? placementError(this.simulation.state, this.buildType, this.pointer) : null
-    this.renderer.showGhost(this.buildType, this.pointer, !error, this.buildRotation)
-    if (this.buildType && this.pointer) {
+    const placement = this.buildType && (this.rawPointer ?? this.pointer)
+      ? buildingPlacementPreview(this.simulation.state.roads, this.rawPointer ?? this.pointer!, this.buildType, this.roadSnap, this.buildRotation)
+      : null
+    const error = this.buildType && placement ? placementError(this.simulation.state, this.buildType, placement.point) : null
+    this.renderer.showGhost(this.buildType, placement?.point ?? this.pointer, !error, placement?.rotation ?? this.buildRotation, [], placement?.facingAngle ?? null)
+    if (this.buildType && placement) {
       if (this.buildType === 'wood-gate' && !error) {
-        const wall = this.simulation.state.buildings.find(b => b.type === 'wood-wall' && b.x === this.pointer!.x && b.z === this.pointer!.z)
+        const wall = this.simulation.state.buildings.find(b => b.type === 'wood-wall' && b.x === placement.point.x && b.z === placement.point.z)
         this.message = wall ? 'Valid gate insertion. Existing wall timber will be retained.' : 'Valid site. Click to place.'
+      } else if (!error && placement.snappedToRoad) {
+        this.message = 'Road Snap · ' + BUILDINGS[this.buildType].label + ' is magnetically aligned to the street. Press F to place manually.'
       } else {
-        this.message = error ?? (this.buildType === 'wood-wall' ? 'Click or drag to place Wooden Walls.' : 'Valid site. Click to place · Shift keeps build mode · R rotates.')
+        this.message = error ?? (this.buildType === 'wood-wall' ? 'Click or drag to place Wooden Walls.' : 'Valid grid site. Click to place · Shift keeps build mode · R rotates.')
       }
     }
   }
@@ -694,6 +757,8 @@ export class Game {
       selectedId: this.selectedId,
       buildType: this.buildType,
       planningTool: this.planningTool,
+      gridSnap: this.gridSnap,
+      roadSnap: this.roadSnap,
       buildRotation: this.buildRotation,
       dragCount: this.dragPoints.length,
       message: this.message,
