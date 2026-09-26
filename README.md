@@ -2,7 +2,7 @@
 
 A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
 
-**Current playable milestone: M3.5 — Visual & Atmosphere.** The M3.4 construction/population/economy loop remains intact while the graybox world gets a stronger visual language: distinct building silhouettes, staged construction scaffolds, damage/ruin feedback, warm occupied settlement lighting, cold moonlit nights, active Brewery smoke, Campfire flicker, ground variation and clearer world selection/placement presentation. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M3.6 — Happiness Consequences.** The M3.5 visual pass remains intact while the existing Food, Housing, Safety and Recreation needs now affect actual worker productivity. Thriving settlers work faster, unhappy settlers slow down, and severe misery or hunger restricts settlers to survival/emergency work until conditions improve. See [the design](docs/GAME_DESIGN.md) for future direction.
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -21,7 +21,7 @@ Open the local URL printed by Vite. A camp begins with six settlers, an empty co
 2. Select **House**, then click clear ground. The preview is green on a valid site and red on a blocked one. A blueprint can wait for materials.
 3. Settlers reserve available wood, collect it from a stockpile, carry it to the site, then perform construction work. One house costs 20 wood and provides four beds.
 4. Use the categorized build bar or hotkeys **1–8**. Press **R** to rotate the current blueprint, hold **Shift** after a click to keep placing the same building, and **drag Wooden Wall** from one grid cell to another for an atomic straight wall line. Place a Wooden Gate directly on an existing wall segment to convert it while retaining the wall's delivered timber.
-5. Inspect settlers to see **Food / Housing / Safety / Recreation** plus derived Happiness. During Day, workers keep Brewery Food input supplied, the Brewery produces Ale, workers haul that Ale into stockpile storage, and Tavern supply runs from stockpile to the Tavern's 12-Ale pantry. During Dusk/Dawn a supplied Tavern is preferred over Campfire; when Ale runs out, settlers fall back to Campfire capacity.
+5. Inspect settlers to see **Food / Housing / Safety / Recreation**, derived Happiness, morale band and current work-rate modifier. Thriving settlers receive a modest productivity bonus; low Happiness slows gathering/repairs/construction, while severe misery or hunger limits settlers to Food gathering and emergency repairs. During Dusk/Dawn, Tavern/Campfire recreation therefore feeds back into next-day productivity instead of being only an attraction score.
 6. Build enough Houses to leave at least one spare bed, keep at least **2 stored Food per settler**, maintain **65% Happiness** and **55% Safety**, and keep the latest raid cleared. Hold those conditions across two Day checks to attract one immigrant. The newcomer enters from the map edge and cannot work until reaching the camp.
 7. Open **QA & performance** and jump to **Night**. Wave 1 contains 20 raiders. Each later wave adds four attackers until the 40-raider cap. Raiders batter walls/gates open, then retarget exposed settlement buildings. Guards intercept nearby raiders; the player can still fight with **Space**.
 8. After Night, jump/wait to **Day**. Damaged structures generate high-priority repair jobs: settlers physically carry timber from storage and restore 10 HP per wood. The QA **Damage selected structure** button can test this without waiting for a raid.
@@ -48,7 +48,7 @@ Save/load uses one primary localStorage slot plus one backup slot in this browse
 | Esc / Inspect | Leave build mode |
 | QA controls | Pause/resume, 1×/2×/4×, jump Day/Dusk/Night/Dawn, Next raid, test immigration now, force needs to 25%/100%, add selected building input, damage selected structure, set hour, stock targets, add resources, direct QA spawn, paths, integrity audit, backup/export/import |
 
-Time drives work, needs, production and population growth. Normal jobs and Brewery production run during Day (06:00–18:00). At each new Day the population system evaluates spare beds, unreserved stored Food, Happiness, Safety, raid state and the current 10-settler cap. Two consecutive qualifying Days admit one immigrant, then the streak resets. At Night the existing M2 combat/fortification loop remains unchanged.
+Time drives work, needs, production and population growth. Normal jobs and Brewery production run during Day (06:00–18:00). Individual Happiness now applies a deterministic work-rate modifier to hands-on gathering, repair and construction work; severe misery or Food below 15% refuses nonessential new work while allowing Food gathering and emergency repairs. At each new Day the population system evaluates spare beds, unreserved stored Food, Happiness, Safety, raid state and the current 10-settler cap. Two consecutive qualifying Days admit one immigrant, then the streak resets. At Night the existing M2 combat/fortification loop remains unchanged.
 
 ## Verification
 
@@ -59,7 +59,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-nine regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Eighty-four regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, needs/services/production/population behavior, M3.5 presentation-state derivation, and M3.6 happiness productivity/refusal behavior.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -90,4 +90,4 @@ This is a small playable stylized-graybox foundation: six starting / ten maximum
 
 See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.5 is intentionally presentation-only. It does not change Simulation.ts, Navigation.ts or Jobs.ts while separate M4 scale work is evaluated. Detail remains procedural/instanced graybox rather than final art, but buildings now have readable silhouettes and activity cues, construction/damage state is visible in-world, and night establishes the intended warm-town-versus-cold-wilderness contrast.
+M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state: Happiness bands and severe-hunger checks are computed from existing needs. Applying those consequences requires narrow scheduler/fixed-step hooks in Jobs.ts and Simulation.ts, while Navigation.ts remains untouched; the logic lives in a standalone helper to keep later M4 integration/rebasing contained.

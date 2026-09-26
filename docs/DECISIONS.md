@@ -211,3 +211,14 @@ Construction no longer appears as a single solid box growing vertically. A deter
 Night contrast is implemented with one directional moon light, colder ambient/fog/ground tones, emissive-style instanced window/fire batches and one shared warm PointLight centered across currently active settlement light sources. There is deliberately no PointLight or Three.js controller per building. Occupied Houses contribute strong warm windows, Taverns dim when out of Ale, Campfires flicker, and Brewery smoke appears only during its actual Day production window when its recipe can run.
 
 The building models remain procedural stylized graybox geometry. They are intended to improve readability and atmosphere before a final asset pipeline, not to lock final architecture or art direction.
+
+
+## M3.6 happiness consequences are derived, not persisted
+
+Happiness consequences are computed directly from the existing four settler needs rather than adding a morale meter or persisted modifier. The deterministic bands are Thriving (85–100, 1.15× hands-on work), Content (65–84, 1.0×), Strained (45–64, 0.9×), Unhappy (25–44, 0.75×) and Miserable (0–24, 0.6×). Food below 15% caps the work rate at 0.6× regardless of the average.
+
+Severe conditions have one explicit behavioral consequence: settlers below 20% Happiness or below 15% Food will not accept nonessential work. In this slice, Food gathering and structure repair are essential; Wood gathering, construction, material delivery and production/service supply are nonessential. If a settler crosses the severe threshold while already holding a nonessential job, a non-carrying assignment is released safely. A settler already carrying physical cargo still completes that delivery before stopping, preserving conservation.
+
+Only hands-on work timers are modified. Walking speed, path solving, guard/player combat, Brewery automatic production, Tavern/Campfire service rates and raid behavior are unchanged. This makes needs strategically meaningful without multiplying unrelated simulation systems.
+
+The consequence rules live in `Happiness.ts`. M3.6 requires narrow integration hooks in `Jobs.ts` and `Simulation.ts`, but deliberately does not change `Navigation.ts`, world/save schema or reservation representation. Keeping the policy in one helper is intended to make later integration with the parallel M4 profiling work straightforward.
