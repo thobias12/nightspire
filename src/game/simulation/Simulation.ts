@@ -4,7 +4,7 @@ import { RESOURCES } from '../data/resources'
 import { assignHousing } from './Buildings'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
-import { recordEvent, type Job, type Settler, type WorldState } from './WorldState'
+import { recordEvent, settlerLabel, type Job, type Settler, type WorldState } from './WorldState'
 
 export class Simulation {
   readonly navigation = new Navigation()
@@ -25,7 +25,9 @@ export class Simulation {
       if (distance(settler, target) < 0.01) { this.arrive(settler, job); continue }
       settler.status = job.stage === 'target' ? 'Carrying ' + job.amount + ' ' + job.resource : 'Travel to ' + job.kind
       if (settler.pathRevision !== s.topology || settler.path.length === 0) {
-        this.navigation.request(settler.id, target); continue
+        if (!this.navigation.request(settler.id, target, s.tick) && this.navigation.isRetrying(settler.id, s.tick))
+          settler.status = 'Route blocked — retrying'
+        continue
       }
       let budget = WALK_SPEED * FIXED_STEP
       while (budget > 0 && settler.path.length) {
@@ -44,7 +46,7 @@ export class Simulation {
       if (job.kind === 'gather') {
         target.inventory[job.resource] += job.amount
         s.totals.deposited[job.resource] += job.amount
-        recordEvent(s, 'Settler ' + settler.id + ' deposited ' + job.amount + ' ' + job.resource + '.')
+        recordEvent(s, settlerLabel(s, settler.id) + ' deposited ' + job.amount + ' ' + job.resource + '.')
       } else {
         target.delivered[job.resource] += job.amount
         s.totals.delivered[job.resource] += job.amount
