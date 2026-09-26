@@ -2,7 +2,7 @@ import { BUILDINGS } from '../data/buildings'
 import { DECISION_TICKS, FIXED_STEP, WALK_SPEED } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
 import { assignHousing } from './Buildings'
-import { isWorkPhase, phaseForTime, phaseLabel, type DayPhase } from './DayNight'
+import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
 import { nightTarget } from './Schedule'
@@ -61,11 +61,10 @@ export class Simulation {
 
   private transition(previous: DayPhase, next: DayPhase): void {
     const s = this.state
+    if (next !== 'day') this.releaseNonCarryingJobs()
     if (next === 'dusk') {
-      this.releaseNonCarryingJobs()
       recordEvent(s, 'Dusk falls. Work stops; civilians seek shelter and guards report to posts.')
     } else if (next === 'night') {
-      this.releaseNonCarryingJobs()
       recordEvent(s, 'Night has fallen. The settlement is on alert.')
     } else if (next === 'dawn') {
       recordEvent(s, 'Dawn breaks. The settlement waits for daylight.')
