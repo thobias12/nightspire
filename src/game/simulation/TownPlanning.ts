@@ -1,4 +1,4 @@
-import { BUILDINGS } from '../data/buildings'
+import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { inBounds } from './Navigation'
 import type { Building, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
 
@@ -10,6 +10,18 @@ export interface RoadSegmentHit {
   point: Point
   tangent: Point
   distance: number
+  t: number
+  roadWidth: number
+  segmentA: Point
+  segmentB: Point
+}
+
+export interface BuildingPlacementPreview {
+  point: Point
+  rotation: number
+  facingAngle: number | null
+  roadId: number | null
+  snappedToRoad: boolean
 }
 
 export interface ResidentialPlotPreview {
@@ -36,6 +48,49 @@ const addScaled = (p: Point, d: Point, amount: number): Point => ({
   x: p.x + d.x * amount,
   z: p.z + d.z * amount,
 })
+
+export function snapPointToGrid(point: Point, step = 1): Point {
+  return {
+    x: Math.round(point.x / step) * step,
+    z: Math.round(point.z / step) * step,
+  }
+}
+
+function nearestAlignedGridPoint(anchor: Point, raw: Point): Point {
+  const p = snapPointToGrid(raw)
+  const dx = p.x - anchor.x
+  const dz = p.z - anchor.z
+  const candidates: Point[] = [
+    { x: p.x, z: anchor.z },
+    { x: anchor.x, z: p.z },
+  ]
+  if (dx !== 0 && dz !== 0) {
+    const diagonal = Math.max(1, Math.round((Math.abs(dx) + Math.abs(dz)) / 2))
+    candidates.push({
+      x: anchor.x + Math.sign(dx) * diagonal,
+      z: anchor.z + Math.sign(dz) * diagonal,
+    })
+  }
+  return candidates.sort((a, b) =>
+    Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)
+  )[0]
+}
+
+export function snapRoadControlPoint(
+  roads: RoadPath[],
+  raw: Point,
+  anchor: Point | null,
+  gridSnap: boolean,
+  joinDistance = 0.9,
+): Point {
+  let point = gridSnap
+    ? (anchor ? nearestAlignedGridPoint(anchor, raw) : snapPointToGrid(raw))
+    : { ...raw }
+
+  const join = nearestRoadSegment(roads, point, joinDistance)
+  if (join) point = gridSnap ? snapPointToGrid(join.point) : { ...join.point }
+  return point
+}
 
 export function normalizeRoadPoints(points: Point[], minSpacing = 0.55): Point[] {
   if (points.length === 0) return []
@@ -83,6 +138,10 @@ export function nearestRoadSegment(roads: RoadPath[], p: Point, maxDistance = In
         point,
         tangent: normalize(ab),
         distance,
+        t,
+        roadWidth: road.width,
+        segmentA: { ...a },
+        segmentB: { ...b },
       }
     }
   }
@@ -92,25 +151,77 @@ export function nearestRoadSegment(roads: RoadPath[], p: Point, maxDistance = In
 const rotationStepsForFacing = (angle: number): number =>
   ((Math.round(angle / (Math.PI / 2)) % 4) + 4) % 4
 
+export function buildingPlacementPreview(
+  roads: RoadPath[],
+  raw: Point,
+  type: BuildingId,
+  roadSnap: boolean,
+  manualRotation = 0,
+  roadSnapDistance = 3.8,
+): BuildingPlacementPreview {
+  const point = snapPointToGrid(raw)
+  const def = BUILDINGS[type]
+  if (!roadSnap || def.fortification || type === 'campfire') {
+    return {
+      point,
+      rotation: ((Math.round(manualRotation) % 4) + 4) % 4,
+      facingAngle: null,
+      roadId: null,
+      snappedToRoad: false,
+    }
+  }
+
+  const hit = nearestRoadSegment(roads, raw, roadSnapDistance)
+  if (!hit) {
+    return {
+      point,
+      rotation: ((Math.round(manualRotation) % 4) + 4) % 4,
+      facingAngle: null,
+      roadId: null,
+      snappedToRoad: false,
+    }
+  }
+
+  const normal = { x: -hit.tangent.z, z: hit.tangent.x }
+  const signed = dot(subtract(raw, hit.point), normal)
+  const side: 1 | -1 = signed >= 0 ? 1 : -1
+  const outward = { x: normal.x * side, z: normal.z * side }
+  const offset = hit.roadWidth / 2 + def.footprint / 2 + 0.55
+  const snappedCenter = snapPointToGrid(addScaled(hit.point, outward, offset))
+  const towardRoad = { x: -outward.x, z: -outward.z }
+  const angle = Math.atan2(towardRoad.x, towardRoad.z)
+
+  return {
+    point: snappedCenter,
+    rotation: rotationStepsForFacing(angle),
+    facingAngle: angle,
+    roadId: hit.roadId,
+    snappedToRoad: true,
+  }
+}
+
 export function residentialPlotPreview(
   roads: RoadPath[],
   start: Point,
   current: Point,
   roadSnapDistance = 2.2,
+  gridSnap = false,
 ): ResidentialPlotPreview | null {
   const hit = nearestRoadSegment(roads, start, roadSnapDistance)
   if (!hit) return null
 
   const normal = { x: -hit.tangent.z, z: hit.tangent.x }
-  const delta = subtract(current, hit.point)
+  const basePoint = gridSnap ? snapPointToGrid(hit.point) : hit.point
+  const delta = subtract(current, basePoint)
   const along = dot(delta, hit.tangent)
   const normalAmount = dot(delta, normal)
   const side: 1 | -1 = normalAmount >= 0 ? 1 : -1
-  const width = Math.abs(along)
-  const depth = Math.abs(normalAmount)
+  const width = gridSnap ? Math.round(Math.abs(along)) : Math.abs(along)
+  const depth = gridSnap ? Math.round(Math.abs(normalAmount)) : Math.abs(normalAmount)
   const frontageDirection = along >= 0 ? hit.tangent : { x: -hit.tangent.x, z: -hit.tangent.z }
   const rear = { x: normal.x * side, z: normal.z * side }
-  const frontageA = { ...hit.point }
+  const roadEdge = hit.roadWidth / 2 + 0.12
+  const frontageA = addScaled(basePoint, rear, roadEdge)
   const frontageB = addScaled(frontageA, frontageDirection, width)
   const frontageMid = {
     x: (frontageA.x + frontageB.x) / 2,

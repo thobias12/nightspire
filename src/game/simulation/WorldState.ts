@@ -26,7 +26,7 @@ export interface ResidentialPlot {
   backyard: BackyardKind
 }
 export interface Building extends Point {
-  id: number; type: BuildingId; rotation: number; complete: boolean; work: number
+  id: number; type: BuildingId; rotation: number; facingAngle?: number; complete: boolean; work: number
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
   inventory: Inventory; delivered: Inventory; serviceProgress: number; productionProgress: number
 }
