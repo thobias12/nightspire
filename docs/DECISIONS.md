@@ -109,3 +109,18 @@ Defender health reaching zero means downed, not permanent deletion. Downed defen
 Raider death removes that enemy from active simulation, increments lifetime defeat count, and records the current wave as cleared when the final active raider dies before dawn. Combat state and cooldowns are persisted; older v1 saves migrate default player/settler/raider combat fields and expanded raid counters.
 
 Deliberately deferred: structure damage, walls/gates, loot, equipment-derived stats, hit reactions, formation tactics, permanent injuries/death and sophisticated target selection.
+
+
+## M2.3 fortification topology and repairs
+
+Navigation now maintains separate friendly and hostile blocker sets while keeping one global request queue and two-path-per-tick solve budget. Completed Wooden Gates are passable to settlers/player but block raiders. Wooden Walls block both. Unfinished blueprints never block raiders, preventing an unbuilt-wall exploit; construction sites still affect friendly routing. Destroyed structures become non-blocking, and a topology revision forces route invalidation when a fortification is breached or rebuilt.
+
+Placement overlap is separated from navigation blocking. Ruins still occupy their footprint even though agents can move through them, so destroyed walls cannot be silently replaced by overlapping new blueprints. Friendly connectivity validation permits closed fortification lines only when a passable gate preserves access.
+
+Raiders dynamically choose the nearest meaningful intact structure rather than owning a permanent camp-only target. Fortifications can reach 0 HP and become destroyed breaches. In this slice, non-fortification economy buildings stop at a critical 1 HP floor rather than disappearing; once critical they are removed from raid target selection so attackers move on. This avoids creating unsolved inventory/housing destruction semantics before they are designed.
+
+Repairs are ordinary simulation jobs, not instant healing. A damaged completed structure requests one repair worker at a time. The worker reserves up to five wood, physically picks it up from a storage building, carries it to the target, works for 1.5 seconds, then restores 10 HP per wood. A ruined fortification becomes blocking again as soon as a repair restores positive HP, which increments topology and invalidates stale routes.
+
+Repair timber consumption is tracked explicitly so long-run material conservation remains auditable: physical wood still in nodes/inventories/cargo plus lifetime repair wood consumed equals the pre-repair total. Structure damage, repaired HP and repair wood are persisted counters.
+
+Presentation remains cheap and reconstructable: instanced graybox fortifications, world-space health bars and short tick-based hit flashes derive from serializable state. No per-structure render controller or physics object was introduced.
