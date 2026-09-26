@@ -66,6 +66,10 @@ test('residential presentation keeps a 4x11 lot as a long burgage cottage instea
   assert.equal(profile.form,'long-burgage')
   assert.equal(profile.label,'Long burgage cottage')
   assert.notEqual(profile.sidePassage,0)
+  assert.equal(profile.roofFront,'gable')
+  assert.equal(profile.frontageStyle,'hedge')
+  assert.equal(profile.rearStructure,'workshop')
+  assert.equal(profile.courtyard,'none')
   assert.ok(profile.houseWidth<=3.05)
 })
 
@@ -76,6 +80,10 @@ test('residential presentation makes a 6x8 plot a balanced homestead', () => {
   assert.equal(profile.form,'balanced')
   assert.equal(profile.label,'Homestead compound')
   assert.equal(profile.facadeWindows,2)
+  assert.equal(profile.roofFront,'eave')
+  assert.equal(profile.frontageStyle,'open')
+  assert.equal(profile.rearStructure,'shed')
+  assert.equal(profile.courtyard,'none')
 })
 
 test('residential presentation makes a wide shallow lot broad-front rather than oversized burgage', () => {
@@ -86,6 +94,10 @@ test('residential presentation makes a wide shallow lot broad-front rather than 
   assert.equal(profile.label,'Broad-front homestead')
   assert.equal(profile.sidePassage,0)
   assert.equal(profile.facadeWindows,3)
+  assert.equal(profile.roofFront,'eave')
+  assert.equal(profile.frontageStyle,'gate')
+  assert.equal(profile.rearStructure,'covered-storage')
+  assert.equal(profile.courtyard,'none')
 })
 
 test('residential presentation breaks a 10x12 lot into a wide-deep burgage courtyard profile', () => {
@@ -97,6 +109,10 @@ test('residential presentation breaks a 10x12 lot into a wide-deep burgage court
   assert.notEqual(profile.sidePassage,0)
   assert.ok(profile.houseWidth<5)
   assert.equal(profile.facadeWindows,3)
+  assert.equal(profile.roofFront,'eave')
+  assert.equal(profile.frontageStyle,'short-fence')
+  assert.equal(profile.rearStructure,'lean-to')
+  assert.equal(profile.courtyard,'u')
 })
 
 test('road endpoints and centerline joins snap exactly and split the host road into a real junction node', () => {
