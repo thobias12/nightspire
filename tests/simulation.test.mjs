@@ -17,6 +17,7 @@ const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.j
 const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
+const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
 const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
@@ -830,6 +831,117 @@ test('happiness summary is derived from the four persisted needs', () => {
   assert.equal(summary.happiness,50)
   assert.equal(summary.worst,'recreation')
   assert.deepEqual(summary.averages,{food:80,housing:60,safety:40,recreation:20})
+})
+
+test('happiness consequences map needs to readable productivity bands', () => {
+  const s=createInitialWorldState()
+  const a=s.settlers[0]
+
+  a.needs={food:100,housing:100,safety:100,recreation:100}
+  assert.deepEqual(
+    { band:happinessEffect(a).band, rate:happinessEffect(a).workRate, refusing:happinessEffect(a).refusesNonessential },
+    { band:'thriving', rate:1.15, refusing:false },
+  )
+
+  a.needs={food:70,housing:70,safety:70,recreation:70}
+  assert.equal(happinessEffect(a).band,'content')
+  assert.equal(happinessEffect(a).workRate,1)
+
+  a.needs={food:50,housing:50,safety:50,recreation:50}
+  assert.equal(happinessEffect(a).band,'strained')
+  assert.equal(happinessEffect(a).workRate,0.9)
+
+  a.needs={food:30,housing:30,safety:30,recreation:30}
+  assert.equal(happinessEffect(a).band,'unhappy')
+  assert.equal(happinessEffect(a).workRate,0.75)
+
+  a.needs={food:10,housing:10,safety:10,recreation:10}
+  assert.equal(happinessEffect(a).band,'miserable')
+  assert.equal(happinessEffect(a).workRate,0.6)
+  assert.equal(happinessEffect(a).refusesNonessential,true)
+})
+
+test('severe hunger restricts nonessential work even before average Happiness collapses', () => {
+  const s=createInitialWorldState()
+  const a=s.settlers[0]
+  a.needs={food:10,housing:100,safety:100,recreation:100}
+  const effect=happinessEffect(a)
+  assert.ok(effect.happiness>65)
+  assert.equal(effect.reason,'Severe hunger')
+  assert.equal(effect.workRate,0.6)
+  assert.equal(effect.refusesNonessential,true)
+
+  assert.equal(canAcceptJob(a,{kind:'gather',resource:'wood'}),false)
+  assert.equal(canAcceptJob(a,{kind:'construct',resource:'wood'}),false)
+  assert.equal(canAcceptJob(a,{kind:'gather',resource:'food'}),true)
+  assert.equal(canAcceptJob(a,{kind:'repair',resource:'wood'}),true)
+  assert.equal(workRateFor(a,{kind:'gather',resource:'wood'}),0)
+  assert.equal(workRateFor(a,{kind:'gather',resource:'food'}),0.6)
+})
+
+test('miserable workers choose survival gathering instead of routine wood work', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  const a=s.settlers[0]
+  a.needs={food:10,housing:10,safety:10,recreation:10}
+  a.lastMealDay=s.day
+  assignJobs(s)
+  const job=s.jobs.find(j=>j.settlerId===a.id)
+  assert.ok(job)
+  assert.equal(job.kind,'gather')
+  assert.equal(job.resource,'food')
+})
+
+test('active work progress uses the settler happiness productivity rate', () => {
+  const setup = needs => {
+    const s=createInitialWorldState()
+    s.settlers=s.settlers.slice(0,1)
+    const a=s.settlers[0]
+    const node=s.nodes.find(n=>n.resource==='food')
+    a.needs={...needs}
+    a.lastMealDay=s.day
+    a.x=node.x; a.z=node.z
+    const job={
+      id:s.nextId++,kind:'gather',settlerId:a.id,sourceId:node.id,targetId:s.buildings[0].id,
+      resource:'food',amount:5,stage:'work',progress:0,
+    }
+    s.jobs=[job]; a.jobId=job.id
+    return {s,a,job,sim:new Simulation(s)}
+  }
+
+  const thriving=setup({food:100,housing:100,safety:100,recreation:100})
+  thriving.sim.step()
+  assert.ok(Math.abs(thriving.job.progress-0.05*1.15)<1e-9)
+
+  const unhappy=setup({food:30,housing:30,safety:30,recreation:30})
+  unhappy.sim.step()
+  assert.ok(Math.abs(unhappy.job.progress-0.05*0.75)<1e-9)
+
+  const summary=settlementHappinessEffect(unhappy.s)
+  assert.equal(summary.bands.unhappy,1)
+  assert.ok(summary.averageWorkRate<1)
+})
+
+test('existing nonessential jobs are released when misery becomes severe', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  const a=s.settlers[0]
+  a.needs={food:10,housing:10,safety:10,recreation:10}
+  a.lastMealDay=s.day
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=20
+  s.buildings.push(site)
+  const job={
+    id:s.nextId++,kind:'construct',settlerId:a.id,sourceId:site.id,targetId:site.id,
+    resource:'wood',amount:0,stage:'work',progress:0,
+  }
+  s.jobs=[job]; a.jobId=job.id; a.x=site.x; a.z=site.z
+  const sim=new Simulation(s)
+  sim.step()
+  assert.equal(site.work,0)
+  assert.equal(a.jobId,null)
+  assert.equal(s.jobs.length,0)
+  assert.match(a.status,/essentials only/)
 })
 
 test('entering Day serves the new-day meal before normal work resumes', () => {
