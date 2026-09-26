@@ -18,6 +18,7 @@ const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuild
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
 const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
+const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.test-build/game/simulation/Tools.js')
 const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
@@ -37,6 +38,7 @@ const accountedTotal = (s, r) => total(s,r)
   + s.totals.serviceConsumed[r]
   + s.totals.productionConsumed[r]
 const aleBalance = s => total(s,'ale') + s.totals.serviceConsumed.ale - s.totals.produced.ale
+const toolsBalance = s => total(s,'tools') - s.totals.produced.tools
 const pop10 = s => { while(spawnSettler(s)) {} }
 const makeAttractive = s => {
   const sites=[[-7,0],[7,0],[0,7]]
@@ -135,7 +137,7 @@ test('queued construction waits for materials and competing sites never double r
 test('full storage pauses gathering and new construction releases capacity', () => {
   const s=createInitialWorldState()
   for(const settler of s.settlers) settler.lastMealDay=s.day
-  s.buildings[0].inventory={wood:300,food:100,ale:0}
+  s.buildings[0].inventory={wood:300,food:100,ale:0,ore:0,tools:0}
   s.targets.wood=350
   const sim=new Simulation(s); advance(sim,2)
   assert.equal(s.jobs.length,0)
@@ -279,7 +281,7 @@ test('cancellation refuses to destroy resources when storage cannot accept the r
   const sim=new Simulation(s)
   for(let i=0;i<1400 && site.work===0;i++) sim.step()
   assert.ok(site.delivered.wood>0)
-  s.buildings[0].inventory={wood:400,food:0,ale:0}
+  s.buildings[0].inventory={wood:400,food:0,ale:0,ore:0,tools:0}
   const before=JSON.stringify(s)
   assert.match(cancelBuilding(s,site.id),/free stockpile capacity/)
   assert.equal(JSON.stringify(s),before)
@@ -302,7 +304,7 @@ test('long-run M1 logistics conserves resources and stays valid', () => {
 
 test('stock targets bound routine gathering while construction demand can exceed them', () => {
   const s=createInitialWorldState()
-  s.targets={wood:25,food:0,ale:0}
+  s.targets={wood:25,food:0,ale:0,ore:0,tools:0}
   const sim=new Simulation(s)
   advance(sim,70)
   const stores=stockpiles(s)
@@ -312,7 +314,7 @@ test('stock targets bound routine gathering while construction demand can exceed
   assert.ok(s.settlers.every(a=>a.status==='Stock targets met'))
 
   const build=createInitialWorldState()
-  build.targets={wood:0,food:0,ale:0}
+  build.targets={wood:0,food:0,ale:0,ore:0,tools:0}
   assert.equal(placeBuilding(build,'house',{x:7,z:0}),null)
   const buildSim=new Simulation(build)
   advance(buildSim,100)
@@ -1175,8 +1177,8 @@ test('M3.1 saves migrate Ale inventories, Tavern pantry and historical service f
   assert.ok(loaded.settlers.every(a=>a.cargo.ale===0))
   assert.equal(loaded.targets.ale,0)
   assert.equal(loaded.totals.serviceConsumed.food,3)
-  assert.deepEqual(loaded.totals.productionConsumed,{wood:0,food:0,ale:0})
-  assert.deepEqual(loaded.totals.produced,{wood:0,food:0,ale:0})
+  assert.deepEqual(loaded.totals.productionConsumed,{wood:0,food:0,ale:0,ore:0,tools:0})
+  assert.deepEqual(loaded.totals.produced,{wood:0,food:0,ale:0,ore:0,tools:0})
   validateWorld(loaded)
 })
 
@@ -1271,6 +1273,137 @@ test('Tavern cannot operate from raw Food after the Ale migration', () => {
   assert.equal(serviceAvailable(tavern),false)
   assert.ok([...serviceAssignments(s,'dusk').values()].every(a=>a.label==='Campfire'))
   validateWorld(s)
+})
+
+test('fresh settlements expose finite Iron Ore deposits but no gatherable Tools nodes', () => {
+  const s=createInitialWorldState()
+  const ore=s.nodes.filter(n=>n.resource==='ore')
+  assert.equal(ore.length,12)
+  assert.ok(ore.every(n=>n.remaining===30))
+  assert.equal(s.nodes.some(n=>n.resource==='tools'),false)
+  assert.deepEqual(s.targets,{wood:150,food:100,ale:0,ore:0,tools:0})
+  validateWorld(s)
+})
+
+test('Blacksmith converts 3 Ore into 1 Tool per completed Day batch and respects output capacity', () => {
+  const s=createInitialWorldState()
+  const smith=createBuilding(s.nextId++,'blacksmith',7,0,true)
+  smith.inventory.ore=18
+  s.buildings.push(smith); s.topology++
+  updateProduction(s,17,'day')
+  assert.equal(smith.inventory.ore,18)
+  assert.equal(smith.inventory.tools,0)
+  updateProduction(s,1,'day')
+  assert.equal(smith.inventory.ore,15)
+  assert.equal(smith.inventory.tools,1)
+  assert.equal(s.totals.productionConsumed.ore,3)
+  assert.equal(s.totals.produced.tools,1)
+  updateProduction(s,90,'day')
+  assert.equal(smith.inventory.ore,0)
+  assert.equal(smith.inventory.tools,6)
+  updateProduction(s,60,'day')
+  assert.equal(smith.inventory.tools,6)
+  updateProduction(s,60,'dusk')
+  assert.equal(smith.inventory.tools,6)
+  validateWorld(s)
+})
+
+test('workers route Ore into Blacksmith and Tools back through stockpile storage', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  const stockpile=s.buildings[0]
+  stockpile.inventory.ore=18
+  const smith=createBuilding(s.nextId++,'blacksmith',7,0,true)
+  s.buildings.push(smith); s.topology++
+  const initialOre=accountedTotal(s,'ore')
+  const sim=new Simulation(s)
+  let sawOreSupply=false
+  let sawToolsToStockpile=false
+  for(let i=0;i<7000 && stockpile.inventory.tools<3;i++) {
+    sim.step()
+    for(const job of s.jobs) {
+      if(job.kind!=='supply') continue
+      if(job.sourceId===stockpile.id && job.targetId===smith.id && job.resource==='ore') sawOreSupply=true
+      if(job.sourceId===smith.id && job.targetId===stockpile.id && job.resource==='tools') sawToolsToStockpile=true
+    }
+    if(i%200===0) validateWorld(s)
+  }
+  assert.equal(sawOreSupply,true)
+  assert.equal(sawToolsToStockpile,true)
+  assert.ok(stockpile.inventory.tools>=3)
+  assert.ok(s.totals.productionConsumed.ore>=9)
+  assert.ok(s.totals.produced.tools>=3)
+  assert.equal(accountedTotal(s,'ore'),initialOre)
+  assert.equal(toolsBalance(s),0)
+  validateWorld(s)
+})
+
+test('Tool coverage is stockpile-backed, requires one Tool per two settlers and caps at +10%', () => {
+  const s=createInitialWorldState()
+  const smith=createBuilding(s.nextId++,'blacksmith',7,0,true)
+  smith.inventory.tools=6
+  s.buildings.push(smith); s.topology++
+  let coverage=toolCoverage(s)
+  assert.equal(SETTLERS_PER_TOOL,2)
+  assert.equal(TOOL_WORK_BONUS_MAX,0.1)
+  assert.equal(coverage.stored,0)
+  assert.equal(coverage.required,3)
+  assert.equal(coverage.workMultiplier,1)
+
+  s.buildings[0].inventory.tools=2
+  coverage=toolCoverage(s)
+  assert.equal(coverage.stored,2)
+  assert.ok(Math.abs(coverage.coverage-2/3)<1e-9)
+  assert.ok(coverage.workMultiplier>1 && coverage.workMultiplier<1.1)
+
+  s.buildings[0].inventory.tools=20
+  coverage=toolCoverage(s)
+  assert.equal(coverage.coverage,1)
+  assert.equal(coverage.workMultiplier,1.1)
+})
+
+test('stockpiled Tools stack with Happiness for actual fixed-step work progress', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  const a=s.settlers[0]
+  a.needs={food:100,housing:100,safety:100,recreation:100}
+  a.lastMealDay=s.day
+  s.buildings[0].inventory.tools=1
+  const node=s.nodes.find(n=>n.resource==='food')
+  a.x=node.x; a.z=node.z
+  const job={
+    id:s.nextId++,kind:'gather',settlerId:a.id,sourceId:node.id,targetId:s.buildings[0].id,
+    resource:'food',amount:5,stage:'work',progress:0,
+  }
+  s.jobs=[job]; a.jobId=job.id
+  const sim=new Simulation(s)
+  sim.step()
+  assert.ok(Math.abs(job.progress-0.05*1.15*1.1)<1e-9)
+  validateWorld(s)
+})
+
+test('Blacksmith Ore, Tools and mid-batch progress survive current save load', () => {
+  const s=createInitialWorldState()
+  const smith=createBuilding(s.nextId++,'blacksmith',7,0,true)
+  smith.inventory.ore=6
+  smith.inventory.tools=2
+  s.buildings.push(smith); s.topology++
+  updateProduction(s,7,'day')
+  assert.equal(smith.productionProgress,7)
+  const loaded=deserializeWorld(serializeWorld(s))
+  const restored=loaded.buildings.find(b=>b.id===smith.id)
+  assert.equal(restored.inventory.ore,6)
+  assert.equal(restored.inventory.tools,2)
+  assert.equal(restored.productionProgress,7)
+  updateProduction(loaded,11,'day')
+  assert.equal(restored.inventory.ore,3)
+  assert.equal(restored.inventory.tools,3)
+  assert.equal(loaded.totals.productionConsumed.ore,3)
+  assert.equal(loaded.totals.produced.tools,1)
+  validateWorld(loaded)
 })
 
 test('population attraction requires real spare housing, Food, Happiness and Safety', () => {

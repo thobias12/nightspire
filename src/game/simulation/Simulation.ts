@@ -18,6 +18,7 @@ import { serveDailyMeal, updateNeeds } from './Needs'
 import { processImmigrationDay } from './Population'
 import { updateProduction } from './Production'
 import { updateServices } from './Services'
+import { toolCoverage } from './Tools'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
 import {
@@ -65,6 +66,7 @@ export class Simulation {
     if (s.timeOfDay >= 1) { s.timeOfDay -= 1; s.day++ }
 
     const phase = phaseForTime(s.timeOfDay)
+    const toolWorkMultiplier = toolCoverage(s).workMultiplier
     if (phase !== this.lastPhase) {
       this.transition(this.lastPhase, phase)
       this.lastPhase = phase
@@ -93,7 +95,7 @@ export class Simulation {
       }
 
       const job = s.jobs.find(j => j.id === settler.jobId)
-      if (job) this.updateJob(settler, job)
+      if (job) this.updateJob(settler, job, toolWorkMultiplier)
       else if (!isWorkPhase(phase)) {
         if (phase === 'night' && settler.role === 'guard' && s.enemies.length > 0) this.updateGuardCombat(settler)
         else this.updateNightSchedule(settler)
@@ -193,7 +195,7 @@ export class Simulation {
     s.jobs = s.jobs.filter(job => keep.has(job.id))
   }
 
-  private updateJob(settler: Settler, job: Job): void {
+  private updateJob(settler: Settler, job: Job, toolWorkMultiplier: number): void {
     const s = this.state
     const morale = happinessEffect(settler)
 
@@ -204,7 +206,7 @@ export class Simulation {
     }
 
     if (job.stage === 'work') {
-      this.work(settler, job, morale.workRate)
+      this.work(settler, job, morale.workRate * toolWorkMultiplier)
       return
     }
 

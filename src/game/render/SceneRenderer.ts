@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
-import { RESOURCES } from '../data/resources'
+import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { MAP_SIZE } from '../simulation/Navigation'
 import type { Building, Point, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
@@ -129,6 +129,7 @@ export class SceneRenderer {
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 6), 0x354d36, 1000)
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 6), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
+    this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
     this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, 10)
     this.addBatch('enemies', new THREE.CapsuleGeometry(0.26, 0.5, 3, 5), 0x6f2525, 64)
@@ -521,6 +522,64 @@ export class SceneRenderer {
     }
   }
 
+  private renderBlacksmith(
+    b: Building,
+    rotation: number,
+    color: number,
+    time: number,
+    night: number,
+    productionPhaseActive: boolean,
+  ): void {
+    this.instance('buildings', b.x, 0.92, b.z, 2.78, 1.84, 2.78, color, rotation)
+    this.instance('roofs', b.x, 2.43, b.z, 2.22, 0.82, 2.22, 0x3f4448, Math.PI / 4 + rotation)
+    const front = this.rotatedOffset(0, 1.42, rotation)
+    this.instance('doors', b.x + front.x, 0.72, b.z + front.z, 0.62, 1.38, 0.14, 0x40352e, rotation)
+
+    const chimney = this.rotatedOffset(0.92, -0.72, rotation)
+    this.instance('props', b.x + chimney.x, 2.56, b.z + chimney.z, 0.42, 1.9, 0.42, 0x3f4448, rotation)
+    const anvil = this.rotatedOffset(-0.84, 1.18, rotation)
+    this.instance('props', b.x + anvil.x, 0.46, b.z + anvil.z, 0.72, 0.28, 0.36, 0x59616b, rotation)
+    this.instance('props', b.x + anvil.x, 0.28, b.z + anvil.z, 0.28, 0.56, 0.28, 0x484f58, rotation)
+
+    const orePile = this.rotatedOffset(0.92, 1.05, rotation)
+    this.instance('ore', b.x + orePile.x, 0.28, b.z + orePile.z, 0.62, 0.5, 0.62, 0x69727d, rotation)
+
+    const forge = this.rotatedOffset(0.52, 1.4, rotation)
+    const production = BUILDINGS.blacksmith.production!
+    const active = productionPhaseActive
+      && b.inventory[production.inputResource] >= production.inputAmount
+      && b.inventory[production.outputResource] + production.outputAmount <= production.outputCapacity
+    const stocked = b.inventory.ore > 0 || b.inventory.tools > 0
+    this.warmWindow(
+      b.x + forge.x,
+      1.05,
+      b.z + forge.z,
+      rotation,
+      active ? 0.9 : night * (stocked ? 0.25 : 0.08),
+      0.38,
+      0.42,
+    )
+
+    if (active) {
+      const pulse = 0.92 + Math.sin(time * 8.5 + b.id) * 0.08
+      this.instance('glow', b.x + forge.x, 0.78, b.z + forge.z, 0.62 * pulse, 0.3, 0.62 * pulse, 0xff853d)
+      for (let i = 0; i < 2; i++) {
+        const drift = Math.sin(time * 1.05 + b.id * 0.5 + i) * 0.16
+        const rise = (time * 0.28 + i * 0.5) % 1
+        this.instance(
+          'smoke',
+          b.x + chimney.x + drift,
+          3.45 + rise * 1.6,
+          b.z + chimney.z,
+          0.44 + rise * 0.42,
+          0.38 + rise * 0.36,
+          0.44 + rise * 0.42,
+          night > 0.6 ? 0x555e68 : 0x787b7d,
+        )
+      }
+    }
+  }
+
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
       this.instance('fortifications', b.x, 0.72, b.z, 0.88, 1.38, 0.72, color, rotation)
@@ -572,8 +631,11 @@ export class SceneRenderer {
         if (night > 0.12) {
           this.instance('treeMoon', n.x + 0.11, 2.18, n.z - 0.11, 0.82, 0.7, 0.82, 0x60758a, n.id * 0.17)
         }
-      } else {
+      } else if (n.resource === 'food') {
         this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
+      } else if (n.resource === 'ore') {
+        this.instance('ore', n.x, 0.42, n.z, 1.05, 0.78, 1.05, night > 0.45 ? 0x657487 : undefined, n.id * 0.31)
+        this.instance('ore', n.x + 0.38, 0.24, n.z - 0.24, 0.58, 0.46, 0.58, 0x5d6570, n.id * 0.53)
       }
     }
 
@@ -583,7 +645,7 @@ export class SceneRenderer {
       this.instance(a.role === 'guard' ? 'guards' : 'settlers', a.x, 0.55, a.z, 1, 1, 1, color)
       this.healthBar(a.x, 1.25, a.z, a.health, a.maxHealth, 0.8)
 
-      const resource = a.cargo.wood > 0 ? 'wood' : a.cargo.food > 0 ? 'food' : a.cargo.ale > 0 ? 'ale' : null
+      const resource = RESOURCE_IDS.find(resource => a.cargo[resource] > 0) ?? null
       if (resource) {
         this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
       }
@@ -673,6 +735,8 @@ export class SceneRenderer {
         }
       } else if (b.type === 'brewery') {
         this.renderBrewery(b, rotation, baseColor, time, night, productionPhaseActive)
+      } else if (b.type === 'blacksmith') {
+        this.renderBlacksmith(b, rotation, baseColor, time, night, productionPhaseActive)
       } else {
         this.instance('buildings', b.x, 0.4, b.z, 2.8, 0.8, 2.8, baseColor, rotation)
       }
@@ -683,13 +747,13 @@ export class SceneRenderer {
       }
 
       if (b.complete && (b.health < b.maxHealth || b.id === selectedId)) {
-        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.8 : b.type === 'tavern' ? 3.65 : b.type === 'brewery' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.8
+        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.8 : b.type === 'tavern' ? 3.65 : b.type === 'brewery' || b.type === 'blacksmith' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.8
         this.healthBar(b.x, barY, b.z, b.health, b.maxHealth, def.fortification ? 1.1 : 2.2)
       }
 
       if (!b.complete) {
-        const cost = def.buildCost.wood + def.buildCost.food + def.buildCost.ale
-        const delivered = b.delivered.wood + b.delivered.food + b.delivered.ale
+        const cost = RESOURCE_IDS.reduce((sum, resource) => sum + def.buildCost[resource], 0)
+        const delivered = RESOURCE_IDS.reduce((sum, resource) => sum + b.delivered[resource], 0)
         const ratio = (delivered / Math.max(cost, 1) + b.work / def.constructionWork) / 2
         const y = def.fortification ? 2.05 : 3.05
         const width = def.fortification ? 0.9 : Math.max(1.3, def.footprint * 0.88)
@@ -791,7 +855,7 @@ export class SceneRenderer {
       ? (type === 'wood-gate' ? 1.8 : 1.35)
       : type === 'house' ? 2.3
         : type === 'tavern' ? 2.05
-          : type === 'brewery' ? 1.85
+          : type === 'brewery' || type === 'blacksmith' ? 1.95
             : type === 'guard-post' ? 1.6
               : 0.7
     const color = new THREE.Color(valid ? 0x77d9a0 : 0xef6d65)

@@ -58,7 +58,7 @@ export interface WorldState {
 }
 export const MAX_SETTLERS = 10
 export const MAX_ENEMIES = 64
-export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100, ale: 0 }
+export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100, ale: 0, ore: 0, tools: 0 }
 export const DEFAULT_RAID: RaidState = { lastSpawnDay: 0, wave: 0, totalSpawned: 0, totalDefeated: 0, lastClearedWave: 0 }
 export const DEFAULT_IMMIGRATION: ImmigrationState = { eligibleDays: 0, lastEvaluationDay: 0, lastArrivalDay: 0, totalArrivals: 0 }
 export const NEED_IDS: NeedId[] = ['food', 'housing', 'safety', 'recreation']
@@ -134,6 +134,12 @@ export function createInitialWorldState(): WorldState {
     state.nodes.push({
       id: state.nextId++, resource: i < 40 ? 'wood' : 'food', remaining: 40,
       x: -19 + col * 4, z: i < 40 ? -19 + row * 3 : 13 + (row - 4) * 4,
+    })
+  }
+  for (let i = 0; i < 12; i++) {
+    state.nodes.push({
+      id: state.nextId++, resource: 'ore', remaining: 30,
+      x: i < 6 ? -20 : 20, z: -10 + (i % 6) * 4,
     })
   }
   for (let i = 0; i < 6; i++) spawnSettler(state)

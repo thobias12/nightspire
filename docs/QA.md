@@ -279,3 +279,17 @@ M3.6 adds five deterministic morale regressions on top of the 79-test M3.5 suite
 The consequence layer is derived from existing per-settler needs and adds no save fields. Normal walking speed, navigation budgets, combat rates, Brewery automation and service gain rates are deliberately unchanged.
 
 Browser playtest after deployment: use **Needs → 100%** and inspect a settler to confirm **Thriving / Work +15%**. Drop needs and observe Strained/Unhappy/Miserable work modifiers. Create construction work and compare progress. Force Food below 15% while leaving other needs high: the inspector should show severe hunger / essentials-only; workers should stop accepting Wood/construction but still gather Food or perform repairs. Restore needs or feed the settlement and confirm normal job assignment resumes.
+
+
+## M3.7 verification target
+
+M3.7 adds six production/workforce regressions on top of the 84-test M3.6 suite, for a target of 90 tests:
+
+- fresh settlements contain twelve finite Iron Ore deposits and no gatherable Tools nodes
+- Blacksmith production converts exactly 3 Ore → 1 Tool per 18-second Day batch and stops at its six-Tool local output cap
+- workers physically route stockpiled Ore into the Blacksmith and haul finished Tools back into stockpile storage while Ore/Tools conservation remains exact
+- Tool coverage counts stockpiled Tools only, uses one Tool per two settlers, and caps at a +10% work multiplier
+- the fixed-step hands-on work rate stacks Tool coverage multiplicatively with the existing M3.6 Happiness modifier
+- current save/load preserves Blacksmith Ore, Tools and mid-batch production progress
+
+Browser playtest after deployment: build a Blacksmith with **9**, leave its local input empty, then watch workers mine the new gray Iron Ore deposits and stage Ore through the Stockpile before supplying the forge. During Day the Blacksmith should show **3 ore → 1 tools every 18s** and visible forge/smoke activity. Finished Tools must be hauled back to stockpile before the HUD Tool coverage rises. With six settlers, three stored Tools should show 100% coverage and +10% Tools productivity. Remove/relocate Tools from stockpile and confirm the bonus falls immediately without consuming Tools.
