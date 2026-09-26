@@ -3,9 +3,10 @@ import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, stockpiles } from './Buildings'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
-import { MAX_SETTLERS, type WorldState } from './WorldState'
+import { DEFAULT_TARGETS, MAX_SETTLERS, type WorldState } from './WorldState'
 
 export const SAVE_KEY = 'nightspire.m1.save.v1'
+export const BACKUP_KEY = 'nightspire.m1.backup.v1'
 const check: (value: unknown, message: string) => asserts value = (value, message) => {
   if (!value) throw new Error('Invalid save: ' + message)
 }
@@ -21,6 +22,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(s && s.version === 1, 'unsupported version')
   check(integer(s.nextId) && integer(s.tick) && integer(s.topology) && number(s.elapsedSeconds), 'clock/identity')
   check(integer(s.day) && s.day >= 1 && number(s.timeOfDay) && s.timeOfDay < 1 && point(s.player), 'time/player')
+  check(inventory(s.targets) && RESOURCE_IDS.every(r => s.targets[r] <= 10_000), 'stock targets')
   check(Array.isArray(s.settlers) && s.settlers.length <= MAX_SETTLERS && s.settlers.length > 0, 'population')
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 80, 'buildings')
   check(Array.isArray(s.nodes) && s.nodes.length <= 1000 && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
@@ -91,7 +93,9 @@ export function serializeWorld(state: WorldState): string {
 }
 export function deserializeWorld(text: string): WorldState {
   check(text.length <= 2_000_000, 'file too large')
-  const candidate: unknown = JSON.parse(text)
+  const candidate: any = JSON.parse(text)
+  // M1.1 added stock targets without changing the save version. Older M1 saves inherit defaults.
+  if (candidate && candidate.version === 1 && candidate.targets === undefined) candidate.targets = { ...DEFAULT_TARGETS }
   validateWorld(candidate)
   // Routes are presentation-independent but transient; rebuild from saved task/cargo ownership.
   for (const a of candidate.settlers) { a.path = []; a.pathRevision = -1 }
