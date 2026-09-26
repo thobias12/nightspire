@@ -197,10 +197,14 @@ export function sampleRoadCurve(
         x: p1.x + (p2.x - p1.x) * t,
         z: p1.z + (p2.z - p1.z) * t,
       }
-      sampled.push({
+      const blended = {
         x: linear.x + (curved.x - linear.x) * amount,
         z: linear.z + (curved.z - linear.z) * amount,
-      })
+      }
+      // Catmull-Rom can overshoot the playable boundary even when every clicked
+      // control point is valid. Keep the curve when it remains in bounds; otherwise
+      // locally fall back toward the segment chord rather than rejecting the road.
+      sampled.push(inBounds(blended) ? blended : linear)
     }
   }
 
