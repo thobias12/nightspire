@@ -96,3 +96,16 @@ Settlers and raiders share the existing navigation queue and the same global lim
 The starter completed stockpile is the first raid target. Raiders move to its accessible entrance and stop with combat explicitly pending. When Night ends, remaining raiders retreat and are removed. Health, attacks, aggro selection, deaths, structure damage and loot are deliberately absent until M2.2.
 
 Raid state records the last day that spawned a wave, wave count and lifetime spawned count. Active enemies are saved. Older version-1 saves migrate an empty raid state without changing the save version.
+
+
+## M2.2 minimal combat
+
+Combat remains simulation-owned and renderer-independent. Player, settlers and raiders store only compact health/max-health/attack-cooldown fields. The fixed 20 Hz simulation decrements cooldowns, so 2×/4× simulation speeds accelerate the whole world consistently rather than introducing frame-dependent attack rates.
+
+Player melee is an explicit input action: Space damages the nearest raider within a short radius. Guards retain their M2.0 post role, but during an active night raid they may intercept a raider within an 8-unit defense radius; they then use short-range melee. Raiders continue advancing toward the settlement and only strike a living guard or player already inside melee range, avoiding a larger aggro/chase system in this slice.
+
+Defender health reaching zero means downed, not permanent deletion. Downed defenders cannot move or fight and recover when Night ends, including direct QA jumps from Night to Day. This avoids committing to population death/injury rules before the wider survival systems exist.
+
+Raider death removes that enemy from active simulation, increments lifetime defeat count, and records the current wave as cleared when the final active raider dies before dawn. Combat state and cooldowns are persisted; older v1 saves migrate default player/settler/raider combat fields and expanded raid counters.
+
+Deliberately deferred: structure damage, walls/gates, loot, equipment-derived stats, hit reactions, formation tactics, permanent injuries/death and sophisticated target selection.
