@@ -227,6 +227,14 @@ export class Game {
       this.updateHud()
       e.preventDefault()
     }, { signal })
+    this.renderer.canvas.addEventListener('contextmenu', e => {
+      if (this.planningTool !== 'road') return
+      e.preventDefault()
+      this.undoRoadPoint()
+      this.updateGhost()
+      this.updateHud()
+    }, { signal })
+
     this.renderer.canvas.addEventListener('click', e => {
       if (this.suppressClick) {
         this.suppressClick = false
@@ -237,6 +245,28 @@ export class Game {
       const p = precise ? { x: Math.round(precise.x), z: Math.round(precise.z) } : null
       if (!p || !precise) return
       const s = this.simulation.state
+      if (this.planningTool === 'road') {
+        const point = snapRoadPlacementPoint(s.roads, precise, this.gridSnap, this.roadJoinSnap)
+        this.roadHover = point
+
+        if (e.detail >= 2 && this.roadControls.length) {
+          const last = this.roadControls[this.roadControls.length - 1]
+          if (Math.hypot(point.x - last.x, point.z - last.z) > 0.35) this.roadControls.push(point)
+          this.finishRoadDraft(false)
+        } else {
+          const last = this.roadControls[this.roadControls.length - 1]
+          if (!last || Math.hypot(point.x - last.x, point.z - last.z) > 0.35) this.roadControls.push(point)
+          this.roadDraft = sampleRoadCurve(this.roadControls, this.roadCurvature)
+          this.message = this.roadControls.length === 1
+            ? 'Road start placed. Move the cursor and click to add another point.'
+            : this.roadControls.length + ' road points · click to continue · double-click or Enter to finish.'
+        }
+
+        this.updateGhost()
+        this.updateHud()
+        e.preventDefault()
+        return
+      }
       if (this.buildType) {
         const type = this.buildType
         const preview = buildingPlacementPreview(s.roads, precise, type, this.roadSnap, this.buildRotation)
@@ -273,6 +303,42 @@ export class Game {
         e.preventDefault()
         this.action('residential-plot')
         return
+      }
+      if (this.planningTool === 'road') {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          this.finishRoadDraft(true)
+          this.updateGhost()
+          this.updateHud()
+          return
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault()
+          this.undoRoadPoint()
+          this.updateGhost()
+          this.updateHud()
+          return
+        }
+        if (e.key.toLowerCase() === 'j') {
+          e.preventDefault()
+          this.action('road-join-snap')
+          return
+        }
+        if (e.key.toLowerCase() === 'c') {
+          e.preventDefault()
+          this.action('road-curvature')
+          return
+        }
+        if (e.key === ']') {
+          e.preventDefault()
+          this.action('road-width-next')
+          return
+        }
+        if (e.key === '[') {
+          e.preventDefault()
+          this.action('road-width-prev')
+          return
+        }
       }
       const hotkeys: Record<string, BuildingId> = {
         '2': 'stockpile',
@@ -327,7 +393,7 @@ export class Game {
   }
   private replaceWorld(text: string): void {
     this.simulation.replace(deserializeWorld(text))
-    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControls = []; this.roadDraft = []; this.roadHover = null; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
   }
   private exportSave(): void {
     const blob = new Blob([serializeWorld(this.simulation.state)], { type: 'application/json' })
@@ -335,6 +401,69 @@ export class Game {
     link.href = url; link.download = 'nightspire-day-' + this.simulation.state.day + '.json'
     document.body.append(link); link.click(); link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
+  private roadWidthLabel(): string {
+    if (this.roadWidth < 1.45) return 'Path'
+    if (this.roadWidth < 2.05) return 'Road'
+    return 'Main road'
+  }
+
+  private finishRoadDraft(includeHover: boolean): void {
+    if (this.planningTool !== 'road') return
+    const s = this.simulation.state
+    const controls = [...this.roadControls]
+    const last = controls[controls.length - 1]
+    if (
+      includeHover
+      && this.roadHover
+      && last
+      && Math.hypot(this.roadHover.x - last.x, this.roadHover.z - last.z) > 0.35
+    ) {
+      controls.push(this.roadHover)
+    }
+
+    const points = sampleRoadCurve(controls, this.roadCurvature)
+    const error = roadPlacementError(points)
+    if (error) {
+      this.message = error
+      return
+    }
+
+    insertRoadJunctionPoint(s.roads, points[0])
+    insertRoadJunctionPoint(s.roads, points[points.length - 1])
+    s.roads.push({ id: s.nextId++, points, width: this.roadWidth })
+
+    const length = points.slice(1).reduce(
+      (sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z),
+      0,
+    )
+    this.roadControls = []
+    this.roadDraft = []
+    this.roadHover = null
+    this.message = this.roadWidthLabel() + ' placed · ' + length.toFixed(1)
+      + 'm · road tool stays active. Click to start another road.'
+  }
+
+  private undoRoadPoint(): void {
+    if (this.planningTool !== 'road') return
+    if (this.roadControls.length === 0) {
+      this.message = 'No road point to remove.'
+      return
+    }
+    this.roadControls.pop()
+    if (this.roadControls.length === 0) {
+      this.roadDraft = []
+      this.roadHover = null
+      this.message = 'Road draft cleared. Click to place a new start point.'
+      return
+    }
+    const controls = this.roadHover
+      ? [...this.roadControls, this.roadHover]
+      : [...this.roadControls]
+    this.roadDraft = sampleRoadCurve(controls, this.roadCurvature)
+    this.message = 'Removed last road point · ' + this.roadControls.length + ' committed point'
+      + (this.roadControls.length === 1 ? '' : 's') + ' remain.'
   }
   private readonly action = (action: string, value?: string): void => {
     const s = this.simulation.state
