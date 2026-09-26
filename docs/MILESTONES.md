@@ -74,7 +74,7 @@
 - [x] tavern service
 - [x] Brewery → Ale → Tavern production chain
 - [x] population attraction/immigration
-- [ ] happiness consequences
+- [x] happiness consequences
 - [ ] better logistics/resource reservations
 - [x] building/construction UX pass
 - [x] settlement visual/atmosphere readability pass
@@ -89,7 +89,9 @@
 
 **M3.4 verified:** categorized build mode, 1–8 hotkeys, persisted R rotation, Shift-repeat placement, atomic straight wall dragging, direct wall→gate conversion, footprint-aware selection, safe 50% demolition refunds, and clearer placement feedback.
 
-**M3.5 target:** keep the current simulation untouched while improving building silhouettes, construction-stage readability, damage/ruin presentation, terrain variation, occupied settlement glow, moonlight/fog, Campfire activity and Brewery production smoke through shared renderer batches.
+**M3.5 verified:** building silhouettes, construction-stage readability, damage/ruin presentation, terrain variation, occupied settlement glow, moonlight/fog, Campfire activity and Brewery production smoke remain renderer-owned and batched.
+
+**M3.6 target:** make the four existing needs affect actual labor without new persisted state. Happiness bands provide +15% / baseline / -10% / -25% / -40% hands-on work rates, while Happiness below 20% or Food below 15% restricts settlers to Food gathering and emergency repairs. Walking speed, combat, production buildings, pathfinding and the population cap remain unchanged.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 
