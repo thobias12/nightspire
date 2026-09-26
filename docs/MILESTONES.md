@@ -188,6 +188,32 @@ Renderer-only cleanup after live M3.8.3 screenshots exposed remaining decal/fenc
 
 **Exit:** roads read as worn earth rather than transparent strips, intersections no longer form darker rectangles, and residential rows retain clear ownership without duplicated modern-looking parcel fences.
 
+## M3.8.5 — Medieval art density & building identity
+
+Presentation-first art-density pass after the road/plot interaction foundation stabilized.
+
+- [x] larger visual ground footprint beyond the 47×47 navigation square
+- [x] decorative outer woodland to hide the board-like playable edge from lower cameras
+- [x] denser layered resource trees with trunks, offset crowns, undergrowth and occasional fallen timber
+- [x] roof-course, ridge and heavy-eave detail on the reusable timber/plaster building kit
+- [x] denser horizontal timber framing plus front/back diagonal braces
+- [x] modular House variation with stoops, frontage clutter, lean-to/porch variants, wide-lot dormers and deep-lot rear extensions
+- [x] residential footpaths from road frontage to the House
+- [x] backyard storytelling upgrades: baskets, chicken coop, chopping block, water barrel, laundry and denser garden/firewood treatment
+- [x] Stockpile cart/loading clutter
+- [x] Tavern canopy, cart, additional frontage clutter and richer social staging
+- [x] Brewery sacks/baskets/frontage activity dressing
+- [x] Blacksmith canopy, coal/ore clutter and cart
+- [x] Guard Post ladder, rack/bench and stronger platform silhouette
+- [x] palisade rebuilt as vertical sharpened stakes instead of horizontal construction-kit logs
+- [x] adult civilian silhouettes gain arms/legs/long-hair variation
+- [x] Tavern entertainers gain intentionally more polished adult fantasy styling with fitted garments, exposed-arm silhouettes, long hair and metallic accents
+- [x] long road ruts broken into deterministic worn patches rather than continuous dark lines
+- [ ] live overview / Street-view / Dusk / Night visual acceptance
+- [ ] confirm draw/triangle/renderer CPU remains comfortably within current prototype budget
+
+**Exit:** the settlement reads as a lived-in medieval place from normal play distance, individual building roles remain visually legible without HUD labels, lower cameras no longer expose an obvious square-board edge, and the adult Tavern identity is visible without changing any simulation semantics.
+
 ## M3.9 — Organic settlement structure
 
 Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.

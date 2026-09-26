@@ -10,7 +10,7 @@ import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
 export type CameraMode = 'settlement' | 'follow'
 
 function createGableRoofGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry()
+  const indexed = new THREE.BufferGeometry()
   const vertices = new Float32Array([
     -0.5, 0, -0.5,
      0.5, 0, -0.5,
@@ -19,17 +19,32 @@ function createGableRoofGeometry(): THREE.BufferGeometry {
      0.5, 0,  0.5,
      0, 0.5,  0.5,
   ])
+
+  // Outward-facing front/back gables and the two roof slopes only.
+  // Deliberately omit the horizontal underside: the old mesh wound every face
+  // inward and left an upward-facing bottom exactly coplanar with the wall top,
+  // which caused the full-roof zoom-dependent z-fighting seen in live videos.
   const indices = [
-    0, 1, 2,
-    5, 4, 3,
-    0, 3, 4, 0, 4, 1,
-    0, 2, 5, 0, 5, 3,
-    1, 4, 5, 1, 5, 2,
+    0, 2, 1, // front gable (-Z)
+    3, 4, 5, // back gable (+Z)
+    0, 3, 5, 0, 5, 2, // left roof slope
+    1, 2, 5, 1, 5, 4, // right roof slope
   ]
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-  geometry.setIndex(indices)
+  indexed.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+  indexed.setIndex(indices)
+
+  const geometry = indexed.toNonIndexed()
+  indexed.dispose()
   geometry.computeVertexNormals()
   return geometry
+}
+
+function createRoofCourseGeometry(slope: number): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(1, 1, 1).rotateZ(slope)
+}
+
+function createCartWheelGeometry(): THREE.BufferGeometry {
+  return new THREE.TorusGeometry(0.5, 0.09, 5, 10).rotateY(Math.PI / 2)
 }
 
 function createRadialGlowTexture(size = 64): THREE.DataTexture {
@@ -81,8 +96,10 @@ export class SceneRenderer {
   private readonly batchColors: Record<string, number> = {}
   private readonly settlementLitBatches = new Set([
     'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'doors', 'trim', 'props',
-    'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs',
-    'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'guardCoat', 'entertainer',
+    'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs', 'baskets',
+    'braceL', 'braceR', 'cartWheel',
+    'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'adultHairLong', 'adultArm', 'adultLeg', 'adultBodice',
+    'guardCoat', 'entertainer',
     'foundation', 'scaffold', 'debris',
   ])
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
@@ -142,7 +159,7 @@ export class SceneRenderer {
     this.scene.add(this.sun, this.moon, this.ambient, this.settlementGlow)
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
+      new THREE.PlaneGeometry(MAP_SIZE + 20, MAP_SIZE + 20),
       this.groundMaterial,
     )
     ground.rotation.x = -Math.PI / 2
@@ -173,14 +190,30 @@ export class SceneRenderer {
     this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600)
     this.addBatch('metal', this.geometry, TOWN_PALETTE.iron, 520)
     this.addBatch('cloth', this.geometry, TOWN_PALETTE.clothWine, 420)
-    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 520)
-    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 520)
-    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 700)
-    this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 360)
-    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, 80)
-    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, 80)
-    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, 100)
-    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, 100)
+    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 620)
+    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 620)
+    this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420)
+    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100)
+    this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
+    {
+      const roofMaterial = this.batches.gableRoofs.material as THREE.MeshStandardMaterial
+      roofMaterial.flatShading = true
+      roofMaterial.roughness = 1
+      roofMaterial.metalness = 0
+      roofMaterial.dithering = true
+      roofMaterial.needsUpdate = true
+    }
+    this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
+    this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
+    this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
+    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, 100)
+    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, 100)
+    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, 120)
+    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, 120)
+    this.addBatch('adultHairLong', new THREE.CapsuleGeometry(0.16, 0.38, 3, 6), 0x4a3528, 80)
+    this.addBatch('adultArm', new THREE.CapsuleGeometry(0.055, 0.34, 2, 5), 0xd6ad8b, 220)
+    this.addBatch('adultLeg', new THREE.CapsuleGeometry(0.075, 0.35, 2, 5), 0x463a32, 160)
+    this.addBatch('adultBodice', new THREE.CapsuleGeometry(0.19, 0.22, 3, 6), TOWN_PALETTE.clothWine, 80)
     this.addBatch('guardCoat', new THREE.CapsuleGeometry(0.23, 0.38, 3, 6), 0x6a5149, 30)
     this.addBatch('entertainer', new THREE.ConeGeometry(0.34, 0.78, 10), TOWN_PALETTE.clothWine, 40)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
@@ -298,8 +331,10 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch'].includes(name)
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noReceiveShadow = [...noCastShadow]
+    mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
@@ -420,6 +455,45 @@ export class SceneRenderer {
     this.instance('windowGlow', x, y, z, width, height, 0.06, color, rotation)
   }
 
+  private framedWindow(
+    x: number,
+    y: number,
+    z: number,
+    rotation: number,
+    night: number,
+    width = 0.38,
+    height = 0.48,
+    seed = 0,
+  ): void {
+    this.warmWindow(x, y, z, rotation, night, width, height)
+    const frameColor = seed % 3 === 0 ? 0x4a3427 : 0x553a29
+    const sideOffset = width / 2 + 0.055
+    const topOffset = height / 2 + 0.055
+    for (const side of [-1, 1] as const) {
+      const o = this.rotatedOffset(side * sideOffset, 0.055, rotation)
+      this.instance('timber', x + o.x, y, z + o.z, 0.055, height + 0.18, 0.07, frameColor, rotation)
+    }
+    this.instance('timber', x, y + topOffset, z, width + 0.18, 0.055, 0.07, frameColor, rotation)
+    this.instance('timber', x, y - topOffset, z, width + 0.18, 0.055, 0.07, frameColor, rotation)
+
+    if (seed % 2 === 0) {
+      for (const side of [-1, 1] as const) {
+        const shutter = this.rotatedOffset(side * (width * 0.82 + 0.12), 0.075, rotation)
+        this.instance('timber', x + shutter.x, y, z + shutter.z, width * 0.38, height * 0.88, 0.055, side < 0 ? 0x69503a : 0x614934, rotation)
+      }
+    }
+  }
+
+  private doorAwning(b: Building, rotation: number, doorX: number, frontZ: number, seed: number): void {
+    if (seed % 3 === 0) return
+    const canopy = this.rotatedOffset(doorX, frontZ + 0.26, rotation)
+    this.instance('timber', b.x + canopy.x, 1.58, b.z + canopy.z, 1.05, 0.09, 0.56, seed % 2 ? 0x654831 : 0x5b402d, rotation)
+    for (const side of [-1, 1] as const) {
+      const post = this.rotatedOffset(doorX + side * 0.43, frontZ + 0.43, rotation)
+      this.instance('timber', b.x + post.x, 0.74, b.z + post.z, 0.075, 1.32, 0.075, 0x493327, rotation)
+    }
+  }
+
   private warmGroundPool(x: number, z: number, radius: number, strength: number, night: number): void {
     if (night < 0.06 || strength <= 0) return
     const scale = radius * (0.94 + night * 0.06)
@@ -460,11 +534,19 @@ export class SceneRenderer {
       cloth: 0.2,
       barrels: 0.22,
       sacks: 0.18,
+      baskets: 0.17,
       logs: 0.2,
+      braceL: 0.23,
+      braceR: 0.23,
+      cartWheel: 0.18,
       adultTorso: 0.2,
       adultSkirt: 0.2,
       adultHead: 0.12,
       adultHair: 0.14,
+      adultHairLong: 0.14,
+      adultArm: 0.11,
+      adultLeg: 0.16,
+      adultBodice: 0.2,
       guardCoat: 0.24,
       entertainer: 0.2,
       foundation: 0.3,
@@ -502,10 +584,27 @@ export class SceneRenderer {
 
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
+        const tangentX = strip.length > 0 ? (b.x - a.x) / strip.length : 0
+        const tangentZ = strip.length > 0 ? (b.z - a.z) / strip.length : 1
         const rutOffset = width * 0.2
-        const rutWidth = width * 0.055
-        this.instance('roadWear', strip.x + normalX * rutOffset, 0.029, strip.z + normalZ * rutOffset, rutWidth, 1, strip.length + 0.18, 0x735a40, strip.angle)
-        this.instance('roadWear', strip.x - normalX * rutOffset, 0.03, strip.z - normalZ * rutOffset, rutWidth * 0.9, 1, strip.length + 0.12, 0x7b6246, strip.angle)
+        const rutWidth = width * 0.052
+        const patchCount = Math.max(1, Math.min(3, Math.floor(strip.length / 4) + 1))
+        const patchLength = Math.max(0.65, strip.length / (patchCount + 0.7) * 0.68)
+
+        // Broken rut patches feel driven-in rather than painted from endpoint to endpoint.
+        for (let patch = 0; patch < patchCount; patch++) {
+          const t = (patch + 1) / (patchCount + 1)
+          const drift = Math.sin(road.id * 0.91 + i * 1.7 + patch * 2.2) * 0.16
+          const px = a.x + (b.x - a.x) * t + tangentX * drift
+          const pz = a.z + (b.z - a.z) * t + tangentZ * drift
+          this.instance('roadWear', px + normalX * rutOffset, 0.029, pz + normalZ * rutOffset, rutWidth, 1, patchLength, 0x735a40, strip.angle)
+          if ((road.id + i + patch) % 4 !== 1) {
+            this.instance('roadWear', px - normalX * rutOffset, 0.03, pz - normalZ * rutOffset, rutWidth * 0.9, 1, patchLength * 0.92, 0x7b6246, strip.angle)
+          }
+          if ((road.id + i + patch) % 3 === 0) {
+            this.instance('roadWear', px, 0.028, pz, width * 0.22, 1, patchLength * 0.55, 0x8a7151, strip.angle)
+          }
+        }
 
         // Sparse deterministic grass intrusion breaks the ruler-straight shoulder
         // without changing the persisted road geometry.
@@ -654,6 +753,28 @@ export class SceneRenderer {
 
     if (!b.complete || b.destroyed) return
 
+    // Narrow worn footpath from the road frontage to the house door.
+    const frontMid = {
+      x: (plot.frontageA.x + plot.frontageB.x) / 2,
+      z: (plot.frontageA.z + plot.frontageB.z) / 2,
+    }
+    const pathDx = b.x - frontMid.x
+    const pathDz = b.z - frontMid.z
+    const pathLength = Math.hypot(pathDx, pathDz)
+    if (pathLength > 0.6) {
+      this.instance(
+        'roadShoulder',
+        (frontMid.x + b.x) / 2,
+        0.023,
+        (frontMid.z + b.z) / 2,
+        0.46,
+        1,
+        pathLength + 0.35,
+        0x8e7958,
+        Math.atan2(pathDx, pathDz),
+      )
+    }
+
     const rearZ = -halfD + Math.min(2.3, plot.depth * 0.22)
     if (plot.backyard === 'garden') {
       const rowCount = Math.max(2, Math.min(4, Math.floor(width / 1.6)))
@@ -666,6 +787,8 @@ export class SceneRenderer {
           this.instance('underbrush', center.x + plant.x, 0.18, center.z + plant.z, 0.28, 0.24, 0.28, 0x58714a, plot.id * 0.13 + i + j)
         }
       }
+      const basket = this.rotatedOffset(Math.min(halfW - 0.45, 1.2), rearZ + 0.85, plot.angle)
+      this.instance('baskets', center.x + basket.x, 0.2, center.z + basket.z, 0.5, 0.68, 0.5, 0x9b7546, plot.angle)
     } else if (plot.backyard === 'chickens') {
       const penCenter = this.rotatedOffset(0, rearZ, plot.angle)
       for (let i = 0; i < 5; i++) {
@@ -675,6 +798,9 @@ export class SceneRenderer {
         this.instance('chicken', center.x + p.x, 0.17, center.z + p.z, 1, 0.86, 1, i % 2 ? 0xc5ad7a : 0x9d815e, i * 0.7)
       }
       this.instance('timber', center.x + penCenter.x, 0.28, center.z + penCenter.z, Math.min(2.4, width * 0.55), 0.55, 0.08, 0x60452f, plot.angle)
+      const coop = this.rotatedOffset(-Math.min(halfW - 0.52, 1.05), rearZ - 0.65, plot.angle)
+      this.instance('timber', center.x + coop.x, 0.38, center.z + coop.z, 0.82, 0.68, 0.72, 0x654832, plot.angle)
+      this.instance('gableRoofs', center.x + coop.x, 0.7, center.z + coop.z, 1.02, 0.42, 0.9, this.readableNightColor(0x6a553d, night), plot.angle)
     } else if (plot.backyard === 'workyard') {
       const shed = this.rotatedOffset(-Math.min(halfW - 0.8, 1.25), rearZ, plot.angle)
       this.instance('timber', center.x + shed.x, 0.48, center.z + shed.z, 1.15, 0.9, 0.95, 0x674a35, plot.angle)
@@ -684,16 +810,95 @@ export class SceneRenderer {
         this.instance('logs', center.x + log.x, 0.18 + (i % 2) * 0.06, center.z + log.z, 0.5, 0.5, 0.5, 0x6a482f, plot.angle)
       }
     } else {
-      for (let i = 0; i < 6; i++) {
-        const log = this.rotatedOffset(-0.75 + (i % 3) * 0.42, rearZ - 0.35 + Math.floor(i / 3) * 0.35, plot.angle)
+      for (let i = 0; i < 8; i++) {
+        const log = this.rotatedOffset(-0.78 + (i % 4) * 0.42, rearZ - 0.35 + Math.floor(i / 4) * 0.35, plot.angle)
         this.instance('logs', center.x + log.x, 0.18 + (i % 2) * 0.06, center.z + log.z, 0.56, 0.56, 0.56, 0x6b4930, plot.angle)
       }
+      const chopping = this.rotatedOffset(Math.min(halfW - 0.45, 1.25), rearZ + 0.5, plot.angle)
+      this.instance('logs', center.x + chopping.x, 0.22, center.z + chopping.z, 0.45, 0.42, 0.45, 0x5f422e, plot.angle + Math.PI / 2)
+      this.instance('metal', center.x + chopping.x, 0.48, center.z + chopping.z, 0.42, 0.06, 0.08, 0x596168, plot.angle + 0.3)
+    }
+
+    if (plot.id % 3 === 0) {
+      const water = this.rotatedOffset(-Math.min(halfW - 0.4, 1.2), rearZ + 1.0, plot.angle)
+      this.instance('barrels', center.x + water.x, 0.29, center.z + water.z, 0.36, 0.58, 0.36, 0x725036, plot.angle)
     }
   }
 
   private renderYard(b: Building, rotation: number, radius: number, color = 0x66563f): void {
     const offset = this.rotatedOffset(0, 0.45, rotation)
     this.instance('yardPatch', b.x + offset.x, 0.022, b.z + offset.z, radius, 1, radius * 0.86, color, rotation + (b.id % 5) * 0.08)
+  }
+
+  private roofDetails(
+    b: Building,
+    rotation: number,
+    width: number,
+    depth: number,
+    wallHeight: number,
+    roofHeight: number,
+    roofColor: number,
+  ): void {
+    const baseY = 0.42 + wallHeight
+
+    // Keep roof detail structural rather than layering thin coplanar/near-coplanar
+    // strips over the slope. Thin roof-course meshes shimmer at sub-pixel sizes
+    // during camera zoom; eaves + ridge retain the medieval silhouette without
+    // introducing depth or sampling instability.
+    // Strong eaves and ridge make the roof silhouette read as constructed timber
+    // rather than a single dark procedural wedge.
+    for (const side of [-1, 1] as const) {
+      const eave = this.rotatedOffset(side * (width / 2 + 0.24), 0, rotation)
+      this.instance('timber', b.x + eave.x, baseY + 0.03, b.z + eave.z, 0.11, 0.11, depth + 0.78, 0x493326, rotation)
+    }
+    this.instance('timber', b.x, baseY + roofHeight + 0.04, b.z, 0.13, 0.13, depth + 0.82, 0x443025, rotation)
+  }
+
+  private frontageClutter(b: Building, rotation: number, seed: number, spread = 1): void {
+    const left = this.rotatedOffset(-0.9 * spread, 1.35 * spread, rotation)
+    const right = this.rotatedOffset(0.9 * spread, 1.26 * spread, rotation)
+    const near = this.rotatedOffset(0.18, 1.55 * spread, rotation)
+
+    if (seed % 2 === 0) {
+      this.instance('baskets', b.x + left.x, 0.22, b.z + left.z, 0.56, 0.78, 0.56, 0x9b7648, rotation)
+      this.instance('sacks', b.x + right.x, 0.23, b.z + right.z, 0.4, 0.5, 0.36, 0x9a865e, rotation)
+    } else {
+      this.instance('barrels', b.x + left.x, 0.29, b.z + left.z, 0.38, 0.58, 0.38, 0x745033, rotation)
+      this.instance('baskets', b.x + right.x, 0.2, b.z + right.z, 0.5, 0.7, 0.5, 0x9b7648, rotation)
+    }
+
+    this.instance('timber', b.x + near.x, 0.31, b.z + near.z, 0.72, 0.09, 0.24, 0x67472f, rotation)
+    for (const lx of [-0.28, 0.28]) {
+      const leg = this.rotatedOffset(0.18 + lx, 1.55 * spread, rotation)
+      this.instance('timber', b.x + leg.x, 0.16, b.z + leg.z, 0.08, 0.3, 0.08, 0x513727, rotation)
+    }
+  }
+
+  private renderCart(b: Building, rotation: number, localX: number, localZ: number, seed: number): void {
+    const center = this.rotatedOffset(localX, localZ, rotation)
+    const cartRotation = rotation + (seed % 2 === 0 ? 0.08 : -0.11)
+    this.instance('timber', b.x + center.x, 0.42, b.z + center.z, 1.25, 0.18, 0.72, 0x6a4932, cartRotation)
+    this.instance('timber', b.x + center.x, 0.66, b.z + center.z, 1.2, 0.08, 0.08, 0x543a29, cartRotation)
+    for (const side of [-1, 1] as const) {
+      const wheel = this.rotatedOffset(localX + side * 0.62, localZ, rotation)
+      this.instance('cartWheel', b.x + wheel.x, 0.34, b.z + wheel.z, 0.66, 0.66, 0.66, 0x493326, cartRotation)
+    }
+    const shaft = this.rotatedOffset(localX, localZ + 1.0, rotation)
+    this.instance('timber', b.x + shaft.x, 0.35, b.z + shaft.z, 0.08, 0.08, 1.8, 0x5b3f2d, cartRotation)
+  }
+
+  private renderLaundryLine(b: Building, rotation: number, localX: number, localZ: number, seed: number): void {
+    const left = this.rotatedOffset(localX - 0.9, localZ, rotation)
+    const right = this.rotatedOffset(localX + 0.9, localZ, rotation)
+    this.instance('timber', b.x + left.x, 0.72, b.z + left.z, 0.08, 1.45, 0.08, 0x4d3829, rotation)
+    this.instance('timber', b.x + right.x, 0.72, b.z + right.z, 0.08, 1.45, 0.08, 0x4d3829, rotation)
+    const line = this.rotatedOffset(localX, localZ, rotation)
+    this.instance('timber', b.x + line.x, 1.22, b.z + line.z, 1.82, 0.035, 0.035, 0x4e4135, rotation)
+    for (let i = 0; i < 3; i++) {
+      const cloth = this.rotatedOffset(localX - 0.58 + i * 0.58, localZ + 0.02, rotation)
+      const colors = [0x8d6d5e, 0xb18b69, 0x6f6d62]
+      this.instance('cloth', b.x + cloth.x, 1.0 - (i % 2) * 0.05, b.z + cloth.z, 0.4, 0.46, 0.035, colors[(seed + i) % colors.length], rotation)
+    }
   }
 
   private timberFrame(
@@ -706,7 +911,7 @@ export class SceneRenderer {
     roofColor: number,
     roofHeight = 1.18,
   ): void {
-    this.instance('stone', b.x, 0.18, b.z, width + 0.18, 0.36, depth + 0.18, TOWN_PALETTE.stoneDark, rotation)
+    this.instance('stone', b.x, 0.18, b.z, width + 0.24, 0.36, depth + 0.24, TOWN_PALETTE.stoneDark, rotation)
     this.instance('plaster', b.x, 0.42 + wallHeight / 2, b.z, width, wallHeight, depth, plasterColor, rotation)
 
     const halfX = width / 2 + 0.045
@@ -716,19 +921,37 @@ export class SceneRenderer {
       this.instance('timber', b.x + o.x, 0.42 + wallHeight / 2, b.z + o.z, 0.13, wallHeight + 0.12, 0.13, TOWN_PALETTE.timberDark, rotation)
     }
 
-    for (const y of [0.48, 0.42 + wallHeight]) {
+    for (const y of [0.48, 0.42 + wallHeight * 0.54, 0.42 + wallHeight]) {
       const front = this.rotatedOffset(0, halfZ, rotation)
       const back = this.rotatedOffset(0, -halfZ, rotation)
-      this.instance('timber', b.x + front.x, y, b.z + front.z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
-      this.instance('timber', b.x + back.x, y, b.z + back.z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + front.x, y, b.z + front.z, width + 0.16, 0.1, 0.11, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + back.x, y, b.z + back.z, width + 0.16, 0.1, 0.11, TOWN_PALETTE.timberMid, rotation)
       const left = this.rotatedOffset(-halfX, 0, rotation)
       const right = this.rotatedOffset(halfX, 0, rotation)
-      this.instance('timber', b.x + left.x, y, b.z + left.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
-      this.instance('timber', b.x + right.x, y, b.z + right.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + left.x, y, b.z + left.z, 0.11, 0.1, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + right.x, y, b.z + right.z, 0.11, 0.1, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
     }
 
-    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, width + 0.62, roofHeight * 2, depth + 0.7, roofColor, rotation)
-    this.instance('timber', b.x, 0.44 + wallHeight + roofHeight, b.z, 0.12, 0.12, depth + 0.76, TOWN_PALETTE.timberDark, rotation)
+    // Front/back diagonal braces break up the flat plaster panels.
+    for (const lz of [-halfZ - 0.018, halfZ + 0.018]) {
+      for (const side of [-1, 1] as const) {
+        const brace = this.rotatedOffset(side * width * 0.22, lz, rotation)
+        this.instance(
+          side < 0 ? 'braceL' : 'braceR',
+          b.x + brace.x,
+          0.42 + wallHeight * 0.54,
+          b.z + brace.z,
+          Math.max(0.48, width * 0.22),
+          0.09,
+          0.1,
+          0x4a3427,
+          rotation,
+        )
+      }
+    }
+
+    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, width + 0.72, roofHeight * 2, depth + 0.82, roofColor, rotation)
+    this.roofDetails(b, rotation, width, depth, wallHeight, roofHeight, roofColor)
   }
 
   private fenceLine(b: Building, rotation: number, localX: number, localZ: number, length: number, alongX: boolean): void {
@@ -756,40 +979,77 @@ export class SceneRenderer {
     const hair = [0x3d2b22, 0x69452d, 0x2c2725, 0x8b6a3d][id % 4]
     const cloth = colorOverride ?? [0x705345, 0x6d6251, 0x7b4e50, 0x596452, 0x725f3f][id % 5]
     const bob = Math.sin(time * 2.1 + id) * 0.012
+    const armSwing = Math.sin(time * 2.3 + id * 0.7) * 0.035
+
+    const leftArm = this.rotatedOffset(-0.25, armSwing, facing)
+    const rightArm = this.rotatedOffset(0.25, -armSwing, facing)
+    const leftLeg = this.rotatedOffset(-0.11, 0, facing)
+    const rightLeg = this.rotatedOffset(0.11, 0, facing)
 
     if (guard) {
       this.instance('guardCoat', x, 0.72 + bob, z, 1, 1, 1, 0x65504a, facing)
+      this.instance('adultLeg', x + leftLeg.x, 0.27 + bob, z + leftLeg.z, 1, 0.92, 1, 0x383b3b, facing)
+      this.instance('adultLeg', x + rightLeg.x, 0.27 + bob, z + rightLeg.z, 1, 0.92, 1, 0x383b3b, facing)
+      this.instance('adultArm', x + leftArm.x, 0.82 + bob, z + leftArm.z, 0.92, 0.95, 0.92, 0x65504a, facing)
+      this.instance('adultArm', x + rightArm.x, 0.82 + bob, z + rightArm.z, 0.92, 0.95, 0.92, 0x65504a, facing)
       this.instance('metal', x, 1.18 + bob, z, 0.42, 0.17, 0.42, 0x667078, facing)
     } else if (femaleSilhouette) {
-      this.instance('adultSkirt', x, 0.43 + bob, z, 0.9, 1, 0.9, cloth, facing)
-      this.instance('adultTorso', x, 0.88 + bob, z, 0.9, 0.88, 0.82, cloth, facing)
+      this.instance('adultSkirt', x, 0.43 + bob, z, 0.95, 1.02, 0.95, cloth, facing)
+      this.instance('adultBodice', x, 0.91 + bob, z, 0.96, 0.98, 0.9, cloth, facing)
+      this.instance('adultArm', x + leftArm.x, 0.89 + bob, z + leftArm.z, 0.92, 0.95, 0.92, skin, facing)
+      this.instance('adultArm', x + rightArm.x, 0.89 + bob, z + rightArm.z, 0.92, 0.95, 0.92, skin, facing)
+      const sash = this.rotatedOffset(0.02, 0.08, facing)
+      this.instance('cloth', x + sash.x, 0.76 + bob, z + sash.z, 0.42, 0.08, 0.3, this.scratchColor.setHex(cloth).multiplyScalar(1.15).getHex(), facing)
     } else {
-      this.instance('adultTorso', x, 0.67 + bob, z, 1, 1.08, 0.92, cloth, facing)
-      this.instance('timber', x - 0.11, 0.24 + bob, z, 0.11, 0.48, 0.12, 0x3d342e, facing)
-      this.instance('timber', x + 0.11, 0.24 + bob, z, 0.11, 0.48, 0.12, 0x3d342e, facing)
+      this.instance('adultTorso', x, 0.72 + bob, z, 1.02, 1.06, 0.95, cloth, facing)
+      this.instance('adultLeg', x + leftLeg.x, 0.26 + bob, z + leftLeg.z, 1, 0.95, 1, 0x3d342e, facing)
+      this.instance('adultLeg', x + rightLeg.x, 0.26 + bob, z + rightLeg.z, 1, 0.95, 1, 0x3d342e, facing)
+      this.instance('adultArm', x + leftArm.x, 0.82 + bob, z + leftArm.z, 0.92, 0.96, 0.92, cloth, facing)
+      this.instance('adultArm', x + rightArm.x, 0.82 + bob, z + rightArm.z, 0.92, 0.96, 0.92, cloth, facing)
     }
-    this.instance('adultHead', x, 1.28 + bob, z, 1, 1.05, 1, skin, facing)
-    this.instance('adultHair', x, 1.38 + bob, z - 0.035, 1.04, 0.72, 1.04, hair, facing)
+
+    this.instance('adultHead', x, 1.31 + bob, z, 1, 1.06, 1, skin, facing)
+    this.instance('adultHair', x, 1.42 + bob, z - 0.025, 1.04, 0.68, 1.04, hair, facing)
+    if (femaleSilhouette || id % 4 === 1) {
+      const back = this.rotatedOffset(0, -0.12, facing)
+      this.instance('adultHairLong', x + back.x, 1.12 + bob, z + back.z, 0.92, femaleSilhouette ? 1.08 : 0.78, 0.78, hair, facing)
+    }
   }
 
   private renderTavernNightlife(b: Building, rotation: number, time: number, activity: number): void {
     if (activity < 0.18 || b.inventory.ale <= 0) return
     const spots = [
-      [-0.78, 2.05, TOWN_PALETTE.clothWine],
-      [0.2, 2.18, 0x6b4b65],
-      [0.9, 1.82, TOWN_PALETTE.clothOchre],
-      [-1.28, 1.45, 0x5a624c],
+      [-0.82, 2.08, TOWN_PALETTE.clothWine],
+      [0.12, 2.24, 0x6b4b65],
+      [0.94, 1.84, TOWN_PALETTE.clothOchre],
+      [-1.28, 1.52, 0x5a624c],
+      [1.38, 2.04, 0x665040],
     ] as const
+
     for (let i = 0; i < spots.length; i++) {
       const [lx, lz, color] = spots[i]
       const p = this.rotatedOffset(lx, lz, rotation)
-      const sway = Math.sin(time * (1.5 + i * 0.12) + b.id + i) * 0.04 * activity
+      const sway = Math.sin(time * (1.5 + i * 0.12) + b.id + i) * 0.05 * activity
       const facing = rotation + Math.PI + sway
+
       if (i < 2) {
-        this.instance('entertainer', b.x + p.x, 0.49, b.z + p.z, 1, 1, 1, color, facing)
-        this.instance('adultTorso', b.x + p.x, 0.9, b.z + p.z, 0.82, 0.78, 0.76, color, facing)
-        this.instance('adultHead', b.x + p.x, 1.29, b.z + p.z, 1, 1.05, 1, i === 0 ? 0xd4a17d : 0xb97f62, facing)
-        this.instance('adultHair', b.x + p.x, 1.39, b.z + p.z - 0.03, 1.08, 0.78, 1.06, i === 0 ? 0x4b2e25 : 0x6a472f, facing)
+        const skin = i === 0 ? 0xd4a17d : 0xb97f62
+        const hair = i === 0 ? 0x4b2e25 : 0x6a472f
+        const left = this.rotatedOffset(-0.27, 0.02, facing)
+        const right = this.rotatedOffset(0.27, -0.02, facing)
+        const back = this.rotatedOffset(0, -0.13, facing)
+
+        // Adult Tavern entertainers intentionally have a more polished/fitted
+        // silhouette than workers: fitted bodice, flowing skirt, bare arms, long
+        // hair and a metallic belt/jewelry accent. This remains stylized/non-explicit.
+        this.instance('entertainer', b.x + p.x, 0.47, b.z + p.z, 1.05, 1.04, 1.05, color, facing)
+        this.instance('adultBodice', b.x + p.x, 0.93, b.z + p.z, 1.08, 1.0, 0.92, this.scratchColor.setHex(color).multiplyScalar(1.08).getHex(), facing)
+        this.instance('adultArm', b.x + p.x + left.x, 0.9, b.z + p.z + left.z, 1, 1, 1, skin, facing)
+        this.instance('adultArm', b.x + p.x + right.x, 0.9, b.z + p.z + right.z, 1, 1, 1, skin, facing)
+        this.instance('metal', b.x + p.x, 0.72, b.z + p.z, 0.44, 0.055, 0.34, 0xb49761, facing)
+        this.instance('adultHead', b.x + p.x, 1.32, b.z + p.z, 1, 1.06, 1, skin, facing)
+        this.instance('adultHair', b.x + p.x, 1.43, b.z + p.z - 0.02, 1.08, 0.7, 1.06, hair, facing)
+        this.instance('adultHairLong', b.x + p.x + back.x, 1.13, b.z + p.z + back.z, 1, 1.18, 0.82, hair, facing)
       } else {
         this.renderAdultFigure(b.x + p.x, b.z + p.z, b.id * 10 + i, false, time, color, facing)
       }
@@ -837,6 +1097,10 @@ export class SceneRenderer {
         this.instance('metal', b.x + p.x, 0.55 + i * 0.05, b.z + p.z, 0.42, 0.08, 0.08, 0x6f777c, rotation + 0.2)
       }
     }
+
+    this.renderCart(b, rotation, -1.85, 0.55, b.id)
+    const basket = this.rotatedOffset(1.2, -0.9, rotation)
+    this.instance('baskets', b.x + basket.x, 0.21, b.z + basket.z, 0.62, 0.78, 0.62, 0x987044, rotation)
   }
 
   private renderHouse(b: Building, rotation: number, color: number, night: number, plot?: ResidentialPlot): void {
@@ -858,15 +1122,57 @@ export class SceneRenderer {
     this.instance('doors', b.x + front.x, 0.82, b.z + front.z, 0.54, 1.35, 0.13, 0x4b3325, rotation)
 
     const windowSpread = Math.min(width * 0.31, 0.9)
-    for (const lx of [-windowSpread, windowSpread]) {
+    for (const [index, lx] of [-windowSpread, windowSpread].entries()) {
       if (Math.abs(lx - doorX) < 0.34) continue
-      const win = this.rotatedOffset(lx, depth / 2 + 0.1, rotation)
-      this.warmWindow(b.x + win.x, 1.3, b.z + win.z, rotation, night, 0.34, 0.44)
+      const win = this.rotatedOffset(lx, depth / 2 + 0.105, rotation)
+      this.framedWindow(b.x + win.x, 1.3, b.z + win.z, rotation, night, 0.34, 0.44, (plot?.id ?? b.id) + index)
+    }
+
+    if (plot && width > 3.15) {
+      const side = plot.id % 2 === 0 ? 1 : -1
+      const sideWin = this.rotatedOffset(side * (width / 2 + 0.105), -0.15, rotation)
+      this.framedWindow(
+        b.x + sideWin.x,
+        1.26,
+        b.z + sideWin.z,
+        rotation + Math.PI / 2,
+        night * 0.82,
+        0.3,
+        0.4,
+        plot.id + 9,
+      )
     }
 
     const chimneySide = (plot?.id ?? b.id) % 2 ? 1 : -1
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', b.x + chimney.x, wallHeight + 0.72, b.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
+
+    if (plot && width > 3.05 && plot.id % 3 === 0) {
+      const dormer = this.rotatedOffset(-width * 0.18, depth * 0.15, rotation)
+      this.instance('plaster', b.x + dormer.x, wallHeight + 0.78, b.z + dormer.z, 0.66, 0.44, 0.56, plaster, rotation)
+      this.instance('gableRoofs', b.x + dormer.x, wallHeight + 0.98, b.z + dormer.z, 0.88, 0.48, 0.82, this.readableNightColor(roof, night), rotation)
+      const dormerWindow = this.rotatedOffset(-width * 0.18, depth * 0.45, rotation)
+      this.warmWindow(b.x + dormerWindow.x, wallHeight + 0.72, b.z + dormerWindow.z, rotation, night, 0.24, 0.28)
+    }
+
+    const step = this.rotatedOffset(doorX, depth / 2 + 0.22, rotation)
+    this.instance('stone', b.x + step.x, 0.12, b.z + step.z, 0.76, 0.22, 0.48, 0x777064, rotation)
+    this.doorAwning(b, rotation, doorX, depth / 2, plot?.id ?? b.id)
+    this.frontageClutter(b, rotation, plot?.id ?? b.id, Math.min(1.05, width / 2.7))
+
+    if (plot && plot.depth >= 8.2) {
+      const rearExtension = this.rotatedOffset(
+        plot.id % 2 === 0 ? width * 0.2 : -width * 0.22,
+        -depth / 2 - 0.62,
+        rotation,
+      )
+      this.instance('timber', b.x + rearExtension.x, 0.48, b.z + rearExtension.z, 1.2, 0.9, 1.1, 0x6b4d37, rotation)
+      this.instance('gableRoofs', b.x + rearExtension.x, 0.91, b.z + rearExtension.z, 1.48, 0.6, 1.34, this.readableNightColor(0x67513c, night), rotation)
+    }
+
+    if (plot && plot.depth >= 7.4 && plot.id % 4 === 0) {
+      this.renderLaundryLine(b, rotation, 0, -depth / 2 - 1.65, plot.id)
+    }
 
     if (plot && plot.id % 3 === 1) {
       const lean = this.rotatedOffset(-width / 2 - 0.42, -0.2, rotation)
@@ -892,21 +1198,32 @@ export class SceneRenderer {
   }
 
   private renderGuardPost(b: Building, rotation: number, color: number, night: number): void {
-    this.renderYard(b, rotation, 2.3, 0x5d503d)
-    this.instance('stone', b.x, 0.18, b.z, 2.1, 0.36, 2.1, 0x66655f, rotation)
-    for (const [lx, lz] of [[-0.78, -0.78], [0.78, -0.78], [-0.78, 0.78], [0.78, 0.78]] as const) {
+    this.renderYard(b, rotation, 2.45, 0x5d503d)
+    this.instance('stone', b.x, 0.18, b.z, 2.2, 0.36, 2.2, 0x66655f, rotation)
+    for (const [lx, lz] of [[-0.82, -0.82], [0.82, -0.82], [-0.82, 0.82], [0.82, 0.82]] as const) {
       const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('timber', b.x + o.x, 1.12, b.z + o.z, 0.18, 2.1, 0.18, 0x503827, rotation)
+      this.instance('timber', b.x + o.x, 1.1, b.z + o.z, 0.18, 2.05, 0.18, 0x503827, rotation)
     }
-    this.instance('timber', b.x, 1.55, b.z, 2.35, 0.18, 2.35, 0x68482f, rotation)
-    this.instance('gableRoofs', b.x, 1.7, b.z, 2.35, 1.0, 2.0, this.readableNightColor(0x49403a, night), rotation)
-    for (const z of [-0.9, 0.9]) {
+    this.instance('timber', b.x, 1.54, b.z, 2.45, 0.18, 2.45, 0x68482f, rotation)
+    this.instance('gableRoofs', b.x, 1.72, b.z, 2.48, 1.06, 2.15, this.readableNightColor(0x49403a, night), rotation)
+    for (const z of [-0.94, 0.94]) {
       const rail = this.rotatedOffset(0, z, rotation)
-      this.instance('timber', b.x + rail.x, 1.82, b.z + rail.z, 2.0, 0.1, 0.1, 0x513725, rotation)
+      this.instance('timber', b.x + rail.x, 1.82, b.z + rail.z, 2.08, 0.09, 0.09, 0x513725, rotation)
     }
-    const rack = this.rotatedOffset(1.08, 0.28, rotation)
+    const ladder = this.rotatedOffset(-0.92, 0.12, rotation)
+    this.instance('timber', b.x + ladder.x, 0.72, b.z + ladder.z, 0.08, 1.42, 0.08, 0x4e3828, rotation)
+    for (let i = 0; i < 4; i++) {
+      const rung = this.rotatedOffset(-0.92, -0.08 + i * 0.22, rotation)
+      this.instance('timber', b.x + rung.x, 0.28 + i * 0.26, b.z + rung.z, 0.58, 0.07, 0.08, 0x5a402d, rotation)
+    }
+    const rack = this.rotatedOffset(1.12, 0.32, rotation)
     this.instance('timber', b.x + rack.x, 0.62, b.z + rack.z, 0.12, 1.05, 0.12, 0x503827, rotation)
-    this.instance('metal', b.x + rack.x, 0.84, b.z + rack.z, 0.72, 0.08, 0.08, 0x656c70, rotation + 0.25)
+    for (let i = 0; i < 3; i++) {
+      this.instance('metal', b.x + rack.x, 0.72 + i * 0.14, b.z + rack.z, 0.66 - i * 0.08, 0.07, 0.08, i === 0 ? 0x777f84 : 0x626b70, rotation + 0.18)
+    }
+    const bench = this.rotatedOffset(0.2, 1.25, rotation)
+    this.instance('timber', b.x + bench.x, 0.34, b.z + bench.z, 1.0, 0.12, 0.34, 0x65472f, rotation)
+    this.frontageClutter(b, rotation, b.id + 17, 0.86)
   }
 
   private renderTavern(b: Building, rotation: number, color: number, night: number, time: number, activity: number): void {
@@ -915,15 +1232,20 @@ export class SceneRenderer {
 
     const front = this.rotatedOffset(0.48, 1.43, rotation)
     this.instance('doors', b.x + front.x, 0.86, b.z + front.z, 0.66, 1.48, 0.14, 0x493126, rotation)
-    for (const lx of [-0.78, 0, 0.82]) {
+    for (const [index, lx] of [-0.78, 0, 0.82].entries()) {
       const win = this.rotatedOffset(lx, 1.47, rotation)
-      this.warmWindow(b.x + win.x, 1.35, b.z + win.z, rotation, night, 0.38, 0.5)
+      this.framedWindow(b.x + win.x, 1.35, b.z + win.z, rotation, night, 0.38, 0.5, b.id + index)
     }
 
     const signPost = this.rotatedOffset(1.55, 1.22, rotation)
     this.instance('timber', b.x + signPost.x, 1.42, b.z + signPost.z, 0.12, 1.7, 0.12, 0x503526, rotation)
     const sign = this.rotatedOffset(1.55, 1.1, rotation)
-    this.instance('cloth', b.x + sign.x, 1.84, b.z + sign.z, 0.75, 0.58, 0.1, TOWN_PALETTE.clothWine, rotation)
+    this.instance('timber', b.x + sign.x, 1.84, b.z + sign.z, 0.82, 0.62, 0.1, 0x5d3e2c, rotation)
+    const signFace = this.rotatedOffset(1.55, 1.16, rotation)
+    this.instance('cloth', b.x + signFace.x, 1.84, b.z + signFace.z, 0.64, 0.44, 0.045, TOWN_PALETTE.clothWine, rotation)
+    if (night > 0.12) {
+      this.instance('glow', b.x + signFace.x, 1.7, b.z + signFace.z, 0.32, 0.26, 0.32, 0xffb766)
+    }
 
     const awning = this.rotatedOffset(-0.55, 1.72, rotation)
     this.instance('cloth', b.x + awning.x, 1.72, b.z + awning.z, 1.65, 0.1, 0.92, 0x865e4d, rotation)
@@ -937,6 +1259,13 @@ export class SceneRenderer {
       this.instance('timber', b.x + table.x, 0.48, b.z + table.z, 0.85, 0.12, 0.52, 0x69472f, rotation)
       this.instance('timber', b.x + table.x, 0.25, b.z + table.z, 0.12, 0.5, 0.12, 0x543826, rotation)
     }
+
+    const sideCanopy = this.rotatedOffset(-1.72, 0.15, rotation)
+    this.instance('timber', b.x + sideCanopy.x, 0.78, b.z + sideCanopy.z, 0.12, 1.5, 0.12, 0x513727, rotation)
+    const sideAwning = this.rotatedOffset(-1.56, 0.34, rotation)
+    this.instance('cloth', b.x + sideAwning.x, 1.28, b.z + sideAwning.z, 1.32, 0.08, 1.4, 0x71434a, rotation)
+    this.frontageClutter(b, rotation, b.id + 7, 1.12)
+    this.renderCart(b, rotation, 1.85, -0.35, b.id + 3)
 
     this.renderTavernNightlife(b, rotation, time, activity)
   }
@@ -964,6 +1293,11 @@ export class SceneRenderer {
       const p = this.rotatedOffset(-1.18, -0.7 + i * 0.34, rotation)
       this.instance('barrels', b.x + p.x, 0.28, b.z + p.z, 0.32, 0.54, 0.32, 0x66472f, rotation)
     }
+    const malt = this.rotatedOffset(1.18, -0.35, rotation)
+    this.instance('sacks', b.x + malt.x, 0.25, b.z + malt.z, 0.52, 0.62, 0.48, 0x9d895f, rotation)
+    const basket = this.rotatedOffset(1.22, 0.1, rotation)
+    this.instance('baskets', b.x + basket.x, 0.21, b.z + basket.z, 0.56, 0.72, 0.56, 0x987044, rotation)
+    this.frontageClutter(b, rotation, b.id + 11, 1.0)
 
     const furnace = this.rotatedOffset(0.62, 1.32, rotation)
     const stocked = b.inventory.food > 0 || b.inventory.ale > 0
@@ -1019,6 +1353,20 @@ export class SceneRenderer {
       this.instance('metal', b.x + p.x, 0.58 + i * 0.14, b.z + p.z, 0.52, 0.07, 0.08, 0x70777b, rotation + (i - 1) * 0.2)
     }
 
+    const canopy = this.rotatedOffset(-0.1, 1.72, rotation)
+    this.instance('gableRoofs', b.x + canopy.x, 1.18, b.z + canopy.z, 2.72, 0.52, 1.2, this.readableNightColor(0x584638, night), rotation)
+    for (const lx of [-1.08, 1.08]) {
+      const post = this.rotatedOffset(lx, 1.72, rotation)
+      this.instance('timber', b.x + post.x, 0.68, b.z + post.z, 0.1, 1.36, 0.1, 0x493327, rotation)
+    }
+    const lintel = this.rotatedOffset(-0.1, 1.9, rotation)
+    this.instance('timber', b.x + lintel.x, 1.28, b.z + lintel.z, 2.42, 0.12, 0.12, 0x503727, rotation)
+    const coal = this.rotatedOffset(1.24, -0.1, rotation)
+    for (let i = 0; i < 4; i++) {
+      this.instance('ore', b.x + coal.x + (i % 2) * 0.24, 0.12 + Math.floor(i / 2) * 0.1, b.z + coal.z + Math.floor(i / 2) * 0.2, 0.28, 0.24, 0.28, 0x3f4549, rotation + i)
+    }
+    this.renderCart(b, rotation, -1.7, -0.45, b.id + 5)
+
     const production = BUILDINGS.blacksmith.production!
     const active = productionPhaseActive
       && b.inventory[production.inputResource] >= production.inputAmount
@@ -1040,24 +1388,31 @@ export class SceneRenderer {
 
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
-      for (const localX of [-0.32, 0, 0.32]) {
+      // Vertical sharpened palisade stakes replace the old horizontal log-kit look.
+      for (const [index, localX] of [-0.4, -0.2, 0, 0.2, 0.4].entries()) {
         const o = this.rotatedOffset(localX, 0, rotation)
-        this.instance('logs', b.x + o.x, 0.72, b.z + o.z, 0.72, 0.82, 0.72, color, rotation + Math.PI / 2)
-        this.instance('timber', b.x + o.x, 1.5, b.z + o.z, 0.12, 0.42, 0.12, 0x4e3828, rotation)
+        const height = 1.44 + ((b.id + index) % 3) * 0.11
+        this.instance('treeTrunk', b.x + o.x, height / 2, b.z + o.z, 0.62, height, 0.62, color, rotation)
+        this.instance('wood', b.x + o.x, height + 0.11, b.z + o.z, 0.19, 0.24, 0.19, color, rotation)
       }
-      this.instance('timber', b.x, 0.62, b.z, 0.92, 0.12, 0.12, 0x513927, rotation)
-      this.instance('timber', b.x, 1.1, b.z, 0.92, 0.1, 0.1, 0x513927, rotation)
+      for (const y of [0.52, 0.98]) {
+        this.instance('timber', b.x, y, b.z, 0.96, 0.1, 0.11, 0x513927, rotation)
+      }
       return
     }
 
-    const left = this.rotatedOffset(-0.31, 0, rotation)
-    const right = this.rotatedOffset(0.31, 0, rotation)
+    const left = this.rotatedOffset(-0.36, 0, rotation)
+    const right = this.rotatedOffset(0.36, 0, rotation)
     for (const p of [left, right]) {
-      this.instance('timber', b.x + p.x, 0.92, b.z + p.z, 0.2, 1.82, 0.2, color, rotation)
+      this.instance('treeTrunk', b.x + p.x, 0.92, b.z + p.z, 0.72, 1.84, 0.72, color, rotation)
+      this.instance('wood', b.x + p.x, 1.9, b.z + p.z, 0.22, 0.28, 0.22, color, rotation)
     }
-    this.instance('timber', b.x, 1.72, b.z, 1.32, 0.2, 0.32, 0x513828, rotation)
-    this.instance('timber', b.x, 0.42, b.z, 1.12, 0.12, 0.12, 0x493326, rotation)
-    this.instance('metal', b.x, 1.05, b.z, 0.7, 0.12, 0.1, 0x596066, rotation)
+    for (const y of [0.48, 0.92, 1.36]) {
+      this.instance('timber', b.x, y, b.z, 1.16, 0.12, 0.12, 0x493326, rotation)
+    }
+    this.instance('braceL', b.x - Math.cos(rotation) * 0.16, 0.94, b.z + Math.sin(rotation) * 0.16, 0.72, 0.1, 0.11, 0x5b402e, rotation)
+    this.instance('braceR', b.x + Math.cos(rotation) * 0.16, 0.94, b.z - Math.sin(rotation) * 0.16, 0.72, 0.1, 0.11, 0x5b402e, rotation)
+    this.instance('metal', b.x, 1.1, b.z, 0.82, 0.08, 0.08, 0x596066, rotation)
   }
 
   sync(state: WorldState, selectedId: number | null): void {
@@ -1068,9 +1423,9 @@ export class SceneRenderer {
     const time = state.elapsedSeconds
     this.updateNightMaterialLift(night)
 
-    for (let i = 0; i < 92; i++) {
-      const x = ((i * 17 + (i % 5) * 3) % 45) - 22
-      const z = ((i * 29 + 7 + (i % 7) * 2) % 45) - 22
+    for (let i = 0; i < 148; i++) {
+      const x = ((i * 17 + (i % 5) * 3) % 63) - 31
+      const z = ((i * 29 + 7 + (i % 7) * 2) % 63) - 31
       const sx = 1.1 + (i % 5) * 0.46
       const sz = 0.8 + ((i * 3) % 6) * 0.31
       this.instance(
@@ -1088,22 +1443,56 @@ export class SceneRenderer {
 
     this.renderVisualRoads(state.roads)
 
+    // Decorative outer woodland extends beyond the playable navigation square so
+    // lower cameras see a landscape/forest continuation instead of a board edge.
+    for (let i = 0; i < 72; i++) {
+      const side = i % 4
+      const along = -30 + ((i * 7) % 61)
+      const inset = 25.2 + ((i * 11) % 6) * 0.92
+      const x = side === 0 ? along : side === 1 ? inset : side === 2 ? along : -inset
+      const z = side === 0 ? -inset : side === 1 ? along : side === 2 ? inset : along
+      const scale = 0.82 + (i % 7) * 0.045
+      const trunkColor = i % 3 === 0 ? 0x493628 : 0x423328
+      this.instance('treeTrunk', x, 0.86, z, 0.82 * scale, 1.72 * scale, 0.82 * scale, trunkColor, i * 0.37)
+      this.instance('wood', x, 1.82, z, 1.06 * scale, 0.8 * scale, 1.06 * scale, i % 3 === 0 ? 0x314735 : 0x38503a, i * 0.21)
+      this.instance('wood', x + Math.sin(i) * 0.15, 2.58, z + Math.cos(i * 0.7) * 0.14, 0.76 * scale, 0.6 * scale, 0.76 * scale, 0x405941, i * 0.29)
+      if (i % 2 === 0) {
+        this.instance('underbrush', x + Math.sin(i * 1.7) * 0.7, 0.2, z + Math.cos(i * 1.3) * 0.65, 0.68, 0.38, 0.68, 0x496246, i * 0.43)
+      }
+    }
+
     for (const n of state.nodes) {
       if (n.remaining <= 0) continue
       if (n.resource === 'wood') {
-        const jitterX = Math.sin(n.id * 12.9898) * 0.24
-        const jitterZ = Math.cos(n.id * 7.233) * 0.24
-        const scale = 0.88 + (n.id % 7) * 0.035
+        const jitterX = Math.sin(n.id * 12.9898) * 0.3
+        const jitterZ = Math.cos(n.id * 7.233) * 0.3
+        const scale = 0.86 + (n.id % 7) * 0.045
         const trunkX = n.x + jitterX
         const trunkZ = n.z + jitterZ
-        this.instance('treeTrunk', trunkX, 0.82, trunkZ, 0.86 * scale, 1.65 * scale, 0.86 * scale, 0x493527, n.id * 0.13)
-        this.instance('wood', trunkX, 1.75, trunkZ, 1.05 * scale, 0.78 * scale, 1.05 * scale, n.id % 3 === 0 ? 0x3c553a : 0x344b35, n.id * 0.11)
-        this.instance('wood', trunkX + 0.08, 2.45, trunkZ - 0.05, 0.78 * scale, 0.58 * scale, 0.78 * scale, n.id % 4 === 0 ? 0x496044 : 0x3b5239, n.id * 0.19)
-        if (n.id % 2 === 0) {
-          this.instance('underbrush', trunkX + 0.58, 0.22, trunkZ - 0.42, 0.72, 0.44, 0.72, 0x4a6347, n.id * 0.29)
+        this.instance('treeTrunk', trunkX, 0.84, trunkZ, 0.86 * scale, 1.7 * scale, 0.86 * scale, 0x493527, n.id * 0.13)
+        this.instance('wood', trunkX, 1.72, trunkZ, 1.08 * scale, 0.78 * scale, 1.08 * scale, n.id % 3 === 0 ? 0x3c553a : 0x344b35, n.id * 0.11)
+        this.instance('wood', trunkX + 0.1, 2.42, trunkZ - 0.06, 0.82 * scale, 0.6 * scale, 0.82 * scale, n.id % 4 === 0 ? 0x496044 : 0x3b5239, n.id * 0.19)
+        const crownOffset = n.id % 2 === 0 ? 0.28 : -0.24
+        this.instance('wood', trunkX + crownOffset, 2.05, trunkZ + 0.16, 0.58 * scale, 0.48 * scale, 0.58 * scale, n.id % 5 === 0 ? 0x465f45 : 0x395139, n.id * 0.31)
+
+        for (let bush = 0; bush < (n.id % 3 === 0 ? 2 : 1); bush++) {
+          this.instance(
+            'underbrush',
+            trunkX + Math.sin(n.id * 0.9 + bush * 2.4) * (0.58 + bush * 0.22),
+            0.2,
+            trunkZ + Math.cos(n.id * 1.2 + bush * 1.7) * (0.52 + bush * 0.2),
+            0.68 - bush * 0.08,
+            0.4,
+            0.68 - bush * 0.08,
+            bush === 0 ? 0x4a6347 : 0x536c4b,
+            n.id * 0.29 + bush,
+          )
+        }
+        if (n.id % 7 === 0) {
+          this.instance('logs', trunkX + 0.78, 0.16, trunkZ - 0.62, 0.78, 0.65, 0.65, 0x60432f, n.id * 0.17)
         }
         if (night > 0.12) {
-          this.instance('treeMoon', trunkX + 0.12, 2.62, trunkZ - 0.12, 0.76 * scale, 0.62 * scale, 0.76 * scale, 0x60758a, n.id * 0.17)
+          this.instance('treeMoon', trunkX + 0.12, 2.66, trunkZ - 0.12, 0.78 * scale, 0.64 * scale, 0.78 * scale, 0x60758a, n.id * 0.17)
         }
       } else if (n.resource === 'food') {
         this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
