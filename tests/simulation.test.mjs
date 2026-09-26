@@ -23,7 +23,11 @@ const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttract
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
-const { visualRoadLinks, visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
+const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
+const {
+  backyardForPlot, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
+  residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError,
+} = require('../.test-build/game/simulation/TownPlanning.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -53,23 +57,87 @@ const makeAttractive = s => {
   assignHousing(s)
   return s
 }
-test('presentation road graph connects completed town buildings without fortifications', () => {
-  const buildings=[
-    createBuilding(1,'stockpile',0,0,true),
-    createBuilding(2,'house',4,0,true),
-    createBuilding(3,'tavern',4,5,true),
-    createBuilding(4,'blacksmith',-5,1,true),
-    createBuilding(5,'wood-wall',2,2,true),
-    createBuilding(6,'house',9,9,false),
-  ]
-  const links=visualRoadLinks(buildings)
-  assert.equal(links.length,3)
-  assert.ok(links.every(link=>link.fromId!==5 && link.toId!==5 && link.fromId!==6 && link.toId!==6))
-  assert.equal(links[0].fromId,1)
-  assert.equal(new Set(links.flatMap(link=>[link.fromId,link.toId])).size,4)
+test('player road strokes normalize deterministically and require meaningful length', () => {
+  const points=normalizeRoadPoints([
+    {x:0,z:0},{x:0.1,z:0.1},{x:1,z:0.2},{x:2,z:0.5},{x:3,z:1},
+  ])
+  assert.deepEqual(points[0],{x:0,z:0})
+  assert.deepEqual(points.at(-1),{x:3,z:1})
+  assert.ok(points.length<5)
+  assert.ok(roadLength(points)>3)
+  assert.equal(roadPlacementError(points),null)
+  assert.match(roadPlacementError([{x:0,z:0},{x:0.5,z:0}]),/2m/)
 })
 
-test('presentation road strip geometry is deterministic and does not mutate buildings', () => {
+test('residential plot drag snaps frontage to a road and derives road-facing house orientation', () => {
+  const roads=[{id:10,width:1.7,points:[{x:-8,z:0},{x:8,z:0}]}]
+  const preview=residentialPlotPreview(roads,{x:-2,z:0.4},{x:3,z:-7})
+  assert.ok(preview)
+  assert.equal(preview.roadId,10)
+  assert.ok(Math.abs(preview.width-5)<1e-9)
+  assert.ok(Math.abs(preview.depth-7)<1e-9)
+  assert.equal(preview.side,-1)
+  assert.ok(Math.abs(preview.angle)<1e-9)
+  assert.equal(preview.houseRotation,0)
+  assert.equal(residentialPlotError(preview,[]),null)
+  assert.equal(backyardForPlot(13,7),'chickens')
+})
+
+test('residential plots reject overlap, buildings and uncleared resources', () => {
+  const roads=[{id:10,width:1.7,points:[{x:-8,z:0},{x:8,z:0}]}]
+  const preview=residentialPlotPreview(roads,{x:-2,z:0},{x:3,z:-7})
+  assert.ok(preview)
+  const existing=[{
+    id:11,buildingId:12,roadId:10,
+    frontageA:{x:-1,z:0},frontageB:{x:4,z:0},depth:7,side:-1,angle:0,backyard:'garden',
+  }]
+  assert.match(residentialPlotError(preview,existing),/overlap/)
+  assert.match(residentialPlotBuildingError(preview,[createBuilding(20,'stockpile',0,-3,true)]),/building/)
+  assert.match(residentialPlotResourceError(preview,[{id:30,resource:'wood',remaining:10,x:0,z:-4}]),/Clear resources/)
+})
+
+test('player roads and residential plots survive save/load with their modular backyard identity', () => {
+  const s=createInitialWorldState()
+  const road={id:s.nextId++,width:1.7,points:[{x:4,z:0},{x:10,z:0}]}
+  s.roads.push(road)
+  const preview=residentialPlotPreview(s.roads,{x:4,z:0},{x:9,z:7})
+  assert.ok(preview)
+  const house=createBuilding(s.nextId++,'house',preview.housePoint.x,preview.housePoint.z,true,preview.houseRotation)
+  s.buildings.push(house); s.topology++
+  const plotId=s.nextId++
+  s.residentialPlots.push({
+    id:plotId,buildingId:house.id,roadId:road.id,
+    frontageA:{...preview.frontageA},frontageB:{...preview.frontageB},depth:preview.depth,
+    side:preview.side,angle:preview.angle,backyard:backyardForPlot(plotId,preview.depth),
+  })
+  validateWorld(s)
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.deepEqual(loaded.roads,s.roads)
+  assert.deepEqual(loaded.residentialPlots,s.residentialPlots)
+  validateWorld(loaded)
+})
+
+test('cancelling a plotted House blueprint removes the persistent residential plot', () => {
+  const s=createInitialWorldState()
+  const road={id:s.nextId++,width:1.7,points:[{x:4,z:0},{x:10,z:0}]}
+  s.roads.push(road)
+  const preview=residentialPlotPreview(s.roads,{x:4,z:0},{x:9,z:7})
+  assert.ok(preview)
+  const house=createBuilding(s.nextId++,'house',preview.housePoint.x,preview.housePoint.z,false,preview.houseRotation)
+  s.buildings.push(house); s.topology++
+  const plotId=s.nextId++
+  s.residentialPlots.push({
+    id:plotId,buildingId:house.id,roadId:road.id,
+    frontageA:{...preview.frontageA},frontageB:{...preview.frontageB},depth:preview.depth,
+    side:preview.side,angle:preview.angle,backyard:'garden',
+  })
+  assert.equal(cancelBuilding(s,house.id),null)
+  assert.equal(s.residentialPlots.length,0)
+  assert.equal(s.buildings.some(b=>b.id===house.id),false)
+  validateWorld(s)
+})
+
+test('presentation road strip geometry remains deterministic for persisted road segments', () => {
   const link={fromId:1,toId:2,ax:0,az:0,bx:3,bz:4}
   const strip=visualRoadStrip(link)
   assert.equal(strip.x,1.5)
