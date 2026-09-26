@@ -83,3 +83,16 @@ Crossing into a non-Day phase does not discard physical resources. Jobs that hav
 Guard duty is a lightweight persisted settler role rather than a separate entity type. Guards work normally during Day. Completed Guard Posts provide deterministic slots; excess guards become reserve guards and seek shelter. The shared navigation queue handles both work paths and schedule paths, preserving the existing route budget.
 
 M2.0 deliberately adds no enemy, raid, health, damage or combat state. Those remain separate slices so schedule/resource conservation can be validated independently.
+
+
+## M2.1 deterministic raid movement
+
+The first raid is intentionally deterministic: one 12-raider wave per settlement day, spawning from a map edge selected by wave index. This keeps playtests and regression tests reproducible while the combat rules are still changing.
+
+Raiders are plain serializable simulation entities with stable IDs, a target building, route state and readable status. They do not own Three.js objects, animation mixers, per-agent controllers or independent pathfinding loops.
+
+Settlers and raiders share the existing navigation queue and the same global limit of two solved routes per fixed simulation tick. M2.1 therefore proves that hostile actors can enter the world without bypassing the path budget. Placement connectivity also considers active raiders so a new blueprint cannot silently trap an in-flight wave.
+
+The starter completed stockpile is the first raid target. Raiders move to its accessible entrance and stop with combat explicitly pending. When Night ends, remaining raiders retreat and are removed. Health, attacks, aggro selection, deaths, structure damage and loot are deliberately absent until M2.2.
+
+Raid state records the last day that spawned a wave, wave count and lifetime spawned count. Active enemies are saved. Older version-1 saves migrate an empty raid state without changing the save version.
