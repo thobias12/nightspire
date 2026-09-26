@@ -16,6 +16,11 @@ small { display: block; color: #bfc5b8; font-size: 11px; margin-top: 3px; }
 .topbar { position: absolute; top: 12px; left: 12px; right: 12px; padding: 12px 17px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .topbar b { letter-spacing: .04em; }
 .tag { display: block; color: #d2bc87; font-size: 9px; letter-spacing: .16em; margin-top: 3px; }
+.phase { display: inline-block; padding: 2px 6px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.phase-day { background: #766a3e; color: #fff3bf; }
+.phase-dusk { background: #6d4738; color: #ffd3ae; }
+.phase-night { background: #29334e; color: #d9e2ff; }
+.phase-dawn { background: #5d5062; color: #f3d8ef; }
 #resources { display: flex; flex-wrap: wrap; gap: 8px 13px; }
 #resources span { color: #b4bcae; }
 .guide { position: absolute; left: 12px; top: 92px; width: 237px; }
@@ -32,6 +37,8 @@ p { line-height: 1.55; margin: 9px 0; }
 .qa-body { padding-top: 12px; }
 .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .qa button { font-size: 11px; padding: 7px; }
+.phase-buttons { flex-wrap: wrap; }
+.phase-buttons button { flex: 1; min-width: 48px; }
 .qa label { display: block; margin: 8px 0; }
 .qa input[type="range"] { width: 155px; vertical-align: middle; }
 .number-input { width: 72px; margin-left: 4px; padding: 5px; border: 1px solid #626b5d; border-radius: 4px; background: #222c25; color: #f3eee1; }
