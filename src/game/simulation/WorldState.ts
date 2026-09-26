@@ -38,7 +38,7 @@ export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
   targets: Inventory; raid: RaidState
-  totals: { gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number; repairedHealth: number; structureDamage: number }
+  totals: { gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number; repairedHealth: number; repairWoodUsed: number; structureDamage: number }
   events: string[]
 }
 export const MAX_SETTLERS = 10
@@ -88,7 +88,7 @@ export function createInitialWorldState(): WorldState {
     targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID },
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
-      constructed: 0, repairedHealth: 0, structureDamage: 0,
+      constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0,
     },
     events: ['A new camp. Gather wood, then build homes for your settlers.'],
   }
