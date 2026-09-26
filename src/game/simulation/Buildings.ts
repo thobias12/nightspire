@@ -19,10 +19,10 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
   if (cells.some(c => blocked.has(cellKey(c)))) return 'Overlaps a building.'
   const occupied = new Set(cells.map(cellKey))
   if (s.nodes.some(n => n.remaining > 0 && occupied.has(cellKey(n)))) return 'Clear the resources first.'
-  if ([s.player, ...s.settlers].some(a => cells.some(c => distance(a, c) < 1.05))) return 'Someone is standing here.'
+  if ([s.player, ...s.settlers, ...s.enemies].some(a => cells.some(c => distance(a, c) < 1.05))) return 'Someone is standing here.'
   for (const c of cells) blocked.add(cellKey(c))
   const reachable = flood({ x: 0, z: 2 }, blocked)
-  const required = [...s.buildings.map(entrance), { x: p.x, z: p.z + 2 }, s.player, ...s.settlers, ...s.nodes.filter(n => n.remaining > 0)]
+  const required = [...s.buildings.map(entrance), { x: p.x, z: p.z + 2 }, s.player, ...s.settlers, ...s.enemies, ...s.nodes.filter(n => n.remaining > 0)]
   if (required.some(a => !reachable.has(cellKey(a)))) return 'Keep entrances and gathering routes connected.'
   return null
 }
