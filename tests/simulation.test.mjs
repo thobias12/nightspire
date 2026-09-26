@@ -20,6 +20,7 @@ const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('.
 const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
+const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -48,6 +49,35 @@ const makeAttractive = s => {
   assignHousing(s)
   return s
 }
+test('visual atmosphere is bright by day, cold/dense at night and warmest near twilight', () => {
+  const noon=atmosphereForTime(12/24)
+  const midnight=atmosphereForTime(0)
+  const dusk=atmosphereForTime(19/24)
+  assert.ok(noon.daylight>0.9)
+  assert.ok(midnight.night>0.9)
+  assert.ok(noon.sunIntensity>midnight.sunIntensity)
+  assert.ok(midnight.moonIntensity>noon.moonIntensity)
+  assert.ok(midnight.moonIntensity>=1.4 && midnight.ambientIntensity>=0.7)
+  assert.ok(midnight.fogNear<noon.fogNear && midnight.fogFar<noon.fogFar)
+  assert.ok(midnight.fogFar>=118)
+  assert.ok(dusk.twilight>0.95)
+})
+
+test('construction presentation advances deterministically from foundation to frame to shell', () => {
+  assert.equal(constructionVisualStage(0,10,false),'foundation')
+  assert.equal(constructionVisualStage(3,10,false),'frame')
+  assert.equal(constructionVisualStage(8,10,false),'shell')
+  assert.equal(constructionVisualStage(0,10,true),'complete')
+})
+
+test('damage presentation maps health bands to readable world states', () => {
+  assert.equal(damageVisualStage(100,100,false),'intact')
+  assert.equal(damageVisualStage(70,100,false),'worn')
+  assert.equal(damageVisualStage(40,100,false),'damaged')
+  assert.equal(damageVisualStage(15,100,false),'critical')
+  assert.equal(damageVisualStage(0,100,true),'ruin')
+})
+
 test('ten settlers gather both resources, carry, deposit, supply three houses and a stockpile', () => {
   const s = createInitialWorldState(); pop10(s)
   const sim = new Simulation(s), initial = { wood: total(s, 'wood'), food: total(s, 'food') }

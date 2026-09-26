@@ -200,3 +200,14 @@ Wooden Gates may be placed directly on an existing non-destroyed Wooden Wall wit
 Completed non-starter buildings may be demolished only when no active job references them and their local inventory is empty. Intact structures return 50% of build materials, rounded down, into other stockpiles only when reserved free capacity can safely accept the full refund. The starter Stockpile cannot be demolished. Ruins may be cleared without a material refund.
 
 Building rotation is persisted as a 0–3 quarter-turn value. Existing square footprints do not rotate their occupied cells; rotation controls the presented façade/orientation and fortification visual direction. This gives build mode a stable orientation contract without pulling navigation/footprint geometry into this parallel UX branch.
+
+
+## M3.5 visual detail stays batched and state-derived
+
+The first atmosphere pass remains a renderer concern. It does not alter Simulation, Navigation or Jobs and adds no runtime dependency or asset pipeline. Building presentation is reconstructed from existing state each frame and uses shared InstancedMesh batches for trim, props, windows, scaffolds, debris, smoke, ground wear and terrain accents.
+
+Construction no longer appears as a single solid box growing vertically. A deterministic visual-stage helper maps work progress to foundation, timber frame and partial shell stages before the completed building silhouette appears. Damage similarly maps health into intact/worn/damaged/critical/ruin presentation bands; destroyed structures render low debris rather than a healthy shell.
+
+Night contrast is implemented with one directional moon light, colder ambient/fog/ground tones, emissive-style instanced window/fire batches and one shared warm PointLight centered across currently active settlement light sources. There is deliberately no PointLight or Three.js controller per building. Occupied Houses contribute strong warm windows, Taverns dim when out of Ale, Campfires flicker, and Brewery smoke appears only during its actual Day production window when its recipe can run.
+
+The building models remain procedural stylized graybox geometry. They are intended to improve readability and atmosphere before a final asset pipeline, not to lock final architecture or art direction.
