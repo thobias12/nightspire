@@ -1032,12 +1032,8 @@ export class SceneRenderer {
   ): void {
     const baseY = 0.42 + wallHeight
 
-    // Keep roof detail structural rather than layering thin coplanar/near-coplanar
-    // strips over the slope. Thin roof-course meshes shimmer at sub-pixel sizes
-    // during camera zoom; eaves + ridge retain the medieval silhouette without
-    // introducing depth or sampling instability.
-    // Strong eaves and ridge make the roof silhouette read as constructed timber
-    // rather than a single dark procedural wedge.
+    // Structural roof detail only: heavy eaves and a ridge beam stay stable while
+    // still making gable-front and eave-front silhouettes read differently.
     for (const side of [-1, 1] as const) {
       const eave = this.rotatedOffset(side * (width / 2 + 0.24), 0, rotation)
       this.instance('timber', b.x + eave.x, baseY + 0.03, b.z + eave.z, 0.11, 0.11, depth + 0.78, 0x493326, rotation)
@@ -1101,6 +1097,7 @@ export class SceneRenderer {
     plasterColor: number,
     roofColor: number,
     roofHeight = 1.18,
+    roofFront: 'gable' | 'eave' = 'gable',
   ): void {
     this.instance('stone', b.x, 0.18, b.z, width + 0.24, 0.36, depth + 0.24, TOWN_PALETTE.stoneDark, rotation)
     this.instance('plaster', b.x, 0.42 + wallHeight / 2, b.z, width, wallHeight, depth, plasterColor, rotation)
@@ -1141,8 +1138,11 @@ export class SceneRenderer {
       }
     }
 
-    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, width + 0.72, roofHeight * 2, depth + 0.82, roofColor, rotation)
-    this.roofDetails(b, rotation, width, depth, wallHeight, roofHeight, roofColor)
+    const roofRotation = roofFront === 'eave' ? rotation + Math.PI / 2 : rotation
+    const roofWidth = roofFront === 'eave' ? depth : width
+    const roofDepth = roofFront === 'eave' ? width : depth
+    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, roofWidth + 0.72, roofHeight * 2, roofDepth + 0.82, roofColor, roofRotation)
+    this.roofDetails(b, roofRotation, roofWidth, roofDepth, wallHeight, roofHeight, roofColor)
   }
 
   private fenceLine(b: Building, rotation: number, localX: number, localZ: number, length: number, alongX: boolean): void {
@@ -1323,6 +1323,7 @@ export class SceneRenderer {
       plaster,
       this.readableNightColor(roof, night),
       profile?.roofHeight ?? 1.02 + (plot?.id ?? b.id) % 3 * 0.08,
+      profile?.roofFront ?? 'gable',
     )
 
     const seed = plot?.id ?? b.id
