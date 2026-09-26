@@ -429,8 +429,10 @@ export class Game {
       return
     }
 
-    insertRoadJunctionPoint(s.roads, points[0])
-    insertRoadJunctionPoint(s.roads, points[points.length - 1])
+    // Every snapped control point can be a deliberate junction, not only the
+    // first/last point. This matches the point-planner expectation that clicking an
+    // existing centerline creates a real connection before the new sampled road is saved.
+    for (const control of controls) insertRoadJunctionPoint(s.roads, control)
     s.roads.push({ id: s.nextId++, points, width: this.roadWidth })
 
     const length = points.slice(1).reduce(
@@ -502,7 +504,9 @@ export class Game {
           this.buildType = action
           this.planningTool = null
           this.planningStart = null
+          this.roadControls = []
           this.roadDraft = []
+          this.roadHover = null
           this.plotDraft = null
           this.buildRotation = 0
           this.dragStart = null
