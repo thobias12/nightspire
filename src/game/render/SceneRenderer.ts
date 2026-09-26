@@ -981,7 +981,7 @@ export class SceneRenderer {
       }
     }
 
-    if (profile.tier !== 'cottage' && plot.depth >= 8.2 && plot.id % 3 === 1) {
+    if (plot.depth >= 8.2 && plot.id % 3 === 1) {
       const laneX = side * Math.min(halfW - 0.42, 1.55)
       const laneStart = this.rotatedOffset(laneX, halfD - 0.7, plot.angle)
       const laneEnd = this.rotatedOffset(laneX, rearZ + 0.5, plot.angle)
