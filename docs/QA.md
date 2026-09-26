@@ -382,3 +382,39 @@ Start a fresh run rather than loading the M3.8.0 QA settlement.
 ### Architectural boundary
 
 This milestone intentionally does not modify `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, resource reservations or settler decision logic. Persisted roads are prepared for post-M4 movement/logistics integration, but right now they organize player-authored settlement shape and residential frontage only.
+
+
+## M3.8.2 verification target
+
+M3.8.2 adds placement assistance without changing movement, jobs or simulation scheduling. The regression target rises from 96 to **100 tests**.
+
+New coverage verifies:
+
+- Grid Snap converts road drags to deterministic horizontal/vertical/45° endpoints
+- disabling Grid Snap preserves freeform road pointer geometry
+- snapped Residential Plots use whole-metre frontage/depth while remaining offset to the road edge
+- Road Snap magnetically selects a roadside grid center and computes the road-facing visual angle
+- disabling Road Snap preserves manual grid placement/rotation
+- Walls, Gates and Campfire are never overridden by magnetic Road Snap
+- a persisted road-facing building angle survives current save/load
+
+### Browser workflow
+
+1. Start fresh. Grid Snap and Road Snap should both read **ON**.
+2. Press **0**. Drag mostly horizontally: the preview must lock perfectly horizontal. Try mostly diagonal: it must lock to 45°. Draw a crossing/branch endpoint near an existing road and confirm it magnetically joins.
+3. Press **G**. Draw again and confirm the road follows the freeform pointer stroke. Press **G** again.
+4. Press **1** and make several lots. With Grid Snap on, HUD preview dimensions should be whole metres and neighboring lots should be easy to align.
+5. Toggle Grid Snap OFF and verify freeform lot dimensions return.
+6. Select Tavern, Brewery, Blacksmith, Stockpile or Guard Post and move the ghost near a road. With Road Snap ON, the center should magnetically settle beside the road and the façade marker/building ghost should face the street, including on a 45° road.
+7. Move far enough from the road and confirm the ghost falls back to normal grid placement.
+8. Press **F**. Confirm the same building no longer magnetically moves/rotates and **R** controls its manual grid facing.
+9. Walls, Gates and Campfire must remain manual/grid-oriented even when Road Snap is ON.
+10. Place a road-snapped building, Save, Load, and confirm its road-facing visual angle is unchanged.
+11. Enable navigation debug and confirm workers still ignore roads for path cost/preference.
+12. Check state integrity.
+
+Grid Snap and Road Snap are session/UI preferences, not settlement save data. Persisted roads, plots and snapped-building facing angles remain settlement data.
+
+### Architectural boundary
+
+M3.8.2 does not change `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, reservations, AI decisions or movement cost. All assistance is resolved before the existing placement API receives the final grid cell/rotation.
