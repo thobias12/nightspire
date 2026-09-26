@@ -597,6 +597,8 @@ export class SceneRenderer {
   private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number, plots: ResidentialPlot[]): void {
     const width = residentialPlotWidth(plot)
     const center = this.plotCenter(plot)
+    const halfW = width / 2
+    const halfD = plot.depth / 2
     this.instance('plotGround', center.x, 0.021, center.z, width * 0.94, 1, plot.depth * 0.94, plot.id % 2 ? 0x6a5a42 : 0x62543d, plot.angle)
 
     const corners = plotCorners(plot)
