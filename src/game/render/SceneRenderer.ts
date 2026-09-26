@@ -1419,7 +1419,7 @@ export class SceneRenderer {
     }
 
     if (plot && profile?.roofFront === 'gable' && (profile.form === 'long-burgage' || seed % 4 === 0)) {
-      const loft = this.rotatedOffset(0, depth / 2 + 0.12, rotation)
+      const loft = this.rotatedOffset(0, depth / 2 + 0.43, rotation)
       this.framedWindow(
         visualB.x + loft.x,
         wallHeight + 0.38,
