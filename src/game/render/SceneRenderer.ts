@@ -485,15 +485,103 @@ export class SceneRenderer {
     }
   }
 
-  private renderVisualRoads(state: WorldState): void {
-    for (const link of visualRoadLinks(state.buildings)) {
-      const strip = visualRoadStrip(link)
-      const width = 1.5 + ((link.fromId + link.toId) % 3) * 0.12
-      this.instance('roadBase', strip.x, 0.024, strip.z, width, 1, strip.length + 1.2, TOWN_PALETTE.earth, strip.angle)
-      const normalX = Math.cos(strip.angle) * 0.18
-      const normalZ = -Math.sin(strip.angle) * 0.18
-      this.instance('roadWear', strip.x + normalX, 0.027, strip.z + normalZ, 0.46, 1, strip.length + 0.8, 0x8a7657, strip.angle)
-      this.instance('roadWear', strip.x - normalX, 0.028, strip.z - normalZ, 0.38, 1, strip.length + 0.55, 0x66563f, strip.angle)
+  private renderVisualRoads(roads: RoadPath[]): void {
+    for (const road of roads) {
+      for (let i = 1; i < road.points.length; i++) {
+        const a = road.points[i - 1]
+        const b = road.points[i]
+        const strip = visualRoadStrip({ fromId: road.id, toId: i, ax: a.x, az: a.z, bx: b.x, bz: b.z })
+        const variation = 0.92 + ((road.id * 17 + i * 11) % 9) * 0.018
+        const width = road.width * variation
+        this.instance('roadBase', strip.x, 0.024, strip.z, width, 1, strip.length + width * 0.35, TOWN_PALETTE.earth, strip.angle)
+
+        const normalX = Math.cos(strip.angle)
+        const normalZ = -Math.sin(strip.angle)
+        const rutOffset = width * 0.22
+        this.instance('roadWear', strip.x + normalX * rutOffset, 0.027, strip.z + normalZ * rutOffset, width * 0.19, 1, strip.length + 0.4, 0x806b4d, strip.angle)
+        this.instance('roadWear', strip.x - normalX * rutOffset, 0.028, strip.z - normalZ * rutOffset, width * 0.16, 1, strip.length + 0.25, 0x69583f, strip.angle)
+      }
+
+      for (let i = 0; i < road.points.length; i++) {
+        const point = road.points[i]
+        const scale = road.width * (0.52 + ((road.id + i) % 4) * 0.025)
+        this.instance('roadCap', point.x, 0.023, point.z, scale, 1, scale * 0.9, i % 3 === 0 ? 0x5f513c : TOWN_PALETTE.earth, road.id * 0.19 + i * 0.31)
+      }
+    }
+  }
+
+  private plotCenter(plot: ResidentialPlot): Point {
+    const frontageMid = {
+      x: (plot.frontageA.x + plot.frontageB.x) / 2,
+      z: (plot.frontageA.z + plot.frontageB.z) / 2,
+    }
+    const rear = this.rotatedOffset(0, -plot.depth / 2, plot.angle)
+    return { x: frontageMid.x + rear.x, z: frontageMid.z + rear.z }
+  }
+
+  private renderPlotFence(plot: ResidentialPlot, localX: number, localZ: number, length: number, alongX: boolean): void {
+    const center = this.plotCenter(plot)
+    const o = this.rotatedOffset(localX, localZ, plot.angle)
+    const rotation = alongX ? plot.angle : plot.angle + Math.PI / 2
+    this.instance('timber', center.x + o.x, 0.38, center.z + o.z, length, 0.07, 0.08, 0x59402e, rotation)
+    this.instance('timber', center.x + o.x, 0.68, center.z + o.z, length, 0.065, 0.075, 0x59402e, rotation)
+    for (const offset of [-length / 2, 0, length / 2]) {
+      const post = this.rotatedOffset(
+        localX + (alongX ? offset : 0),
+        localZ + (alongX ? 0 : offset),
+        plot.angle,
+      )
+      this.instance('timber', center.x + post.x, 0.4, center.z + post.z, 0.09, 0.82, 0.09, 0x463326, plot.angle)
+    }
+  }
+
+  private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number): void {
+    const width = residentialPlotWidth(plot)
+    const center = this.plotCenter(plot)
+    this.instance('plotGround', center.x, 0.021, center.z, width * 0.94, 1, plot.depth * 0.94, plot.id % 2 ? 0x6a5a42 : 0x62543d, plot.angle)
+
+    const halfW = width / 2
+    const halfD = plot.depth / 2
+    this.renderPlotFence(plot, -halfW, 0, plot.depth, false)
+    this.renderPlotFence(plot, halfW, 0, plot.depth, false)
+    this.renderPlotFence(plot, 0, -halfD, width, true)
+
+    if (!b.complete || b.destroyed) return
+
+    const rearZ = -halfD + Math.min(2.3, plot.depth * 0.22)
+    if (plot.backyard === 'garden') {
+      const rowCount = Math.max(2, Math.min(4, Math.floor(width / 1.6)))
+      for (let i = 0; i < rowCount; i++) {
+        const localX = (i - (rowCount - 1) / 2) * Math.min(1.2, width / Math.max(3, rowCount))
+        const p = this.rotatedOffset(localX, rearZ, plot.angle)
+        this.instance('gardenRow', center.x + p.x, 0.07, center.z + p.z, 0.52, 1, Math.min(2.4, plot.depth * 0.28), i % 2 ? 0x59653f : 0x657048, plot.angle)
+        for (let j = 0; j < 3; j++) {
+          const plant = this.rotatedOffset(localX + (j - 1) * 0.12, rearZ - 0.55 + j * 0.48, plot.angle)
+          this.instance('underbrush', center.x + plant.x, 0.18, center.z + plant.z, 0.28, 0.24, 0.28, 0x58714a, plot.id * 0.13 + i + j)
+        }
+      }
+    } else if (plot.backyard === 'chickens') {
+      const penCenter = this.rotatedOffset(0, rearZ, plot.angle)
+      for (let i = 0; i < 5; i++) {
+        const px = ((i % 3) - 1) * 0.42 + Math.sin(plot.id + i) * 0.09
+        const pz = (Math.floor(i / 3) - 0.25) * 0.46
+        const p = this.rotatedOffset(px, rearZ + pz, plot.angle)
+        this.instance('chicken', center.x + p.x, 0.17, center.z + p.z, 1, 0.86, 1, i % 2 ? 0xc5ad7a : 0x9d815e, i * 0.7)
+      }
+      this.instance('timber', center.x + penCenter.x, 0.28, center.z + penCenter.z, Math.min(2.4, width * 0.55), 0.55, 0.08, 0x60452f, plot.angle)
+    } else if (plot.backyard === 'workyard') {
+      const shed = this.rotatedOffset(-Math.min(halfW - 0.8, 1.25), rearZ, plot.angle)
+      this.instance('timber', center.x + shed.x, 0.48, center.z + shed.z, 1.15, 0.9, 0.95, 0x674a35, plot.angle)
+      this.instance('gableRoofs', center.x + shed.x, 0.92, center.z + shed.z, 1.42, 0.56, 1.15, this.readableNightColor(0x69543b, night), plot.angle)
+      for (let i = 0; i < 4; i++) {
+        const log = this.rotatedOffset(0.45 + (i % 2) * 0.34, rearZ - 0.4 + Math.floor(i / 2) * 0.34, plot.angle)
+        this.instance('logs', center.x + log.x, 0.18 + (i % 2) * 0.06, center.z + log.z, 0.5, 0.5, 0.5, 0x6a482f, plot.angle)
+      }
+    } else {
+      for (let i = 0; i < 6; i++) {
+        const log = this.rotatedOffset(-0.75 + (i % 3) * 0.42, rearZ - 0.35 + Math.floor(i / 3) * 0.35, plot.angle)
+        this.instance('logs', center.x + log.x, 0.18 + (i % 2) * 0.06, center.z + log.z, 0.56, 0.56, 0.56, 0x6b4930, plot.angle)
+      }
     }
   }
 
@@ -645,31 +733,55 @@ export class SceneRenderer {
     }
   }
 
-  private renderHouse(b: Building, rotation: number, color: number, night: number): void {
-    this.renderYard(b, rotation, 2.65, b.id % 2 ? 0x655740 : 0x6b5a40)
-    const plaster = b.id % 3 === 0 ? 0xa99d83 : color
-    const roof = b.id % 2 ? TOWN_PALETTE.roofBrown : TOWN_PALETTE.thatch
-    this.timberFrame(b, rotation, 2.48, 2.22, 1.86, plaster, this.readableNightColor(roof, night), 1.12)
+  private renderHouse(b: Building, rotation: number, color: number, night: number, plot?: ResidentialPlot): void {
+    const width = plot ? THREE.MathUtils.clamp(residentialPlotWidth(plot) * 0.58, 2.35, 3.6) : 2.48
+    const depth = plot ? 2.02 + (plot.id % 3) * 0.2 : 2.22
+    const wallHeight = plot && plot.id % 4 === 0 ? 2.05 : 1.86
+    const plaster = plot
+      ? [0xb4a486, 0xa89b80, 0xc0ad8d, 0x9e9782][plot.id % 4]
+      : b.id % 3 === 0 ? 0xa99d83 : color
+    const roof = plot
+      ? [TOWN_PALETTE.thatch, TOWN_PALETTE.roofBrown, 0x66533d][plot.id % 3]
+      : b.id % 2 ? TOWN_PALETTE.roofBrown : TOWN_PALETTE.thatch
 
-    const front = this.rotatedOffset(0.38, 1.18, rotation)
-    this.instance('doors', b.x + front.x, 0.82, b.z + front.z, 0.55, 1.35, 0.13, 0x4b3325, rotation)
-    const winLeft = this.rotatedOffset(-0.62, 1.2, rotation)
-    const winRight = this.rotatedOffset(0.85, 1.2, rotation)
-    this.warmWindow(b.x + winLeft.x, 1.28, b.z + winLeft.z, rotation, night, 0.36, 0.45)
-    this.warmWindow(b.x + winRight.x, 1.32, b.z + winRight.z, rotation, night, 0.32, 0.42)
+    if (!plot) this.renderYard(b, rotation, 2.65, b.id % 2 ? 0x655740 : 0x6b5a40)
+    this.timberFrame(b, rotation, width, depth, wallHeight, plaster, this.readableNightColor(roof, night), 1.02 + (plot?.id ?? b.id) % 3 * 0.08)
 
-    const chimney = this.rotatedOffset(0.72, -0.48, rotation)
-    this.instance('stone', b.x + chimney.x, 2.55, b.z + chimney.z, 0.34, 1.5, 0.34, 0x66645f, rotation)
+    const doorX = ((plot?.id ?? b.id) % 3 - 1) * Math.min(0.48, width * 0.16)
+    const front = this.rotatedOffset(doorX, depth / 2 + 0.08, rotation)
+    this.instance('doors', b.x + front.x, 0.82, b.z + front.z, 0.54, 1.35, 0.13, 0x4b3325, rotation)
 
-    const shed = this.rotatedOffset(-1.28, -0.58, rotation)
-    this.instance('timber', b.x + shed.x, 0.58, b.z + shed.z, 0.82, 1.08, 0.72, 0x6d5139, rotation)
-    this.instance('gableRoofs', b.x + shed.x, 1.08, b.z + shed.z, 1.02, 0.62, 0.92, this.readableNightColor(0x69563c, night), rotation)
+    const windowSpread = Math.min(width * 0.31, 0.9)
+    for (const lx of [-windowSpread, windowSpread]) {
+      if (Math.abs(lx - doorX) < 0.34) continue
+      const win = this.rotatedOffset(lx, depth / 2 + 0.1, rotation)
+      this.warmWindow(b.x + win.x, 1.3, b.z + win.z, rotation, night, 0.34, 0.44)
+    }
 
-    this.fenceLine(b, rotation, -1.55, -0.25, 2.8, false)
-    this.fenceLine(b, rotation, 0, -1.65, 3.0, true)
-    for (let i = 0; i < 4; i++) {
-      const log = this.rotatedOffset(-0.9 + i * 0.35, -1.2, rotation)
-      this.instance('logs', b.x + log.x, 0.2 + (i % 2) * 0.08, b.z + log.z, 0.52, 0.52, 0.52, 0x6d4a31, rotation)
+    const chimneySide = (plot?.id ?? b.id) % 2 ? 1 : -1
+    const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
+    this.instance('stone', b.x + chimney.x, wallHeight + 0.72, b.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
+
+    if (plot && plot.id % 3 === 1) {
+      const lean = this.rotatedOffset(-width / 2 - 0.42, -0.2, rotation)
+      this.instance('timber', b.x + lean.x, 0.5, b.z + lean.z, 0.72, 0.92, 1.1, 0x6b4d37, rotation)
+      this.instance('cloth', b.x + lean.x, 0.98, b.z + lean.z, 0.94, 0.08, 1.3, 0x776044, rotation)
+    } else if (plot && plot.id % 3 === 2) {
+      const porch = this.rotatedOffset(0, depth / 2 + 0.48, rotation)
+      this.instance('timber', b.x + porch.x, 0.18, b.z + porch.z, Math.min(width * 0.75, 2.2), 0.18, 0.72, 0x674a34, rotation)
+      for (const lx of [-0.72, 0.72]) {
+        const post = this.rotatedOffset(lx, depth / 2 + 0.72, rotation)
+        this.instance('timber', b.x + post.x, 0.66, b.z + post.z, 0.09, 1.15, 0.09, 0x4c3628, rotation)
+      }
+    }
+
+    if (!plot) {
+      this.fenceLine(b, rotation, -1.55, -0.25, 2.8, false)
+      this.fenceLine(b, rotation, 0, -1.65, 3.0, true)
+      for (let i = 0; i < 4; i++) {
+        const log = this.rotatedOffset(-0.9 + i * 0.35, -1.2, rotation)
+        this.instance('logs', b.x + log.x, 0.2 + (i % 2) * 0.08, b.z + log.z, 0.52, 0.52, 0.52, 0x6d4a31, rotation)
+      }
     }
   }
 
