@@ -4,7 +4,10 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_NEEDS, DEFAULT_TARGETS, MAX_SETTLERS } = require('../.test-build/game/simulation/WorldState.js')
 const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
-const { assignHousing, cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
+const {
+  assignHousing, cancelBuilding, demolishBuilding, placeBuilding, placeBuildingBatch,
+  placementBatchError, placementError, stockpiles, available, freeStorage, wallLinePoints,
+} = require('../.test-build/game/simulation/Buildings.js')
 const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey } = require('../.test-build/game/simulation/Navigation.js')
@@ -118,6 +121,74 @@ test('placement rejects overlap, resource occupation, actors, out of bounds, blo
   for(const [x,z] of [[7,0],[4,2],[10,2]]) assert.equal(placeBuilding(wall,'house',{x,z}),null)
   assert.match(placementError(wall,'house',{x:7,z:4}), /connected/)
 })
+test('wall drag snaps to one grid axis and places the whole valid line atomically', () => {
+  const s=createInitialWorldState()
+  const points=wallLinePoints({x:-8,z:8},{x:-4,z:10})
+  assert.deepEqual(points,[
+    {x:-8,z:8},{x:-7,z:8},{x:-6,z:8},{x:-5,z:8},{x:-4,z:8},
+  ])
+  assert.equal(placementBatchError(s,'wood-wall',points,1),null)
+  const before=s.buildings.length
+  assert.equal(placeBuildingBatch(s,'wood-wall',points,1),null)
+  const walls=s.buildings.slice(before)
+  assert.equal(walls.length,5)
+  assert.ok(walls.every(b=>b.type==='wood-wall' && b.rotation===1 && !b.complete))
+  validateWorld(s)
+})
+
+test('invalid wall drag rejects the entire line without partial blueprints', () => {
+  const s=createInitialWorldState()
+  const points=wallLinePoints({x:-3,z:0},{x:3,z:0})
+  const before=s.buildings.length
+  assert.match(placementBatchError(s,'wood-wall',points,1),/Overlaps/)
+  assert.match(placeBuildingBatch(s,'wood-wall',points,1),/Overlaps/)
+  assert.equal(s.buildings.length,before)
+  validateWorld(s)
+})
+
+test('placing a gate on an existing wall converts it and retains the wall timber', () => {
+  const s=createInitialWorldState()
+  const wall=createBuilding(s.nextId++,'wood-wall',8,8,true)
+  s.buildings.push(wall); s.topology++
+  const before=s.buildings.length
+  assert.equal(placeBuilding(s,'wood-gate',{x:8,z:8},1),null)
+  assert.equal(s.buildings.length,before)
+  assert.equal(wall.type,'wood-gate')
+  assert.equal(wall.complete,false)
+  assert.equal(wall.rotation,1)
+  assert.equal(wall.delivered.wood,5)
+  assert.equal(wall.work,0)
+  assert.equal(wall.health,0)
+  assert.equal(wall.maxHealth,220)
+  validateWorld(s)
+})
+
+test('demolition removes an idle completed building and returns half its build materials', () => {
+  const s=createInitialWorldState()
+  const store=s.buildings[0]
+  const house=createBuilding(s.nextId++,'house',8,8,true,2)
+  s.buildings.push(house); s.topology++
+  const woodBefore=store.inventory.wood
+  assert.equal(demolishBuilding(s,house.id),null)
+  assert.equal(s.buildings.some(b=>b.id===house.id),false)
+  assert.equal(store.inventory.wood,woodBefore+10)
+  assert.equal(s.topology,2)
+  validateWorld(s)
+})
+
+test('building orientation survives save load and unsafe demolition is refused', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',8,8,true,3)
+  brewery.inventory.food=1
+  s.buildings.push(brewery); s.topology++
+  assert.match(demolishBuilding(s,brewery.id),/Empty this building/)
+  const loaded=deserializeWorld(serializeWorld(s))
+  const restored=loaded.buildings.find(b=>b.id===brewery.id)
+  assert.equal(restored.rotation,3)
+  assert.equal(restored.inventory.food,1)
+  validateWorld(loaded)
+})
+
 test('topology changes invalidate routes and workers finish around new obstacles', () => {
   const s=createInitialWorldState(), sim=new Simulation(s)
   advance(sim,5)

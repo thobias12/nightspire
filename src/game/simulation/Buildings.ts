@@ -44,8 +44,21 @@ export function supplyFree(state: WorldState, b: Building, resource: ResourceId)
   return Math.max(0, supplyCapacity(b, resource) - b.inventory[resource] - incoming)
 }
 
+function wallAt(s: WorldState, p: Point): Building | undefined {
+  return s.buildings.find(b => b.x === p.x && b.z === p.z && b.type === 'wood-wall' && !b.destroyed)
+}
+
 export function placementError(s: WorldState, type: BuildingId, p: Point): string | null {
   if (!Number.isInteger(p.x) || !Number.isInteger(p.z)) return 'Place on the grid.'
+
+  if (type === 'wood-gate') {
+    const wall = wallAt(s, p)
+    if (wall) {
+      if (s.jobs.some(job => job.sourceId === wall.id || job.targetId === wall.id)) return 'Wait for the current wall task to finish before inserting a gate.'
+      return null
+    }
+  }
+
   if (s.buildings.length >= 120) return 'Building limit reached (120).'
 
   const cells = footprint({ ...p, type })
@@ -70,14 +83,138 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
   return null
 }
 
-export function placeBuilding(s: WorldState, type: BuildingId, p: Point): string | null {
+export function placeBuilding(s: WorldState, type: BuildingId, p: Point, rotation = 0): string | null {
   const error = placementError(s, type, p)
   if (error) return error
 
-  const building = createBuilding(s.nextId++, type, p.x, p.z, false)
+  if (type === 'wood-gate') {
+    const wall = wallAt(s, p)
+    if (wall) {
+      const gate = BUILDINGS['wood-gate']
+      wall.type = 'wood-gate'
+      wall.rotation = ((Math.round(rotation) % 4) + 4) % 4
+      wall.complete = false
+      wall.work = 0
+      wall.health = 0
+      wall.maxHealth = gate.maxHealth
+      wall.destroyed = false
+      wall.lastHitTick = 0
+      wall.delivered.wood = Math.min(wall.delivered.wood, gate.buildCost.wood)
+      wall.delivered.food = 0
+      wall.delivered.ale = 0
+      wall.serviceProgress = 0
+      wall.productionProgress = 0
+      s.topology++
+      recordEvent(s, 'Wooden Wall converted to a Wooden Gate blueprint; existing timber was retained.')
+      return null
+    }
+  }
+
+  const building = createBuilding(s.nextId++, type, p.x, p.z, false, rotation)
   s.buildings.push(building)
   s.topology++
   recordEvent(s, BUILDINGS[type].label + ' planned. Settlers will deliver materials.')
+  return null
+}
+
+export function wallLinePoints(start: Point, end: Point): Point[] {
+  const dx = end.x - start.x
+  const dz = end.z - start.z
+  const horizontal = Math.abs(dx) >= Math.abs(dz)
+  const steps = Math.abs(horizontal ? dx : dz)
+  const direction = Math.sign(horizontal ? dx : dz)
+  const points: Point[] = []
+  for (let i = 0; i <= steps; i++) {
+    points.push(horizontal
+      ? { x: start.x + direction * i, z: start.z }
+      : { x: start.x, z: start.z + direction * i })
+  }
+  return points.length ? points : [{ ...start }]
+}
+
+export function placementBatchError(
+  s: WorldState,
+  type: BuildingId,
+  points: Point[],
+  rotation = 0,
+): string | null {
+  if (points.length === 0) return 'Drag across at least one grid cell.'
+  if (type !== 'wood-wall') return 'Drag placement is currently available for Wooden Walls.'
+
+  const unique = points.filter((point, index) =>
+    points.findIndex(candidate => candidate.x === point.x && candidate.z === point.z) === index,
+  )
+  const staged: WorldState = { ...s, buildings: [...s.buildings] }
+  for (let i = 0; i < unique.length; i++) {
+    const point = unique[i]
+    const error = placementError(staged, type, point)
+    if (error) return 'Wall segment ' + (i + 1) + ': ' + error
+    staged.buildings.push(createBuilding(staged.nextId + i, type, point.x, point.z, false, rotation))
+  }
+  return null
+}
+
+export function placeBuildingBatch(
+  s: WorldState,
+  type: BuildingId,
+  points: Point[],
+  rotation = 0,
+): string | null {
+  const error = placementBatchError(s, type, points, rotation)
+  if (error) return error
+
+  const unique = points.filter((point, index) =>
+    points.findIndex(candidate => candidate.x === point.x && candidate.z === point.z) === index,
+  )
+  for (const point of unique) s.buildings.push(createBuilding(s.nextId++, type, point.x, point.z, false, rotation))
+  s.topology++
+  recordEvent(s, unique.length + ' Wooden Wall blueprint' + (unique.length === 1 ? '' : 's') + ' planned by drag placement.')
+  return null
+}
+
+export function demolishBuilding(s: WorldState, id: number): string | null {
+  const index = s.buildings.findIndex(b => b.id === id)
+  if (index < 0) return 'Building no longer exists.'
+  const building = s.buildings[index]
+  if (!building.complete) return 'Cancel unfinished blueprints instead.'
+  if (building.type === 'stockpile' && building.x === 0 && building.z === 0) return 'The starter Stockpile cannot be demolished.'
+  if (s.jobs.some(job => job.sourceId === id || job.targetId === id)) return 'Wait for active jobs involving this building to finish.'
+  if (RESOURCE_IDS.some(resource => building.inventory[resource] > 0)) return 'Empty this building before demolition.'
+
+  const refunds = emptyInventory()
+  if (!building.destroyed) {
+    for (const resource of RESOURCE_IDS) refunds[resource] = Math.floor(BUILDINGS[building.type].buildCost[resource] * 0.5)
+  }
+
+  const stores = stockpiles(s).filter(store => store.id !== id)
+  const capacity = new Map(stores.map(store => [store.id, Math.max(0, freeStorage(s, store))]))
+  const plan: Array<{ store: Building; resource: ResourceId; amount: number }> = []
+  for (const resource of RESOURCE_IDS) {
+    let remaining = refunds[resource]
+    for (const store of stores) {
+      if (remaining <= 0) break
+      const room = capacity.get(store.id) ?? 0
+      const amount = Math.min(room, remaining)
+      if (amount <= 0) continue
+      plan.push({ store, resource, amount })
+      capacity.set(store.id, room - amount)
+      remaining -= amount
+    }
+    if (remaining > 0) return 'Need ' + remaining + ' more free stockpile capacity for the demolition refund.'
+  }
+
+  s.buildings.splice(index, 1)
+  for (const refund of plan) refund.store.inventory[refund.resource] += refund.amount
+  assignHousing(s)
+  s.topology++
+  const refundText = RESOURCE_IDS
+    .filter(resource => refunds[resource] > 0)
+    .map(resource => refunds[resource] + ' ' + resource)
+    .join(', ')
+  recordEvent(
+    s,
+    BUILDINGS[building.type].label + ' demolished' + (refundText ? '; recovered ' + refundText + '.' : '.'),
+  )
   return null
 }
 

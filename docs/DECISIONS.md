@@ -187,3 +187,16 @@ Immigrants are real Settler entities immediately, but spawn at deterministic map
 The QA **Test immigration now** action bypasses only the two-Day wait; it still requires all real attraction conditions. The direct **Spawn settler** control remains a QA-only escape hatch and is labeled as such.
 
 The ten-settler cap is intentionally unchanged. M3.3 proves that needs, economy and defense drive population growth without silently expanding the simulation/performance promise before M4 profiling.
+
+
+## M3.4 construction UX stays above the simulation hot paths
+
+The construction UX pass deliberately avoids changing the fixed-step simulation, navigation queue and job scheduler while M4 scale work is being profiled separately. Build interactions live in Game/Hud/Renderer plus small placement/demolition helpers in Buildings.
+
+Wooden Wall drag placement is atomic. The mouse drag snaps to the dominant grid axis, previews the complete straight line, and validates a staged copy of the building list one segment at a time. If any segment overlaps, leaves the map or would disconnect friendly routes, the whole drag is rejected rather than leaving a surprising partial wall.
+
+Wooden Gates may be placed directly on an existing non-destroyed Wooden Wall with no active job. The wall entity is converted into an unfinished gate blueprint, retaining up to its existing five delivered wood. Construction work resets and settlers deliver the remaining gate cost normally.
+
+Completed non-starter buildings may be demolished only when no active job references them and their local inventory is empty. Intact structures return 50% of build materials, rounded down, into other stockpiles only when reserved free capacity can safely accept the full refund. The starter Stockpile cannot be demolished. Ruins may be cleared without a material refund.
+
+Building rotation is persisted as a 0–3 quarter-turn value. Existing square footprints do not rotate their occupied cells; rotation controls the presented façade/orientation and fortification visual direction. This gives build mode a stable orientation contract without pulling navigation/footprint geometry into this parallel UX branch.

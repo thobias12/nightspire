@@ -76,6 +76,7 @@
 - [x] population attraction/immigration
 - [ ] happiness consequences
 - [ ] better logistics/resource reservations
+- [x] building/construction UX pass
 
 **M3.0 verified:** food consumption, bed-backed Housing, defense-backed Safety, capacity-limited Campfire Recreation, persisted per-settler needs and derived Happiness.
 
@@ -83,7 +84,9 @@
 
 **M3.2 verified:** Ale as a third resource, generic production progress, Brewery Food input/Ale output, stockpile-staged Ale logistics, Tavern Ale consumption and conservation accounting.
 
-**M3.3 target:** deterministic attraction from spare housing, stored Food, Happiness, Safety and raid outcomes; two-Day qualification; physical edge-entry immigrants; arriving-settler job exclusion; QA visibility; and current-state save/load coverage. The population cap remains 10 until scale work.
+**M3.3 verified:** deterministic attraction from spare housing, stored Food, Happiness, Safety and raid outcomes; two-Day qualification; physical edge-entry immigrants; arriving-settler job exclusion; QA visibility; and current-state save/load coverage.
+
+**M3.4 target:** categorized build mode, 1–8 hotkeys, persisted R rotation, Shift-repeat placement, atomic straight wall dragging, direct wall→gate conversion, footprint-aware selection, safe 50% demolition refunds, and clearer placement feedback. No job/navigation architecture changes are required.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 

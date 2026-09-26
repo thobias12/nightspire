@@ -2,7 +2,7 @@
 
 A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
 
-**Current playable milestone: M3.3 — Population Attraction.** Housing, stored Food, Happiness, Safety and raid outcomes now determine whether Nightspire attracts new settlers. A qualifying settlement must hold the requirements across two Days; successful immigrants spawn at the map edge and physically walk into town before joining the workforce. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M3.4 — Building & Construction UX.** The M3.3 population/economy loop remains intact, while settlement construction is faster and more legible: categorized build controls, 1–8 hotkeys, R rotation, Shift-repeat placement, drag-built wall lines, direct wall→gate conversion, footprint-aware selection, and safe completed-building demolition. See [the design](docs/GAME_DESIGN.md) for future direction.
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -20,7 +20,7 @@ Open the local URL printed by Vite. A camp begins with six settlers, an empty co
 1. Watch stockpile counts rise. Click a settler or resource to inspect its task or remaining yield.
 2. Select **House**, then click clear ground. The preview is green on a valid site and red on a blocked one. A blueprint can wait for materials.
 3. Settlers reserve available wood, collect it from a stockpile, carry it to the site, then perform construction work. One house costs 20 wood and provides four beds.
-4. Build more houses and a **Stockpile** (10 wood, 400 shared Wood/Food/Ale capacity), then add a **Guard Post**, **Campfire**, **Brewery** (35 wood), **Tavern** (40 wood), Wooden Walls and at least one Wooden Gate. The Brewery recipe is **2 Food → 4 Ale every 12 simulated seconds during Day**.
+4. Use the categorized build bar or hotkeys **1–8**. Press **R** to rotate the current blueprint, hold **Shift** after a click to keep placing the same building, and **drag Wooden Wall** from one grid cell to another for an atomic straight wall line. Place a Wooden Gate directly on an existing wall segment to convert it while retaining the wall's delivered timber.
 5. Inspect settlers to see **Food / Housing / Safety / Recreation** plus derived Happiness. During Day, workers keep Brewery Food input supplied, the Brewery produces Ale, workers haul that Ale into stockpile storage, and Tavern supply runs from stockpile to the Tavern's 12-Ale pantry. During Dusk/Dawn a supplied Tavern is preferred over Campfire; when Ale runs out, settlers fall back to Campfire capacity.
 6. Build enough Houses to leave at least one spare bed, keep at least **2 stored Food per settler**, maintain **65% Happiness** and **55% Safety**, and keep the latest raid cleared. Hold those conditions across two Day checks to attract one immigrant. The newcomer enters from the map edge and cannot work until reaching the camp.
 7. Open **QA & performance** and jump to **Night**. Wave 1 contains 20 raiders. Each later wave adds four attackers until the 40-raider cap. Raiders batter walls/gates open, then retarget exposed settlement buildings. Guards intercept nearby raiders; the player can still fight with **Space**.
@@ -41,8 +41,11 @@ Save/load uses one primary localStorage slot plus one backup slot in this browse
 | Mouse wheel | Zoom settlement camera |
 | Follow player / Settlement camera | Switch between elevated and close following views |
 | Center camp | Restore the initial settlement camera |
-| Click | Inspect a settler/raider/resource/building, or place the selected blueprint |
-| Esc / Inspect | Cancel placement |
+| Click | Inspect, or place the selected blueprint; hold Shift to remain in build mode |
+| 1–8 | Select House, Stockpile, Campfire, Brewery, Tavern, Guard Post, Wall, Gate |
+| R | Rotate the active blueprint / façade orientation |
+| Drag with Wooden Wall selected | Plan a straight wall line; release to place the whole valid line |
+| Esc / Inspect | Leave build mode |
 | QA controls | Pause/resume, 1×/2×/4×, jump Day/Dusk/Night/Dawn, Next raid, test immigration now, force needs to 25%/100%, add selected building input, damage selected structure, set hour, stock targets, add resources, direct QA spawn, paths, integrity audit, backup/export/import |
 
 Time drives work, needs, production and population growth. Normal jobs and Brewery production run during Day (06:00–18:00). At each new Day the population system evaluates spare beds, unreserved stored Food, Happiness, Safety, raid state and the current 10-settler cap. Two consecutive qualifying Days admit one immigrant, then the streak resets. At Night the existing M2 combat/fortification loop remains unchanged.
@@ -56,7 +59,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-one regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-six regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -83,8 +86,8 @@ docs/           design, architecture, milestones, decisions and QA
 
 ## Scope and limitations
 
-This is a small playable graybox foundation: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, a physical Food → Ale → Tavern chain, and deterministic population attraction from 6 → 10. Walls are placed one segment per click; there is no drag placement or gate open/close control yet. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
+This is a small playable graybox foundation: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, a physical Food → Ale → Tavern chain, deterministic population attraction from 6 → 10, and a dedicated build-mode UX layer. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
 
 See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.3 makes the existing needs/economy/defense systems matter for organic growth. The population cap intentionally remains 10 until the later scale-proof milestone. The remaining M3 decisions are whether to add explicit Happiness consequences next or broaden production with the Blacksmith before moving toward M4.
+M3.4 improves the construction workflow without changing simulation scale. The population cap intentionally remains 10 while separate M4 scale work is evaluated. Build rotation is persisted and presented visually; current footprints remain square, so rotation primarily controls façade/fortification presentation rather than changing occupied cells.
