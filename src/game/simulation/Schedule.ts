@@ -1,6 +1,8 @@
 import { BUILDINGS } from '../data/buildings'
-import type { Point, Settler, WorldState } from './WorldState'
+import type { DayPhase } from './DayNight'
 import { entrance } from './Navigation'
+import { recreationAssignment } from './Needs'
+import type { Point, Settler, WorldState } from './WorldState'
 
 export type SettlerRole = 'worker' | 'guard'
 
@@ -33,11 +35,17 @@ function homeTarget(state: WorldState, settler: Settler): Point {
   return starter ? entrance(starter) : { x: 0, z: 2 }
 }
 
-export function nightTarget(state: WorldState, settler: Settler): { target: Point; status: string } {
+export function nightTarget(state: WorldState, settler: Settler, phase: DayPhase): { target: Point; status: string } {
   if (settler.role === 'guard') {
     const target = guardTarget(state, settler)
     if (target) return { target, status: 'Guarding the settlement' }
     return { target: homeTarget(state, settler), status: 'Guard reserve — no post' }
   }
+
+  if (phase === 'dusk' || phase === 'dawn') {
+    const recreation = recreationAssignment(state, settler)
+    if (recreation) return { target: recreation.target, status: 'Relaxing at campfire' }
+  }
+
   return { target: homeTarget(state, settler), status: settler.homeId === null ? 'Sheltering at camp' : 'Sheltering at home' }
 }

@@ -22,7 +22,7 @@ export class Game {
   private pointer: Point | null = null
   private paused = false
   private speed = 1
-  private message = 'Fortify the camp with walls and a gate, then survive the raid and repair the damage after dawn.'
+  private message = 'Keep settlers fed, housed, safe and rested. Build a Campfire before dusk to prove the first needs loop.'
   private animationFrame = 0
   private lastTime = 0
   private accumulator = 0
@@ -86,7 +86,7 @@ export class Game {
     const s = this.simulation.state
     try {
       switch (action) {
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire':
           this.buildType = action; this.renderer.mode = 'settlement'
           this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
         case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a settler, raider, resource or building.'; break
@@ -119,10 +119,11 @@ export class Game {
         case 'jump-night': this.simulation.setTimeOfDay(21 / 24); break
         case 'jump-dawn': this.simulation.setTimeOfDay(5 / 24); break
         case 'next-raid': {
-          this.simulation.setTimeOfDay(12 / 24)
+          this.simulation.setTimeOfDay(5 / 24)
           if (s.raid.lastSpawnDay === s.day) s.day++
+          this.simulation.setTimeOfDay(6 / 24)
           this.simulation.setTimeOfDay(21 / 24)
-          this.message = 'Advanced to raid wave ' + s.raid.wave + '. Raiders now attack walls, gates, and exposed structures.'
+          this.message = 'Advanced to raid wave ' + s.raid.wave + '. The new day meal and needs update were processed first.'
           break
         }
         case 'target-wood': case 'target-food': {
@@ -143,8 +144,14 @@ export class Game {
             : 'QA dealt 60 structure damage. Daylight workers will repair it with wood.'
           break
         }
+        case 'needs-low':
+          for (const settler of s.settlers) settler.needs = { food: 25, housing: 25, safety: 25, recreation: 25 }
+          this.message = 'QA set all settler needs to 25%.'; break
+        case 'needs-reset':
+          for (const settler of s.settlers) settler.needs = { food: 100, housing: 100, safety: 100, recreation: 100 }
+          this.message = 'QA reset all settler needs to 100%.'; break
         case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.3 maximum remains 10 settlers.'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M3.0 maximum remains 10 settlers.'; break
         case 'resources': {
           let added = 0
           for (const resource of ['wood', 'food'] as const) {
@@ -189,7 +196,7 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: jobs, repairs, structure HP, raid state, reservations, housing and connectivity.'; break
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: needs, meals, jobs, repairs, raid state, reservations, housing and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()

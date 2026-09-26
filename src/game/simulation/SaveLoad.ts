@@ -3,7 +3,7 @@ import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, stockpiles } from './Buildings'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
-import { DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, type WorldState } from './WorldState'
+import { DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
 
 export const SAVE_KEY = 'nightspire.m1.save.v1'
 export const BACKUP_KEY = 'nightspire.m1.backup.v1'
@@ -16,6 +16,7 @@ const integer = (v: unknown): v is number => number(v) && Number.isSafeInteger(v
 const inventory = (v: any): boolean => v && RESOURCE_IDS.every(r => integer(v[r]))
 const point = (v: any): boolean => v && Number.isFinite(v.x) && Number.isFinite(v.z) && inBounds(v)
 const gridPoint = (v: any): boolean => point(v) && Number.isInteger(v.x) && Number.isInteger(v.z)
+const needs = (v: any): boolean => v && NEED_IDS.every(need => number(v[need]) && v[need] <= 100)
 const combatant = (v: any, tick: number): boolean =>
   v && integer(v.maxHealth) && v.maxHealth > 0
   && integer(v.health) && v.health <= v.maxHealth
@@ -80,6 +81,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   for (const a of s.settlers) {
     check(point(a) && combatant(a, s.tick) && inventory(a.cargo) && a.cargo.wood + a.cargo.food <= CARRY_CAPACITY, 'settler/cargo')
     check(a.role === 'worker' || a.role === 'guard', 'settler role')
+    check(needs(a.needs) && integer(a.lastMealDay) && a.lastMealDay <= s.day, 'settler needs')
     check(Array.isArray(a.path) && a.path.length <= 3000 && a.path.every(gridPoint) && Number.isInteger(a.pathRevision), 'route')
     check(typeof a.status === 'string' && a.status.length <= 120, 'status')
     check(
@@ -186,7 +188,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     && integer(s.totals.constructed)
     && integer(s.totals.repairedHealth)
     && integer(s.totals.repairWoodUsed)
-    && integer(s.totals.structureDamage),
+    && integer(s.totals.structureDamage)
+    && integer(s.totals.foodConsumed),
     'counters',
   )
   check(Array.isArray(s.events) && s.events.length <= 6 && s.events.every(e => typeof e === 'string' && e.length < 200), 'events')
@@ -208,6 +211,8 @@ export function deserializeWorld(text: string): WorldState {
       if (settler.role === undefined) settler.role = 'worker'
       if (settler.health === undefined) Object.assign(settler, { health: 100, maxHealth: 100, attackCooldown: 0 })
       if (settler.lastHitTick === undefined) settler.lastHitTick = 0
+      if (settler.needs === undefined) settler.needs = { ...DEFAULT_NEEDS }
+      if (settler.lastMealDay === undefined) settler.lastMealDay = candidate.day
     }
   }
 
@@ -245,6 +250,7 @@ export function deserializeWorld(text: string): WorldState {
     if (candidate.totals.repairedHealth === undefined) candidate.totals.repairedHealth = 0
     if (candidate.totals.repairWoodUsed === undefined) candidate.totals.repairWoodUsed = 0
     if (candidate.totals.structureDamage === undefined) candidate.totals.structureDamage = 0
+    if (candidate.totals.foodConsumed === undefined) candidate.totals.foodConsumed = 0
   }
 
   validateWorld(candidate)

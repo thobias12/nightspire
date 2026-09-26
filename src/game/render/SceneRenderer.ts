@@ -73,6 +73,7 @@ export class SceneRenderer {
     this.addBatch('cargo', this.geometry, 0xffffff, 10)
     this.addBatch('buildings', this.geometry, 0xffffff, 120)
     this.addBatch('fortifications', this.geometry, 0xffffff, 120)
+    this.addBatch('campfireFire', new THREE.ConeGeometry(0.28, 0.65, 6), 0xf0a14a, 120)
     this.addBatch('roofs', new THREE.ConeGeometry(1, 1, 4), 0x594739, 120)
     this.addBatch('progress', this.geometry, 0xe4bc6b, 120)
     this.addBatch('doors', this.geometry, 0xf6dba0, 120)
@@ -205,6 +206,12 @@ export class SceneRenderer {
         if (b.type === 'wood-gate' && b.complete && !b.destroyed) {
           this.instance('fortifications', b.x, 1.7, b.z, 1.35, 0.22, 0.32, hit ? 0xff705e : 0x5f432e)
         }
+      } else if (b.type === 'campfire') {
+        const height = b.complete ? 0.24 : 0.12 + b.work / def.constructionWork * 0.12
+        this.instance('buildings', b.x, height / 2, b.z, 1.15, height, 1.15, baseColor)
+        if (b.complete && !b.destroyed) {
+          this.instance('campfireFire', b.x, 0.55, b.z, 1, 1, 1, hit ? 0xff705e : undefined)
+        }
       } else {
         const completeHeight = b.type === 'house' ? 2.3 : b.type === 'guard-post' ? 1.6 : 0.5
         const height = b.complete ? completeHeight : 0.25 + b.work / def.constructionWork * 1.5
@@ -220,7 +227,7 @@ export class SceneRenderer {
       }
 
       if (b.complete && (b.health < b.maxHealth || b.id === selectedId)) {
-        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.7 : 2.6
+        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.7 : b.type === 'campfire' ? 1.15 : 2.6
         this.healthBar(b.x, barY, b.z, b.health, b.maxHealth, def.fortification ? 1.1 : 2.2)
       }
 

@@ -13,9 +13,12 @@ export interface Building extends Point {
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
   inventory: Inventory; delivered: Inventory
 }
+export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
+export type NeedLevels = Record<NeedId, number>
 export interface Settler extends Point {
   id: number; homeId: number | null; jobId: number | null; role: SettlerRole
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
+  needs: NeedLevels; lastMealDay: number
   cargo: Inventory; path: Point[]; pathRevision: number; status: string
 }
 export interface Enemy extends Point {
@@ -38,13 +41,18 @@ export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
   targets: Inventory; raid: RaidState
-  totals: { gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number; repairedHealth: number; repairWoodUsed: number; structureDamage: number }
+  totals: {
+    gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
+    repairedHealth: number; repairWoodUsed: number; structureDamage: number; foodConsumed: number
+  }
   events: string[]
 }
 export const MAX_SETTLERS = 10
 export const MAX_ENEMIES = 64
 export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100 }
 export const DEFAULT_RAID: RaidState = { lastSpawnDay: 0, wave: 0, totalSpawned: 0, totalDefeated: 0, lastClearedWave: 0 }
+export const NEED_IDS: NeedId[] = ['food', 'housing', 'safety', 'recreation']
+export const DEFAULT_NEEDS: NeedLevels = { food: 90, housing: 70, safety: 65, recreation: 65 }
 
 export function settlerLabel(state: WorldState, id: number): string {
   const index = state.settlers.findIndex(a => a.id === id)
@@ -59,6 +67,7 @@ export function spawnSettler(state: WorldState): boolean {
   state.settlers.push({
     id: state.nextId++, x: 0, z: 2, homeId: null, jobId: null, role: 'worker',
     health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0,
+    needs: { ...DEFAULT_NEEDS }, lastMealDay: state.day,
     cargo: emptyInventory(), path: [], pathRevision: -1, status: 'Needs work',
   })
   return true
@@ -88,7 +97,7 @@ export function createInitialWorldState(): WorldState {
     targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID },
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
-      constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0,
+      constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0, foodConsumed: 0,
     },
     events: ['A new camp. Gather wood, then build homes for your settlers.'],
   }
