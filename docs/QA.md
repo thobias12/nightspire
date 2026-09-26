@@ -473,3 +473,27 @@ M3.8.4 deliberately freezes M3.8.3 placement/topology behavior and changes rende
 ### Architectural boundary
 
 M3.8.4 does not modify `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. No planning rules, persistence rules, path budgets, reservations, AI decisions or movement costs change in this pass.
+
+
+## M3.8.5 verification target
+
+M3.8.5 freezes road/plot/snapping/persistence rules and changes the render/UI/docs surface only. The automated suite remains **103 tests**; strict TypeScript + production build remain mandatory, while acceptance is primarily visual/performance-oriented.
+
+### Browser workflow
+
+1. Start fresh, draw a road, and create at least three Residential Plots with different widths/depths.
+2. Complete the Houses and compare them from Overview and **V / Street view**. They should share one construction language without looking like identical boxes: compare roof courses/eaves, plaster/timber framing, porch/lean-to/dormer/rear-extension combinations and door/window placement.
+3. Inspect deep lots: backyard space should show a stronger lived-in read through laundry, garden/basket, chicken coop, workyard/chopping or firewood/water-barrel dressing.
+4. Confirm a narrow worn footpath visually links each completed plotted House to its road frontage.
+5. Build or stage Stockpile, Tavern, Brewery, Blacksmith and Guard Post. Without HUD labels, each should read through its yard/prop silhouette: loading cart/storage, Tavern canopy/social furniture, brewing barrels/sacks, forge/anvil/coal/cart and raised Guard Post equipment.
+6. At Dusk, stock the Tavern with Ale. Clearly adult decorative social figures should remain stylized/non-explicit but visibly more polished/differentiated than ordinary workers through fitted garments, exposed-arm silhouettes, long hair and metallic accents.
+7. Build a Wooden Wall/Gate line. The wall should read as a sharpened vertical palisade rather than horizontal stacked logs.
+8. Inspect long roads: wheel ruts should appear in intermittent worn patches rather than continuous dark rails.
+9. Rotate to a low Street view near the map edge. Extended ground + decorative outer woodland should hide the previous obvious square-board horizon in normal camera ranges.
+10. Jump Day → Dusk → Night and confirm added roof/yard/forest detail remains readable without undoing the established cold-wilderness / warm-settlement contrast.
+11. Enable navigation paths and confirm presentation additions do not alter movement/pathfinding.
+12. Run state integrity and compare Draws / triangles / Render submission CPU against M3.8.4. Extra art density must remain instanced and should not introduce a material/light-per-prop explosion.
+
+### Architectural boundary
+
+M3.8.5 does not modify `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. No snapping, placement, persistence, reservations, AI scheduling, movement cost or path budget semantics change.
