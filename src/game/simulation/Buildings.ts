@@ -16,19 +16,30 @@ export const available = (s: WorldState, b: Building, resource: ResourceId): num
 
 export function freeStorage(s: WorldState, b: Building): number {
   const incoming = s.jobs.filter(j => j.kind === 'gather' && j.targetId === b.id).reduce((n, j) => n + j.amount, 0)
-  return BUILDINGS[b.type].storage - b.inventory.wood - b.inventory.food - incoming
+  const used = RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0)
+  return BUILDINGS[b.type].storage - used - incoming
 }
 
-export function serviceSupplyCapacity(b: Building, resource: ResourceId): number {
-  const service = BUILDINGS[b.type].service
-  return service?.supplyResource === resource ? service.supplyCapacity : 0
+export function supplyCapacity(b: Building, resource: ResourceId): number {
+  const def = BUILDINGS[b.type]
+  const service = def.service?.supplyResource === resource ? def.service.supplyCapacity : 0
+  const production = def.production?.inputResource === resource ? def.production.inputCapacity : 0
+  return Math.max(service, production)
 }
 
-export function serviceSupplyFree(state: WorldState, b: Building, resource: ResourceId): number {
+export function resourceCapacity(b: Building, resource: ResourceId): number {
+  const def = BUILDINGS[b.type]
+  if (def.storage > 0) return def.storage
+  const supply = supplyCapacity(b, resource)
+  const output = def.production?.outputResource === resource ? def.production.outputCapacity : 0
+  return Math.max(supply, output)
+}
+
+export function supplyFree(state: WorldState, b: Building, resource: ResourceId): number {
   const incoming = state.jobs
     .filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === resource)
     .reduce((sum, job) => sum + job.amount, 0)
-  return Math.max(0, serviceSupplyCapacity(b, resource) - b.inventory[resource] - incoming)
+  return Math.max(0, supplyCapacity(b, resource) - b.inventory[resource] - incoming)
 }
 
 export function placementError(s: WorldState, type: BuildingId, p: Point): string | null {

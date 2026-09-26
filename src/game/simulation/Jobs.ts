@@ -1,7 +1,7 @@
 import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY, JOBS, REPAIR_HP_PER_WOOD } from '../data/jobs'
 import { RESOURCE_IDS, RESOURCES, type ResourceId } from '../data/resources'
-import { available, freeStorage, needsRepair, readyToBuild, serviceSupplyFree, stockpiles } from './Buildings'
+import { available, freeStorage, needsRepair, readyToBuild, supplyFree, stockpiles } from './Buildings'
 import { distance, entrance } from './Navigation'
 import type { Building, Job, Settler, WorldState } from './WorldState'
 
@@ -28,10 +28,10 @@ function gatherNeed(state: WorldState, resource: ResourceId): number {
   const construction = state.buildings.filter(b => !b.complete)
     .reduce((n, b) => n + Math.max(0, BUILDINGS[b.type].buildCost[resource] - b.delivered[resource] - assignedToSite(state, b.id, resource)), 0)
   const repair = resource === 'wood' ? repairWoodNeed(state) : 0
-  const service = state.buildings
-    .filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].service?.supplyResource === resource)
-    .reduce((sum, b) => sum + serviceSupplyFree(state, b, resource), 0)
-  return Math.max(0, state.targets[resource] + construction + repair + service - availableStock - inbound)
+  const supply = state.buildings
+    .filter(b => b.complete && !b.destroyed)
+    .reduce((sum, b) => sum + supplyFree(state, b, resource), 0)
+  return Math.max(0, state.targets[resource] + construction + repair + supply - availableStock - inbound)
 }
 
 // Reservations are derived from active jobs, so there is no second reservation ledger to drift.
@@ -65,24 +65,35 @@ export function assignJobs(state: WorldState): void {
       })
     }
 
-    for (const building of state.buildings.filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].service?.supplyResource)) {
-      const service = BUILDINGS[building.type].service!
-      const resource = service.supplyResource!
-      const needed = serviceSupplyFree(state, building, resource)
-      if (needed <= 0) continue
-      const source = stores
-        .filter(store => available(state, store, resource) > 0)
-        .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
-      if (!source) continue
-      options.push({
-        kind: 'supply',
-        sourceId: source.id,
-        targetId: building.id,
-        resource,
-        amount: Math.min(CARRY_CAPACITY, needed, available(state, source, resource)),
-        stage: 'source',
-        progress: 0,
-      })
+    for (const building of state.buildings.filter(b => b.complete && !b.destroyed)) {
+      for (const resource of RESOURCE_IDS) {
+        const needed = supplyFree(state, building, resource)
+        if (needed <= 0) continue
+
+        const sources = [
+          ...stores,
+          ...state.buildings.filter(source => {
+            const production = BUILDINGS[source.type].production
+            return source.complete && !source.destroyed
+              && source.id !== building.id
+              && production?.outputResource === resource
+          }),
+        ]
+        const source = sources
+          .filter(candidate => available(state, candidate, resource) > 0)
+          .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
+        if (!source) continue
+
+        options.push({
+          kind: 'supply',
+          sourceId: source.id,
+          targetId: building.id,
+          resource,
+          amount: Math.min(CARRY_CAPACITY, needed, available(state, source, resource)),
+          stage: 'source',
+          progress: 0,
+        })
+      }
     }
 
     for (const b of state.buildings.filter(b => !b.complete)) {
@@ -117,6 +128,7 @@ export function assignJobs(state: WorldState): void {
       const needs: Record<ResourceId, number> = {
         wood: gatherNeed(state, 'wood'),
         food: gatherNeed(state, 'food'),
+        ale: gatherNeed(state, 'ale'),
       }
       const nodes = state.nodes
         .filter(n => n.remaining > 0 && needs[n.resource] > 0 && !state.jobs.some(j => j.kind === 'gather' && j.sourceId === n.id))

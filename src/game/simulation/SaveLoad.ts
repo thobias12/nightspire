@@ -1,7 +1,7 @@
 import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
-import { available, freeStorage, readyToBuild, stockpiles } from './Buildings'
+import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
 import { DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
 
@@ -60,23 +60,18 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && integer(b.health) && b.health <= b.maxHealth
       && typeof b.destroyed === 'boolean'
       && integer(b.lastHitTick) && b.lastHitTick <= s.tick
-      && number(b.serviceProgress) && b.serviceProgress <= 300,
+      && number(b.serviceProgress) && b.serviceProgress <= 300
+      && number(b.productionProgress) && b.productionProgress <= 300,
       'building state',
     )
     check(RESOURCE_IDS.every(r => b.delivered[r] <= def.buildCost[r]), 'excess delivery')
     check(!b.complete || (readyToBuild(b) && b.work === def.constructionWork), 'incomplete completed building')
-    check(b.complete || (b.inventory.wood + b.inventory.food === 0 && b.health === 0 && !b.destroyed), 'unfinished structure state')
+    check(b.complete || (RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0) === 0 && b.health === 0 && !b.destroyed), 'unfinished structure state')
     check(!b.destroyed || (b.complete && b.health === 0), 'ruin state')
     if (def.storage > 0) {
-      check(b.inventory.wood + b.inventory.food <= def.storage, 'storage capacity')
+      check(RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0) <= def.storage, 'storage capacity')
     } else {
-      check(
-        RESOURCE_IDS.every(resource => {
-          const capacity = def.service?.supplyResource === resource ? def.service.supplyCapacity : 0
-          return b.inventory[resource] <= capacity
-        }),
-        'service supply capacity',
-      )
+      check(RESOURCE_IDS.every(resource => b.inventory[resource] <= resourceCapacity(b, resource)), 'building resource capacity')
     }
     check(b.work === 0 || readyToBuild(b), 'work before materials')
 
@@ -90,7 +85,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   for (const n of s.nodes) check(gridPoint(n) && RESOURCE_IDS.includes(n.resource) && integer(n.remaining), 'resource node')
 
   for (const a of s.settlers) {
-    check(point(a) && combatant(a, s.tick) && inventory(a.cargo) && a.cargo.wood + a.cargo.food <= CARRY_CAPACITY, 'settler/cargo')
+    check(point(a) && combatant(a, s.tick) && inventory(a.cargo) && RESOURCE_IDS.reduce((sum, resource) => sum + a.cargo[resource], 0) <= CARRY_CAPACITY, 'settler/cargo')
     check(a.role === 'worker' || a.role === 'guard', 'settler role')
     check(needs(a.needs) && integer(a.lastMealDay) && a.lastMealDay <= s.day, 'settler needs')
     check(Array.isArray(a.path) && a.path.length <= 3000 && a.path.every(gridPoint) && Number.isInteger(a.pathRevision), 'route')
@@ -101,7 +96,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       'home',
     )
     check(a.jobId === null || s.jobs.some(j => j.id === a.jobId && j.settlerId === a.id), 'job owner')
-    check(a.jobId !== null || a.cargo.wood + a.cargo.food === 0, 'unowned cargo')
+    check(a.jobId !== null || RESOURCE_IDS.every(resource => a.cargo[resource] === 0), 'unowned cargo')
   }
 
   for (const enemy of s.enemies) {
@@ -140,13 +135,17 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       )
     } else if (j.kind === 'supply') {
       const source = s.buildings.find(b => b.id === j.sourceId)
-      const service = BUILDINGS[target.type].service
+      const productionSource = source ? BUILDINGS[source.type].production : null
+      const sourceCanProvide = !!source && (
+        BUILDINGS[source.type].storage > 0
+        || productionSource?.outputResource === j.resource
+      )
       check(
-        source && source.complete && !source.destroyed && BUILDINGS[source.type].storage > 0
+        source && source.complete && !source.destroyed && sourceCanProvide
         && target.complete && !target.destroyed
-        && service?.supplyResource === j.resource
+        && supplyCapacity(target, j.resource) > 0
         && j.stage !== 'work' && j.amount > 0,
-        'service supply references',
+        'supply references',
       )
     } else if (j.kind === 'construct') {
       check(
@@ -183,12 +182,15 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   for (const b of s.buildings) {
     const def = BUILDINGS[b.type]
     check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : def.housing), 'housing capacity')
-    if (b.complete && def.service?.supplyResource) {
-      const resource = def.service.supplyResource
-      const incoming = s.jobs
-        .filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === resource)
-        .reduce((sum, job) => sum + job.amount, 0)
-      check(b.inventory[resource] + incoming <= def.service.supplyCapacity, 'over-supplied service')
+    if (b.complete) {
+      for (const resource of RESOURCE_IDS) {
+        const capacity = supplyCapacity(b, resource)
+        if (capacity <= 0) continue
+        const incoming = s.jobs
+          .filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === resource)
+          .reduce((sum, job) => sum + job.amount, 0)
+        check(b.inventory[resource] + incoming <= capacity, 'over-supplied building')
+      }
     }
     if (!b.complete) {
       check(
@@ -219,7 +221,9 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     && integer(s.totals.repairWoodUsed)
     && integer(s.totals.structureDamage)
     && integer(s.totals.foodConsumed)
-    && integer(s.totals.serviceFoodConsumed),
+    && inventory(s.totals.serviceConsumed)
+    && inventory(s.totals.productionConsumed)
+    && inventory(s.totals.produced),
     'counters',
   )
   check(Array.isArray(s.events) && s.events.length <= 6 && s.events.every(e => typeof e === 'string' && e.length < 200), 'events')
@@ -233,8 +237,13 @@ export function serializeWorld(state: WorldState): string {
 export function deserializeWorld(text: string): WorldState {
   check(text.length <= 2_000_000, 'file too large')
   const candidate: any = JSON.parse(text)
+  const migrateInventory = (value: any): void => {
+    if (!value) return
+    for (const resource of RESOURCE_IDS) if (value[resource] === undefined) value[resource] = 0
+  }
 
   if (candidate && candidate.version === 1 && candidate.targets === undefined) candidate.targets = { ...DEFAULT_TARGETS }
+  migrateInventory(candidate?.targets)
 
   if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers)) {
     for (const settler of candidate.settlers) {
@@ -243,6 +252,7 @@ export function deserializeWorld(text: string): WorldState {
       if (settler.lastHitTick === undefined) settler.lastHitTick = 0
       if (settler.needs === undefined) settler.needs = { ...DEFAULT_NEEDS }
       if (settler.lastMealDay === undefined) settler.lastMealDay = Math.max(0, candidate.day - 1)
+      migrateInventory(settler.cargo)
     }
   }
 
@@ -268,6 +278,13 @@ export function deserializeWorld(text: string): WorldState {
       if (building.destroyed === undefined) building.destroyed = false
       if (building.lastHitTick === undefined) building.lastHitTick = 0
       if (building.serviceProgress === undefined) building.serviceProgress = 0
+      if (building.productionProgress === undefined) building.productionProgress = 0
+      migrateInventory(building.inventory)
+      migrateInventory(building.delivered)
+      if (building.type === 'tavern' && building.inventory.food > 0 && building.inventory.ale === 0) {
+        building.inventory.ale = Math.min(BUILDINGS.tavern.service!.supplyCapacity, building.inventory.food)
+        building.inventory.food -= building.inventory.ale
+      }
     }
   }
 
@@ -278,11 +295,45 @@ export function deserializeWorld(text: string): WorldState {
   }
 
   if (candidate && candidate.version === 1 && candidate.totals) {
+    migrateInventory(candidate.totals.gathered)
+    migrateInventory(candidate.totals.deposited)
+    migrateInventory(candidate.totals.delivered)
     if (candidate.totals.repairedHealth === undefined) candidate.totals.repairedHealth = 0
     if (candidate.totals.repairWoodUsed === undefined) candidate.totals.repairWoodUsed = 0
     if (candidate.totals.structureDamage === undefined) candidate.totals.structureDamage = 0
     if (candidate.totals.foodConsumed === undefined) candidate.totals.foodConsumed = 0
-    if (candidate.totals.serviceFoodConsumed === undefined) candidate.totals.serviceFoodConsumed = 0
+    if (candidate.totals.serviceConsumed === undefined) {
+      candidate.totals.serviceConsumed = { wood: 0, food: candidate.totals.serviceFoodConsumed ?? 0, ale: 0 }
+    }
+    if (candidate.totals.productionConsumed === undefined) candidate.totals.productionConsumed = { wood: 0, food: 0, ale: 0 }
+    if (candidate.totals.produced === undefined) candidate.totals.produced = { wood: 0, food: 0, ale: 0 }
+    migrateInventory(candidate.totals.serviceConsumed)
+    migrateInventory(candidate.totals.productionConsumed)
+    migrateInventory(candidate.totals.produced)
+  }
+
+  if (candidate && candidate.version === 1 && Array.isArray(candidate.jobs) && Array.isArray(candidate.settlers)) {
+    const removeJobs = new Set<number>()
+    for (const job of candidate.jobs) {
+      const target = candidate.buildings?.find((building: any) => building.id === job.targetId)
+      if (job.kind !== 'supply' || job.resource !== 'food' || target?.type !== 'tavern') continue
+      const settler = candidate.settlers.find((agent: any) => agent.id === job.settlerId)
+      if (job.stage === 'target' && settler?.cargo?.food > 0) {
+        const amount = settler.cargo.food
+        settler.cargo.food = 0
+        settler.cargo.ale = amount
+        job.resource = 'ale'
+      } else {
+        removeJobs.add(job.id)
+        if (settler) {
+          settler.jobId = null
+          settler.path = []
+          settler.pathRevision = -1
+          settler.status = 'Needs work'
+        }
+      }
+    }
+    candidate.jobs = candidate.jobs.filter((job: any) => !removeJobs.has(job.id))
   }
 
   if (

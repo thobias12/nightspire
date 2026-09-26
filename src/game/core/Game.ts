@@ -22,7 +22,7 @@ export class Game {
   private pointer: Point | null = null
   private paused = false
   private speed = 1
-  private message = 'Build a Tavern, stock its pantry, and compare its stronger recreation service with the free Campfire.'
+  private message = 'Build a Brewery, feed it Food, then watch workers haul produced Ale into the Tavern.'
   private animationFrame = 0
   private lastTime = 0
   private accumulator = 0
@@ -86,7 +86,7 @@ export class Game {
     const s = this.simulation.state
     try {
       switch (action) {
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery':
           this.buildType = action; this.renderer.mode = 'settlement'
           this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
         case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a settler, raider, resource or building.'; break
@@ -150,23 +150,30 @@ export class Game {
         case 'needs-reset':
           for (const settler of s.settlers) settler.needs = { food: 100, housing: 100, safety: 100, recreation: 100 }
           this.message = 'QA reset all settler needs to 100%.'; break
-        case 'service-food': {
+        case 'building-supply': {
           const building = s.buildings.find(b => b.id === this.selectedId && b.complete && !b.destroyed)
-          const service = building ? BUILDINGS[building.type].service : null
-          if (!building || !service?.supplyResource) {
-            this.message = 'Select a completed supplied service building such as a Tavern first.'
+          if (!building) {
+            this.message = 'Select a completed Brewery or supplied service building first.'
             break
           }
-          const resource = service.supplyResource
-          const amount = Math.min(5, Math.max(0, service.supplyCapacity - building.inventory[resource]))
+          const def = BUILDINGS[building.type]
+          const resource = def.service?.supplyResource ?? def.production?.inputResource ?? null
+          const capacity = def.service?.supplyResource
+            ? def.service.supplyCapacity
+            : def.production?.inputCapacity ?? 0
+          if (!resource || capacity <= 0) {
+            this.message = 'Select a completed Brewery or supplied service building first.'
+            break
+          }
+          const amount = Math.min(5, Math.max(0, capacity - building.inventory[resource]))
           building.inventory[resource] += amount
           this.message = amount > 0
             ? 'QA added ' + amount + ' ' + resource + ' to ' + BUILDINGS[building.type].label + '.'
-            : BUILDINGS[building.type].label + ' service pantry is already full.'
+            : BUILDINGS[building.type].label + ' input storage is already full.'
           break
         }
         case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M3.1 maximum remains 10 settlers.'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M3.2 maximum remains 10 settlers.'; break
         case 'resources': {
           let added = 0
           for (const resource of ['wood', 'food'] as const) {
@@ -211,7 +218,7 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: needs, meals, services, supply jobs, repairs, raid state, reservations, housing and connectivity.'; break
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: needs, meals, production, Ale hauling, services, repairs, raid state, reservations and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()
