@@ -31,7 +31,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(new Set(entities.map(e => e.id)).size === entities.length, 'duplicate IDs')
   const occupied = new Set<number>()
   for (const b of s.buildings) {
-    check((b.type === 'house' || b.type === 'stockpile') && gridPoint(b) && typeof b.complete === 'boolean', 'building')
+    check((b.type === 'house' || b.type === 'stockpile' || b.type === 'guard-post') && gridPoint(b) && typeof b.complete === 'boolean', 'building')
     check(inventory(b.inventory) && inventory(b.delivered) && number(b.work) && b.work <= BUILDINGS[b.type].constructionWork, 'building inventory/work')
     check(RESOURCE_IDS.every(r => b.delivered[r] <= BUILDINGS[b.type].buildCost[r]), 'excess delivery')
     check(!b.complete || (readyToBuild(b) && b.work === BUILDINGS[b.type].constructionWork), 'incomplete completed building')
@@ -47,6 +47,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   for (const n of s.nodes) check(gridPoint(n) && RESOURCE_IDS.includes(n.resource) && integer(n.remaining), 'resource node')
   for (const a of s.settlers) {
     check(point(a) && inventory(a.cargo) && a.cargo.wood + a.cargo.food <= CARRY_CAPACITY, 'settler/cargo')
+    check(a.role === 'worker' || a.role === 'guard', 'settler role')
     check(Array.isArray(a.path) && a.path.length <= 3000 && a.path.every(gridPoint) && Number.isInteger(a.pathRevision), 'route')
     check(typeof a.status === 'string' && a.status.length <= 120, 'status')
     check(a.homeId === null || s.buildings.some(b => b.id === a.homeId && b.complete && BUILDINGS[b.type].housing > 0), 'home')
@@ -94,10 +95,12 @@ export function serializeWorld(state: WorldState): string {
 export function deserializeWorld(text: string): WorldState {
   check(text.length <= 2_000_000, 'file too large')
   const candidate: any = JSON.parse(text)
-  // M1.1 added stock targets without changing the save version. Older M1 saves inherit defaults.
+  // M1.1 added stock targets and M2.0 adds roles without changing the compact v1 schema.
   if (candidate && candidate.version === 1 && candidate.targets === undefined) candidate.targets = { ...DEFAULT_TARGETS }
+  if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers))
+    for (const settler of candidate.settlers) if (settler.role === undefined) settler.role = 'worker'
   validateWorld(candidate)
-  // Routes are presentation-independent but transient; rebuild from saved task/cargo ownership.
+  // Routes are transient; rebuild from saved task/cargo/schedule ownership.
   for (const a of candidate.settlers) { a.path = []; a.pathRevision = -1 }
   return candidate
 }
