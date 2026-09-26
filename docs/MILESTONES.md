@@ -25,7 +25,22 @@
 - [x] save/load foundation
 - [x] QA panel with time/resource/spawn controls
 
-**Exit verified for this pass:** Ten-settler automated and browser playthroughs gathered both resources, physically delivered 70 wood, completed three houses and a stockpile, housed all ten settlers, and resumed after save/load. See [QA.md](QA.md) for evidence and limitations. M1 is ready for review; M2 is not started.
+**Exit verified for this pass:** Ten-settler automated and browser playthroughs gathered both resources, physically delivered 70 wood, completed three houses and a stockpile, housed all ten settlers, and resumed after save/load. See [QA.md](QA.md) for evidence and limitations.
+
+## M1.1 — Review hardening (complete)
+
+- [x] safe blueprint cancellation with reservation/in-transit/delivered material conservation
+- [x] cancellation refusal when storage cannot accept refunds
+- [x] player-controlled wood/food stock targets
+- [x] blocked-route retry cooldown and topology-change recovery
+- [x] friendly settler display numbers independent from internal IDs
+- [x] rotating backup save slot
+- [x] validated JSON save export/import
+- [x] migration of earlier M1 version-1 saves to default stock targets
+- [x] long-run conservation regression test
+- [x] GitHub CI for install, typecheck, tests and production build
+
+**Exit:** 15 regression tests pass; GitHub CI passes typecheck, tests and production build. M2 remains untouched.
 
 ## M2 — First night
 
