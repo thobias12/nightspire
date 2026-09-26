@@ -5,10 +5,23 @@ import {
 } from './Navigation'
 import type { Building, Enemy, Point, WorldState } from './WorldState'
 
-export const RAID_SIZE = 12
+export const RAID_SIZE = 20
+export const RAID_GROWTH = 4
+export const RAID_MAX_SIZE = 40
 export const ENEMY_WALK_SPEED = 1.65
 
-const OFFSETS = [-18, -15, -12, -9, -6, -3, 3, 6, 9, 12, 15, 18]
+export function raidSizeForWave(wave: number): number {
+  const safeWave = Math.max(1, Math.floor(wave))
+  return Math.min(RAID_MAX_SIZE, RAID_SIZE + (safeWave - 1) * RAID_GROWTH)
+}
+
+function offsetsForCount(count: number): number[] {
+  if (count <= 1) return [0]
+  const minimum = -20
+  const maximum = 20
+  const step = (maximum - minimum) / (count - 1)
+  return Array.from({ length: count }, (_, index) => minimum + step * index)
+}
 
 function initialTargetId(state: WorldState): number {
   return (
@@ -42,9 +55,11 @@ function safeSpawn(state: WorldState, side: number, offset: number): Point {
 export function spawnNightRaid(state: WorldState): number {
   if (state.enemies.length > 0 || state.raid.lastSpawnDay === state.day) return 0
   const targetId = initialTargetId(state)
+  const waveNumber = state.raid.wave + 1
   const side = state.raid.wave % 4
+  const size = raidSizeForWave(waveNumber)
 
-  const spawned: Enemy[] = OFFSETS.map(offset => {
+  const spawned: Enemy[] = offsetsForCount(size).map(offset => {
     const p = safeSpawn(state, side, offset)
     return {
       id: state.nextId++, kind: 'raider' as const, targetId,
