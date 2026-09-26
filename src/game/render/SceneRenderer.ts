@@ -90,7 +90,7 @@ export class SceneRenderer {
   private readonly settlementLitBatches = new Set([
     'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'doors', 'trim', 'props',
     'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs', 'baskets',
-    'roofCourseL', 'roofCourseR', 'braceL', 'braceR', 'cartWheel',
+    'braceL', 'braceR', 'cartWheel',
     'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'adultHairLong', 'adultArm', 'adultLeg', 'adultBodice',
     'guardCoat', 'entertainer',
     'foundation', 'scaffold', 'debris',
@@ -188,14 +188,6 @@ export class SceneRenderer {
     this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420)
     this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100)
     this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
-    this.addBatch('roofCourseL', createRoofCourseGeometry(0.62), 0x46372f, 1400)
-    this.addBatch('roofCourseR', createRoofCourseGeometry(-0.62), 0x46372f, 1400)
-    for (const name of ['roofCourseL', 'roofCourseR'] as const) {
-      const material = this.batches[name].material as THREE.MeshStandardMaterial
-      material.polygonOffset = true
-      material.polygonOffsetFactor = -2
-      material.polygonOffsetUnits = -2
-    }
     this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
@@ -324,8 +316,10 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'roofCourseL', 'roofCourseR'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'roofCourseL', 'roofCourseR'].includes(name)
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch']
+    const noReceiveShadow = [...noCastShadow, 'gableRoofs']
+    mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
@@ -488,8 +482,6 @@ export class SceneRenderer {
       sacks: 0.18,
       baskets: 0.17,
       logs: 0.2,
-      roofCourseL: 0.34,
-      roofCourseR: 0.34,
       braceL: 0.23,
       braceR: 0.23,
       cartWheel: 0.18,
@@ -793,38 +785,12 @@ export class SceneRenderer {
     roofHeight: number,
     roofColor: number,
   ): void {
-    const roofHalf = (width + 0.72) / 2
-    const slopeLength = Math.max(0.72, Math.hypot(roofHalf, roofHeight))
     const baseY = 0.42 + wallHeight
-    const courseColor = this.scratchColor.setHex(roofColor).multiplyScalar(0.76).getHex()
-    const normalX = roofHeight / slopeLength
-    const normalY = roofHalf / slopeLength
-    const surfaceLift = 0.085
 
-    for (let row = 0; row < 3; row++) {
-      const t = 0.22 + row * 0.24
-      const surfaceX = roofHalf * (1 - t)
-      const surfaceY = baseY + roofHeight * t
-      for (const side of [-1, 1] as const) {
-        // Place each course fully outside the roof plane instead of letting the
-        // thin box intersect it. This removes camera-distance dependent z-fighting.
-        const x = side * (surfaceX + normalX * surfaceLift)
-        const y = surfaceY + normalY * surfaceLift
-        const local = this.rotatedOffset(x, 0, rotation)
-        this.instance(
-          side < 0 ? 'roofCourseL' : 'roofCourseR',
-          b.x + local.x,
-          y,
-          b.z + local.z,
-          Math.max(0.12, slopeLength * 0.072),
-          0.045,
-          depth + 0.7,
-          courseColor,
-          rotation,
-        )
-      }
-    }
-
+    // Keep roof detail structural rather than layering thin coplanar/near-coplanar
+    // strips over the slope. Thin roof-course meshes shimmer at sub-pixel sizes
+    // during camera zoom; eaves + ridge retain the medieval silhouette without
+    // introducing depth or sampling instability.
     // Strong eaves and ridge make the roof silhouette read as constructed timber
     // rather than a single dark procedural wedge.
     for (const side of [-1, 1] as const) {
