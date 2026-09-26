@@ -18,7 +18,7 @@ import { distance } from '../simulation/Navigation'
 import { forceImmigrationIfEligible } from '../simulation/Population'
 import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
 import { Simulation } from '../simulation/Simulation'
-import { createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
+import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
 
@@ -327,6 +327,59 @@ export class Game {
             added += amount
           }
           this.message = 'QA added ' + added + ' Iron Ore within unreserved storage capacity.'; break
+        }
+        case 'town-visual': {
+          if (s.buildings.some(building => !(building.type === 'stockpile' && building.x === 0 && building.z === 0))) {
+            this.message = 'Town Center visual target is available on a fresh settlement only.'
+            break
+          }
+          const starter = s.buildings.find(building => building.type === 'stockpile' && building.x === 0 && building.z === 0)!
+          starter.inventory.wood = 220
+          starter.inventory.food = 120
+          starter.inventory.ale = 8
+          starter.inventory.ore = 18
+          starter.inventory.tools = 3
+
+          const plan: Array<[BuildingId, number, number, number]> = [
+            ['house', -7, -3, 1],
+            ['house', 7, -3, 3],
+            ['house', 0, -8, 0],
+            ['tavern', -5, 5, 1],
+            ['blacksmith', 5, 5, 3],
+            ['campfire', 0, 4, 0],
+            ['guard-post', 0, 9, 2],
+            ['wood-wall', -4, 12, 1],
+            ['wood-wall', -3, 12, 1],
+            ['wood-wall', -2, 12, 1],
+            ['wood-wall', -1, 12, 1],
+            ['wood-gate', 0, 12, 1],
+            ['wood-wall', 1, 12, 1],
+            ['wood-wall', 2, 12, 1],
+            ['wood-wall', 3, 12, 1],
+            ['wood-wall', 4, 12, 1],
+          ]
+          const built = plan.map(([type, x, z, rotation]) => createBuilding(s.nextId++, type, x, z, true, rotation))
+          const tavern = built.find(building => building.type === 'tavern')!
+          const smith = built.find(building => building.type === 'blacksmith')!
+          tavern.inventory.ale = 12
+          smith.inventory.ore = 12
+          s.buildings.push(...built)
+          const clearSites = [{x:0,z:0}, ...built.map(building => ({x:building.x,z:building.z}))]
+          for (const node of s.nodes) {
+            if (clearSites.some(site => Math.hypot(site.x - node.x, site.z - node.z) < 3.1)) node.remaining = 0
+          }
+          s.topology++
+          assignHousing(s)
+          s.timeOfDay = 17.5 / 24
+          this.renderer.mode = 'settlement'
+          this.renderer.cinematic = true
+          this.renderer.focus.x = 0
+          this.renderer.focus.z = 2
+          this.renderer.angle = 0.62
+          this.renderer.zoom = 23
+          this.selectedId = tavern.id
+          this.message = 'M3.8 Town Center visual target staged. Use Day/Dusk/Night plus V for acceptance views.'
+          break
         }
         case 'camera':
           this.buildType = null
