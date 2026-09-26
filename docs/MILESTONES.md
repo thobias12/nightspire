@@ -132,13 +132,32 @@ Pulled forward from M3.9 because the placement/data layer can remain isolated fr
 
 **Exit:** players determine the visible settlement skeleton by drawing roads and sizing residential lots; housing continues to use the proven House simulation while the new planning data is ready for later road/logistics/household semantics.
 
+## M3.8.2 — Placement & snapping
+
+Usability layer on top of the M3.8.1 town-planning foundation.
+
+- [x] Grid Snap defaults ON
+- [x] Grid Snap constrains road drags to clean 0°/45°/90° segments
+- [x] road starts/ends magnetically join nearby persisted roads
+- [x] Grid Snap rounds Residential Plot width/depth to 1m increments
+- [x] Grid Snap toggle exposes the existing freeform road/plot behavior
+- [x] Road Snap defaults ON for conventional non-fortification buildings
+- [x] nearby-road magnetic building center placement
+- [x] road-facing visual angle persists for snapped buildings, including diagonal roads
+- [x] Road Snap toggle restores manual grid + R rotation placement
+- [x] Walls/Gates/Campfire remain explicit manual/grid placement
+- [x] placement grid is visible while Grid Snap is active for roads/plots
+- [ ] live alignment/snap feel acceptance
+
+**Exit:** straight neighborhoods are quick to lay out without sacrificing freeform village roads, and service/production buildings can be placed cleanly against streets without pixel-perfect manual rotation.
+
 ## M3.9 — Organic settlement structure
 
 Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.
 
 - [x] road placement foundation (persisted strokes; movement semantics deferred)
 - [ ] road-influenced movement/logistics
-- [ ] road frontage/alignment
+- [x] visual road frontage/alignment foundation (M3.8.2; simulation meaning still deferred)
 - [x] plot-based housing foundation (persistent lot + existing House simulation)
 - [ ] household grouping
 - [ ] rear-yard extensions
