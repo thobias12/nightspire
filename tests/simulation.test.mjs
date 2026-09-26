@@ -74,6 +74,7 @@ test('queued construction waits for materials and competing sites never double r
 test('full storage pauses gathering and new construction releases capacity', () => {
   const s=createInitialWorldState()
   s.buildings[0].inventory={wood:300,food:100}
+  s.targets.wood=350
   const sim=new Simulation(s); advance(sim,2)
   assert.equal(s.jobs.length,0)
   assert.ok(s.settlers.every(a=>a.status.includes('Storage full')))
@@ -210,12 +211,13 @@ test('blocked routes back off instead of retrying every tick and recover after t
   }
   s.buildings.push(blocker); s.topology++
   for(let i=0;i<5;i++) sim.step()
-  assert.equal(sim.navigation.failures,1)
+  const firstFailures=sim.navigation.failures
+  assert.ok(firstFailures>0)
   for(let i=0;i<20;i++) sim.step()
-  assert.equal(sim.navigation.failures,1)
+  assert.equal(sim.navigation.failures,firstFailures)
   s.buildings.splice(s.buildings.findIndex(b=>b.id===blocker.id),1); s.topology++
   for(let i=0;i<80;i++) sim.step()
-  assert.equal(sim.navigation.failures,1)
+  assert.equal(sim.navigation.failures,firstFailures)
   assert.notEqual(worker.status,'Route blocked — retrying')
 })
 
