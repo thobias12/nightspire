@@ -1,22 +1,12 @@
 import { BUILDINGS } from '../data/buildings'
 import { available, stockpiles } from './Buildings'
 import type { DayPhase } from './DayNight'
-import { blockedCells, cellKey, distance, inBounds } from './Navigation'
-import {
-  NEED_IDS, recordEvent,
-  type Building, type NeedId, type NeedLevels, type Point, type Settler, type WorldState,
-} from './WorldState'
+import { NEED_IDS, recordEvent, type NeedId, type NeedLevels, type Settler, type WorldState } from './WorldState'
 
 const FOOD_DECAY_PER_SECOND = 22 / 360
 const RECREATION_DECAY_PER_SECOND = 18 / 360
 const HOUSING_APPROACH_PER_SECOND = 0.35
 const SAFETY_APPROACH_PER_SECOND = 0.25
-const RECREATION_GAIN_PER_SECOND = 4
-
-const RECREATION_OFFSETS: Point[] = [
-  { x: -1, z: -1 }, { x: 0, z: -1 }, { x: 1, z: -1 },
-  { x: 1, z: 0 }, { x: 1, z: 1 }, { x: -1, z: 1 },
-]
 
 const clamp = (value: number): number => Math.max(0, Math.min(100, value))
 const approach = (value: number, target: number, amount: number): number =>
@@ -26,12 +16,6 @@ export interface NeedSummary {
   averages: NeedLevels
   happiness: number
   worst: NeedId
-}
-
-export interface RecreationAssignment {
-  buildingId: number
-  slot: number
-  target: Point
 }
 
 export function happinessOf(settler: Settler): number {
@@ -48,39 +32,6 @@ export function settlementNeeds(state: WorldState): NeedSummary {
     averages,
     happiness: Math.round(NEED_IDS.reduce((sum, need) => sum + averages[need], 0) / NEED_IDS.length),
     worst,
-  }
-}
-
-function recreationBuildings(state: WorldState): Building[] {
-  return state.buildings.filter(
-    building => building.complete && !building.destroyed && BUILDINGS[building.type].recreationSlots > 0,
-  )
-}
-
-export function recreationAssignment(state: WorldState, settler: Settler): RecreationAssignment | null {
-  if (settler.role === 'guard' || settler.health <= 0) return null
-  const eligible = state.settlers.filter(a => a.role !== 'guard' && a.health > 0)
-  const settlerIndex = eligible.findIndex(a => a.id === settler.id)
-  if (settlerIndex < 0) return null
-
-  const blocked = blockedCells(state, false)
-  const slots = recreationBuildings(state).flatMap(building =>
-    RECREATION_OFFSETS
-      .slice(0, BUILDINGS[building.type].recreationSlots)
-      .map((offset, slot) => ({
-        building,
-        slot,
-        target: { x: building.x + offset.x, z: building.z + offset.z },
-      }))
-      .filter(entry => inBounds(entry.target) && !blocked.has(cellKey(entry.target))),
-  )
-  const assigned = slots[settlerIndex]
-  if (!assigned) return null
-
-  return {
-    buildingId: assigned.building.id,
-    slot: assigned.slot,
-    target: assigned.target,
   }
 }
 
@@ -133,7 +84,7 @@ export function serveDailyMeal(state: WorldState, announceShortage = false): { s
   return { served, missed }
 }
 
-export function updateNeeds(state: WorldState, delta: number, phase: DayPhase): void {
+export function updateNeeds(state: WorldState, delta: number, _phase: DayPhase): void {
   const safety = safetyTarget(state)
 
   for (const settler of state.settlers) {
@@ -151,14 +102,5 @@ export function updateNeeds(state: WorldState, delta: number, phase: DayPhase): 
       safety,
       SAFETY_APPROACH_PER_SECOND * delta,
     )
-
-    if (phase === 'dusk' || phase === 'dawn') {
-      const recreation = recreationAssignment(state, settler)
-      if (recreation && distance(settler, recreation.target) < 0.2) {
-        settler.needs.recreation = clamp(
-          settler.needs.recreation + RECREATION_GAIN_PER_SECOND * delta,
-        )
-      }
-    }
   }
 }

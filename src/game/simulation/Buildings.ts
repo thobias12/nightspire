@@ -8,7 +8,7 @@ export const stockpiles = (s: WorldState): Building[] =>
 
 export const reserved = (s: WorldState, id: number, resource: ResourceId): number =>
   s.jobs
-    .filter(j => (j.kind === 'deliver' || j.kind === 'repair') && j.sourceId === id && j.stage === 'source' && j.resource === resource)
+    .filter(j => (j.kind === 'deliver' || j.kind === 'repair' || j.kind === 'supply') && j.sourceId === id && j.stage === 'source' && j.resource === resource)
     .reduce((n, j) => n + j.amount, 0)
 
 export const available = (s: WorldState, b: Building, resource: ResourceId): number =>
@@ -19,9 +19,21 @@ export function freeStorage(s: WorldState, b: Building): number {
   return BUILDINGS[b.type].storage - b.inventory.wood - b.inventory.food - incoming
 }
 
+export function serviceSupplyCapacity(b: Building, resource: ResourceId): number {
+  const service = BUILDINGS[b.type].service
+  return service?.supplyResource === resource ? service.supplyCapacity : 0
+}
+
+export function serviceSupplyFree(state: WorldState, b: Building, resource: ResourceId): number {
+  const incoming = state.jobs
+    .filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === resource)
+    .reduce((sum, job) => sum + job.amount, 0)
+  return Math.max(0, serviceSupplyCapacity(b, resource) - b.inventory[resource] - incoming)
+}
+
 export function placementError(s: WorldState, type: BuildingId, p: Point): string | null {
   if (!Number.isInteger(p.x) || !Number.isInteger(p.z)) return 'Place on the grid.'
-  if (s.buildings.length >= 120) return 'M2 building limit reached (120).'
+  if (s.buildings.length >= 120) return 'Building limit reached (120).'
 
   const cells = footprint({ ...p, type })
   if (cells.some(c => !inBounds(c))) return 'Outside the camp boundary.'

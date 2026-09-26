@@ -184,3 +184,21 @@ Conservation assertions now include lifetime food consumed, matching the existin
 Live playtesting exposed that new Day-1 settlers were initialized as already fed, leaving **Food consumed = 0** until Day 2 even when storage held food. The correction makes the starting population due for its first meal and keeps any unfed settler due throughout Day until food actually reaches storage. Meal retries run at the existing decision cadence and never consume more than one food per settler per day.
 
 The HUD now shows **Fed today X/Y**. Existing M3.0 saves with zero lifetime food consumption are migrated so settlers incorrectly marked as fed become due again. Two regressions cover Day-1 delayed food availability and the M3.0 zero-meal save correction; the suite target is now 51 tests.
+
+
+## M3.1 verification target
+
+M3.1 converts Recreation from a Campfire-specific rule into a generic service-provider and supply-logistics framework. Eight new regressions bring the target suite from 51 to 59 tests:
+
+- a supplied Tavern outranks Campfire and provides the stronger service to the current ten-settler population
+- a dry Tavern stops serving and exactly Campfire capacity remains available
+- Day workers physically fill the Tavern's 12-food pantry without exceeding capacity
+- in-flight service-supply cargo survives save/load and resumes without duplication
+- Tavern operating food drains only while a visitor is physically using the service
+- Tavern Recreation recovery is stronger and automatically falls back to Campfire when the pantry empties
+- M3.0 saves migrate per-building service progress and lifetime service-food accounting
+- malformed saves cannot overfill a service pantry
+
+The existing Campfire regression now uses the same generic service assignment/update path as Tavern. Resource-conservation assertions count both daily meal food and Tavern operating food.
+
+Browser playtest after deployment should build one Campfire and one Tavern, add food to the stockpile, let workers fill the Tavern pantry during Day, then jump to Dusk. Settlers should prefer Tavern slots and show **Visiting Tavern**. Use the QA pantry helper or wait for operation to exhaust Tavern food; when it reaches zero, up to six civilians should fall back to Campfire while excess civilians have no recreation slot. Inspection and QA metrics should show provider supply, active visitors and lifetime Tavern food used.

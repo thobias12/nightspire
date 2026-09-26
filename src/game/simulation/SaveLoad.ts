@@ -59,14 +59,25 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && integer(b.maxHealth) && b.maxHealth === def.maxHealth
       && integer(b.health) && b.health <= b.maxHealth
       && typeof b.destroyed === 'boolean'
-      && integer(b.lastHitTick) && b.lastHitTick <= s.tick,
+      && integer(b.lastHitTick) && b.lastHitTick <= s.tick
+      && number(b.serviceProgress) && b.serviceProgress <= 300,
       'building state',
     )
     check(RESOURCE_IDS.every(r => b.delivered[r] <= def.buildCost[r]), 'excess delivery')
     check(!b.complete || (readyToBuild(b) && b.work === def.constructionWork), 'incomplete completed building')
     check(b.complete || (b.inventory.wood + b.inventory.food === 0 && b.health === 0 && !b.destroyed), 'unfinished structure state')
     check(!b.destroyed || (b.complete && b.health === 0), 'ruin state')
-    check(b.inventory.wood + b.inventory.food <= def.storage, 'storage capacity')
+    if (def.storage > 0) {
+      check(b.inventory.wood + b.inventory.food <= def.storage, 'storage capacity')
+    } else {
+      check(
+        RESOURCE_IDS.every(resource => {
+          const capacity = def.service?.supplyResource === resource ? def.service.supplyCapacity : 0
+          return b.inventory[resource] <= capacity
+        }),
+        'service supply capacity',
+      )
+    }
     check(b.work === 0 || readyToBuild(b), 'work before materials')
 
     for (const p of footprint(b)) {
@@ -111,7 +122,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     check(a && a.jobId === j.id && !workers.has(a.id) && target, 'job references')
     workers.add(a.id)
 
-    check(['gather', 'deliver', 'construct', 'repair'].includes(j.kind) && ['source', 'work', 'target'].includes(j.stage), 'job kind/stage')
+    check(['gather', 'deliver', 'supply', 'construct', 'repair'].includes(j.kind) && ['source', 'work', 'target'].includes(j.stage), 'job kind/stage')
     check(RESOURCE_IDS.includes(j.resource) && integer(j.amount) && j.amount <= CARRY_CAPACITY && number(j.progress), 'job amount/progress')
 
     if (j.kind === 'gather') {
@@ -126,6 +137,16 @@ export function validateWorld(value: unknown): asserts value is WorldState {
         source && source.complete && !source.destroyed && BUILDINGS[source.type].storage > 0
         && !target.complete && j.stage !== 'work' && j.amount > 0,
         'delivery references',
+      )
+    } else if (j.kind === 'supply') {
+      const source = s.buildings.find(b => b.id === j.sourceId)
+      const service = BUILDINGS[target.type].service
+      check(
+        source && source.complete && !source.destroyed && BUILDINGS[source.type].storage > 0
+        && target.complete && !target.destroyed
+        && service?.supplyResource === j.resource
+        && j.stage !== 'work' && j.amount > 0,
+        'service supply references',
       )
     } else if (j.kind === 'construct') {
       check(
@@ -160,7 +181,15 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   }
 
   for (const b of s.buildings) {
-    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : BUILDINGS[b.type].housing), 'housing capacity')
+    const def = BUILDINGS[b.type]
+    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : def.housing), 'housing capacity')
+    if (b.complete && def.service?.supplyResource) {
+      const resource = def.service.supplyResource
+      const incoming = s.jobs
+        .filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === resource)
+        .reduce((sum, job) => sum + job.amount, 0)
+      check(b.inventory[resource] + incoming <= def.service.supplyCapacity, 'over-supplied service')
+    }
     if (!b.complete) {
       check(
         RESOURCE_IDS.every(r =>
@@ -189,7 +218,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     && integer(s.totals.repairedHealth)
     && integer(s.totals.repairWoodUsed)
     && integer(s.totals.structureDamage)
-    && integer(s.totals.foodConsumed),
+    && integer(s.totals.foodConsumed)
+    && integer(s.totals.serviceFoodConsumed),
     'counters',
   )
   check(Array.isArray(s.events) && s.events.length <= 6 && s.events.every(e => typeof e === 'string' && e.length < 200), 'events')
@@ -237,6 +267,7 @@ export function deserializeWorld(text: string): WorldState {
       if (building.health === undefined) building.health = building.complete ? def.maxHealth : 0
       if (building.destroyed === undefined) building.destroyed = false
       if (building.lastHitTick === undefined) building.lastHitTick = 0
+      if (building.serviceProgress === undefined) building.serviceProgress = 0
     }
   }
 
@@ -251,6 +282,7 @@ export function deserializeWorld(text: string): WorldState {
     if (candidate.totals.repairWoodUsed === undefined) candidate.totals.repairWoodUsed = 0
     if (candidate.totals.structureDamage === undefined) candidate.totals.structureDamage = 0
     if (candidate.totals.foodConsumed === undefined) candidate.totals.foodConsumed = 0
+    if (candidate.totals.serviceFoodConsumed === undefined) candidate.totals.serviceFoodConsumed = 0
   }
 
   if (
