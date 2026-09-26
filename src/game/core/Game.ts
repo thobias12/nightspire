@@ -147,6 +147,10 @@ export class Game {
         e.preventDefault()
         this.action('rotate-build')
       }
+      if (e.key.toLowerCase() === 'v' && !this.buildType) {
+        e.preventDefault()
+        this.action('cinematic')
+      }
     }, { signal })
     document.addEventListener('visibilitychange', () => { this.lastTime = 0; this.accumulator = 0 }, { signal })
     this.resizeObserver = new ResizeObserver(() => this.renderer.resize(root.clientWidth, root.clientHeight))
@@ -329,8 +333,25 @@ export class Game {
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'
+          if (this.renderer.mode === 'follow') this.renderer.cinematic = false
           break
-        case 'center': this.renderer.mode = 'settlement'; this.renderer.focus.x = 0; this.renderer.focus.z = -1; this.renderer.angle = 0; this.renderer.zoom = 36; break
+        case 'cinematic':
+          this.buildType = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.renderer.mode = 'settlement'
+          this.renderer.cinematic = !this.renderer.cinematic
+          if (this.renderer.cinematic) this.renderer.zoom = Math.min(this.renderer.zoom, 24)
+          this.message = this.renderer.cinematic ? 'Street-oblique camera enabled. Pan and rotate normally; press V to return.' : 'Settlement overview camera restored.'
+          break
+        case 'center':
+          this.renderer.mode = 'settlement'
+          this.renderer.cinematic = false
+          this.renderer.focus.x = 0
+          this.renderer.focus.z = -1
+          this.renderer.angle = 0
+          this.renderer.zoom = 31
+          break
         case 'save': {
           this.storePrimary(serializeWorld(s))
           this.message = 'Saved locally. The previous primary save is kept as a backup.'
@@ -426,6 +447,7 @@ export class Game {
       dragCount: this.dragPoints.length,
       message: this.message,
       camera: this.renderer.mode,
+      cinematic: this.renderer.cinematic,
       metrics: this.metrics,
     })
   }
