@@ -1282,12 +1282,12 @@ export class SceneRenderer {
     }
   }
 
-  showRoadGhost(points: Point[], valid: boolean): void {
+  showRoadGhost(points: Point[], valid: boolean, showGrid = false): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
-    this.grid.visible = false
+    this.grid.visible = showGrid
     if (points.length < 2) return
 
     const color = new THREE.Color(valid ? 0xcaa56c : 0xef6d65)
@@ -1310,12 +1310,12 @@ export class SceneRenderer {
     if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
   }
 
-  showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean): void {
+  showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean, showGrid = false): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
-    this.grid.visible = false
+    this.grid.visible = showGrid
     if (!preview) return
 
     const color = new THREE.Color(valid ? 0x9bc07b : 0xef6d65)
