@@ -10,7 +10,7 @@ Verified on 2026-09-26 with Node 24.19.0 and npm 11.17.0 on Windows.
 - No runtime or development dependency was added; package-lock.json now records the pinned installation.
 - Browser testing used the connected Codex browser because agent-browser was not installed.
 
-Eight renderer-independent regression tests cover:
+Fifteen renderer-independent regression tests pass. The original eight cover:
 
 1. Ten settlers, zero starting inventory, three houses and one additional stockpile; both resources gathered/deposited; 70 wood delivered; ten housed; every task phase observed; conservation and route budget checked.
 2. Save/load during gathering work, gathering with cargo, delivery before pickup, delivery with cargo, and construction; resumed jobs complete without resource loss/duplication.
@@ -20,6 +20,8 @@ Eight renderer-independent regression tests cover:
 6. Placement invalidates in-flight routes and workers continue around the new obstacle.
 7. Exhausted resources produce idle workers without invalid jobs.
 8. Malformed/incompatible saves are rejected without changing the original state.
+
+M1.1 adds seven review-hardening checks covering blueprint cancellation/refunds, refusal to lose refunds when storage is full, a 12,000-tick conservation run, bounded stock-target gathering plus construction demand, migration of earlier version-1 saves, and blocked-route retry cooldown/recovery.
 
 ## Browser playthrough
 
@@ -59,10 +61,10 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 
 ## Known limitations and review targets
 
-- One manual browser-local save slot; no migration, automatic backup, autosave or file export.
+- One primary browser-local save plus one rotating backup slot; validated JSON export/import is available. There is no autosave, cloud sync, slot manager, or general future-version migration.
 - Six initial / ten maximum settlers; 80 building cap; fixed 47×47 grid.
-- Finite resources and shared storage capacity. No regrowth, consumption, hunger, immigration, dismantling or blueprint cancellation.
-- One constructor per site, one gatherer per node; fixed job priorities and simple stock balance.
+- Finite resources and shared storage capacity. Blueprint cancellation is supported for unfinished sites; completed-building demolition, regrowth, consumption, hunger and immigration are not.
+- One constructor per site and one gatherer per node; job-class priorities are fixed, while wood/food gathering is bounded by player-controlled stock targets plus outstanding construction demand.
 - Resource vegetation is traversable, NPCs can overlap, and player collision uses occupied grid cells rather than a character physics capsule.
 - Elevation/follow camera foundation only; no camera-obstacle collision, combat or character animation.
 - Global BFS and linear searches are deliberately bounded M1 choices. Do not claim support for hundreds of workers without profiling.
@@ -70,10 +72,18 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 - Vite's >500 kB minified chunk warning remains (about 578 kB / 148 kB gzip in this pass). It also occurred in the baseline and is mostly the Three.js runtime.
 - No M2 work has started.
 
+## M1.1 verification
+
+Post-handoff M1.1 verification on 2026-09-26:
+
+- Local renderer-independent suite: 15/15 tests passed, including the 12,000-tick run.
+- GitHub Actions CI run #8 passed dependency install, strict typecheck, all tests, and production build.
+- Browser-facing Game/Hud changes also passed a strict local contract typecheck against the unchanged renderer API.
+- The live Pages build still needs the final M1.1 user playtest after deployment; do not treat that as already visually verified.
+
 ## Highest-value follow-ups before M2
 
-1. Playtest placement, selection and camera ergonomics on normal desktop and smaller displays; tune movement/task pacing from feedback.
-2. Add blueprint cancellation with tested release/refund rules for reserved, carried and delivered materials.
-3. Add gathering priorities or stock targets so the player can control storage pressure.
-4. Add save export/import and a backup slot with corruption/recovery tests.
-5. Add a repeatable M1 performance capture with frame/tick percentiles and long-run logistics checks.
+1. User-playtest the M1.1 Pages revision: stock targets, blueprint cancellation, backup/export/import and normal camera/placement behavior.
+2. Tune camera/placement/task pacing from that feedback rather than adding more simulation breadth.
+3. Add a repeatable percentile-style performance capture if needed before population limits increase.
+4. Then begin a deliberately small M2 dusk → first raid → morning repair slice.
