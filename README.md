@@ -1,10 +1,12 @@
 # Nightspire
 
-A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
+A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
 **Current playable milestone: M3.7 — Blacksmith & Tools.** The M3.6 morale loop remains intact while Iron Ore and Tools extend the physical production economy: workers mine finite Ore deposits, haul Ore to a Blacksmith, forge Tools during Day, and return finished Tools to stockpile storage. Stockpiled Tools provide up to a +10% hands-on work bonus on top of Happiness. See [the design](docs/GAME_DESIGN.md) for future direction.
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
+
+**Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
 
 ## Play locally
 
@@ -89,6 +91,6 @@ docs/           design, architecture, milestones, decisions and QA
 
 This is a small playable stylized-graybox foundation: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, physical Food → Ale → Tavern and Ore → Tools production chains, deterministic population attraction from 6 → 10, Happiness-driven productivity, dedicated build-mode UX, and a first settlement atmosphere/readability pass. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
 
-See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
+See [DIRECTION PIVOT](docs/DIRECTION_PIVOT.md), [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
 M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses the existing generic resource, production, stockpile and supply-job architecture for Ore → Tools; the only additional fixed-step hook is a cached per-step Tool coverage multiplier applied to hands-on work. Navigation.ts and the path budget remain untouched.
