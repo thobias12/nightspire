@@ -97,6 +97,7 @@ export class Simulation {
     const s = this.state
     if (previous === 'night' && next !== 'night') {
       const retreated = retreatRaid(s)
+      restoreAtDawn(s)
       if (retreated > 0) recordEvent(s, retreated + ' raiders retreat with the returning light.')
     }
     if (next !== 'day') this.releaseNonCarryingJobs()
@@ -107,7 +108,6 @@ export class Simulation {
       this.beginRaid()
       recordEvent(s, 'Night has fallen. The settlement is on alert.')
     } else if (next === 'dawn') {
-      restoreAtDawn(s)
       recordEvent(s, 'Dawn breaks. The wounded recover and the settlement waits for daylight.')
     } else if (next === 'day') {
       for (const settler of s.settlers) {
