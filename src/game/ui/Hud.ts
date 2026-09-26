@@ -36,9 +36,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.2 · PLACEMENT & SNAPPING</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">ORGANIC WITHOUT THE FIDDLING</span><h1>Aligned when you want it. Freeform when you don't.</h1>
-        <p>Grid Snap defaults on for clean 0°/45°/90° roads and whole-metre plots. Road Snap magnetically places conventional buildings beside nearby roads and turns their frontage toward the street. Toggle either mode whenever you want freer placement.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.3 · ROAD JUNCTIONS & PLOT ROWS</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">STREETS THAT JOIN CLEANLY</span><h1>Build rows, corners and junctions without fighting the tool.</h1>
+        <p>Road endpoints now lock exactly to existing centerlines, intersections blend without the old dark round caps, plot frontage shows metre markers, and neighboring residential lots magnetically share their boundary for clean street rows.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>

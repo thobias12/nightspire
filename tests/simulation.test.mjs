@@ -25,7 +25,7 @@ const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary,
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
 const {
-  backyardForPlot, buildingPlacementPreview, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
+  backyardForPlot, buildingPlacementPreview, insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
   residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError,
   snapPointToGrid, snapRoadControlPoint,
 } = require('../.test-build/game/simulation/TownPlanning.js')
@@ -58,6 +58,42 @@ const makeAttractive = s => {
   assignHousing(s)
   return s
 }
+test('road endpoints and centerline joins snap exactly and split the host road into a real junction node', () => {
+  const roads=[{id:4,width:1.7,points:[{x:-6,z:0},{x:6,z:0}]}]
+  assert.deepEqual(snapRoadControlPoint(roads,{x:6.8,z:0.7},{x:2,z:-4},true),{x:6,z:0})
+  const center=snapRoadControlPoint(roads,{x:1.1,z:1.1},{x:1,z:-5},true)
+  assert.deepEqual(center,{x:1,z:0})
+  assert.equal(insertRoadJunctionPoint(roads,center),true)
+  assert.deepEqual(roads[0].points,[{x:-6,z:0},{x:1,z:0},{x:6,z:0}])
+  assert.equal(insertRoadJunctionPoint(roads,center),false)
+})
+
+test('adjacent residential plots snap flush to an existing frontage edge with Grid Snap on', () => {
+  const roads=[{id:10,width:1.7,points:[{x:-10,z:0},{x:10,z:0}]}]
+  const first=residentialPlotPreview(roads,{x:-5,z:0},{x:-1,z:-7},2.2,true,[])
+  assert.ok(first)
+  const existing=[{
+    id:30,buildingId:31,roadId:first.roadId,
+    frontageA:{...first.frontageA},frontageB:{...first.frontageB},
+    depth:first.depth,side:first.side,angle:first.angle,backyard:'garden',
+  }]
+  const second=residentialPlotPreview(roads,{x:-0.35,z:0},{x:4.2,z:-7},2.2,true,existing)
+  assert.ok(second)
+  assert.equal(second.adjacentSnapped,true)
+  assert.deepEqual(second.frontageA,first.frontageB)
+  assert.equal(residentialPlotError(second,existing),null)
+})
+
+test('road-snapped service buildings sit closer to the street while preserving a valid grid center', () => {
+  const roads=[{id:21,width:1.7,points:[{x:-10,z:0},{x:10,z:0}]}]
+  const preview=buildingPlacementPreview(roads,{x:2.4,z:-2.2},'blacksmith',true,0)
+  assert.equal(preview.snappedToRoad,true)
+  assert.equal(Number.isInteger(preview.point.x),true)
+  assert.equal(Number.isInteger(preview.point.z),true)
+  assert.deepEqual(preview.point,{x:2,z:-3})
+  assert.ok(Math.abs(preview.facingAngle)<1e-9)
+})
+
 test('Grid Snap aligns road drags to 0/45/90 degrees while freeform preserves pointer geometry', () => {
   const roads=[]
   assert.deepEqual(snapPointToGrid({x:2.49,z:-3.51}),{x:2,z:-4})
@@ -73,8 +109,8 @@ test('Grid Snap rounds residential frontage and depth while keeping the plot on 
   const snapped=residentialPlotPreview(roads,{x:-2.2,z:0.1},{x:3.35,z:-7.45},2.2,true)
   assert.ok(free && snapped)
   assert.notEqual(free.width,Math.round(free.width))
-  assert.equal(snapped.width,5)
-  assert.equal(snapped.depth,7)
+  assert.equal(snapped.width,6)
+  assert.equal(snapped.depth,6)
   assert.ok(Math.abs(snapped.frontageA.z+1.12)<1e-9)
   assert.equal(snapped.housePoint.x,1)
   assert.ok(Number.isInteger(snapped.housePoint.z))
@@ -124,7 +160,7 @@ test('residential plot drag snaps frontage to a road and derives road-facing hou
   assert.ok(preview)
   assert.equal(preview.roadId,10)
   assert.ok(Math.abs(preview.width-5)<1e-9)
-  assert.ok(Math.abs(preview.depth-7)<1e-9)
+  assert.ok(Math.abs(preview.depth-6.03)<1e-9)
   assert.equal(preview.side,-1)
   assert.ok(Math.abs(preview.angle)<1e-9)
   assert.equal(preview.houseRotation,0)
