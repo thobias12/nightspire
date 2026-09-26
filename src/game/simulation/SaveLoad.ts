@@ -65,7 +65,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && integer(b.lastHitTick) && b.lastHitTick <= s.tick
       && number(b.serviceProgress) && b.serviceProgress <= 300
       && number(b.productionProgress) && b.productionProgress <= 300
-      && integer(b.rotation) && b.rotation <= 3,
+      && integer(b.rotation) && b.rotation <= 3
+      && (b.facingAngle === undefined || Number.isFinite(b.facingAngle)),
       'building state',
     )
     check(RESOURCE_IDS.every(r => b.delivered[r] <= def.buildCost[r]), 'excess delivery')
