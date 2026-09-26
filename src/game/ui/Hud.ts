@@ -36,9 +36,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.4 · GROUNDED ROADS & PLOT EDGES</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">ROADS THAT FEEL LIKE GROUND</span><h1>Worn earth, not stacked decals.</h1>
-        <p>Road surfaces are now opaque earth with subtle shoulders and wheel ruts, so crossings no longer darken from transparency. Adjacent residential plots share one boundary fence, exposed edges are less rigid, and rear fences leave practical openings.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.5 · MEDIEVAL ART DENSITY</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">A TOWN THAT LOOKS LIVED IN</span><h1>Timber, clutter, people and working yards.</h1>
+        <p>Buildings now carry stronger roof/eave and timber-frame detail, residential lots accumulate practical backyard life, workshops spill carts and materials into their yards, Tavern adults have clearer social silhouettes, and woodland continues beyond the playable boundary.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
