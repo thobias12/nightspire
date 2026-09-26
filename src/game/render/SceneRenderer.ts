@@ -9,6 +9,62 @@ import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
 
 export type CameraMode = 'settlement' | 'follow'
 
+type ResidentialCompoundTier = 'cottage' | 'homestead' | 'burgage'
+
+interface ResidentialCompoundProfile {
+  tier: ResidentialCompoundTier
+  houseWidth: number
+  houseDepth: number
+  wallHeight: number
+  roofHeight: number
+  frontGap: number
+  outbuildingScale: number
+}
+
+function residentialCompoundProfile(plot: ResidentialPlot): ResidentialCompoundProfile {
+  const frontage = residentialPlotWidth(plot)
+  const area = frontage * plot.depth
+  const tier: ResidentialCompoundTier = frontage >= 8 && plot.depth >= 9 && area >= 76
+    ? 'burgage'
+    : frontage >= 6.2 || plot.depth >= 8
+      ? 'homestead'
+      : 'cottage'
+
+  if (tier === 'burgage') {
+    return {
+      tier,
+      houseWidth: THREE.MathUtils.clamp(frontage * 0.74, 4.05, 5.55),
+      houseDepth: THREE.MathUtils.clamp(plot.depth * 0.34, 3.0, 3.9),
+      wallHeight: 2.16 + (plot.id % 2) * 0.12,
+      roofHeight: 1.24 + (plot.id % 3) * 0.06,
+      frontGap: 1.12,
+      outbuildingScale: 1.18,
+    }
+  }
+
+  if (tier === 'homestead') {
+    return {
+      tier,
+      houseWidth: THREE.MathUtils.clamp(frontage * 0.68, 3.05, 4.4),
+      houseDepth: THREE.MathUtils.clamp(plot.depth * 0.31, 2.55, 3.35),
+      wallHeight: 1.96 + (plot.id % 3) * 0.07,
+      roofHeight: 1.08 + (plot.id % 2) * 0.08,
+      frontGap: 0.9,
+      outbuildingScale: 1,
+    }
+  }
+
+  return {
+    tier,
+    houseWidth: THREE.MathUtils.clamp(frontage * 0.6, 2.3, 3.1),
+    houseDepth: THREE.MathUtils.clamp(plot.depth * 0.28, 2.12, 2.68),
+    wallHeight: 1.78 + (plot.id % 3) * 0.055,
+    roofHeight: 0.96 + (plot.id % 2) * 0.07,
+    frontGap: 0.68,
+    outbuildingScale: 0.82,
+  }
+}
+
 function createGableRoofGeometry(): THREE.BufferGeometry {
   const indexed = new THREE.BufferGeometry()
   const vertices = new Float32Array([
