@@ -18,6 +18,16 @@ import { distance } from '../simulation/Navigation'
 import { forceImmigrationIfEligible } from '../simulation/Population'
 import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
 import { Simulation } from '../simulation/Simulation'
+import {
+  backyardForPlot,
+  normalizeRoadPoints,
+  residentialPlotBuildingError,
+  residentialPlotError,
+  residentialPlotPreview,
+  residentialPlotResourceError,
+  roadPlacementError,
+  type ResidentialPlotPreview,
+} from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
@@ -32,6 +42,10 @@ export class Game {
   private selectedId: number | null = null
   private buildType: BuildingId | null = null
   private buildRotation = 0
+  private planningTool: 'road' | 'residential-plot' | null = null
+  private planningStart: Point | null = null
+  private roadDraft: Point[] = []
+  private plotDraft: ResidentialPlotPreview | null = null
   private pointer: Point | null = null
   private dragStart: Point | null = null
   private dragPoints: Point[] = []
@@ -51,25 +65,49 @@ export class Game {
     this.input = new InputController(this.renderer, this.simulation, () => this.action('cancel'), () => this.action('attack'))
     const signal = this.abort.signal
     this.renderer.canvas.addEventListener('pointermove', e => {
-      const point = this.renderer.worldPoint(e.clientX, e.clientY)
+      const point = this.planningTool
+        ? this.renderer.worldPointPrecise(e.clientX, e.clientY)
+        : this.renderer.worldPoint(e.clientX, e.clientY)
       if (
-        point?.x === this.pointer?.x
+        !this.planningTool
+        && point?.x === this.pointer?.x
         && point?.z === this.pointer?.z
         && !(this.dragStart && this.buildType === 'wood-wall')
       ) return
       this.pointer = point
-      if (this.dragStart && point && this.buildType === 'wood-wall') {
+
+      if (this.planningTool === 'road' && this.planningStart && point) {
+        this.roadDraft = normalizeRoadPoints([...this.roadDraft, point])
+      } else if (this.planningTool === 'residential-plot' && this.planningStart && point) {
+        this.plotDraft = residentialPlotPreview(this.simulation.state.roads, this.planningStart, point)
+      } else if (this.dragStart && point && this.buildType === 'wood-wall') {
         this.dragPoints = wallLinePoints(this.dragStart, point)
       }
       this.updateGhost()
     }, { signal })
     this.renderer.canvas.addEventListener('pointerleave', () => {
-      if (this.dragStart) return
+      if (this.dragStart || this.planningStart) return
       this.pointer = null
       this.updateGhost()
     }, { signal })
     this.renderer.canvas.addEventListener('pointerdown', e => {
-      if (e.button !== 0 || this.buildType !== 'wood-wall') return
+      if (e.button !== 0) return
+
+      if (this.planningTool) {
+        const point = this.renderer.worldPointPrecise(e.clientX, e.clientY)
+        if (!point) return
+        this.renderer.canvas.focus()
+        this.planningStart = point
+        this.pointer = point
+        this.roadDraft = this.planningTool === 'road' ? [point] : []
+        this.plotDraft = null
+        this.renderer.canvas.setPointerCapture(e.pointerId)
+        this.updateGhost()
+        e.preventDefault()
+        return
+      }
+
+      if (this.buildType !== 'wood-wall') return
       const point = this.renderer.worldPoint(e.clientX, e.clientY)
       if (!point) return
       this.renderer.canvas.focus()
@@ -81,7 +119,69 @@ export class Game {
       e.preventDefault()
     }, { signal })
     this.renderer.canvas.addEventListener('pointerup', e => {
-      if (e.button !== 0 || !this.dragStart || this.buildType !== 'wood-wall') return
+      if (e.button !== 0) return
+
+      if (this.planningStart && this.planningTool) {
+        const s = this.simulation.state
+        const end = this.renderer.worldPointPrecise(e.clientX, e.clientY) ?? this.pointer ?? this.planningStart
+
+        if (this.planningTool === 'road') {
+          const points = normalizeRoadPoints([...this.roadDraft, end])
+          const error = roadPlacementError(points)
+          if (error) {
+            this.message = error
+          } else {
+            const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
+            s.roads.push({ id: s.nextId++, points, width: 1.7 })
+            this.message = 'Road placed · ' + length.toFixed(1) + 'm. Draw another road or Esc to finish.'
+          }
+        } else {
+          const preview = residentialPlotPreview(s.roads, this.planningStart, end)
+          let error = residentialPlotError(preview, s.residentialPlots)
+          if (!error) error = residentialPlotBuildingError(preview, s.buildings)
+          if (!error) error = residentialPlotResourceError(preview, s.nodes)
+          if (!error && preview) error = placementError(s, 'house', preview.housePoint)
+
+          if (error || !preview) {
+            this.message = error ?? 'Could not create that residential plot.'
+          } else {
+            const before = s.nextId
+            const houseError = placeBuilding(s, 'house', preview.housePoint, preview.houseRotation)
+            if (houseError) {
+              this.message = houseError
+            } else {
+              const house = s.buildings.find(building => building.id === before)!
+              const plotId = s.nextId++
+              s.residentialPlots.push({
+                id: plotId,
+                buildingId: house.id,
+                roadId: preview.roadId,
+                frontageA: { ...preview.frontageA },
+                frontageB: { ...preview.frontageB },
+                depth: preview.depth,
+                side: preview.side,
+                angle: preview.angle,
+                backyard: backyardForPlot(plotId, preview.depth),
+              })
+              this.selectedId = house.id
+              this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth. The house will face the road and keep the rear yard.'
+            }
+          }
+        }
+
+        this.planningStart = null
+        this.roadDraft = []
+        this.plotDraft = null
+        this.suppressClick = true
+        setTimeout(() => { this.suppressClick = false }, 0)
+        if (this.renderer.canvas.hasPointerCapture(e.pointerId)) this.renderer.canvas.releasePointerCapture(e.pointerId)
+        this.updateGhost()
+        this.updateHud()
+        e.preventDefault()
+        return
+      }
+
+      if (!this.dragStart || this.buildType !== 'wood-wall') return
       const end = this.renderer.worldPoint(e.clientX, e.clientY) ?? this.pointer ?? this.dragStart
       const points = wallLinePoints(this.dragStart, end)
       const horizontal = Math.abs(end.x - this.dragStart.x) >= Math.abs(end.z - this.dragStart.z)
@@ -126,8 +226,17 @@ export class Game {
     }, { signal })
     window.addEventListener('keydown', e => {
       if ((e.target as HTMLElement).matches('input, select, textarea, button')) return
+      if (e.key === '0') {
+        e.preventDefault()
+        this.action('road')
+        return
+      }
+      if (e.key === '1') {
+        e.preventDefault()
+        this.action('residential-plot')
+        return
+      }
       const hotkeys: Record<string, BuildingId> = {
-        '1': 'house',
         '2': 'stockpile',
         '3': 'campfire',
         '4': 'brewery',
@@ -147,7 +256,7 @@ export class Game {
         e.preventDefault()
         this.action('rotate-build')
       }
-      if (e.key.toLowerCase() === 'v' && !this.buildType) {
+      if (e.key.toLowerCase() === 'v' && !this.buildType && !this.planningTool) {
         e.preventDefault()
         this.action('cinematic')
       }
@@ -170,7 +279,7 @@ export class Game {
   }
   private replaceWorld(text: string): void {
     this.simulation.replace(deserializeWorld(text))
-    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
   }
   private exportSave(): void {
     const blob = new Blob([serializeWorld(this.simulation.state)], { type: 'application/json' })
@@ -183,8 +292,38 @@ export class Game {
     const s = this.simulation.state
     try {
       switch (action) {
+        case 'road':
+          this.buildType = null
+          this.planningTool = 'road'
+          this.planningStart = null
+          this.roadDraft = []
+          this.plotDraft = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.renderer.mode = 'settlement'
+          this.message = 'Road tool: click-drag a road through the landscape. Roads are persisted but do not affect pathfinding yet.'
+          break
+        case 'residential-plot':
+          if (s.roads.length === 0) {
+            this.message = 'Draw a road first. Residential plots need road frontage.'
+            break
+          }
+          this.buildType = null
+          this.planningTool = 'residential-plot'
+          this.planningStart = null
+          this.roadDraft = []
+          this.plotDraft = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.renderer.mode = 'settlement'
+          this.message = 'Residential Plot: start close to a road, then drag diagonally along the frontage and back into the lot. Min 4m frontage × 5m depth.'
+          break
         case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith':
           this.buildType = action
+          this.planningTool = null
+          this.planningStart = null
+          this.roadDraft = []
+          this.plotDraft = null
           this.buildRotation = 0
           this.dragStart = null
           this.dragPoints = []
@@ -200,6 +339,10 @@ export class Game {
           break
         case 'cancel':
           this.buildType = null
+          this.planningTool = null
+          this.planningStart = null
+          this.roadDraft = []
+          this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.message = 'Inspect mode. Click a settler, raider, resource or building.'
@@ -383,6 +526,10 @@ export class Game {
         }
         case 'camera':
           this.buildType = null
+          this.planningTool = null
+          this.planningStart = null
+          this.roadDraft = []
+          this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'
@@ -390,6 +537,10 @@ export class Game {
           break
         case 'cinematic':
           this.buildType = null
+          this.planningTool = null
+          this.planningStart = null
+          this.roadDraft = []
+          this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
@@ -431,7 +582,7 @@ export class Game {
           const imported = deserializeWorld(value)
           const serialized = serializeWorld(imported)
           this.storePrimary(serialized)
-          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
           this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
           break
         }
@@ -442,6 +593,32 @@ export class Game {
     this.updateGhost(); this.updateHud()
   }
   private updateGhost(): void {
+    if (this.planningTool === 'road') {
+      const points = this.planningStart ? this.roadDraft : []
+      const error = points.length >= 2 ? roadPlacementError(points) : null
+      this.renderer.showRoadGhost(points, !error)
+      if (this.planningStart) {
+        const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
+        this.message = error ?? ('Road preview · ' + length.toFixed(1) + 'm. Release to place.')
+      }
+      return
+    }
+
+    if (this.planningTool === 'residential-plot') {
+      const preview = this.plotDraft
+      let error = residentialPlotError(preview, this.simulation.state.residentialPlots)
+      if (!error) error = residentialPlotBuildingError(preview, this.simulation.state.buildings)
+      if (!error) error = residentialPlotResourceError(preview, this.simulation.state.nodes)
+      if (!error && preview) error = placementError(this.simulation.state, 'house', preview.housePoint)
+      this.renderer.showResidentialPlotGhost(preview, !error)
+      if (this.planningStart) {
+        this.message = error ?? (preview
+          ? 'Residential plot preview · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth. Release to plan.'
+          : 'Start close to a player road and drag diagonally into the backyard.')
+      }
+      return
+    }
+
     if (this.buildType === 'wood-wall' && this.dragStart && this.dragPoints.length) {
       const end = this.dragPoints.at(-1)!
       const horizontal = Math.abs(end.x - this.dragStart.x) >= Math.abs(end.z - this.dragStart.z)
@@ -496,6 +673,7 @@ export class Game {
       paused: this.paused,
       selectedId: this.selectedId,
       buildType: this.buildType,
+      planningTool: this.planningTool,
       buildRotation: this.buildRotation,
       dragCount: this.dragPoints.length,
       message: this.message,
