@@ -285,7 +285,25 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 **Exit:** settlement shape emerges from roads, plots, terrain and household/workplace relationships rather than isolated grid footprints.
 
-## M3.10 — Medieval economy depth
+## M3.10 — Terrain & road integration
+
+### M3.10.0 — Worn roads and less regular ground
+
+- [x] road surface subdivides into short overlapping visual pieces instead of one long uniform rectangle
+- [x] deterministic width and lateral variation soften ruler-straight road silhouettes
+- [x] circular soil-edge patches dissolve hard rectangular road boundaries into grass
+- [x] wheel ruts remain intermittent and vary per visual piece
+- [x] deterministic mud patches add darker compressed soil variation
+- [x] small roadside stones and grass intrusion add edge clutter without affecting collision
+- [x] meadow color patches use non-lattice deterministic scatter
+- [x] food-bush resource visuals gain small jitter, scale variation and secondary underbrush clusters
+- [x] all new terrain/road dressing remains instanced and renderer-only
+- [ ] live Overview / Street-view acceptance on straight, diagonal and junction roads
+- [ ] renderer metric sanity check
+
+**Exit:** player roads read as worn earth embedded in the landscape rather than flat UI-like strips, and foreground resource/terrain repetition is less obvious.
+
+## M3.11 — Medieval economy depth
 
 - [ ] richer workplace chains
 - [ ] local input/output storage
