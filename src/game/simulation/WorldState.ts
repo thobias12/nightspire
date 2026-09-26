@@ -19,10 +19,17 @@ export interface Job {
 export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: Point; settlers: Settler[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
+  targets: Inventory
   totals: { gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number }
   events: string[]
 }
 export const MAX_SETTLERS = 10
+export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100 }
+
+export function settlerLabel(state: WorldState, id: number): string {
+  const index = state.settlers.findIndex(a => a.id === id)
+  return index >= 0 ? 'Settler ' + (index + 1) : 'Settler ' + id
+}
 export function spawnSettler(state: WorldState): boolean {
   if (state.settlers.length >= MAX_SETTLERS) return false
   state.settlers.push({ id: state.nextId++, x: 0, z: 2, homeId: null, jobId: null,
@@ -37,6 +44,7 @@ export function createInitialWorldState(): WorldState {
   const state: WorldState = {
     version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
     player: { x: 0, z: 5 }, settlers: [], nodes: [], buildings: [], jobs: [],
+    targets: { ...DEFAULT_TARGETS },
     totals: { gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(), constructed: 0 },
     events: ['A new camp. Gather wood, then build homes for your settlers.'],
   }
