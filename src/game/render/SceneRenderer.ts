@@ -55,6 +55,7 @@ export class SceneRenderer {
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
     this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, 10)
+    this.addBatch('enemies', new THREE.CapsuleGeometry(0.26, 0.5, 3, 5), 0x6f2525, 64)
     this.addBatch('cargo', this.geometry, 0xffffff, 10)
     this.addBatch('buildings', this.geometry, 0xffffff, 80)
     this.addBatch('roofs', new THREE.ConeGeometry(1, 1, 4), 0x594739, 80)
@@ -93,6 +94,7 @@ export class SceneRenderer {
       const resource = a.cargo.wood > 0 ? 'wood' : a.cargo.food > 0 ? 'food' : null
       if (resource) this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
     }
+    for (const e of state.enemies) this.instance('enemies', e.x, 0.56, e.z)
     this.instance('player', state.player.x, 0.7, state.player.z)
 
     for (const b of state.buildings) {
@@ -117,7 +119,7 @@ export class SceneRenderer {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     }
 
-    const selected = [...state.settlers, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
+    const selected = [...state.settlers, ...state.enemies, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
     this.selection.visible = !!selected
     if (selected) this.selection.position.set(selected.x, 0.04, selected.z)
 
@@ -137,9 +139,9 @@ export class SceneRenderer {
     this.paths.visible = this.debug
     if (!this.debug) return
     const vertices: number[] = []
-    for (const s of state.settlers) {
-      let prev: Point = s
-      for (const p of s.path) { vertices.push(prev.x, 0.15, prev.z, p.x, 0.15, p.z); prev = p }
+    for (const agent of [...state.settlers, ...state.enemies]) {
+      let prev: Point = agent
+      for (const p of agent.path) { vertices.push(prev.x, 0.15, prev.z, p.x, 0.15, p.z); prev = p }
     }
     this.paths.geometry.dispose()
     this.paths.geometry = new THREE.BufferGeometry()
