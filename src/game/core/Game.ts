@@ -22,13 +22,13 @@ import {
   backyardForPlot,
   buildingPlacementPreview,
   insertRoadJunctionPoint,
-  normalizeRoadPoints,
   residentialPlotBuildingError,
   residentialPlotError,
   residentialPlotPreview,
   residentialPlotResourceError,
   roadPlacementError,
-  snapRoadControlPoint,
+  sampleRoadCurve,
+  snapRoadPlacementPoint,
   type ResidentialPlotPreview,
 } from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
@@ -47,7 +47,12 @@ export class Game {
   private buildRotation = 0
   private planningTool: 'road' | 'residential-plot' | null = null
   private planningStart: Point | null = null
+  private roadControls: Point[] = []
   private roadDraft: Point[] = []
+  private roadHover: Point | null = null
+  private roadWidth = 1.7
+  private roadCurvature = 0.7
+  private roadJoinSnap = true
   private plotDraft: ResidentialPlotPreview | null = null
   private pointer: Point | null = null
   private rawPointer: Point | null = null
@@ -83,12 +88,22 @@ export class Game {
       ) return
       this.pointer = point
 
-      if (this.planningTool === 'road' && this.planningStart && precise) {
-        if (this.gridSnap) {
-          const end = snapRoadControlPoint(this.simulation.state.roads, precise, this.planningStart, true)
-          this.roadDraft = normalizeRoadPoints([this.planningStart, end])
+      if (this.planningTool === 'road' && precise) {
+        const hover = snapRoadPlacementPoint(
+          this.simulation.state.roads,
+          precise,
+          this.gridSnap,
+          this.roadJoinSnap,
+        )
+        this.roadHover = hover
+        if (this.roadControls.length) {
+          const last = this.roadControls[this.roadControls.length - 1]
+          const previewControls = Math.hypot(hover.x - last.x, hover.z - last.z) > 0.08
+            ? [...this.roadControls, hover]
+            : [...this.roadControls]
+          this.roadDraft = sampleRoadCurve(previewControls, this.roadCurvature)
         } else {
-          this.roadDraft = normalizeRoadPoints([...this.roadDraft, precise])
+          this.roadDraft = []
         }
       } else if (this.planningTool === 'residential-plot' && this.planningStart && precise) {
         this.plotDraft = residentialPlotPreview(
@@ -105,7 +120,7 @@ export class Game {
       this.updateGhost()
     }, { signal })
     this.renderer.canvas.addEventListener('pointerleave', () => {
-      if (this.dragStart || this.planningStart) return
+      if (this.dragStart || this.planningStart || this.roadControls.length) return
       this.pointer = null
       this.rawPointer = null
       this.updateGhost()
@@ -113,17 +128,19 @@ export class Game {
     this.renderer.canvas.addEventListener('pointerdown', e => {
       if (e.button !== 0) return
 
-      if (this.planningTool) {
+      if (this.planningTool === 'road') {
+        this.renderer.canvas.focus()
+        e.preventDefault()
+        return
+      }
+
+      if (this.planningTool === 'residential-plot') {
         const raw = this.renderer.worldPointPrecise(e.clientX, e.clientY)
         if (!raw) return
         this.renderer.canvas.focus()
-        const point = this.planningTool === 'road'
-          ? snapRoadControlPoint(this.simulation.state.roads, raw, null, this.gridSnap)
-          : raw
-        this.planningStart = point
-        this.pointer = point
+        this.planningStart = raw
+        this.pointer = raw
         this.rawPointer = raw
-        this.roadDraft = this.planningTool === 'road' ? [point] : []
         this.plotDraft = null
         this.renderer.canvas.setPointerCapture(e.pointerId)
         this.updateGhost()
@@ -145,64 +162,43 @@ export class Game {
     this.renderer.canvas.addEventListener('pointerup', e => {
       if (e.button !== 0) return
 
-      if (this.planningStart && this.planningTool) {
+      if (this.planningStart && this.planningTool === 'residential-plot') {
         const s = this.simulation.state
         const rawEnd = this.renderer.worldPointPrecise(e.clientX, e.clientY) ?? this.rawPointer ?? this.pointer ?? this.planningStart
+        const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap, s.residentialPlots)
+        let error = residentialPlotError(preview, s.residentialPlots)
+        if (!error) error = residentialPlotBuildingError(preview, s.buildings)
+        if (!error) error = residentialPlotResourceError(preview, s.nodes)
+        if (!error && preview) error = placementError(s, 'house', preview.housePoint)
 
-        if (this.planningTool === 'road') {
-          const end = this.gridSnap
-            ? snapRoadControlPoint(s.roads, rawEnd, this.planningStart, true)
-            : snapRoadControlPoint(s.roads, rawEnd, null, false)
-          const points = this.gridSnap
-            ? normalizeRoadPoints([this.planningStart, end])
-            : normalizeRoadPoints([...this.roadDraft, end])
-          const error = roadPlacementError(points)
-          if (error) {
-            this.message = error
-          } else {
-            const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
-            insertRoadJunctionPoint(s.roads, points[0])
-            insertRoadJunctionPoint(s.roads, points[points.length - 1])
-            s.roads.push({ id: s.nextId++, points, width: 1.7 })
-            this.message = 'Road placed · ' + length.toFixed(1) + 'm. Junctions lock to exact existing road centerlines.'
-          }
+        if (error || !preview) {
+          this.message = error ?? 'Could not create that residential plot.'
         } else {
-          const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap, s.residentialPlots)
-          let error = residentialPlotError(preview, s.residentialPlots)
-          if (!error) error = residentialPlotBuildingError(preview, s.buildings)
-          if (!error) error = residentialPlotResourceError(preview, s.nodes)
-          if (!error && preview) error = placementError(s, 'house', preview.housePoint)
-
-          if (error || !preview) {
-            this.message = error ?? 'Could not create that residential plot.'
+          const before = s.nextId
+          const houseError = placeBuilding(s, 'house', preview.housePoint, preview.houseRotation)
+          if (houseError) {
+            this.message = houseError
           } else {
-            const before = s.nextId
-            const houseError = placeBuilding(s, 'house', preview.housePoint, preview.houseRotation)
-            if (houseError) {
-              this.message = houseError
-            } else {
-              const house = s.buildings.find(building => building.id === before)!
-              const plotId = s.nextId++
-              s.residentialPlots.push({
-                id: plotId,
-                buildingId: house.id,
-                roadId: preview.roadId,
-                frontageA: { ...preview.frontageA },
-                frontageB: { ...preview.frontageB },
-                depth: preview.depth,
-                side: preview.side,
-                angle: preview.angle,
-                backyard: backyardForPlot(plotId, preview.depth),
-              })
-              this.selectedId = house.id
-              this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
-                + (preview.adjacentSnapped ? ' Frontage snapped flush to the neighboring plot.' : ' The house will face the road and keep the rear yard.')
-            }
+            const house = s.buildings.find(building => building.id === before)!
+            const plotId = s.nextId++
+            s.residentialPlots.push({
+              id: plotId,
+              buildingId: house.id,
+              roadId: preview.roadId,
+              frontageA: { ...preview.frontageA },
+              frontageB: { ...preview.frontageB },
+              depth: preview.depth,
+              side: preview.side,
+              angle: preview.angle,
+              backyard: backyardForPlot(plotId, preview.depth),
+            })
+            this.selectedId = house.id
+            this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
+              + (preview.adjacentSnapped ? ' Frontage snapped flush to the neighboring plot.' : ' The house will face the road and keep the rear yard.')
           }
         }
 
         this.planningStart = null
-        this.roadDraft = []
         this.plotDraft = null
         this.rawPointer = null
         this.suppressClick = true
