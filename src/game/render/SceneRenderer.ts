@@ -32,6 +32,14 @@ function createGableRoofGeometry(): THREE.BufferGeometry {
   return geometry
 }
 
+function createRoofCourseGeometry(slope: number): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(1, 1, 1).rotateZ(slope)
+}
+
+function createCartWheelGeometry(): THREE.BufferGeometry {
+  return new THREE.TorusGeometry(0.5, 0.09, 5, 10).rotateY(Math.PI / 2)
+}
+
 function createRadialGlowTexture(size = 64): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4)
   for (let y = 0; y < size; y++) {
@@ -81,8 +89,10 @@ export class SceneRenderer {
   private readonly batchColors: Record<string, number> = {}
   private readonly settlementLitBatches = new Set([
     'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'doors', 'trim', 'props',
-    'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs',
-    'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'guardCoat', 'entertainer',
+    'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs', 'baskets',
+    'roofCourseL', 'roofCourseR', 'braceL', 'braceR', 'cartWheel',
+    'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'adultHairLong', 'adultArm', 'adultLeg', 'adultBodice',
+    'guardCoat', 'entertainer',
     'foundation', 'scaffold', 'debris',
   ])
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
@@ -142,7 +152,7 @@ export class SceneRenderer {
     this.scene.add(this.sun, this.moon, this.ambient, this.settlementGlow)
 
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
+      new THREE.PlaneGeometry(MAP_SIZE + 20, MAP_SIZE + 20),
       this.groundMaterial,
     )
     ground.rotation.x = -Math.PI / 2
@@ -173,14 +183,24 @@ export class SceneRenderer {
     this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600)
     this.addBatch('metal', this.geometry, TOWN_PALETTE.iron, 520)
     this.addBatch('cloth', this.geometry, TOWN_PALETTE.clothWine, 420)
-    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 520)
-    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 520)
-    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 700)
-    this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 360)
-    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, 80)
-    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, 80)
-    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, 100)
-    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, 100)
+    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 620)
+    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 620)
+    this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420)
+    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100)
+    this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
+    this.addBatch('roofCourseL', createRoofCourseGeometry(0.5), 0x46372f, 1400)
+    this.addBatch('roofCourseR', createRoofCourseGeometry(-0.5), 0x46372f, 1400)
+    this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
+    this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
+    this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
+    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, 100)
+    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, 100)
+    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, 120)
+    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, 120)
+    this.addBatch('adultHairLong', new THREE.CapsuleGeometry(0.16, 0.38, 3, 6), 0x4a3528, 80)
+    this.addBatch('adultArm', new THREE.CapsuleGeometry(0.055, 0.34, 2, 5), 0xd6ad8b, 220)
+    this.addBatch('adultLeg', new THREE.CapsuleGeometry(0.075, 0.35, 2, 5), 0x463a32, 160)
+    this.addBatch('adultBodice', new THREE.CapsuleGeometry(0.19, 0.22, 3, 6), TOWN_PALETTE.clothWine, 80)
     this.addBatch('guardCoat', new THREE.CapsuleGeometry(0.23, 0.38, 3, 6), 0x6a5149, 30)
     this.addBatch('entertainer', new THREE.ConeGeometry(0.34, 0.78, 10), TOWN_PALETTE.clothWine, 40)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
