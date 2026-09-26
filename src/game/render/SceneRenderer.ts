@@ -161,10 +161,10 @@ export class SceneRenderer {
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.34)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 720, 0.16)
-    this.addBasicBatch('roadCap', new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.3)
-    this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.14)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.26)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 720, 0.11)
+    this.addBasicBatch('roadJoint', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 240, 0.18)
+    this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.075)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
@@ -298,8 +298,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadCap', 'plotGround', 'yardPatch'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadCap', 'plotGround', 'yardPatch'].includes(name)
+    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadJoint', 'plotGround', 'yardPatch'].includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadJoint', 'plotGround', 'yardPatch'].includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
@@ -486,27 +486,37 @@ export class SceneRenderer {
   }
 
   private renderVisualRoads(roads: RoadPath[]): void {
+    const junctions = new Map<string, { x: number; z: number; width: number; roads: Set<number> }>()
+
     for (const road of roads) {
+      for (const point of road.points) {
+        const key = Math.round(point.x * 20) + ':' + Math.round(point.z * 20)
+        const entry = junctions.get(key) ?? { x: point.x, z: point.z, width: road.width, roads: new Set<number>() }
+        entry.width = Math.max(entry.width, road.width)
+        entry.roads.add(road.id)
+        junctions.set(key, entry)
+      }
+
       for (let i = 1; i < road.points.length; i++) {
         const a = road.points[i - 1]
         const b = road.points[i]
         const strip = visualRoadStrip({ fromId: road.id, toId: i, ax: a.x, az: a.z, bx: b.x, bz: b.z })
-        const variation = 0.92 + ((road.id * 17 + i * 11) % 9) * 0.018
+        const variation = 0.94 + ((road.id * 17 + i * 11) % 7) * 0.014
         const width = road.width * variation
-        this.instance('roadBase', strip.x, 0.024, strip.z, width, 1, strip.length + width * 0.35, TOWN_PALETTE.earth, strip.angle)
+        this.instance('roadBase', strip.x, 0.024, strip.z, width, 1, strip.length + width * 0.58, TOWN_PALETTE.earth, strip.angle)
 
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-        const rutOffset = width * 0.22
-        this.instance('roadWear', strip.x + normalX * rutOffset, 0.027, strip.z + normalZ * rutOffset, width * 0.19, 1, strip.length + 0.4, 0x806b4d, strip.angle)
-        this.instance('roadWear', strip.x - normalX * rutOffset, 0.028, strip.z - normalZ * rutOffset, width * 0.16, 1, strip.length + 0.25, 0x69583f, strip.angle)
+        const rutOffset = width * 0.21
+        this.instance('roadWear', strip.x + normalX * rutOffset, 0.027, strip.z + normalZ * rutOffset, width * 0.16, 1, strip.length + 0.34, 0x806b4d, strip.angle)
+        this.instance('roadWear', strip.x - normalX * rutOffset, 0.028, strip.z - normalZ * rutOffset, width * 0.14, 1, strip.length + 0.22, 0x69583f, strip.angle)
       }
+    }
 
-      for (let i = 0; i < road.points.length; i++) {
-        const point = road.points[i]
-        const scale = road.width * (0.52 + ((road.id + i) % 4) * 0.025)
-        this.instance('roadCap', point.x, 0.023, point.z, scale, 1, scale * 0.9, i % 3 === 0 ? 0x5f513c : TOWN_PALETTE.earth, road.id * 0.19 + i * 0.31)
-      }
+    for (const junction of junctions.values()) {
+      if (junction.roads.size < 2) continue
+      const size = junction.width * 0.72
+      this.instance('roadJoint', junction.x, 0.025, junction.z, size, 1, size, 0x62533d, 0)
     }
   }
 
@@ -542,9 +552,18 @@ export class SceneRenderer {
 
     const halfW = width / 2
     const halfD = plot.depth / 2
-    this.renderPlotFence(plot, -halfW, 0, plot.depth, false)
-    this.renderPlotFence(plot, halfW, 0, plot.depth, false)
-    this.renderPlotFence(plot, 0, -halfD, width, true)
+    const sideLength = plot.depth * 0.72
+    const sideCenterZ = -halfD + sideLength / 2
+    this.renderPlotFence(plot, -halfW, sideCenterZ, sideLength, false)
+    this.renderPlotFence(plot, halfW, sideCenterZ, sideLength, false)
+    this.renderPlotFence(plot, 0, -halfD, width * 0.88, true)
+
+    if (plot.id % 2 === 0) {
+      for (let i = 0; i < 3; i++) {
+        const hedge = this.rotatedOffset(halfW - 0.08, -halfD + 0.65 + i * Math.max(0.7, sideLength / 3.2), plot.angle)
+        this.instance('underbrush', center.x + hedge.x, 0.22, center.z + hedge.z, 0.44, 0.38, 0.44, 0x526748, plot.id * 0.17 + i)
+      }
+    }
 
     if (!b.complete || b.destroyed) return
 
@@ -1278,7 +1297,7 @@ export class SceneRenderer {
         p.z + Math.cos(rotation) * distance,
       )
       this.facing.rotation.set(0, rotation, 0)
-      this.facing.scale.set(0.28, 0.08, 0.7)
+      this.facing.scale.set(0.82, 0.09, 0.18)
     }
   }
 
@@ -1319,6 +1338,7 @@ export class SceneRenderer {
     if (!preview) return
 
     const color = new THREE.Color(valid ? 0x9bc07b : 0xef6d65)
+    const markerColor = new THREE.Color(preview.adjacentSnapped && valid ? 0xf1c86f : (valid ? 0xd7e8a7 : 0xef6d65))
     this.ghost.visible = true
     this.ghost.position.set(preview.center.x, 0.045, preview.center.z)
     this.ghost.rotation.set(0, preview.angle, 0)
@@ -1332,7 +1352,29 @@ export class SceneRenderer {
     this.facing.visible = true
     this.facing.position.set(frontMid.x, 0.09, frontMid.z)
     this.facing.rotation.set(0, preview.angle, 0)
-    this.facing.scale.set(Math.max(0.5, preview.width * 0.75), 0.08, 0.32)
+    this.facing.scale.set(Math.min(1.1, Math.max(0.72, preview.width * 0.18)), 0.09, 0.2)
+
+    const dx = preview.frontageB.x - preview.frontageA.x
+    const dz = preview.frontageB.z - preview.frontageA.z
+    const frontageLength = Math.max(0.001, Math.hypot(dx, dz))
+    const tx = dx / frontageLength
+    const tz = dz / frontageLength
+    const markerCount = Math.min(12, Math.max(2, Math.floor(preview.width) + 1))
+    this.ghostLine.visible = true
+    this.ghostLine.count = markerCount
+    for (let i = 0; i < markerCount; i++) {
+      const t = markerCount === 1 ? 0 : i / (markerCount - 1)
+      const x = preview.frontageA.x + tx * frontageLength * t
+      const z = preview.frontageA.z + tz * frontageLength * t
+      this.matrix.position.set(x, 0.075, z)
+      this.matrix.scale.set(0.055, 0.075, i === 0 || i === markerCount - 1 ? 0.62 : 0.4)
+      this.matrix.rotation.set(0, preview.angle, 0)
+      this.matrix.updateMatrix()
+      this.ghostLine.setMatrixAt(i, this.matrix.matrix)
+      this.ghostLine.setColorAt(i, markerColor)
+    }
+    this.ghostLine.instanceMatrix.needsUpdate = true
+    if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
   }
 
   worldPointPrecise(clientX: number, clientY: number): Point | null {
