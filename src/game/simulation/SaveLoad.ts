@@ -143,7 +143,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       check(
         source && source.complete && !source.destroyed && sourceCanProvide
         && target.complete && !target.destroyed
-        && supplyCapacity(target, j.resource) > 0
+        && (BUILDINGS[target.type].storage > 0 || supplyCapacity(target, j.resource) > 0)
         && j.stage !== 'work' && j.amount > 0,
         'supply references',
       )

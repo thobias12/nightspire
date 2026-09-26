@@ -85,7 +85,7 @@ export class Hud {
     const stores = stockpiles(s)
     const wood = stores.reduce((n, b) => n + b.inventory.wood, 0)
     const food = stores.reduce((n, b) => n + b.inventory.food, 0)
-    const ale = s.buildings.reduce((n, b) => n + b.inventory.ale, 0) + s.settlers.reduce((n, a) => n + a.cargo.ale, 0)
+    const ale = stores.reduce((n, b) => n + b.inventory.ale, 0)
     const held = stores.reduce((n, b) => n + reserved(s, b.id, 'wood'), 0)
     const housed = s.settlers.filter(a => a.homeId !== null).length
     const beds = s.buildings.filter(b => b.complete && !b.destroyed).reduce((n, b) => n + BUILDINGS[b.type].housing, 0)

@@ -65,22 +65,38 @@ export function assignJobs(state: WorldState): void {
       })
     }
 
+    // Manufactured output always enters stockpile storage before downstream use.
+    // This keeps the economy legible and gives stockpiles one authoritative inventory role.
+    for (const source of state.buildings.filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].production)) {
+      const production = BUILDINGS[source.type].production!
+      const resource = production.outputResource
+      const amountAvailable = available(state, source, resource)
+      if (amountAvailable <= 0) continue
+
+      const store = stores
+        .filter(candidate => freeStorage(state, candidate) > 0)
+        .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
+      if (!store) continue
+
+      options.push({
+        kind: 'supply',
+        sourceId: source.id,
+        targetId: store.id,
+        resource,
+        amount: Math.min(CARRY_CAPACITY, amountAvailable, freeStorage(state, store)),
+        stage: 'source',
+        progress: 0,
+      })
+    }
+
+    // Production inputs and service supplies are sourced from stockpiles only.
     for (const building of state.buildings.filter(b => b.complete && !b.destroyed)) {
       for (const resource of RESOURCE_IDS) {
         const needed = supplyFree(state, building, resource)
         if (needed <= 0) continue
 
-        const sources = [
-          ...stores,
-          ...state.buildings.filter(source => {
-            const production = BUILDINGS[source.type].production
-            return source.complete && !source.destroyed
-              && source.id !== building.id
-              && production?.outputResource === resource
-          }),
-        ]
-        const source = sources
-          .filter(candidate => available(state, candidate, resource) > 0)
+        const source = stores
+          .filter(candidate => candidate.id !== building.id && available(state, candidate, resource) > 0)
           .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
         if (!source) continue
 

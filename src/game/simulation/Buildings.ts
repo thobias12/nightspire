@@ -15,7 +15,9 @@ export const available = (s: WorldState, b: Building, resource: ResourceId): num
   b.inventory[resource] - reserved(s, b.id, resource)
 
 export function freeStorage(s: WorldState, b: Building): number {
-  const incoming = s.jobs.filter(j => j.kind === 'gather' && j.targetId === b.id).reduce((n, j) => n + j.amount, 0)
+  const incoming = s.jobs
+    .filter(j => (j.kind === 'gather' || j.kind === 'supply') && j.targetId === b.id)
+    .reduce((n, j) => n + j.amount, 0)
   const used = RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0)
   return BUILDINGS[b.type].storage - used - incoming
 }
