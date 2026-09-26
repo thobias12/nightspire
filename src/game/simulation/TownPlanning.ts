@@ -136,6 +136,83 @@ export function snapRoadControlPoint(
   return point
 }
 
+export function snapRoadPlacementPoint(
+  roads: RoadPath[],
+  raw: Point,
+  gridSnap: boolean,
+  roadSnap: boolean,
+  joinDistance = 1.35,
+): Point {
+  const point = gridSnap ? snapPointToGrid(raw) : { ...raw }
+  if (!roadSnap) return point
+
+  const endpoint = nearestRoadEndpoint(roads, point, joinDistance * 1.45)
+  if (endpoint) return endpoint.point
+
+  const join = nearestRoadSegment(roads, point, joinDistance)
+  return join ? { ...join.point } : point
+}
+
+const catmullRomPoint = (p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point => {
+  const t2 = t * t
+  const t3 = t2 * t
+  return {
+    x: 0.5 * (
+      2 * p1.x
+      + (-p0.x + p2.x) * t
+      + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2
+      + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
+    ),
+    z: 0.5 * (
+      2 * p1.z
+      + (-p0.z + p2.z) * t
+      + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2
+      + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3
+    ),
+  }
+}
+
+export function sampleRoadCurve(
+  controlPoints: Point[],
+  curvature = 0.7,
+  sampleSpacing = 0.58,
+): Point[] {
+  if (controlPoints.length <= 1) return controlPoints.map(point => ({ ...point }))
+
+  const amount = Math.max(0, Math.min(1, curvature))
+  const sampled: Point[] = [{ ...controlPoints[0] }]
+
+  for (let i = 0; i < controlPoints.length - 1; i++) {
+    const p0 = controlPoints[Math.max(0, i - 1)]
+    const p1 = controlPoints[i]
+    const p2 = controlPoints[i + 1]
+    const p3 = controlPoints[Math.min(controlPoints.length - 1, i + 2)]
+    const segmentLength = Math.hypot(p2.x - p1.x, p2.z - p1.z)
+    const steps = Math.max(1, Math.ceil(segmentLength / Math.max(0.3, sampleSpacing)))
+
+    for (let step = 1; step <= steps; step++) {
+      const t = step / steps
+      const curved = catmullRomPoint(p0, p1, p2, p3, t)
+      const linear = {
+        x: p1.x + (p2.x - p1.x) * t,
+        z: p1.z + (p2.z - p1.z) * t,
+      }
+      const blended = {
+        x: linear.x + (curved.x - linear.x) * amount,
+        z: linear.z + (curved.z - linear.z) * amount,
+      }
+      // Catmull-Rom can overshoot the playable boundary even when every clicked
+      // control point is valid. Keep the curve when it remains in bounds; otherwise
+      // locally fall back toward the segment chord rather than rejecting the road.
+      sampled.push(inBounds(blended) ? blended : linear)
+    }
+  }
+
+  sampled[0] = { ...controlPoints[0] }
+  sampled[sampled.length - 1] = { ...controlPoints[controlPoints.length - 1] }
+  return normalizeRoadPoints(sampled, Math.min(0.42, sampleSpacing * 0.72))
+}
+
 export function normalizeRoadPoints(points: Point[], minSpacing = 0.55): Point[] {
   if (points.length === 0) return []
   const normalized: Point[] = [{ ...points[0] }]
@@ -157,7 +234,7 @@ export function roadLength(points: Point[]): number {
 }
 
 export function roadPlacementError(points: Point[]): string | null {
-  if (points.length < 2 || roadLength(points) < 2) return 'Drag at least 2m to place a road.'
+  if (points.length < 2 || roadLength(points) < 2) return 'Place at least 2m of road before finishing.'
   if (points.length > 120) return 'Road is too long for one stroke. Place it in another segment.'
   if (points.some(point => !inBounds(point))) return 'Keep the road inside the settlement boundary.'
   return null
