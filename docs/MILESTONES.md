@@ -113,14 +113,33 @@ Safe to execute while M4 is in progress because it is presentation-first and mus
 
 **Exit:** the current simulation produces a settlement that reads as an authored, lived-in medieval dark-fantasy town rather than a primitive graybox, without changing M4-sensitive behavior.
 
+## M3.8.1 — Roads & residential plot foundation
+
+Pulled forward from M3.9 because the placement/data layer can remain isolated from M4-sensitive navigation and scheduling.
+
+- [x] player-drawn persisted road strokes
+- [x] remove automatic building-to-building road generation
+- [x] road-front Residential Plot drag tool
+- [x] persisted plot frontage, depth, side, road ownership and backyard identity
+- [x] normal House blueprint remains the simulation/construction owner underneath each plot
+- [x] modular house width/details align visually to arbitrary road angle
+- [x] fenced backyard with deterministic Garden / Chickens / Workyard / Firewood variants
+- [x] plot overlap, building overlap, resource overlap and boundary validation
+- [x] plot cleanup when its House blueprint is cancelled or completed House is demolished
+- [x] current save/load migration and round-trip coverage
+- [ ] road movement/path-cost effect — deferred until M4 integration
+- [ ] household ownership/backyard production — deferred until M3.9+
+
+**Exit:** players determine the visible settlement skeleton by drawing roads and sizing residential lots; housing continues to use the proven House simulation while the new planning data is ready for later road/logistics/household semantics.
+
 ## M3.9 — Organic settlement structure
 
 Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.
 
-- [ ] road placement
+- [x] road placement foundation (persisted strokes; movement semantics deferred)
 - [ ] road-influenced movement/logistics
 - [ ] road frontage/alignment
-- [ ] plot-based housing
+- [x] plot-based housing foundation (persistent lot + existing House simulation)
 - [ ] household grouping
 - [ ] rear-yard extensions
 - [ ] traffic-generated path wear
