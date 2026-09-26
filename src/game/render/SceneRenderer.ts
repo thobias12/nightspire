@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { MAP_SIZE } from '../simulation/Navigation'
-import { residentialPlotWidth, type ResidentialPlotPreview } from '../simulation/TownPlanning'
+import { plotCorners, residentialPlotWidth, type ResidentialPlotPreview } from '../simulation/TownPlanning'
 import type { Building, Point, ResidentialPlot, RoadPath, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
 import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
@@ -161,10 +161,10 @@ export class SceneRenderer {
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.26)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 720, 0.11)
-    this.addBasicBatch('roadJoint', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 240, 0.12)
-    this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.075)
+    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x8a7756, 720, 0.12)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x746047, 720)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x5f4d38, 720)
+    this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
@@ -298,8 +298,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadJoint', 'plotGround', 'yardPatch'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadJoint', 'plotGround', 'yardPatch'].includes(name)
+    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch'].includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch'].includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
@@ -486,37 +486,102 @@ export class SceneRenderer {
   }
 
   private renderVisualRoads(roads: RoadPath[]): void {
-    const junctions = new Map<string, { x: number; z: number; width: number; roads: Set<number> }>()
-
     for (const road of roads) {
-      for (const point of road.points) {
-        const key = Math.round(point.x * 20) + ':' + Math.round(point.z * 20)
-        const entry = junctions.get(key) ?? { x: point.x, z: point.z, width: road.width, roads: new Set<number>() }
-        entry.width = Math.max(entry.width, road.width)
-        entry.roads.add(road.id)
-        junctions.set(key, entry)
-      }
-
       for (let i = 1; i < road.points.length; i++) {
         const a = road.points[i - 1]
         const b = road.points[i]
         const strip = visualRoadStrip({ fromId: road.id, toId: i, ax: a.x, az: a.z, bx: b.x, bz: b.z })
-        const variation = 0.94 + ((road.id * 17 + i * 11) % 7) * 0.014
+        const variation = 0.96 + ((road.id * 17 + i * 11) % 7) * 0.012
         const width = road.width * variation
-        this.instance('roadBase', strip.x, 0.024, strip.z, width, 1, strip.length + width * 0.58, TOWN_PALETTE.earth, strip.angle)
+        const baseLength = strip.length + width * 0.62
+
+        // A faint wider shoulder softens the rectangular road silhouette, while the
+        // actual road surface is opaque so crossings never become darker from stacking.
+        this.instance('roadShoulder', strip.x, 0.021, strip.z, width * 1.34, 1, baseLength + 0.36, 0x887655, strip.angle)
+        this.instance('roadBase', strip.x, 0.025, strip.z, width, 1, baseLength, i % 3 === 0 ? 0x79654a : 0x725e45, strip.angle)
 
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-        const rutOffset = width * 0.21
-        this.instance('roadWear', strip.x + normalX * rutOffset, 0.027, strip.z + normalZ * rutOffset, width * 0.16, 1, strip.length + 0.34, 0x806b4d, strip.angle)
-        this.instance('roadWear', strip.x - normalX * rutOffset, 0.028, strip.z - normalZ * rutOffset, width * 0.14, 1, strip.length + 0.22, 0x69583f, strip.angle)
+        const rutOffset = width * 0.22
+        const rutWidth = width * 0.09
+        this.instance('roadWear', strip.x + normalX * rutOffset, 0.029, strip.z + normalZ * rutOffset, rutWidth, 1, strip.length + 0.22, 0x604d38, strip.angle)
+        this.instance('roadWear', strip.x - normalX * rutOffset, 0.03, strip.z - normalZ * rutOffset, rutWidth * 0.88, 1, strip.length + 0.14, 0x68543d, strip.angle)
+
+        // Sparse deterministic grass intrusion breaks the ruler-straight shoulder
+        // without changing the persisted road geometry.
+        if ((road.id + i) % 3 === 0 && strip.length > 2.4) {
+          const side = ((road.id * 5 + i) % 2 === 0 ? 1 : -1)
+          const edgeX = strip.x + normalX * width * 0.58 * side
+          const edgeZ = strip.z + normalZ * width * 0.58 * side
+          this.instance(
+            'underbrush',
+            edgeX + Math.sin(road.id + i) * 0.12,
+            0.12,
+            edgeZ + Math.cos(road.id * 0.7 + i) * 0.12,
+            0.3,
+            0.22,
+            0.3,
+            0x566849,
+            road.id * 0.21 + i,
+          )
+        }
       }
     }
+  }
 
-    for (const junction of junctions.values()) {
-      if (junction.roads.size < 2) continue
-      const size = junction.width * 0.72
-      this.instance('roadJoint', junction.x, 0.025, junction.z, size, 1, size, 0x76654b, 0)
+  private samePlotPoint(a: Point, b: Point, epsilon = 0.08): boolean {
+    return Math.hypot(a.x - b.x, a.z - b.z) <= epsilon
+  }
+
+  private sharedSideNeighbor(plot: ResidentialPlot, endpoint: Point, plots: ResidentialPlot[]): ResidentialPlot | null {
+    return plots
+      .filter(candidate =>
+        candidate.id !== plot.id
+        && candidate.roadId === plot.roadId
+        && candidate.side === plot.side
+        && (this.samePlotPoint(candidate.frontageA, endpoint) || this.samePlotPoint(candidate.frontageB, endpoint))
+      )
+      .sort((a, b) => a.id - b.id)[0] ?? null
+  }
+
+  private renderFenceWorld(a: Point, b: Point, seed: number, rear = false): void {
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const length = Math.hypot(dx, dz)
+    if (length < 0.35) return
+
+    const rotation = Math.atan2(dx, dz)
+    const midX = (a.x + b.x) / 2
+    const midZ = (a.z + b.z) / 2
+    const gap = rear ? Math.min(0.8, length * 0.18) : 0
+    const railLength = Math.max(0.25, length - gap)
+
+    // Rear fences get a small gate-like opening; side fences stay continuous.
+    if (gap > 0.15) {
+      const half = railLength / 2
+      const alongX = Math.sin(rotation)
+      const alongZ = Math.cos(rotation)
+      const offset = gap / 2 + half / 2
+      for (const sign of [-1, 1]) {
+        const cx = midX + alongX * offset * sign
+        const cz = midZ + alongZ * offset * sign
+        this.instance('timber', cx, 0.38, cz, half, 0.07, 0.08, 0x59402e, rotation)
+        this.instance('timber', cx, 0.68, cz, half, 0.065, 0.075, 0x59402e, rotation)
+      }
+    } else {
+      this.instance('timber', midX, 0.38, midZ, railLength, 0.07, 0.08, 0x59402e, rotation)
+      this.instance('timber', midX, 0.68, midZ, railLength, 0.065, 0.075, 0x59402e, rotation)
+    }
+
+    const postCount = Math.max(2, Math.min(5, Math.round(length / 2.1) + 1))
+    for (let i = 0; i < postCount; i++) {
+      const t = postCount === 1 ? 0.5 : i / (postCount - 1)
+      if (rear && Math.abs(t - 0.5) < 0.12) continue
+      const jitter = i > 0 && i < postCount - 1 ? Math.sin(seed * 1.71 + i * 2.33) * 0.06 : 0
+      const x = a.x + dx * t + Math.cos(rotation) * jitter
+      const z = a.z + dz * t - Math.sin(rotation) * jitter
+      const height = 0.72 + ((seed + i) % 3) * 0.06
+      this.instance('timber', x, height / 2, z, 0.09, height, 0.09, i % 3 === 0 ? 0x4c382a : 0x463326, rotation)
     }
   }
 
@@ -529,39 +594,55 @@ export class SceneRenderer {
     return { x: frontageMid.x + rear.x, z: frontageMid.z + rear.z }
   }
 
-  private renderPlotFence(plot: ResidentialPlot, localX: number, localZ: number, length: number, alongX: boolean): void {
-    const center = this.plotCenter(plot)
-    const o = this.rotatedOffset(localX, localZ, plot.angle)
-    const rotation = alongX ? plot.angle : plot.angle + Math.PI / 2
-    this.instance('timber', center.x + o.x, 0.38, center.z + o.z, length, 0.07, 0.08, 0x59402e, rotation)
-    this.instance('timber', center.x + o.x, 0.68, center.z + o.z, length, 0.065, 0.075, 0x59402e, rotation)
-    for (const offset of [-length / 2, 0, length / 2]) {
-      const post = this.rotatedOffset(
-        localX + (alongX ? offset : 0),
-        localZ + (alongX ? 0 : offset),
-        plot.angle,
-      )
-      this.instance('timber', center.x + post.x, 0.4, center.z + post.z, 0.09, 0.82, 0.09, 0x463326, plot.angle)
-    }
-  }
-
-  private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number): void {
+  private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number, plots: ResidentialPlot[]): void {
     const width = residentialPlotWidth(plot)
     const center = this.plotCenter(plot)
     this.instance('plotGround', center.x, 0.021, center.z, width * 0.94, 1, plot.depth * 0.94, plot.id % 2 ? 0x6a5a42 : 0x62543d, plot.angle)
 
-    const halfW = width / 2
-    const halfD = plot.depth / 2
-    const sideLength = plot.depth * 0.72
-    const sideCenterZ = -halfD + sideLength / 2
-    this.renderPlotFence(plot, -halfW, sideCenterZ, sideLength, false)
-    this.renderPlotFence(plot, halfW, sideCenterZ, sideLength, false)
-    this.renderPlotFence(plot, 0, -halfD, width * 0.88, true)
+    const corners = plotCorners(plot)
+    const [frontA, frontB, rearB, rearA] = corners
+    const neighborA = this.sharedSideNeighbor(plot, plot.frontageA, plots)
+    const neighborB = this.sharedSideNeighbor(plot, plot.frontageB, plots)
 
-    if (plot.id % 2 === 0) {
-      for (let i = 0; i < 3; i++) {
-        const hedge = this.rotatedOffset(halfW - 0.08, -halfD + 0.65 + i * Math.max(0.7, sideLength / 3.2), plot.angle)
-        this.instance('underbrush', center.x + hedge.x, 0.22, center.z + hedge.z, 0.44, 0.38, 0.44, 0x526748, plot.id * 0.17 + i)
+    // A shared side boundary belongs to the lower plot id, so adjacent plots never
+    // double-render the same rails/posts. If one plot is deeper, the owner extends
+    // the boundary to the deeper rear edge.
+    if (!neighborA || plot.id < neighborA.id) {
+      const depth = Math.max(plot.depth, neighborA?.depth ?? plot.depth)
+      const sideARear = {
+        x: frontA.x + (rearA.x - frontA.x) / plot.depth * depth,
+        z: frontA.z + (rearA.z - frontA.z) / plot.depth * depth,
+      }
+      this.renderFenceWorld(frontA, sideARear, plot.id * 3 + 1)
+    }
+    if (!neighborB || plot.id < neighborB.id) {
+      const depth = Math.max(plot.depth, neighborB?.depth ?? plot.depth)
+      const sideBRear = {
+        x: frontB.x + (rearB.x - frontB.x) / plot.depth * depth,
+        z: frontB.z + (rearB.z - frontB.z) / plot.depth * depth,
+      }
+      this.renderFenceWorld(frontB, sideBRear, plot.id * 3 + 2)
+    }
+    this.renderFenceWorld(rearA, rearB, plot.id * 3 + 3, true)
+
+    // Some exposed outer boundaries become hedge/fence mixes instead of perfect
+    // rectangular rails, keeping the lot rules clear without a modern parcel look.
+    if (!neighborB && plot.id % 2 === 0) {
+      const dx = rearB.x - frontB.x
+      const dz = rearB.z - frontB.z
+      for (let i = 1; i <= 3; i++) {
+        const t = i / 4
+        this.instance(
+          'underbrush',
+          frontB.x + dx * t + Math.sin(plot.id + i) * 0.08,
+          0.2,
+          frontB.z + dz * t + Math.cos(plot.id * 0.7 + i) * 0.08,
+          0.4,
+          0.34,
+          0.4,
+          0x526748,
+          plot.id * 0.17 + i,
+        )
       }
     }
 
