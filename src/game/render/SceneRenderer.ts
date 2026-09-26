@@ -1148,21 +1148,32 @@ export class SceneRenderer {
   }
 
   private renderGuardPost(b: Building, rotation: number, color: number, night: number): void {
-    this.renderYard(b, rotation, 2.3, 0x5d503d)
-    this.instance('stone', b.x, 0.18, b.z, 2.1, 0.36, 2.1, 0x66655f, rotation)
-    for (const [lx, lz] of [[-0.78, -0.78], [0.78, -0.78], [-0.78, 0.78], [0.78, 0.78]] as const) {
+    this.renderYard(b, rotation, 2.45, 0x5d503d)
+    this.instance('stone', b.x, 0.18, b.z, 2.2, 0.36, 2.2, 0x66655f, rotation)
+    for (const [lx, lz] of [[-0.82, -0.82], [0.82, -0.82], [-0.82, 0.82], [0.82, 0.82]] as const) {
       const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('timber', b.x + o.x, 1.12, b.z + o.z, 0.18, 2.1, 0.18, 0x503827, rotation)
+      this.instance('timber', b.x + o.x, 1.1, b.z + o.z, 0.18, 2.05, 0.18, 0x503827, rotation)
     }
-    this.instance('timber', b.x, 1.55, b.z, 2.35, 0.18, 2.35, 0x68482f, rotation)
-    this.instance('gableRoofs', b.x, 1.7, b.z, 2.35, 1.0, 2.0, this.readableNightColor(0x49403a, night), rotation)
-    for (const z of [-0.9, 0.9]) {
+    this.instance('timber', b.x, 1.54, b.z, 2.45, 0.18, 2.45, 0x68482f, rotation)
+    this.instance('gableRoofs', b.x, 1.72, b.z, 2.48, 1.06, 2.15, this.readableNightColor(0x49403a, night), rotation)
+    for (const z of [-0.94, 0.94]) {
       const rail = this.rotatedOffset(0, z, rotation)
-      this.instance('timber', b.x + rail.x, 1.82, b.z + rail.z, 2.0, 0.1, 0.1, 0x513725, rotation)
+      this.instance('timber', b.x + rail.x, 1.82, b.z + rail.z, 2.08, 0.09, 0.09, 0x513725, rotation)
     }
-    const rack = this.rotatedOffset(1.08, 0.28, rotation)
+    const ladder = this.rotatedOffset(-0.92, 0.12, rotation)
+    this.instance('timber', b.x + ladder.x, 0.72, b.z + ladder.z, 0.08, 1.42, 0.08, 0x4e3828, rotation)
+    for (let i = 0; i < 4; i++) {
+      const rung = this.rotatedOffset(-0.92, -0.08 + i * 0.22, rotation)
+      this.instance('timber', b.x + rung.x, 0.28 + i * 0.26, b.z + rung.z, 0.58, 0.07, 0.08, 0x5a402d, rotation)
+    }
+    const rack = this.rotatedOffset(1.12, 0.32, rotation)
     this.instance('timber', b.x + rack.x, 0.62, b.z + rack.z, 0.12, 1.05, 0.12, 0x503827, rotation)
-    this.instance('metal', b.x + rack.x, 0.84, b.z + rack.z, 0.72, 0.08, 0.08, 0x656c70, rotation + 0.25)
+    for (let i = 0; i < 3; i++) {
+      this.instance('metal', b.x + rack.x, 0.72 + i * 0.14, b.z + rack.z, 0.66 - i * 0.08, 0.07, 0.08, i === 0 ? 0x777f84 : 0x626b70, rotation + 0.18)
+    }
+    const bench = this.rotatedOffset(0.2, 1.25, rotation)
+    this.instance('timber', b.x + bench.x, 0.34, b.z + bench.z, 1.0, 0.12, 0.34, 0x65472f, rotation)
+    this.frontageClutter(b, rotation, b.id + 17, 0.86)
   }
 
   private renderTavern(b: Building, rotation: number, color: number, night: number, time: number, activity: number): void {
@@ -1320,24 +1331,30 @@ export class SceneRenderer {
 
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
-      for (const localX of [-0.32, 0, 0.32]) {
+      // Vertical sharpened palisade stakes replace the old horizontal log-kit look.
+      for (const localX of [-0.4, -0.2, 0, 0.2, 0.4]) {
         const o = this.rotatedOffset(localX, 0, rotation)
-        this.instance('logs', b.x + o.x, 0.72, b.z + o.z, 0.72, 0.82, 0.72, color, rotation + Math.PI / 2)
-        this.instance('timber', b.x + o.x, 1.5, b.z + o.z, 0.12, 0.42, 0.12, 0x4e3828, rotation)
+        this.instance('treeTrunk', b.x + o.x, 0.72, b.z + o.z, 0.62, 1.42, 0.62, color, rotation)
+        this.instance('wood', b.x + o.x, 1.48, b.z + o.z, 0.18, 0.22, 0.18, color, rotation)
       }
-      this.instance('timber', b.x, 0.62, b.z, 0.92, 0.12, 0.12, 0x513927, rotation)
-      this.instance('timber', b.x, 1.1, b.z, 0.92, 0.1, 0.1, 0x513927, rotation)
+      for (const y of [0.52, 0.98]) {
+        this.instance('timber', b.x, y, b.z, 0.96, 0.1, 0.11, 0x513927, rotation)
+      }
       return
     }
 
-    const left = this.rotatedOffset(-0.31, 0, rotation)
-    const right = this.rotatedOffset(0.31, 0, rotation)
+    const left = this.rotatedOffset(-0.36, 0, rotation)
+    const right = this.rotatedOffset(0.36, 0, rotation)
     for (const p of [left, right]) {
-      this.instance('timber', b.x + p.x, 0.92, b.z + p.z, 0.2, 1.82, 0.2, color, rotation)
+      this.instance('treeTrunk', b.x + p.x, 0.92, b.z + p.z, 0.72, 1.84, 0.72, color, rotation)
+      this.instance('wood', b.x + p.x, 1.9, b.z + p.z, 0.22, 0.28, 0.22, color, rotation)
     }
-    this.instance('timber', b.x, 1.72, b.z, 1.32, 0.2, 0.32, 0x513828, rotation)
-    this.instance('timber', b.x, 0.42, b.z, 1.12, 0.12, 0.12, 0x493326, rotation)
-    this.instance('metal', b.x, 1.05, b.z, 0.7, 0.12, 0.1, 0x596066, rotation)
+    for (const y of [0.48, 0.92, 1.36]) {
+      this.instance('timber', b.x, y, b.z, 1.16, 0.12, 0.12, 0x493326, rotation)
+    }
+    this.instance('braceL', b.x - Math.cos(rotation) * 0.16, 0.94, b.z + Math.sin(rotation) * 0.16, 0.72, 0.1, 0.11, 0x5b402e, rotation)
+    this.instance('braceR', b.x + Math.cos(rotation) * 0.16, 0.94, b.z - Math.sin(rotation) * 0.16, 0.72, 0.1, 0.11, 0x5b402e, rotation)
+    this.instance('metal', b.x, 1.1, b.z, 0.82, 0.08, 0.08, 0x596066, rotation)
   }
 
   sync(state: WorldState, selectedId: number | null): void {
