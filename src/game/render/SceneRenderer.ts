@@ -480,11 +480,21 @@ export class SceneRenderer {
       cloth: 0.2,
       barrels: 0.22,
       sacks: 0.18,
+      baskets: 0.17,
       logs: 0.2,
+      roofCourseL: 0.34,
+      roofCourseR: 0.34,
+      braceL: 0.23,
+      braceR: 0.23,
+      cartWheel: 0.18,
       adultTorso: 0.2,
       adultSkirt: 0.2,
       adultHead: 0.12,
       adultHair: 0.14,
+      adultHairLong: 0.14,
+      adultArm: 0.11,
+      adultLeg: 0.16,
+      adultBodice: 0.2,
       guardCoat: 0.24,
       entertainer: 0.2,
       foundation: 0.3,
@@ -716,6 +726,95 @@ export class SceneRenderer {
     this.instance('yardPatch', b.x + offset.x, 0.022, b.z + offset.z, radius, 1, radius * 0.86, color, rotation + (b.id % 5) * 0.08)
   }
 
+  private roofDetails(
+    b: Building,
+    rotation: number,
+    width: number,
+    depth: number,
+    wallHeight: number,
+    roofHeight: number,
+    roofColor: number,
+  ): void {
+    const slope = Math.max(0.72, Math.hypot(width / 2, roofHeight))
+    const baseY = 0.42 + wallHeight
+    const courseColor = this.scratchColor.setHex(roofColor).multiplyScalar(0.72).getHex()
+
+    for (let row = 0; row < 3; row++) {
+      const t = 0.22 + row * 0.24
+      const x = width * (0.5 - t) * 0.86
+      const y = baseY + roofHeight * t + 0.03
+      for (const side of [-1, 1] as const) {
+        const local = this.rotatedOffset(side * x, 0, rotation)
+        this.instance(
+          side < 0 ? 'roofCourseL' : 'roofCourseR',
+          b.x + local.x,
+          y,
+          b.z + local.z,
+          Math.max(0.13, slope * 0.085),
+          0.055,
+          depth + 0.76,
+          courseColor,
+          rotation,
+        )
+      }
+    }
+
+    // Strong eaves and ridge make the roof silhouette read as constructed timber
+    // rather than a single dark procedural wedge.
+    for (const side of [-1, 1] as const) {
+      const eave = this.rotatedOffset(side * (width / 2 + 0.24), 0, rotation)
+      this.instance('timber', b.x + eave.x, baseY + 0.03, b.z + eave.z, 0.11, 0.11, depth + 0.78, 0x493326, rotation)
+    }
+    this.instance('timber', b.x, baseY + roofHeight + 0.04, b.z, 0.13, 0.13, depth + 0.82, 0x443025, rotation)
+  }
+
+  private frontageClutter(b: Building, rotation: number, seed: number, spread = 1): void {
+    const left = this.rotatedOffset(-0.9 * spread, 1.35 * spread, rotation)
+    const right = this.rotatedOffset(0.9 * spread, 1.26 * spread, rotation)
+    const near = this.rotatedOffset(0.18, 1.55 * spread, rotation)
+
+    if (seed % 2 === 0) {
+      this.instance('baskets', b.x + left.x, 0.22, b.z + left.z, 0.56, 0.78, 0.56, 0x9b7648, rotation)
+      this.instance('sacks', b.x + right.x, 0.23, b.z + right.z, 0.4, 0.5, 0.36, 0x9a865e, rotation)
+    } else {
+      this.instance('barrels', b.x + left.x, 0.29, b.z + left.z, 0.38, 0.58, 0.38, 0x745033, rotation)
+      this.instance('baskets', b.x + right.x, 0.2, b.z + right.z, 0.5, 0.7, 0.5, 0x9b7648, rotation)
+    }
+
+    this.instance('timber', b.x + near.x, 0.31, b.z + near.z, 0.72, 0.09, 0.24, 0x67472f, rotation)
+    for (const lx of [-0.28, 0.28]) {
+      const leg = this.rotatedOffset(0.18 + lx, 1.55 * spread, rotation)
+      this.instance('timber', b.x + leg.x, 0.16, b.z + leg.z, 0.08, 0.3, 0.08, 0x513727, rotation)
+    }
+  }
+
+  private renderCart(b: Building, rotation: number, localX: number, localZ: number, seed: number): void {
+    const center = this.rotatedOffset(localX, localZ, rotation)
+    const cartRotation = rotation + (seed % 2 === 0 ? 0.08 : -0.11)
+    this.instance('timber', b.x + center.x, 0.42, b.z + center.z, 1.25, 0.18, 0.72, 0x6a4932, cartRotation)
+    this.instance('timber', b.x + center.x, 0.66, b.z + center.z, 1.2, 0.08, 0.08, 0x543a29, cartRotation)
+    for (const side of [-1, 1] as const) {
+      const wheel = this.rotatedOffset(localX + side * 0.62, localZ, rotation)
+      this.instance('cartWheel', b.x + wheel.x, 0.34, b.z + wheel.z, 0.66, 0.66, 0.66, 0x493326, cartRotation)
+    }
+    const shaft = this.rotatedOffset(localX, localZ + 1.0, rotation)
+    this.instance('timber', b.x + shaft.x, 0.35, b.z + shaft.z, 0.08, 0.08, 1.8, 0x5b3f2d, cartRotation)
+  }
+
+  private renderLaundryLine(b: Building, rotation: number, localX: number, localZ: number, seed: number): void {
+    const left = this.rotatedOffset(localX - 0.9, localZ, rotation)
+    const right = this.rotatedOffset(localX + 0.9, localZ, rotation)
+    this.instance('timber', b.x + left.x, 0.72, b.z + left.z, 0.08, 1.45, 0.08, 0x4d3829, rotation)
+    this.instance('timber', b.x + right.x, 0.72, b.z + right.z, 0.08, 1.45, 0.08, 0x4d3829, rotation)
+    const line = this.rotatedOffset(localX, localZ, rotation)
+    this.instance('timber', b.x + line.x, 1.22, b.z + line.z, 1.82, 0.035, 0.035, 0x4e4135, rotation)
+    for (let i = 0; i < 3; i++) {
+      const cloth = this.rotatedOffset(localX - 0.58 + i * 0.58, localZ + 0.02, rotation)
+      const colors = [0x8d6d5e, 0xb18b69, 0x6f6d62]
+      this.instance('cloth', b.x + cloth.x, 1.0 - (i % 2) * 0.05, b.z + cloth.z, 0.4, 0.46, 0.035, colors[(seed + i) % colors.length], rotation)
+    }
+  }
+
   private timberFrame(
     b: Building,
     rotation: number,
@@ -726,7 +825,7 @@ export class SceneRenderer {
     roofColor: number,
     roofHeight = 1.18,
   ): void {
-    this.instance('stone', b.x, 0.18, b.z, width + 0.18, 0.36, depth + 0.18, TOWN_PALETTE.stoneDark, rotation)
+    this.instance('stone', b.x, 0.18, b.z, width + 0.24, 0.36, depth + 0.24, TOWN_PALETTE.stoneDark, rotation)
     this.instance('plaster', b.x, 0.42 + wallHeight / 2, b.z, width, wallHeight, depth, plasterColor, rotation)
 
     const halfX = width / 2 + 0.045
@@ -736,19 +835,37 @@ export class SceneRenderer {
       this.instance('timber', b.x + o.x, 0.42 + wallHeight / 2, b.z + o.z, 0.13, wallHeight + 0.12, 0.13, TOWN_PALETTE.timberDark, rotation)
     }
 
-    for (const y of [0.48, 0.42 + wallHeight]) {
+    for (const y of [0.48, 0.42 + wallHeight * 0.54, 0.42 + wallHeight]) {
       const front = this.rotatedOffset(0, halfZ, rotation)
       const back = this.rotatedOffset(0, -halfZ, rotation)
-      this.instance('timber', b.x + front.x, y, b.z + front.z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
-      this.instance('timber', b.x + back.x, y, b.z + back.z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + front.x, y, b.z + front.z, width + 0.16, 0.1, 0.11, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + back.x, y, b.z + back.z, width + 0.16, 0.1, 0.11, TOWN_PALETTE.timberMid, rotation)
       const left = this.rotatedOffset(-halfX, 0, rotation)
       const right = this.rotatedOffset(halfX, 0, rotation)
-      this.instance('timber', b.x + left.x, y, b.z + left.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
-      this.instance('timber', b.x + right.x, y, b.z + right.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + left.x, y, b.z + left.z, 0.11, 0.1, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + right.x, y, b.z + right.z, 0.11, 0.1, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
     }
 
-    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, width + 0.62, roofHeight * 2, depth + 0.7, roofColor, rotation)
-    this.instance('timber', b.x, 0.44 + wallHeight + roofHeight, b.z, 0.12, 0.12, depth + 0.76, TOWN_PALETTE.timberDark, rotation)
+    // Front/back diagonal braces break up the flat plaster panels.
+    for (const lz of [-halfZ - 0.018, halfZ + 0.018]) {
+      for (const side of [-1, 1] as const) {
+        const brace = this.rotatedOffset(side * width * 0.22, lz, rotation)
+        this.instance(
+          side < 0 ? 'braceL' : 'braceR',
+          b.x + brace.x,
+          0.42 + wallHeight * 0.54,
+          b.z + brace.z,
+          Math.max(0.48, width * 0.22),
+          0.09,
+          0.1,
+          0x4a3427,
+          rotation,
+        )
+      }
+    }
+
+    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, width + 0.72, roofHeight * 2, depth + 0.82, roofColor, rotation)
+    this.roofDetails(b, rotation, width, depth, wallHeight, roofHeight, roofColor)
   }
 
   private fenceLine(b: Building, rotation: number, localX: number, localZ: number, length: number, alongX: boolean): void {
