@@ -588,3 +588,35 @@ M3.9.2 keeps the M3.9.1 shared presentation classifier and adds stronger street-
 ### Architectural boundary
 
 M3.9.2 changes `render/ResidentialPresentation.ts`, `SceneRenderer.ts`, `Hud.ts`, tests and docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Roof orientation, frontage boundaries, service structures and courtyard wings are renderer-derived and do not change persisted building positions, collision, housing or movement.
+
+
+## M3.10.0 verification target
+
+M3.10.0 is presentation-only. It changes road/terrain/resource-node rendering but does not change the persisted road graph, road width data, snapping, plot frontage, collision, navigation, jobs or simulation. The automated suite remains **107 tests**; strict TypeScript + production build remain mandatory.
+
+### Browser workflow
+
+1. Start fresh and draw:
+   - one long straight road,
+   - one diagonal road,
+   - one T or cross junction.
+2. Inspect from Overview. The road should no longer read as one perfectly uniform brown ribbon: width and lateral edge shape should fluctuate subtly while the underlying route remains obvious.
+3. Zoom toward a long straight segment. Look for:
+   - softened soil shoulder patches,
+   - intermittent two-track rut marks rather than continuous rails,
+   - occasional darker mud/compressed-soil patches,
+   - sparse small stones,
+   - grass intrusion on some edges.
+4. Verify road intersections remain readable and do not become dark stacked-alpha squares.
+5. Build a mixed residential row beside the road and confirm frontage/side-passage visuals still align with the persisted road geometry even though road dressing is visually irregular.
+6. Compare the foreground food-bush area with M3.9.2: bushes should have small deterministic offsets/scale differences and occasional secondary greenery instead of an evenly spaced repeated row.
+7. Inspect meadow color variation across the map. Large color patches should no longer reveal the previous modulo/lattice distribution.
+8. Jump Day → Dusk → Night. Dirt/mud/grass variation must remain legible without turning the road into a bright or glowing surface.
+9. Enable navigation paths and confirm all movement/path lines behave exactly as before.
+10. Save → reload → Load. Road geometry and plot frontage must remain identical; visual dressing regenerates deterministically from road/node IDs.
+11. Run state integrity and compare Draws / triangles / Render submission CPU against M3.9.2.
+12. Stress with several long roads and confirm the road-edge/mud/stone instanced batches stay within prototype performance budget.
+
+### Architectural boundary
+
+M3.10.0 changes renderer/HUD/docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Road irregularity is strictly presentation-layer geometry; persisted road points and all navigation semantics remain untouched.

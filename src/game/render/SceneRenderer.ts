@@ -175,13 +175,16 @@ export class SceneRenderer {
 
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 7), 0x354d36, 1600)
     this.addBatch('treeTrunk', new THREE.CylinderGeometry(0.14, 0.2, 1, 7), 0x4e3828, 1000)
-    this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 900)
+    this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 1300)
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
-    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 720, 0.14)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 720)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 720)
+    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 1200, 0.12)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 1200)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 1400)
+    this.addBasicBatch('roadEdgePatch', new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2), 0x8d7d5f, 1400, 0.32)
+    this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
+    this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
@@ -233,7 +236,7 @@ export class SceneRenderer {
     this.addBatch('foundation', this.geometry, 0x716852, 160)
     this.addBatch('scaffold', this.geometry, 0x9b7750, 960)
     this.addBatch('debris', this.geometry, 0x4c4034, 720)
-    this.addBasicBatch('groundPatch', new THREE.CircleGeometry(1, 9).rotateX(-Math.PI / 2), 0x596746, 160, 0.12)
+    this.addBasicBatch('groundPatch', new THREE.CircleGeometry(1, 9).rotateX(-Math.PI / 2), 0x596746, 240, 0.12)
     this.addBasicBatch('groundWear', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66583e, 180, 0.16)
     this.addBasicBatch('windowHalo', this.geometry, 0xffb45b, 320, 0.18)
     this.addBasicBatch('windowGlow', this.geometry, 0xffc36a, 320, 0.96)
@@ -332,7 +335,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -574,56 +577,105 @@ export class SceneRenderer {
         const a = road.points[i - 1]
         const b = road.points[i]
         const strip = visualRoadStrip({ fromId: road.id, toId: i, ax: a.x, az: a.z, bx: b.x, bz: b.z })
-        const variation = 0.96 + ((road.id * 17 + i * 11) % 7) * 0.012
-        const width = road.width * variation
-        const baseLength = strip.length + width * 0.62
+        if (strip.length < 0.02) continue
 
-        // A faint wider shoulder softens the rectangular road silhouette, while the
-        // actual road surface is opaque so crossings never become darker from stacking.
-        this.instance('roadShoulder', strip.x, 0.021, strip.z, width * 1.28, 1, baseLength + 0.3, 0xa18d69, strip.angle)
-        this.instance('roadBase', strip.x, 0.025, strip.z, width, 1, baseLength, i % 3 === 0 ? 0x9b815d : 0x927755, strip.angle)
-
+        const tangentX = (b.x - a.x) / strip.length
+        const tangentZ = (b.z - a.z) / strip.length
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-        const tangentX = strip.length > 0 ? (b.x - a.x) / strip.length : 0
-        const tangentZ = strip.length > 0 ? (b.z - a.z) / strip.length : 1
-        const rutOffset = width * 0.2
-        const rutWidth = width * 0.052
-        const patchCount = Math.max(1, Math.min(3, Math.floor(strip.length / 4) + 1))
-        const patchLength = Math.max(0.65, strip.length / (patchCount + 0.7) * 0.68)
+        const pieceCount = Math.max(1, Math.ceil(strip.length / 2.35))
+        const pieceLength = strip.length / pieceCount
 
-        // Broken rut patches feel driven-in rather than painted from endpoint to endpoint.
-        for (let patch = 0; patch < patchCount; patch++) {
-          const t = (patch + 1) / (patchCount + 1)
-          const drift = Math.sin(road.id * 0.91 + i * 1.7 + patch * 2.2) * 0.16
-          const px = a.x + (b.x - a.x) * t + tangentX * drift
-          const pz = a.z + (b.z - a.z) * t + tangentZ * drift
-          this.instance('roadWear', px + normalX * rutOffset, 0.029, pz + normalZ * rutOffset, rutWidth, 1, patchLength, 0x735a40, strip.angle)
-          if ((road.id + i + patch) % 4 !== 1) {
-            this.instance('roadWear', px - normalX * rutOffset, 0.03, pz - normalZ * rutOffset, rutWidth * 0.9, 1, patchLength * 0.92, 0x7b6246, strip.angle)
-          }
-          if ((road.id + i + patch) % 3 === 0) {
-            this.instance('roadWear', px, 0.028, pz, width * 0.22, 1, patchLength * 0.55, 0x8a7151, strip.angle)
-          }
-        }
+        for (let piece = 0; piece < pieceCount; piece++) {
+          const t = (piece + 0.5) / pieceCount
+          const seed = road.id * 13.17 + i * 7.31 + piece * 3.73
+          const lateral = Math.sin(seed * 1.21) * Math.min(0.12, road.width * 0.055)
+          const widthScale = 0.9 + (Math.sin(seed * 0.77) * 0.5 + 0.5) * 0.14
+          const width = road.width * widthScale
+          const px = a.x + (b.x - a.x) * t + normalX * lateral
+          const pz = a.z + (b.z - a.z) * t + normalZ * lateral
+          const length = pieceLength + 0.28
 
-        // Sparse deterministic grass intrusion breaks the ruler-straight shoulder
-        // without changing the persisted road geometry.
-        if ((road.id + i) % 3 === 0 && strip.length > 2.4) {
-          const side = ((road.id * 5 + i) % 2 === 0 ? 1 : -1)
-          const edgeX = strip.x + normalX * width * 0.58 * side
-          const edgeZ = strip.z + normalZ * width * 0.58 * side
-          this.instance(
-            'underbrush',
-            edgeX + Math.sin(road.id + i) * 0.12,
-            0.12,
-            edgeZ + Math.cos(road.id * 0.7 + i) * 0.12,
-            0.3,
-            0.22,
-            0.3,
-            0x566849,
-            road.id * 0.21 + i,
-          )
+          // Overlapping short pieces vary width/lateral offset enough to stop the road
+          // from reading as one perfectly extruded brown ribbon.
+          const shoulderColor = piece % 3 === 0 ? 0x9a896b : piece % 3 === 1 ? 0x938066 : 0xa08d6c
+          const baseColor = piece % 4 === 0 ? 0x8e7253 : piece % 4 === 1 ? 0x987b58 : piece % 4 === 2 ? 0x927252 : 0x9c805e
+          this.instance('roadShoulder', px, 0.020, pz, width * 1.24, 1, length + 0.22, shoulderColor, strip.angle)
+          this.instance('roadBase', px, 0.025, pz, width, 1, length, baseColor, strip.angle)
+
+          // Circular edge stains overlap the rectangular pieces and dissolve the hard
+          // road boundary into grass/soil without changing road topology.
+          for (const side of [-1, 1] as const) {
+            const edgeSeed = seed + side * 4.9
+            const edgeOffset = width * (0.5 + Math.sin(edgeSeed) * 0.035)
+            const edgeX = px + normalX * edgeOffset * side + tangentX * Math.sin(edgeSeed * 1.7) * 0.24
+            const edgeZ = pz + normalZ * edgeOffset * side + tangentZ * Math.sin(edgeSeed * 1.7) * 0.24
+            this.instance(
+              'roadEdgePatch',
+              edgeX,
+              0.027,
+              edgeZ,
+              0.42 + (Math.cos(edgeSeed) * 0.5 + 0.5) * 0.34,
+              1,
+              0.28 + (Math.sin(edgeSeed * 0.83) * 0.5 + 0.5) * 0.32,
+              side > 0 ? 0x887a60 : 0x8f8064,
+              edgeSeed,
+            )
+
+            if ((road.id + i + piece + (side > 0 ? 1 : 0)) % 4 === 0) {
+              this.instance(
+                'underbrush',
+                edgeX + normalX * side * 0.12,
+                0.11,
+                edgeZ + normalZ * side * 0.12,
+                0.22 + (piece % 3) * 0.05,
+                0.18,
+                0.22 + (piece % 2) * 0.05,
+                0x566849,
+                edgeSeed,
+              )
+            }
+
+            if ((road.id * 3 + i + piece + (side > 0 ? 2 : 0)) % 7 === 0) {
+              this.instance(
+                'roadStone',
+                edgeX + normalX * side * 0.18,
+                0.065,
+                edgeZ + normalZ * side * 0.18,
+                0.75 + (piece % 3) * 0.14,
+                0.55 + (piece % 2) * 0.1,
+                0.82,
+                piece % 2 ? 0x70685d : 0x665f56,
+                edgeSeed * 0.4,
+              )
+            }
+          }
+
+          const rutOffset = width * 0.19
+          const rutWidth = Math.max(0.055, width * 0.05)
+          if ((road.id + i + piece) % 5 !== 2) {
+            const rutLength = length * (0.48 + ((piece + road.id) % 3) * 0.12)
+            const rutShift = tangentX * Math.sin(seed * 2.1) * 0.18
+            const rutShiftZ = tangentZ * Math.sin(seed * 2.1) * 0.18
+            this.instance('roadWear', px + normalX * rutOffset + rutShift, 0.03, pz + normalZ * rutOffset + rutShiftZ, rutWidth, 1, rutLength, 0x70563d, strip.angle)
+            if ((road.id + piece) % 3 !== 1) {
+              this.instance('roadWear', px - normalX * rutOffset - rutShift, 0.031, pz - normalZ * rutOffset - rutShiftZ, rutWidth * 0.9, 1, rutLength * 0.86, 0x785e43, strip.angle)
+            }
+          }
+
+          if ((road.id + i * 2 + piece) % 6 === 0) {
+            this.instance(
+              'roadMud',
+              px + normalX * Math.sin(seed) * width * 0.16,
+              0.032,
+              pz + normalZ * Math.sin(seed) * width * 0.16,
+              width * (0.2 + (piece % 2) * 0.08),
+              1,
+              Math.max(0.4, length * 0.28),
+              piece % 2 ? 0x65513d : 0x6d5841,
+              strip.angle + Math.sin(seed) * 0.16,
+            )
+          }
         }
       }
     }
@@ -698,6 +750,49 @@ export class SceneRenderer {
     return { x: frontageMid.x + rear.x, z: frontageMid.z + rear.z }
   }
 
+  private residentialDoorOffset(profile: ResidentialPresentationProfile, seed: number, width: number): number {
+    if (profile.form === 'wide-deep') return -profile.sidePassage * Math.min(0.82, width * 0.2)
+    if (profile.form === 'long-burgage') return -profile.sidePassage * Math.min(0.42, width * 0.16)
+    if (profile.form === 'wide-shallow') return (seed % 2 === 0 ? -1 : 1) * Math.min(0.66, width * 0.16)
+    return ((seed % 3) - 1) * Math.min(profile.tier === 'homestead' ? 0.52 : 0.4, width * 0.17)
+  }
+
+  private residentialVisualPlacement(
+    b: Building,
+    plot: ResidentialPlot,
+    profile: ResidentialPresentationProfile,
+  ): { visualB: Building; doorX: number; frontClearance: number; localX: number } {
+    const width = profile.houseWidth
+    const depth = profile.houseDepth
+    const center = this.plotCenter(plot)
+    const right = this.rotatedOffset(1, 0, plot.angle)
+    const towardRoad = this.rotatedOffset(0, 1, plot.angle)
+    const frontMid = {
+      x: (plot.frontageA.x + plot.frontageB.x) / 2,
+      z: (plot.frontageA.z + plot.frontageB.z) / 2,
+    }
+
+    const bLocalX = (b.x - center.x) * right.x + (b.z - center.z) * right.z
+    const safeHalfWidth = Math.max(0, residentialPlotWidth(plot) / 2 - width / 2 - 0.3)
+    const desiredLocalX = bLocalX + profile.lateralOffset
+    const clampedLocalX = THREE.MathUtils.clamp(desiredLocalX, -safeHalfWidth, safeHalfWidth)
+    const lateralOffset = clampedLocalX - bLocalX
+
+    const frontDistance = (frontMid.x - b.x) * towardRoad.x + (frontMid.z - b.z) * towardRoad.z
+    const maxFrontageOffset = frontDistance - depth / 2 - 0.34
+    const frontageOffset = Math.min(profile.frontageOffset, maxFrontageOffset)
+    const visualOffset = this.rotatedOffset(lateralOffset, frontageOffset, plot.angle)
+    const visualB = { ...b, x: b.x + visualOffset.x, z: b.z + visualOffset.z }
+    const frontClearance = Math.max(0, frontDistance - frontageOffset - depth / 2)
+
+    return {
+      visualB,
+      doorX: this.residentialDoorOffset(profile, plot.id, width),
+      frontClearance,
+      localX: clampedLocalX,
+    }
+  }
+
   private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number, plots: ResidentialPlot[]): void {
     const width = residentialPlotWidth(plot)
     const profile = residentialPresentationProfile(plot)
@@ -765,23 +860,28 @@ export class SceneRenderer {
 
     if (!b.complete || b.destroyed) return
 
-    // Narrow worn footpath from the road frontage to the house door.
+    // Narrow worn footpath from the road frontage to the *visual* front door.
+    // M3.9 presentation offsets are renderer-only, so deriving the path from the
+    // persisted building anchor can visibly miss the house or clip a frontage fence.
     const frontMid = {
       x: (plot.frontageA.x + plot.frontageB.x) / 2,
       z: (plot.frontageA.z + plot.frontageB.z) / 2,
     }
-    const pathDx = b.x - frontMid.x
-    const pathDz = b.z - frontMid.z
+    const placement = this.residentialVisualPlacement(b, plot, profile)
+    const door = this.rotatedOffset(placement.doorX, profile.houseDepth / 2 + 0.2, plot.angle)
+    const doorPoint = { x: placement.visualB.x + door.x, z: placement.visualB.z + door.z }
+    const pathDx = doorPoint.x - frontMid.x
+    const pathDz = doorPoint.z - frontMid.z
     const pathLength = Math.hypot(pathDx, pathDz)
     if (pathLength > 0.6) {
       this.instance(
         'roadShoulder',
-        (frontMid.x + b.x) / 2,
+        (frontMid.x + doorPoint.x) / 2,
         0.023,
-        (frontMid.z + b.z) / 2,
-        0.46,
+        (frontMid.z + doorPoint.z) / 2,
+        0.42,
         1,
-        pathLength + 0.35,
+        Math.max(0.45, pathLength - 0.16),
         0x8e7958,
         Math.atan2(pathDx, pathDz),
       )
@@ -1358,8 +1458,8 @@ export class SceneRenderer {
     const width = profile?.houseWidth ?? 2.48
     const depth = profile?.houseDepth ?? 2.22
     const wallHeight = profile?.wallHeight ?? 1.86
-    const visualOffset = profile ? this.rotatedOffset(profile.lateralOffset, profile.frontageOffset, rotation) : { x: 0, z: 0 }
-    const visualB: Building = profile ? { ...b, x: b.x + visualOffset.x, z: b.z + visualOffset.z } : b
+    const residentialPlacement = plot && profile ? this.residentialVisualPlacement(b, plot, profile) : null
+    const visualB: Building = residentialPlacement?.visualB ?? b
 
     const plaster = plot
       ? profile?.tier === 'burgage'
@@ -1387,13 +1487,7 @@ export class SceneRenderer {
 
     const seed = plot?.id ?? b.id
     const doorX = profile
-      ? profile.form === 'wide-deep'
-        ? -profile.sidePassage * Math.min(0.82, width * 0.2)
-        : profile.form === 'long-burgage'
-          ? -profile.sidePassage * Math.min(0.42, width * 0.16)
-          : profile.form === 'wide-shallow'
-            ? (seed % 2 === 0 ? -1 : 1) * Math.min(0.66, width * 0.16)
-            : ((seed % 3) - 1) * Math.min(profile.tier === 'homestead' ? 0.52 : 0.4, width * 0.17)
+      ? residentialPlacement?.doorX ?? this.residentialDoorOffset(profile, seed, width)
       : ((seed % 3) - 1) * Math.min(0.48, width * 0.16)
 
     const front = this.rotatedOffset(doorX, depth / 2 + 0.08, rotation)
@@ -1451,15 +1545,16 @@ export class SceneRenderer {
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', visualB.x + chimney.x, wallHeight + 0.72, visualB.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
 
-    if (plot && profile && (profile.form === 'wide-shallow' || profile.form === 'wide-deep')) {
+    if (plot && profile && residentialPlacement && (profile.form === 'wide-shallow' || profile.form === 'wide-deep')) {
       const baySide = plot.id % 2 === 0 ? -1 : 1
       const bayWidth = profile.form === 'wide-deep' ? 1.75 : 1.5
       const bayDepth = profile.form === 'wide-deep' ? 1.45 : 1.2
-      const bay = this.rotatedOffset(
-        baySide * Math.min(width * 0.28, 0.92),
-        depth / 2 + bayDepth * 0.22,
-        rotation,
-      )
+      const desiredProjection = profile.form === 'wide-deep' ? 0.38 : 0.28
+      const safeProjection = Math.max(0.08, residentialPlacement.frontClearance - 0.28)
+      const projection = Math.min(desiredProjection, safeProjection)
+      const bayX = baySide * Math.min(width * 0.28, 0.92)
+      const bayZ = depth / 2 - bayDepth / 2 + projection
+      const bay = this.rotatedOffset(bayX, bayZ, rotation)
       this.instance('stone', visualB.x + bay.x, 0.13, visualB.z + bay.z, bayWidth + 0.12, 0.26, bayDepth + 0.12, 0x69645b, rotation)
       this.instance('plaster', visualB.x + bay.x, 0.72, visualB.z + bay.z, bayWidth, 1.24, bayDepth, plaster, rotation)
       this.instance(
@@ -1473,11 +1568,7 @@ export class SceneRenderer {
         this.readableNightColor(roof, night),
         rotation,
       )
-      const bayWindow = this.rotatedOffset(
-        baySide * Math.min(width * 0.28, 0.92),
-        depth / 2 + bayDepth * 0.74,
-        rotation,
-      )
+      const bayWindow = this.rotatedOffset(bayX, bayZ + bayDepth / 2 + 0.08, rotation)
       this.framedWindow(
         visualB.x + bayWindow.x,
         0.92,
@@ -1541,12 +1632,17 @@ export class SceneRenderer {
       )
     }
 
-    if (plot && profile?.form === 'wide-deep') {
+    if (plot && profile?.form === 'wide-deep' && residentialPlacement) {
       const wingSide = -profile.sidePassage
       const wingRotation = rotation + Math.PI / 2
       const wingWidth = profile.courtyard === 'u' ? 2.8 : 2.55
       const wingDepth = 1.82
-      const wing = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.3), depth * 0.08, rotation)
+      const plotHalfW = residentialPlotWidth(plot) / 2
+      const desiredWingX = residentialPlacement.localX + wingSide * (width / 2 + wingDepth * 0.3)
+      const maxWingCenter = Math.max(0.2, plotHalfW - wingDepth / 2 - 0.28)
+      const clampedWingPlotX = THREE.MathUtils.clamp(desiredWingX, -maxWingCenter, maxWingCenter)
+      const wingLocalX = clampedWingPlotX - residentialPlacement.localX
+      const wing = this.rotatedOffset(wingLocalX, -depth * 0.02, rotation)
       this.instance('stone', visualB.x + wing.x, 0.14, visualB.z + wing.z, wingWidth + 0.14, 0.28, wingDepth + 0.14, 0x67635b, wingRotation)
       this.instance('plaster', visualB.x + wing.x, 0.9, visualB.z + wing.z, wingWidth, 1.52, wingDepth, plaster, wingRotation)
       this.instance(
@@ -1560,7 +1656,11 @@ export class SceneRenderer {
         this.readableNightColor(roof, night),
         wingRotation,
       )
-      const wingWindow = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.64), depth * 0.08, rotation)
+      const wingWindow = this.rotatedOffset(
+        wingLocalX + wingSide * wingDepth * 0.34,
+        -depth * 0.02,
+        rotation,
+      )
       this.framedWindow(
         visualB.x + wingWindow.x,
         1.08,
@@ -1576,8 +1676,12 @@ export class SceneRenderer {
         const returnSide = -wingSide
         const returnWidth = 2.15
         const returnDepth = 1.5
+        const desiredReturnX = residentialPlacement.localX + returnSide * (width / 2 + returnDepth * 0.26)
+        const maxReturnCenter = Math.max(0.2, plotHalfW - returnDepth / 2 - 0.28)
+        const clampedReturnPlotX = THREE.MathUtils.clamp(desiredReturnX, -maxReturnCenter, maxReturnCenter)
+        const returnLocalX = clampedReturnPlotX - residentialPlacement.localX
         const returnWing = this.rotatedOffset(
-          returnSide * (width / 2 + returnDepth * 0.26),
+          returnLocalX,
           -depth * 0.34,
           rotation,
         )
@@ -1852,11 +1956,12 @@ export class SceneRenderer {
     const time = state.elapsedSeconds
     this.updateNightMaterialLift(night)
 
-    for (let i = 0; i < 148; i++) {
-      const x = ((i * 17 + (i % 5) * 3) % 63) - 31
-      const z = ((i * 29 + 7 + (i % 7) * 2) % 63) - 31
-      const sx = 1.1 + (i % 5) * 0.46
-      const sz = 0.8 + ((i * 3) % 6) * 0.31
+    for (let i = 0; i < 188; i++) {
+      const seed = i * 12.9898 + 4.141
+      const x = Math.sin(seed * 1.17) * 30.5 + Math.sin(seed * 0.31) * 1.8
+      const z = Math.cos(seed * 0.93) * 30.5 + Math.sin(seed * 0.47) * 1.8
+      const sx = 0.85 + (Math.sin(seed * 1.9) * 0.5 + 0.5) * 2.15
+      const sz = 0.72 + (Math.cos(seed * 1.41) * 0.5 + 0.5) * 1.72
       this.instance(
         'groundPatch',
         x,
@@ -1865,8 +1970,8 @@ export class SceneRenderer {
         sx,
         1,
         sz,
-        i % 4 === 0 ? 0x4a5f42 : i % 4 === 1 ? 0x66734f : i % 4 === 2 ? 0x56684a : 0x6a6f4c,
-        (i % 11) * 0.23,
+        i % 5 === 0 ? 0x4d6144 : i % 5 === 1 ? 0x64724f : i % 5 === 2 ? 0x57694b : i % 5 === 3 ? 0x6a714e : 0x526348,
+        seed * 0.19,
       )
     }
 
@@ -1924,7 +2029,16 @@ export class SceneRenderer {
           this.instance('treeMoon', trunkX + 0.12, 2.66, trunkZ - 0.12, 0.78 * scale, 0.64 * scale, 0.78 * scale, 0x60758a, n.id * 0.17)
         }
       } else if (n.resource === 'food') {
-        this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
+        const visualX = n.x + Math.sin(n.id * 1.93) * 0.34
+        const visualZ = n.z + Math.cos(n.id * 1.57) * 0.34
+        const scale = 0.78 + (n.id % 5) * 0.075
+        this.instance('food', visualX, 0.42 * scale, visualZ, scale, scale, scale, night > 0.45 ? 0x829b65 : undefined, n.id * 0.21)
+        if (n.id % 3 !== 1) {
+          this.instance('underbrush', visualX + 0.42, 0.13, visualZ - 0.28, 0.34, 0.24, 0.34, 0x516848, n.id * 0.33)
+        }
+        if (n.id % 4 === 0) {
+          this.instance('underbrush', visualX - 0.36, 0.11, visualZ + 0.31, 0.26, 0.2, 0.26, 0x5a704e, n.id * 0.41)
+        }
       } else if (n.resource === 'ore') {
         this.instance('ore', n.x, 0.42, n.z, 1.05, 0.78, 1.05, night > 0.45 ? 0x657487 : undefined, n.id * 0.31)
         this.instance('ore', n.x + 0.38, 0.24, n.z - 0.24, 0.58, 0.46, 0.58, 0x5d6570, n.id * 0.53)
