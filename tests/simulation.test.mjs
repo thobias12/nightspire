@@ -57,7 +57,9 @@ test('visual atmosphere is bright by day, cold/dense at night and warmest near t
   assert.ok(midnight.night>0.9)
   assert.ok(noon.sunIntensity>midnight.sunIntensity)
   assert.ok(midnight.moonIntensity>noon.moonIntensity)
+  assert.ok(midnight.moonIntensity>=1 && midnight.ambientIntensity>=0.55)
   assert.ok(midnight.fogNear<noon.fogNear && midnight.fogFar<noon.fogFar)
+  assert.ok(midnight.fogFar>=100)
   assert.ok(dusk.twilight>0.95)
 })
 
