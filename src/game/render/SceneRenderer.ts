@@ -501,8 +501,10 @@ export class SceneRenderer {
     }
 
     for (const y of [0.48, 0.42 + wallHeight]) {
-      this.instance('timber', b.x, y, b.z + this.rotatedOffset(0, halfZ, rotation).z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
-      this.instance('timber', b.x, y, b.z + this.rotatedOffset(0, -halfZ, rotation).z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+      const front = this.rotatedOffset(0, halfZ, rotation)
+      const back = this.rotatedOffset(0, -halfZ, rotation)
+      this.instance('timber', b.x + front.x, y, b.z + front.z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + back.x, y, b.z + back.z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
       const left = this.rotatedOffset(-halfX, 0, rotation)
       const right = this.rotatedOffset(halfX, 0, rotation)
       this.instance('timber', b.x + left.x, y, b.z + left.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
@@ -579,59 +581,124 @@ export class SceneRenderer {
   }
 
   private renderStockpile(b: Building, rotation: number, color: number, night: number): void {
-    this.instance('buildings', b.x, 0.14, b.z, 2.7, 0.28, 2.7, color, rotation)
-    const total = b.inventory.wood + b.inventory.food + b.inventory.ale
-    const stacks = Math.min(6, 2 + Math.floor(total / 60))
-    for (let i = 0; i < stacks; i++) {
-      const lx = -0.82 + (i % 3) * 0.82
-      const lz = -0.62 + Math.floor(i / 3) * 1.0
+    this.renderYard(b, rotation, 2.45, 0x61543f)
+    this.instance('stone', b.x, 0.1, b.z, 2.85, 0.2, 2.75, this.readableNightColor(0x6e695d, night), rotation)
+    const roofColor = this.readableNightColor(TOWN_PALETTE.thatch, night)
+    this.instance('gableRoofs', b.x, 1.58, b.z - 0.12, 2.95, 1.05, 2.5, roofColor, rotation)
+
+    for (const [lx, lz] of [[-1.18, -0.9], [1.18, -0.9], [-1.18, 0.9], [1.18, 0.9]] as const) {
       const o = this.rotatedOffset(lx, lz, rotation)
-      const crateColor = i % 2 ? 0x6c4a31 : 0x7f5a39
-      this.instance('props', b.x + o.x, 0.35, b.z + o.z, 0.55, 0.55 + (i % 2) * 0.25, 0.55, this.warmPropColor(crateColor, night, 0.1), rotation)
+      this.instance('timber', b.x + o.x, 0.78, b.z + o.z, 0.15, 1.55, 0.15, TOWN_PALETTE.timberDark, rotation)
     }
-    this.instance('trim', b.x, 0.36, b.z - 1.25, 2.45, 0.16, 0.14, 0x4f3c2c, rotation)
+    const rear = this.rotatedOffset(0, -1.12, rotation)
+    this.instance('timber', b.x + rear.x, 0.88, b.z + rear.z, 2.5, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+
+    const woodStacks = Math.min(5, Math.ceil(b.inventory.wood / 40))
+    for (let i = 0; i < woodStacks; i++) {
+      const o = this.rotatedOffset(-0.75 + (i % 3) * 0.54, -0.45 + Math.floor(i / 3) * 0.52, rotation)
+      this.instance('logs', b.x + o.x, 0.28 + (i % 2) * 0.09, b.z + o.z, 0.75, 0.75, 0.75, 0x704d33, rotation)
+    }
+    const foodSacks = Math.min(4, Math.ceil(b.inventory.food / 30))
+    for (let i = 0; i < foodSacks; i++) {
+      const o = this.rotatedOffset(0.62 + (i % 2) * 0.38, -0.45 + Math.floor(i / 2) * 0.48, rotation)
+      this.instance('sacks', b.x + o.x, 0.28, b.z + o.z, 0.48, 0.62, 0.42, 0x9a865e, rotation)
+    }
+    const barrels = Math.min(3, Math.ceil(b.inventory.ale / 8))
+    for (let i = 0; i < barrels; i++) {
+      const o = this.rotatedOffset(-0.86 + i * 0.5, 0.66, rotation)
+      this.instance('barrels', b.x + o.x, 0.36, b.z + o.z, 0.46, 0.72, 0.46, this.warmPropColor(0x765033, night, 0.12), rotation)
+    }
+    const oreCount = Math.min(4, Math.ceil(b.inventory.ore / 8))
+    for (let i = 0; i < oreCount; i++) {
+      const o = this.rotatedOffset(0.62 + (i % 2) * 0.42, 0.66 + Math.floor(i / 2) * 0.36, rotation)
+      this.instance('ore', b.x + o.x, 0.22, b.z + o.z, 0.42, 0.36, 0.42, 0x68717a, rotation + i * 0.3)
+    }
+    if (b.inventory.tools > 0) {
+      const rack = this.rotatedOffset(1.12, 0.08, rotation)
+      this.instance('timber', b.x + rack.x, 0.52, b.z + rack.z, 0.12, 0.95, 0.12, 0x563d2b, rotation)
+      for (let i = 0; i < Math.min(4, b.inventory.tools); i++) {
+        const p = this.rotatedOffset(0.94, -0.22 + i * 0.16, rotation)
+        this.instance('metal', b.x + p.x, 0.55 + i * 0.05, b.z + p.z, 0.42, 0.08, 0.08, 0x6f777c, rotation + 0.2)
+      }
+    }
   }
 
   private renderHouse(b: Building, rotation: number, color: number, night: number): void {
-    const front = this.rotatedOffset(0, 1.36, rotation)
-    const left = this.rotatedOffset(-0.72, 1.41, rotation)
-    const right = this.rotatedOffset(0.72, 1.41, rotation)
-    this.instance('buildings', b.x, 1.15, b.z, 2.65, 2.3, 2.65, color, rotation)
-    this.instance('roofs', b.x, 2.92, b.z, 2.35, 1.18, 2.35, 0x514037, Math.PI / 4 + rotation)
-    this.instance('doors', b.x + front.x, 0.7, b.z + front.z, 0.56, 1.25, 0.12, 0x4d3324, rotation)
-    this.instance('trim', b.x, 1.5, b.z, 2.72, 0.12, 0.12, 0x60432f, rotation)
-    this.instance('trim', b.x, 0.72, b.z, 0.12, 1.45, 2.72, 0x60432f, rotation)
-    this.warmWindow(b.x + left.x, 1.35, b.z + left.z, rotation, night)
-    this.warmWindow(b.x + right.x, 1.35, b.z + right.z, rotation, night)
-    const chimney = this.rotatedOffset(0.72, -0.46, rotation)
-    this.instance('props', b.x + chimney.x, 2.7, b.z + chimney.z, 0.28, 1.1, 0.28, 0x66564d, rotation)
-  }
+    this.renderYard(b, rotation, 2.65, b.id % 2 ? 0x655740 : 0x6b5a40)
+    const plaster = b.id % 3 === 0 ? 0xa99d83 : color
+    const roof = b.id % 2 ? TOWN_PALETTE.roofBrown : TOWN_PALETTE.thatch
+    this.timberFrame(b, rotation, 2.48, 2.22, 1.86, plaster, this.readableNightColor(roof, night), 1.12)
 
-  private renderGuardPost(b: Building, rotation: number, color: number): void {
-    this.instance('buildings', b.x, 0.92, b.z, 1.8, 1.45, 1.8, color, rotation)
-    this.instance('buildings', b.x, 1.68, b.z, 2.45, 0.18, 2.45, 0x74513a, rotation)
-    this.instance('roofs', b.x, 2.28, b.z, 1.85, 0.78, 1.85, 0x453830, Math.PI / 4 + rotation)
-    for (const [lx, lz] of [[-1.05, -1.05], [1.05, -1.05], [-1.05, 1.05], [1.05, 1.05]] as const) {
-      const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('trim', b.x + o.x, 0.82, b.z + o.z, 0.13, 1.6, 0.13, 0x523925, rotation)
+    const front = this.rotatedOffset(0.38, 1.18, rotation)
+    this.instance('doors', b.x + front.x, 0.82, b.z + front.z, 0.55, 1.35, 0.13, 0x4b3325, rotation)
+    const winLeft = this.rotatedOffset(-0.62, 1.2, rotation)
+    const winRight = this.rotatedOffset(0.85, 1.2, rotation)
+    this.warmWindow(b.x + winLeft.x, 1.28, b.z + winLeft.z, rotation, night, 0.36, 0.45)
+    this.warmWindow(b.x + winRight.x, 1.32, b.z + winRight.z, rotation, night, 0.32, 0.42)
+
+    const chimney = this.rotatedOffset(0.72, -0.48, rotation)
+    this.instance('stone', b.x + chimney.x, 2.55, b.z + chimney.z, 0.34, 1.5, 0.34, 0x66645f, rotation)
+
+    const shed = this.rotatedOffset(-1.28, -0.58, rotation)
+    this.instance('timber', b.x + shed.x, 0.58, b.z + shed.z, 0.82, 1.08, 0.72, 0x6d5139, rotation)
+    this.instance('gableRoofs', b.x + shed.x, 1.08, b.z + shed.z, 1.02, 0.62, 0.92, this.readableNightColor(0x69563c, night), rotation)
+
+    this.fenceLine(b, rotation, -1.55, -0.25, 2.8, false)
+    this.fenceLine(b, rotation, 0, -1.65, 3.0, true)
+    for (let i = 0; i < 4; i++) {
+      const log = this.rotatedOffset(-0.9 + i * 0.35, -1.2, rotation)
+      this.instance('logs', b.x + log.x, 0.2 + (i % 2) * 0.08, b.z + log.z, 0.52, 0.52, 0.52, 0x6d4a31, rotation)
     }
   }
 
-  private renderTavern(b: Building, rotation: number, color: number, night: number): void {
-    const front = this.rotatedOffset(0, 1.43, rotation)
-    const winLeft = this.rotatedOffset(-0.75, 1.44, rotation)
-    const winRight = this.rotatedOffset(0.75, 1.44, rotation)
-    const sign = this.rotatedOffset(1.05, 1.58, rotation)
-    this.instance('buildings', b.x, 1.04, b.z, 2.8, 2.08, 2.8, color, rotation)
-    this.instance('roofs', b.x, 2.76, b.z, 2.38, 1.02, 2.38, 0x604537, Math.PI / 4 + rotation)
-    this.instance('doors', b.x + front.x, 0.78, b.z + front.z, 0.64, 1.5, 0.13, 0x4a3022, rotation)
-    this.instance('props', b.x + sign.x, 1.7, b.z + sign.z, 0.62, 0.42, 0.12, 0xa77b42, rotation)
-    this.warmWindow(b.x + winLeft.x, 1.35, b.z + winLeft.z, rotation, night, 0.42, 0.52)
-    this.warmWindow(b.x + winRight.x, 1.35, b.z + winRight.z, rotation, night, 0.42, 0.52)
-    const barrel1 = this.rotatedOffset(-1.13, 1.42, rotation)
-    const barrel2 = this.rotatedOffset(-1.18, 0.85, rotation)
-    this.instance('props', b.x + barrel1.x, 0.35, b.z + barrel1.z, 0.44, 0.7, 0.44, this.warmPropColor(0x765031, night, 0.22), rotation)
-    this.instance('props', b.x + barrel2.x, 0.31, b.z + barrel2.z, 0.38, 0.62, 0.38, this.warmPropColor(0x6b472e, night, 0.2), rotation)
+  private renderGuardPost(b: Building, rotation: number, color: number, night: number): void {
+    this.renderYard(b, rotation, 2.3, 0x5d503d)
+    this.instance('stone', b.x, 0.18, b.z, 2.1, 0.36, 2.1, 0x66655f, rotation)
+    for (const [lx, lz] of [[-0.78, -0.78], [0.78, -0.78], [-0.78, 0.78], [0.78, 0.78]] as const) {
+      const o = this.rotatedOffset(lx, lz, rotation)
+      this.instance('timber', b.x + o.x, 1.12, b.z + o.z, 0.18, 2.1, 0.18, 0x503827, rotation)
+    }
+    this.instance('timber', b.x, 1.55, b.z, 2.35, 0.18, 2.35, 0x68482f, rotation)
+    this.instance('gableRoofs', b.x, 1.7, b.z, 2.35, 1.0, 2.0, this.readableNightColor(0x49403a, night), rotation)
+    for (const z of [-0.9, 0.9]) {
+      const rail = this.rotatedOffset(0, z, rotation)
+      this.instance('timber', b.x + rail.x, 1.82, b.z + rail.z, 2.0, 0.1, 0.1, 0x513725, rotation)
+    }
+    const rack = this.rotatedOffset(1.08, 0.28, rotation)
+    this.instance('timber', b.x + rack.x, 0.62, b.z + rack.z, 0.12, 1.05, 0.12, 0x503827, rotation)
+    this.instance('metal', b.x + rack.x, 0.84, b.z + rack.z, 0.72, 0.08, 0.08, 0x656c70, rotation + 0.25)
+  }
+
+  private renderTavern(b: Building, rotation: number, color: number, night: number, time: number, activity: number): void {
+    this.renderYard(b, rotation, 3.15, 0x6a563d)
+    this.timberFrame(b, rotation, 2.92, 2.72, 2.02, color, this.readableNightColor(0x544039, night), 1.28)
+
+    const front = this.rotatedOffset(0.48, 1.43, rotation)
+    this.instance('doors', b.x + front.x, 0.86, b.z + front.z, 0.66, 1.48, 0.14, 0x493126, rotation)
+    for (const lx of [-0.78, 0, 0.82]) {
+      const win = this.rotatedOffset(lx, 1.47, rotation)
+      this.warmWindow(b.x + win.x, 1.35, b.z + win.z, rotation, night, 0.38, 0.5)
+    }
+
+    const signPost = this.rotatedOffset(1.55, 1.22, rotation)
+    this.instance('timber', b.x + signPost.x, 1.42, b.z + signPost.z, 0.12, 1.7, 0.12, 0x503526, rotation)
+    const sign = this.rotatedOffset(1.55, 1.1, rotation)
+    this.instance('cloth', b.x + sign.x, 1.84, b.z + sign.z, 0.75, 0.58, 0.1, TOWN_PALETTE.clothWine, rotation)
+
+    const awning = this.rotatedOffset(-0.55, 1.72, rotation)
+    this.instance('cloth', b.x + awning.x, 1.72, b.z + awning.z, 1.65, 0.1, 0.92, 0x865e4d, rotation)
+
+    for (const [lx, lz] of [[-1.2, 1.55], [-0.72, 1.72], [1.0, 1.38]] as const) {
+      const barrel = this.rotatedOffset(lx, lz, rotation)
+      this.instance('barrels', b.x + barrel.x, 0.37, b.z + barrel.z, 0.45, 0.74, 0.45, this.warmPropColor(0x765031, night, 0.2), rotation)
+    }
+    for (const lx of [-0.9, 0.4]) {
+      const table = this.rotatedOffset(lx, 2.0, rotation)
+      this.instance('timber', b.x + table.x, 0.48, b.z + table.z, 0.85, 0.12, 0.52, 0x69472f, rotation)
+      this.instance('timber', b.x + table.x, 0.25, b.z + table.z, 0.12, 0.5, 0.12, 0x543826, rotation)
+    }
+
+    this.renderTavernNightlife(b, rotation, time, activity)
   }
 
   private renderBrewery(
@@ -642,25 +709,25 @@ export class SceneRenderer {
     night: number,
     productionPhaseActive: boolean,
   ): void {
-    this.instance('buildings', b.x, 0.95, b.z, 2.72, 1.9, 2.72, color, rotation)
-    this.instance('roofs', b.x, 2.52, b.z, 2.18, 0.84, 2.18, 0x554037, Math.PI / 4 + rotation)
-    const chimney = this.rotatedOffset(0.86, -0.72, rotation)
-    this.instance('props', b.x + chimney.x, 2.52, b.z + chimney.z, 0.38, 1.7, 0.38, 0x534944, rotation)
-    const barrel1 = this.rotatedOffset(-1.1, 1.18, rotation)
-    const barrel2 = this.rotatedOffset(-0.58, 1.25, rotation)
-    this.instance('props', b.x + barrel1.x, 0.38, b.z + barrel1.z, 0.48, 0.76, 0.48, this.warmPropColor(0x775032, night, 0.18), rotation)
-    this.instance('props', b.x + barrel2.x, 0.32, b.z + barrel2.z, 0.4, 0.64, 0.4, this.warmPropColor(0x6c482f, night, 0.16), rotation)
-    const furnace = this.rotatedOffset(0.7, 1.39, rotation)
+    this.renderYard(b, rotation, 2.85, 0x645440)
+    this.timberFrame(b, rotation, 2.72, 2.58, 1.82, color, this.readableNightColor(0x5a493c, night), 1.08)
+
+    const chimney = this.rotatedOffset(0.86, -0.7, rotation)
+    this.instance('stone', b.x + chimney.x, 2.45, b.z + chimney.z, 0.4, 1.75, 0.4, 0x5d5b57, rotation)
+    for (const [lx, lz, scale] of [[-1.02, 1.3, 0.5], [-0.48, 1.35, 0.44], [0.2, 1.32, 0.42]] as const) {
+      const barrel = this.rotatedOffset(lx, lz, rotation)
+      this.instance('barrels', b.x + barrel.x, 0.38, b.z + barrel.z, scale, 0.78, scale, this.warmPropColor(0x745033, night, 0.15), rotation)
+    }
+    const rack = this.rotatedOffset(-1.3, -0.4, rotation)
+    this.instance('timber', b.x + rack.x, 0.62, b.z + rack.z, 0.12, 1.1, 0.12, 0x5a3f2c, rotation)
+    for (let i = 0; i < 3; i++) {
+      const p = this.rotatedOffset(-1.18, -0.7 + i * 0.34, rotation)
+      this.instance('barrels', b.x + p.x, 0.28, b.z + p.z, 0.32, 0.54, 0.32, 0x66472f, rotation)
+    }
+
+    const furnace = this.rotatedOffset(0.62, 1.32, rotation)
     const stocked = b.inventory.food > 0 || b.inventory.ale > 0
-    this.warmWindow(
-      b.x + furnace.x,
-      1.12,
-      b.z + furnace.z,
-      rotation,
-      night * (stocked ? 0.62 : 0.24),
-      0.34,
-      0.4,
-    )
+    this.warmWindow(b.x + furnace.x, 1.08, b.z + furnace.z, rotation, night * (stocked ? 0.62 : 0.24), 0.34, 0.4)
 
     const production = BUILDINGS.brewery.production!
     const active = productionPhaseActive
@@ -673,16 +740,7 @@ export class SceneRenderer {
       for (let i = 0; i < 3; i++) {
         const drift = Math.sin(time * 0.85 + b.id * 0.7 + i) * 0.22
         const rise = (time * 0.24 + i * 0.34) % 1
-        this.instance(
-          'smoke',
-          b.x + chimney.x + drift,
-          3.35 + rise * 1.9,
-          b.z + chimney.z + i * 0.04,
-          0.5 + rise * 0.5,
-          0.42 + rise * 0.42,
-          0.5 + rise * 0.5,
-          night > 0.6 ? 0x59606d : 0x85847f,
-        )
+        this.instance('smoke', b.x + chimney.x + drift, 3.25 + rise * 1.9, b.z + chimney.z + i * 0.04, 0.5 + rise * 0.5, 0.42 + rise * 0.42, 0.5 + rise * 0.5, night > 0.6 ? 0x59606d : 0x85847f)
       }
     }
   }
@@ -695,52 +753,47 @@ export class SceneRenderer {
     night: number,
     productionPhaseActive: boolean,
   ): void {
-    this.instance('buildings', b.x, 0.92, b.z, 2.78, 1.84, 2.78, color, rotation)
-    this.instance('roofs', b.x, 2.43, b.z, 2.22, 0.82, 2.22, 0x3f4448, Math.PI / 4 + rotation)
-    const front = this.rotatedOffset(0, 1.42, rotation)
-    this.instance('doors', b.x + front.x, 0.72, b.z + front.z, 0.62, 1.38, 0.14, 0x40352e, rotation)
+    this.renderYard(b, rotation, 3.0, 0x584c3d)
+    this.timberFrame(b, rotation, 2.72, 2.48, 1.78, color, this.readableNightColor(TOWN_PALETTE.roofDark, night), 1.05)
 
-    const chimney = this.rotatedOffset(0.92, -0.72, rotation)
-    this.instance('props', b.x + chimney.x, 2.56, b.z + chimney.z, 0.42, 1.9, 0.42, 0x3f4448, rotation)
-    const anvil = this.rotatedOffset(-0.84, 1.18, rotation)
-    this.instance('props', b.x + anvil.x, 0.46, b.z + anvil.z, 0.72, 0.28, 0.36, 0x59616b, rotation)
-    this.instance('props', b.x + anvil.x, 0.28, b.z + anvil.z, 0.28, 0.56, 0.28, 0x484f58, rotation)
+    const front = this.rotatedOffset(-0.45, 1.26, rotation)
+    this.instance('doors', b.x + front.x, 0.78, b.z + front.z, 0.68, 1.4, 0.14, 0x3f322a, rotation)
+    const chimney = this.rotatedOffset(0.88, -0.62, rotation)
+    this.instance('stone', b.x + chimney.x, 2.48, b.z + chimney.z, 0.46, 1.95, 0.46, 0x505257, rotation)
 
-    const orePile = this.rotatedOffset(0.92, 1.05, rotation)
-    this.instance('ore', b.x + orePile.x, 0.28, b.z + orePile.z, 0.62, 0.5, 0.62, 0x69727d, rotation)
+    const forge = this.rotatedOffset(0.64, 1.36, rotation)
+    this.instance('stone', b.x + forge.x, 0.48, b.z + forge.z, 0.9, 0.72, 0.72, 0x575552, rotation)
+    const anvil = this.rotatedOffset(-0.76, 1.4, rotation)
+    this.instance('metal', b.x + anvil.x, 0.52, b.z + anvil.z, 0.76, 0.2, 0.38, 0x586169, rotation)
+    this.instance('timber', b.x + anvil.x, 0.28, b.z + anvil.z, 0.3, 0.56, 0.3, 0x4a3628, rotation)
 
-    const forge = this.rotatedOffset(0.52, 1.4, rotation)
+    const orePile = this.rotatedOffset(1.08, 0.78, rotation)
+    for (let i = 0; i < 4; i++) {
+      this.instance('ore', b.x + orePile.x + (i % 2) * 0.28, 0.19 + Math.floor(i / 2) * 0.13, b.z + orePile.z + Math.floor(i / 2) * 0.25, 0.4, 0.34, 0.4, 0x68717a, rotation + i)
+    }
+
+    const toolRack = this.rotatedOffset(-1.22, 0.18, rotation)
+    this.instance('timber', b.x + toolRack.x, 0.6, b.z + toolRack.z, 0.12, 1.15, 0.12, 0x4f3828, rotation)
+    for (let i = 0; i < 3; i++) {
+      const p = this.rotatedOffset(-1.08, -0.12 + i * 0.28, rotation)
+      this.instance('metal', b.x + p.x, 0.58 + i * 0.14, b.z + p.z, 0.52, 0.07, 0.08, 0x70777b, rotation + (i - 1) * 0.2)
+    }
+
     const production = BUILDINGS.blacksmith.production!
     const active = productionPhaseActive
       && b.inventory[production.inputResource] >= production.inputAmount
       && b.inventory[production.outputResource] + production.outputAmount <= production.outputCapacity
     const stocked = b.inventory.ore > 0 || b.inventory.tools > 0
-    this.warmWindow(
-      b.x + forge.x,
-      1.05,
-      b.z + forge.z,
-      rotation,
-      active ? 0.9 : night * (stocked ? 0.25 : 0.08),
-      0.38,
-      0.42,
-    )
+    this.warmWindow(b.x + forge.x, 0.92, b.z + forge.z, rotation, active ? 1 : night * (stocked ? 0.3 : 0.08), 0.48, 0.38)
 
     if (active) {
       const pulse = 0.92 + Math.sin(time * 8.5 + b.id) * 0.08
-      this.instance('glow', b.x + forge.x, 0.78, b.z + forge.z, 0.62 * pulse, 0.3, 0.62 * pulse, 0xff853d)
+      this.instance('glow', b.x + forge.x, 0.82, b.z + forge.z, 0.74 * pulse, 0.32, 0.74 * pulse, 0xff853d)
+      this.warmGroundPool(b.x + forge.x * 0.02, b.z + forge.z * 0.02, 2.4, 0.38, Math.max(night, 0.42))
       for (let i = 0; i < 2; i++) {
         const drift = Math.sin(time * 1.05 + b.id * 0.5 + i) * 0.16
         const rise = (time * 0.28 + i * 0.5) % 1
-        this.instance(
-          'smoke',
-          b.x + chimney.x + drift,
-          3.45 + rise * 1.6,
-          b.z + chimney.z,
-          0.44 + rise * 0.42,
-          0.38 + rise * 0.36,
-          0.44 + rise * 0.42,
-          night > 0.6 ? 0x555e68 : 0x787b7d,
-        )
+        this.instance('smoke', b.x + chimney.x + drift, 3.45 + rise * 1.7, b.z + chimney.z, 0.44 + rise * 0.42, 0.38 + rise * 0.36, 0.44 + rise * 0.42, night > 0.6 ? 0x555e68 : 0x787b7d)
       }
     }
   }
