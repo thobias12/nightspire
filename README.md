@@ -2,7 +2,9 @@
 
 A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
 
-**Current playable milestone: M1 — Settlement Loop.** This pass stops before night raids, combat, needs consumption, and production chains. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M1.1 — Settlement Loop hardening.** M1 is implemented and review-hardened; night raids, combat, needs consumption, and production chains remain intentionally untouched. See [the design](docs/GAME_DESIGN.md) for future direction.
+
+**Browser playtest:** https://thobias12.github.io/nightspire/
 
 ## Play locally
 
@@ -19,10 +21,12 @@ Open the local URL printed by Vite. A camp begins with six settlers, an empty co
 2. Select **House**, then click clear ground. The preview is green on a valid site and red on a blocked one. A blueprint can wait for materials.
 3. Settlers reserve available wood, collect it from a stockpile, carry it to the site, then perform construction work. One house costs 20 wood and provides four beds.
 4. Build more houses and a **Stockpile** (10 wood, 400 shared wood/food capacity). Completed buildings immediately provide housing or storage.
-5. Open **QA & performance** to spawn up to ten settlers, pause, change speed/time, show paths, inspect workers/counters, or check state integrity.
-6. **Save**, reload the page, then **Load**. Active jobs, cargo, resource depletion, unfinished construction, housing, player position, and time resume.
+5. Open **QA & performance** to set wood/food stock targets, spawn up to ten settlers, pause, change speed/time, show paths, inspect workers/counters, or check state integrity.
+6. Select an unfinished blueprint to cancel it. Reserved, delivered, and in-transit materials are conserved; cancellation refuses if storage cannot safely accept the refund.
+7. **Save**, reload the page, then **Load**. Active jobs, cargo, stock targets, resource depletion, unfinished construction, housing, player position, and time resume.
+8. Save tools also provide a rotating backup slot plus validated JSON export/import.
 
-Save/load uses one versioned localStorage slot in this browser/origin. Saving replaces that slot; loading replaces the current world only after validation. No autosave, file export, cross-device synchronization, or old-version migration yet. Camera/debug preferences are session-only. Storage errors are displayed in the status bar.
+Save/load uses one versioned primary localStorage slot plus one backup slot in this browser/origin. Each successful Save rotates the previous primary into backup. JSON export/import supports manual transfer and recovery. Existing pre-M1.1 version-1 saves migrate default stock targets automatically. There is still no autosave or general future-version migration. Camera/debug preferences are session-only.
 
 ## Controls
 
@@ -35,7 +39,7 @@ Save/load uses one versioned localStorage slot in this browser/origin. Saving re
 | Center camp | Restore the initial settlement camera |
 | Click | Inspect a worker/resource/building, or place the selected blueprint |
 | Esc / Inspect | Cancel placement |
-| QA controls | Pause/resume, 1×/2×/4×, set hour, add resources within capacity, spawn settler, paths, integrity audit |
+| QA controls | Pause/resume, 1×/2×/4×, set hour, stock targets, add resources, spawn settler, paths, integrity audit, backup/export/import |
 
 Time changes lighting only. Settlers keep working at night in M1. Food is gathered and stored but is not consumed yet.
 
@@ -48,7 +52,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. They cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, depletion, placement/connectivity, rerouting, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Fifteen regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -75,8 +79,8 @@ docs/           design, architecture, milestones, decisions and QA
 
 ## Scope and limitations
 
-This is a small playable graybox foundation: ten settlers maximum, a fixed 47×47 grid, and only houses/stockpiles. Resources are finite; full storage or exhaustion produces visible idle reasons. There is no demolition/cancellation, job-priority UI, NPC local avoidance, food consumption, immigration, combat, or raids. Workers may overlap one another and resource vegetation does not block movement.
+This is a small playable graybox foundation: ten settlers maximum, a fixed 47×47 grid, and only houses/stockpiles. Resources are finite; full storage, met stock targets, or exhaustion produce visible idle reasons. There is no demolition of completed buildings, per-building/job priority UI, NPC local avoidance, food consumption, immigration, combat, or raids. Workers may overlap one another and resource vegetation does not block movement.
 
 See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-Next work should refine and review M1 before authorizing M2.
+Next work is final M1.1 playtest feedback and then a deliberately small M2 first-night slice.
