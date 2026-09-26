@@ -264,3 +264,18 @@ M3.5 adds three deterministic renderer-state regressions on top of the 76-test M
 Browser playtest after deployment should compare Day, Dusk and Night with several completed Houses, a stocked Tavern, Brewery and Campfire. Confirm occupied Houses/Tavern windows glow warmly against the colder night; Campfire flickers; Brewery smoke appears only during a viable Day production window; Houses/Tavern/Brewery/Guard Post/Stockpile have distinct silhouettes; an unfinished 3×3 building visibly progresses through scaffold stages; and the QA structure-damage control darkens a building before a destroyed ruin becomes visible debris.
 
 The visual pass intentionally keeps simulation scale and behavior unchanged and should be evaluated alongside the HUD draw-call/render-submission metrics before later art density increases.
+
+
+## M3.6 verification target
+
+M3.6 adds five deterministic morale regressions on top of the 79-test M3.5 suite, for a target of 84 tests:
+
+- Happiness bands map to deterministic worker rates: Thriving 115%, Content 100%, Strained 90%, Unhappy 75%, Miserable 60%
+- severe hunger below 15% Food activates the emergency-work restriction even when the four-need average is still otherwise healthy
+- essentials-only settlers reject Wood gathering/construction while still accepting Food gathering and repair
+- the fixed-step simulation applies the productivity multiplier to real work progress
+- an already-active nonessential job is safely released when misery becomes severe, preventing a stale reservation/work lock
+
+The consequence layer is derived from existing per-settler needs and adds no save fields. Normal walking speed, navigation budgets, combat rates, Brewery automation and service gain rates are deliberately unchanged.
+
+Browser playtest after deployment: use **Needs → 100%** and inspect a settler to confirm **Thriving / Work +15%**. Drop needs and observe Strained/Unhappy/Miserable work modifiers. Create construction work and compare progress. Force Food below 15% while leaving other needs high: the inspector should show severe hunger / essentials-only; workers should stop accepting Wood/construction but still gather Food or perform repairs. Restore needs or feed the settlement and confirm normal job assignment resumes.
