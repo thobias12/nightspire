@@ -31,7 +31,7 @@ export class SceneRenderer {
   private readonly ghost: THREE.Mesh
   private readonly ghostLine: THREE.InstancedMesh
   private readonly facing: THREE.Mesh
-  private readonly selection: THREE.Mesh
+  private readonly selection: THREE.LineSegments
   private readonly paths: THREE.LineSegments
   private readonly ray = new THREE.Raycaster()
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
@@ -76,7 +76,8 @@ export class SceneRenderer {
     this.sun.shadow.normalBias = 0.03
 
     this.moon.position.set(24, 34, -20)
-    this.settlementGlow.position.set(0, 5, 0)
+    this.settlementGlow.position.set(0, 2.4, 0)
+    this.settlementGlow.decay = 1.45
     this.scene.add(this.sun, this.moon, this.ambient, this.settlementGlow)
 
     const ground = new THREE.Mesh(
@@ -94,6 +95,7 @@ export class SceneRenderer {
     this.scene.add(grid)
 
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 6), 0x354d36, 1000)
+    this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 6), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
     this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, 10)
@@ -102,6 +104,7 @@ export class SceneRenderer {
     this.addBatch('buildings', this.geometry, 0xffffff, 240)
     this.addBatch('fortifications', this.geometry, 0xffffff, 720)
     this.addBatch('campfireFire', new THREE.ConeGeometry(0.28, 0.65, 6), 0xf0a14a, 120)
+    this.addBasicBatch('campfireCore', new THREE.ConeGeometry(0.18, 0.5, 6), 0xffd06a, 120, 0.96)
     this.addBatch('roofs', new THREE.ConeGeometry(1, 1, 4), 0x594739, 160)
     this.addBatch('progress', this.geometry, 0xe4bc6b, 120)
     this.addBatch('doors', this.geometry, 0x4f3526, 180)
@@ -110,13 +113,18 @@ export class SceneRenderer {
     this.addBatch('foundation', this.geometry, 0x716852, 160)
     this.addBatch('scaffold', this.geometry, 0x9b7750, 960)
     this.addBatch('debris', this.geometry, 0x4c4034, 720)
-    this.addBatch('groundPatch', new THREE.CylinderGeometry(1, 1, 0.025, 14), 0x596746, 160)
-    this.addBatch('groundWear', new THREE.CylinderGeometry(1, 1, 0.03, 16), 0x66583e, 180)
-    this.addBasicBatch('windowHalo', this.geometry, 0xffb45b, 320, 0.12)
-    this.addBasicBatch('windowGlow', this.geometry, 0xffc36a, 320, 0.92)
-    this.addBasicBatch('warmPool', new THREE.SphereGeometry(1, 14, 8), 0xff9f4f, 180, 0.11)
-    this.addBasicBatch('glow', new THREE.SphereGeometry(0.5, 8, 6), 0xff9b46, 160, 0.16)
+    this.addBasicBatch('groundPatch', new THREE.CircleGeometry(1, 9).rotateX(-Math.PI / 2), 0x596746, 160, 0.12)
+    this.addBasicBatch('groundWear', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66583e, 180, 0.16)
+    this.addBasicBatch('windowHalo', this.geometry, 0xffb45b, 320, 0.18)
+    this.addBasicBatch('windowGlow', this.geometry, 0xffc36a, 320, 0.96)
+    this.addBasicBatch('warmPool', new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), 0xff9f4f, 180, 0.24)
+    this.addBasicBatch('glow', new THREE.SphereGeometry(0.5, 8, 6), 0xff9b46, 160, 0.22)
     this.addBasicBatch('smoke', new THREE.SphereGeometry(0.45, 7, 5), 0x76787a, 360, 0.26)
+    ;(this.batches.windowHalo.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
+    ;(this.batches.warmPool.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
+    ;(this.batches.glow.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
+    ;(this.batches.campfireCore.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
+    ;(this.batches.treeMoon.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
     this.addBatch('player', new THREE.CapsuleGeometry(0.3, 0.65, 4, 6), 0x73d9dd, 1)
     this.addBatch('healthBack', this.geometry, 0x2b211f, 256)
     this.addBatch('healthFill', this.geometry, 0x76b56e, 256)
@@ -146,9 +154,9 @@ export class SceneRenderer {
     this.facing.visible = false
     this.scene.add(this.facing)
 
-    this.selection = new THREE.Mesh(
-      new THREE.RingGeometry(0.63, 0.69, 40),
-      new THREE.MeshBasicMaterial({ color: 0xffd99b, transparent: true, opacity: 0.5, side: THREE.DoubleSide }),
+    this.selection = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
+      new THREE.LineBasicMaterial({ color: 0xffd99b, transparent: true, opacity: 0.42 }),
     )
     this.selection.rotation.x = -Math.PI / 2
     this.selection.visible = false
@@ -188,8 +196,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['windowHalo', 'windowGlow', 'warmPool', 'glow', 'smoke', 'groundPatch', 'groundWear'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['windowHalo', 'windowGlow', 'warmPool', 'glow', 'smoke'].includes(name)
+    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'glow', 'smoke', 'groundPatch', 'groundWear'].includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'glow', 'smoke', 'groundPatch', 'groundWear'].includes(name)
     mesh.frustumCulled = false
     this.batchColors[name] = color
     this.batches[name] = mesh
@@ -311,13 +319,37 @@ export class SceneRenderer {
 
   private warmGroundPool(x: number, z: number, radius: number, strength: number, night: number): void {
     if (night < 0.06 || strength <= 0) return
-    const scale = radius * (0.9 + night * 0.1)
-    const color = this.scratchColor.copy(this.warmGlow).multiplyScalar(0.62 + Math.min(1, strength) * 0.28).getHex()
-    this.instance('warmPool', x, 0.08, z, scale, 0.055, scale, color)
+    const scale = radius * (0.92 + night * 0.08)
+    const color = this.scratchColor.copy(this.warmGlow).multiplyScalar(0.72 + Math.min(1, strength) * 0.28).getHex()
+    this.instance('warmPool', x, 0.05, z, scale, 1, scale, color)
   }
 
   private readableNightColor(color: number, night: number): number {
-    return this.scratchColor.setHex(color).lerp(this.nightSurfaceLift, night * 0.16).getHex()
+    return this.scratchColor.setHex(color).lerp(this.nightSurfaceLift, night * 0.3).getHex()
+  }
+
+  private updateNightMaterialLift(night: number): void {
+    const cool = 0x304763
+    const forest = 0x28443e
+    const strengths: Record<string, number> = {
+      buildings: 0.38,
+      fortifications: 0.34,
+      roofs: 0.46,
+      doors: 0.28,
+      trim: 0.4,
+      props: 0.42,
+      foundation: 0.3,
+      scaffold: 0.34,
+      debris: 0.26,
+      wood: 0.24,
+      food: 0.16,
+    }
+    for (const [name, strength] of Object.entries(strengths)) {
+      const material = this.batches[name]?.material
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue
+      material.emissive.setHex(name === 'wood' || name === 'food' ? forest : cool)
+      material.emissiveIntensity = night * strength
+    }
   }
 
   private renderStockpile(b: Building, rotation: number, color: number): void {
@@ -452,6 +484,7 @@ export class SceneRenderer {
     const atmosphere = atmosphereForTime(state.timeOfDay)
     const night = atmosphere.night
     const time = state.elapsedSeconds
+    this.updateNightMaterialLift(night)
 
     for (let i = 0; i < 46; i++) {
       const x = ((i * 17) % 43) - 21
@@ -475,8 +508,8 @@ export class SceneRenderer {
       if (n.remaining <= 0) continue
       if (n.resource === 'wood') {
         this.instance('wood', n.x, 1.4, n.z)
-        if (night > 0.18) {
-          this.instance('wood', n.x + 0.08, 1.72, n.z - 0.08, 0.76, 0.72, 0.76, 0x52675f, n.id * 0.17)
+        if (night > 0.12) {
+          this.instance('treeMoon', n.x + 0.11, 2.18, n.z - 0.11, 0.82, 0.7, 0.82, 0x60758a, n.id * 0.17)
         }
       } else {
         this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
@@ -546,9 +579,10 @@ export class SceneRenderer {
       } else if (b.type === 'campfire') {
         this.instance('buildings', b.x, 0.12, b.z, 1.18, 0.24, 1.18, baseColor)
         const flicker = 0.92 + Math.sin(time * 11 + b.id) * 0.08
-        this.instance('campfireFire', b.x, 0.58, b.z, flicker, 0.95 + flicker * 0.15, flicker, hit ? 0xff705e : 0xf0a14a)
-        this.instance('glow', b.x, 0.48, b.z, 1.45 + night * 0.8, 0.42, 1.45 + night * 0.8, 0xff9b46)
-        this.warmGroundPool(b.x, b.z, 3.0, 1, Math.max(night, atmosphere.twilight * 0.65))
+        this.instance('campfireFire', b.x, 0.58, b.z, flicker * 1.08, 1.08 + flicker * 0.2, flicker * 1.08, hit ? 0xff705e : 0xf0a14a)
+        this.instance('campfireCore', b.x, 0.66, b.z, flicker * 0.82, 0.95 + flicker * 0.16, flicker * 0.82, 0xffd06a)
+        this.instance('glow', b.x, 0.5, b.z, 1.9 + night * 1.0, 0.52, 1.9 + night * 1.0, 0xff9b46)
+        this.warmGroundPool(b.x, b.z, 4.15, 1, Math.max(night, atmosphere.twilight * 0.75))
         glowX += b.x * 1.4
         glowZ += b.z * 1.4
         glowWeight += 1.4
@@ -558,7 +592,7 @@ export class SceneRenderer {
         const occupiedNight = occupiedHomes.has(b.id) ? night : night * 0.18
         this.renderHouse(b, rotation, baseColor, occupiedNight)
         if (occupiedHomes.has(b.id)) {
-          this.warmGroundPool(b.x, b.z + 0.35, 2.25, 0.48, occupiedNight)
+          this.warmGroundPool(b.x, b.z + 0.35, 2.75, 0.58, occupiedNight)
           glowX += b.x
           glowZ += b.z
           glowWeight++
@@ -569,7 +603,7 @@ export class SceneRenderer {
         const serviceNight = b.inventory.ale > 0 ? night : night * 0.35
         this.renderTavern(b, rotation, baseColor, serviceNight)
         if (b.inventory.ale > 0) {
-          this.warmGroundPool(b.x, b.z + 0.35, 3.15, 0.85, serviceNight)
+          this.warmGroundPool(b.x, b.z + 0.35, 3.8, 0.95, serviceNight)
           glowX += b.x * 1.8
           glowZ += b.z * 1.8
           glowWeight += 1.8
@@ -608,10 +642,11 @@ export class SceneRenderer {
     const selected = [...state.settlers, ...state.enemies, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
     this.selection.visible = !!selected
     if (selected) {
-      this.selection.position.set(selected.x, 0.04 + Math.sin(time * 3.5) * 0.004, selected.z)
+      this.selection.position.set(selected.x, 0.045, selected.z)
       const building = state.buildings.find(b => b.id === selected.id)
-      const scale = building ? Math.max(1, BUILDINGS[building.type].footprint * 1.08) : 1
-      this.selection.scale.setScalar(scale * (1 + Math.sin(time * 3.5) * 0.006))
+      const footprint = building ? BUILDINGS[building.type].footprint : 0.9
+      const pulse = 1 + Math.sin(time * 3.5) * 0.003
+      this.selection.scale.set(footprint * 1.06 * pulse, footprint * 1.06 * pulse, 1)
     }
 
     this.sun.intensity = atmosphere.sunIntensity
@@ -635,9 +670,9 @@ export class SceneRenderer {
     this.groundMaterial.color.copy(this.nightGround).lerp(this.dayGround, atmosphere.daylight)
 
     if (glowWeight > 0) {
-      this.settlementGlow.position.set(glowX / glowWeight, 3.1, glowZ / glowWeight)
-      this.settlementGlow.intensity = atmosphere.night * Math.min(7.5, 1.5 + glowWeight * 0.62)
-      this.settlementGlow.distance = Math.min(38, 22 + glowWeight * 1.3)
+      this.settlementGlow.position.set(glowX / glowWeight, 2.35, glowZ / glowWeight)
+      this.settlementGlow.intensity = atmosphere.night * Math.min(85, 28 + glowWeight * 5.5)
+      this.settlementGlow.distance = Math.min(40, 25 + glowWeight * 1.45)
     } else {
       this.settlementGlow.intensity = 0
     }
