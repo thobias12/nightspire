@@ -2,6 +2,7 @@ import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY, JOBS, REPAIR_HP_PER_WOOD } from '../data/jobs'
 import { RESOURCE_IDS, RESOURCES, type ResourceId } from '../data/resources'
 import { available, freeStorage, needsRepair, readyToBuild, supplyFree, stockpiles } from './Buildings'
+import { essentialJob, happinessEffect } from './Happiness'
 import { distance, entrance } from './Navigation'
 import type { Building, Job, Settler, WorldState } from './WorldState'
 
@@ -42,6 +43,12 @@ export function assignJobs(state: WorldState): void {
     if (settler.jobId !== null || settler.health <= 0 || settler.arrivalTarget !== null) continue
 
     const options: Omit<Job, 'id' | 'settlerId'>[] = []
+    const morale = happinessEffect(settler)
+    const offer = (option: Omit<Job, 'id' | 'settlerId'>): boolean => {
+      if (morale.refusesNonessential && !essentialJob(option)) return false
+      options.push(option)
+      return true
+    }
 
     for (const building of state.buildings.filter(needsRepair)) {
       if (state.jobs.some(j => j.kind === 'repair' && j.targetId === building.id)) continue
@@ -54,7 +61,7 @@ export function assignJobs(state: WorldState): void {
 
       if (!source) continue
       const missingWood = Math.ceil((building.maxHealth - building.health) / REPAIR_HP_PER_WOOD)
-      options.push({
+      offer({
         kind: 'repair',
         sourceId: source.id,
         targetId: building.id,
@@ -78,7 +85,7 @@ export function assignJobs(state: WorldState): void {
         .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
       if (!store) continue
 
-      options.push({
+      offer({
         kind: 'supply',
         sourceId: source.id,
         targetId: store.id,
@@ -100,7 +107,7 @@ export function assignJobs(state: WorldState): void {
           .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
         if (!source) continue
 
-        options.push({
+        offer({
           kind: 'supply',
           sourceId: source.id,
           targetId: building.id,
@@ -121,7 +128,7 @@ export function assignJobs(state: WorldState): void {
           .filter(p => available(state, p, resource) > 0)
           .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
         if (source) {
-          options.push({
+          offer({
             kind: 'deliver',
             sourceId: source.id,
             targetId: b.id,
@@ -133,7 +140,7 @@ export function assignJobs(state: WorldState): void {
         }
       }
       if (readyToBuild(b) && !state.jobs.some(j => j.kind === 'construct' && j.targetId === b.id)) {
-        options.push({
+        offer({
           kind: 'construct', sourceId: b.id, targetId: b.id,
           resource: 'wood', amount: 0, stage: 'source', progress: 0,
         })
@@ -155,7 +162,7 @@ export function assignJobs(state: WorldState): void {
           .filter(b => freeStorage(state, b) > 0)
           .sort((a, b) => distance(node, a) - distance(node, b))[0]
         if (!store) break
-        options.push({
+        if (offer({
           kind: 'gather',
           sourceId: node.id,
           targetId: store.id,
@@ -163,12 +170,12 @@ export function assignJobs(state: WorldState): void {
           amount: Math.min(node.remaining, RESOURCES[node.resource].batch, freeStorage(state, store), needs[node.resource]),
           stage: 'source',
           progress: 0,
-        })
-        break
+        })) break
       }
 
       if (options.length === 0) {
-        if (stores.length > 0 && stores.every(b => freeStorage(state, b) <= 0)) settler.status = 'Storage full — build a stockpile'
+        if (morale.refusesNonessential && needs.food <= 0) settler.status = morale.label + ' — essentials only'
+        else if (stores.length > 0 && stores.every(b => freeStorage(state, b) <= 0)) settler.status = 'Storage full — build a stockpile'
         else if (RESOURCE_IDS.every(r => needs[r] <= 0)) settler.status = 'Stock targets met'
         else if (stores.length === 0) settler.status = 'No usable stockpile — repair storage'
         else settler.status = 'No resources left'
