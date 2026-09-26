@@ -15,11 +15,11 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M2.1 · FIRST RAID</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">THE FIRST RAID</span><h1>Watch them approach.</h1>
-        <p>Prepare shelter and guards, then jump to Night. Twelve raiders enter from outside the map and path toward the camp.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M2.2 · FIRST COMBAT</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">HOLD THE LINE</span><h1>Fight the first raid.</h1>
+        <p>Assign guards, jump to Night, then move the cyan player near a raider and press Space. Guards automatically intercept raiders near their posts.</p>
         <div id="objective"></div>
-        <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Raiders do not attack yet in M2.1.</p>
+        <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Space: melee attack · Downed defenders recover at Dawn.</p>
       </section>
       <section class="inspector panel"><span class="eyebrow">INSPECT</span><div id="inspection">Select something in the world.</div></section>
       <details class="qa panel" open><summary>QA & performance</summary><div class="qa-body">
@@ -43,7 +43,7 @@ export class Hud {
         <button data-action="cancel">Inspect / Esc</button><button data-action="camera">Follow player</button>
         <button data-action="center">Center camp</button><button data-action="save">Save</button><button data-action="load">Load</button>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">WASD / arrows: pan or move · Q/E: rotate · Wheel: zoom · Click: place / inspect · Esc: cancel</div></footer>
+      <div class="controls">WASD / arrows: pan or move · Q/E: rotate · Space: melee · Wheel: zoom · Click: place / inspect · Esc: cancel</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -81,13 +81,13 @@ export class Hud {
     const guardSlots = s.buildings.filter(b => b.complete).reduce((n, b) => n + BUILDINGS[b.type].guardSlots, 0)
     const phase = phaseForTime(s.timeOfDay)
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
-    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Raid movement active · combat/damage not implemented yet</small>`)
+    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Combat active · structures still cannot take damage</small>`)
 
     const hasPost = s.buildings.some(b => b.complete && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
-    this.set('objective', `<div class="objective-row">${shelterReady ? '✓' : '○'} Shelter the population · ${beds} beds</div><div class="objective-row">${hasPost ? '✓' : '○'} Complete a Guard Post</div><div class="objective-row">${guards > 0 ? '✓' : '○'} Assign at least one guard</div><div class="objective-row">${s.raid.wave > 0 ? '✓' : '○'} Trigger the first night raid</div><div class="objective-row">${s.enemies.some(e => e.status.includes('settlement')) ? '✓' : '○'} Observe raiders reach the camp</div>`)
+    this.set('objective', `<div class="objective-row">${shelterReady ? '✓' : '○'} Shelter the population · ${beds} beds</div><div class="objective-row">${hasPost ? '✓' : '○'} Complete a Guard Post</div><div class="objective-row">${guards > 0 ? '✓' : '○'} Assign at least one guard</div><div class="objective-row">${s.raid.wave > 0 ? '✓' : '○'} Trigger a night raid</div><div class="objective-row">${s.raid.totalDefeated > 0 ? '✓' : '○'} Defeat at least one raider</div><div class="objective-row">${s.raid.lastClearedWave === s.raid.wave && s.raid.wave > 0 ? '✓' : '○'} Clear the current raid before dawn</div>`)
 
     const a = s.settlers.find(a => a.id === ui.selectedId)
     const b = s.buildings.find(b => b.id === ui.selectedId)
@@ -96,10 +96,10 @@ export class Hud {
 
     if (a) {
       const guardAssignment = assignedGuardPost(s, a)
-      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p><button data-action="toggle-role">${a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard'}</button>`)
+      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p><button data-action="toggle-role">${a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard'}</button>`)
     } else if (e) {
       const target = s.buildings.find(b => b.id === e.targetId)
-      this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">M2.1 has movement only; combat arrives next.</p>`)
+      this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
     } else if (b) {
       const def = BUILDINGS[b.type]
       const cancel = b.complete ? '' : '<button data-action="cancel-blueprint">Cancel blueprint</button>'
@@ -120,8 +120,8 @@ export class Hud {
 
     this.set('message', escape(ui.message))
     const m = ui.metrics
-    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
-    this.set('workers', '<h3>Settlers</h3>' + s.settlers.map(a => `<div class="worker">${settlerLabel(s, a.id)} · ${a.role === 'guard' ? 'Guard' : 'Worker'} · ${escape(a.status)}</div>`).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
+    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
+    this.set('workers', '<h3>Settlers</h3>' + s.settlers.map(a => `<div class="worker">${settlerLabel(s, a.id)} · ${a.role === 'guard' ? 'Guard' : 'Worker'} · ${a.health}/${a.maxHealth} HP · ${escape(a.status)}</div>`).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
 
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'
     this.element.querySelector('[data-action="camera"]')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'

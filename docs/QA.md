@@ -70,7 +70,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 - Global BFS and linear searches are deliberately bounded M1 choices. Do not claim support for hundreds of workers without profiling.
 - Instance transforms rebuild per frame; HUD/path overlays update at 5 Hz. Profile before introducing incremental rendering or spatial indexes.
 - Vite's >500 kB minified chunk warning remains (about 578 kB / 148 kB gzip in this pass). It also occurred in the baseline and is mostly the Three.js runtime.
-- M2.1 raid movement is implemented; combat, health/death, walls, structure damage and repairs are not.
+- M2.2 minimal combat is implemented; walls, structure damage, repair tasks, permanent defender death and richer combat presentation are not.
 
 ## M1.1 verification
 
@@ -115,3 +115,17 @@ GitHub Actions CI run #18 verified the implementation on 2026-09-26:
 The six M2.1 tests cover one-wave-per-day spawning, shared bounded navigation to the settlement, daylight retreat and next-day respawn, active-raid save/load without duplication, migration of M2.0 saves, and placement rejection on an active raider cell.
 
 The Pages playtest should verify the visible behavior: jump to Night, observe 12 dark-red raiders enter from outside the settlement and converge on the camp, inspect their statuses/routes, then jump to Dawn/Day and confirm they retreat. **Next raid** advances the QA scenario to another wave. Combat is intentionally not part of this slice.
+
+
+## M2.2 verification
+
+GitHub Actions CI run #23 verified the implementation on 2026-09-26:
+
+- dependency install passed
+- strict TypeScript check passed
+- 32/32 renderer-independent simulation tests passed
+- production Vite build passed
+
+The six M2.2 additions cover player melee damage/kill, guard-raider damage exchange, player downing and recovery on night exit, final-raider wave clearing, combat-state save/load, and migration of M2.1 saves to default combat fields. The older guard-post schedule test is explicitly isolated from raid spawning so schedule and combat behavior remain independently tested.
+
+Pages playtest focus: assign guards, jump to Night, observe guards intercept nearby raiders, switch to Follow player, approach a raider and press Space, inspect health/status changes, clear or survive the wave, then jump to Dawn/Day and verify downed defenders recover.

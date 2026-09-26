@@ -2,6 +2,12 @@ import { BUILDINGS } from '../data/buildings'
 import { DECISION_TICKS, FIXED_STEP, WALK_SPEED } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
 import { assignHousing } from './Buildings'
+import {
+  GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
+  RAIDER_ATTACK_COOLDOWN, RAIDER_ATTACK_RANGE, RAIDER_DAMAGE,
+  damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
+  playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
+} from './Combat'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
@@ -29,6 +35,10 @@ export class Simulation {
     if (this.lastPhase === 'night') this.beginRaid()
   }
 
+  playerAttack(): AttackResult {
+    return performPlayerAttack(this.state)
+  }
+
   setTimeOfDay(timeOfDay: number): void {
     this.state.timeOfDay = ((timeOfDay % 1) + 1) % 1
     const next = phaseForTime(this.state.timeOfDay)
@@ -39,6 +49,8 @@ export class Simulation {
   step(): void {
     const s = this.state
     s.tick++; s.elapsedSeconds += FIXED_STEP
+    tickCombatCooldowns(s, FIXED_STEP)
+
     s.timeOfDay += FIXED_STEP / 360
     if (s.timeOfDay >= 1) { s.timeOfDay -= 1; s.day++ }
 
@@ -55,14 +67,24 @@ export class Simulation {
     }
 
     for (const settler of s.settlers) {
+      if (settler.health <= 0) {
+        settler.path = []; settler.pathRevision = -1; settler.status = 'Downed until dawn'
+        continue
+      }
       const job = s.jobs.find(j => j.id === settler.jobId)
       if (job) this.updateJob(settler, job)
-      else if (!isWorkPhase(phase)) this.updateNightSchedule(settler)
-      else if (settler.status !== 'Needs work' && settler.status !== 'Stock targets met' && !settler.status.startsWith('Storage') && settler.status !== 'No resources left')
+      else if (!isWorkPhase(phase)) {
+        if (phase === 'night' && settler.role === 'guard' && s.enemies.length > 0) this.updateGuardCombat(settler)
+        else this.updateNightSchedule(settler)
+      } else if (settler.status !== 'Needs work' && settler.status !== 'Stock targets met' && !settler.status.startsWith('Storage') && settler.status !== 'No resources left')
         settler.status = 'Needs work'
     }
 
-    if (phase === 'night') for (const enemy of s.enemies) this.updateEnemy(enemy)
+    if (phase === 'night') {
+      for (const enemy of [...s.enemies]) {
+        if (s.enemies.includes(enemy)) this.updateEnemy(enemy)
+      }
+    }
     this.navigation.process(s)
   }
 
@@ -75,6 +97,7 @@ export class Simulation {
     const s = this.state
     if (previous === 'night' && next !== 'night') {
       const retreated = retreatRaid(s)
+      restoreAtDawn(s)
       if (retreated > 0) recordEvent(s, retreated + ' raiders retreat with the returning light.')
     }
     if (next !== 'day') this.releaseNonCarryingJobs()
@@ -85,7 +108,7 @@ export class Simulation {
       this.beginRaid()
       recordEvent(s, 'Night has fallen. The settlement is on alert.')
     } else if (next === 'dawn') {
-      recordEvent(s, 'Dawn breaks. The settlement waits for daylight.')
+      recordEvent(s, 'Dawn breaks. The wounded recover and the settlement waits for daylight.')
     } else if (next === 'day') {
       for (const settler of s.settlers) {
         if (settler.jobId === null) {
@@ -136,11 +159,55 @@ export class Simulation {
     this.move(settler, target, moving, WALK_SPEED)
   }
 
+  private updateGuardCombat(guard: Settler): void {
+    const s = this.state
+    const enemy = nearestEnemy(s, guard, GUARD_AGGRO_RANGE)
+    if (!enemy) { this.updateNightSchedule(guard); return }
+
+    const d = distance(guard, enemy)
+    if (d <= GUARD_ATTACK_RANGE) {
+      guard.path = []; guard.pathRevision = -1
+      guard.status = 'Fighting raider'
+      if (guard.attackCooldown <= 0) {
+        guard.attackCooldown = GUARD_ATTACK_COOLDOWN
+        const killed = damageEnemy(s, enemy, GUARD_DAMAGE, settlerLabel(s, guard.id))
+        if (killed) guard.status = 'Defeated raider'
+      }
+      return
+    }
+    this.move(guard, enemy, 'Intercepting raider', WALK_SPEED)
+  }
+
   private updateEnemy(enemy: Enemy): void {
-    const target = enemyTarget(this.state, enemy)
+    const s = this.state
+    const guards = livingGuards(s)
+      .filter(guard => distance(enemy, guard) <= RAIDER_ATTACK_RANGE)
+      .sort((a, b) => distance(enemy, a) - distance(enemy, b))
+
+    if (guards[0]) {
+      enemy.path = []; enemy.pathRevision = -1
+      enemy.status = 'Attacking ' + settlerLabel(s, guards[0].id)
+      if (enemy.attackCooldown <= 0) {
+        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
+        damageSettler(s, guards[0], RAIDER_DAMAGE)
+      }
+      return
+    }
+
+    if (s.player.health > 0 && distance(enemy, s.player) <= RAIDER_ATTACK_RANGE) {
+      enemy.path = []; enemy.pathRevision = -1
+      enemy.status = 'Attacking player'
+      if (enemy.attackCooldown <= 0) {
+        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
+        damagePlayer(s, RAIDER_DAMAGE)
+      }
+      return
+    }
+
+    const target = enemyTarget(s, enemy)
     if (distance(enemy, target) < 0.01) {
       enemy.path = []; enemy.pathRevision = -1
-      enemy.status = 'At the settlement — combat pending'
+      enemy.status = 'At the settlement — seeking a defender'
       return
     }
     this.move(enemy, target, 'Advancing on the settlement', ENEMY_WALK_SPEED)

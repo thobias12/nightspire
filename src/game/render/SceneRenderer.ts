@@ -90,12 +90,12 @@ export class SceneRenderer {
     for (const n of state.nodes) if (n.remaining > 0) this.instance(n.resource, n.x, n.resource === 'wood' ? 1.4 : 0.5, n.z)
 
     for (const a of state.settlers) {
-      this.instance(a.role === 'guard' ? 'guards' : 'settlers', a.x, 0.55, a.z)
+      this.instance(a.role === 'guard' ? 'guards' : 'settlers', a.x, 0.55, a.z, 1, 1, 1, a.health <= 0 ? 0x555555 : undefined)
       const resource = a.cargo.wood > 0 ? 'wood' : a.cargo.food > 0 ? 'food' : null
       if (resource) this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
     }
-    for (const e of state.enemies) this.instance('enemies', e.x, 0.56, e.z)
-    this.instance('player', state.player.x, 0.7, state.player.z)
+    for (const e of state.enemies) this.instance('enemies', e.x, 0.56, e.z, 1, 1, 1, e.health <= e.maxHealth * 0.5 ? 0x8f3333 : undefined)
+    this.instance('player', state.player.x, 0.7, state.player.z, 1, 1, 1, state.player.health <= 0 ? 0x456064 : undefined)
 
     for (const b of state.buildings) {
       const def = BUILDINGS[b.type]

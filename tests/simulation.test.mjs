@@ -11,6 +11,7 @@ const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
 const { RAID_SIZE, enemyTarget } = require('../.test-build/game/simulation/Raid.js')
+const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE } = require('../.test-build/game/simulation/Combat.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -268,6 +269,7 @@ test('guards report to completed guard posts at night while civilians seek shelt
   post.work=10
   post.complete=true
   s.settlers[0].role='guard'
+  s.raid.lastSpawnDay=s.day
   const sim=new Simulation(s)
   sim.setTimeOfDay(21/24)
   const assignment=assignedGuardPost(s,s.settlers[0])
@@ -330,7 +332,7 @@ test('raiders share the bounded navigation queue and reach the settlement', () =
   }
   const after=s.enemies.reduce((n,e)=>n+Math.hypot(e.x-enemyTarget(s,e).x,e.z-enemyTarget(s,e).z),0)
   assert.ok(after<initial)
-  assert.ok(s.enemies.every(e=>e.status==='At the settlement — combat pending'))
+  assert.ok(s.enemies.every(e=>e.status==='At the settlement — seeking a defender' || e.status==='Attacking player'))
   assert.equal(sim.navigation.failures,0)
 })
 
@@ -376,7 +378,7 @@ test('legacy M2.0 saves migrate empty raid state', () => {
   delete legacy.raid
   const loaded=deserializeWorld(JSON.stringify(legacy))
   assert.deepEqual(loaded.enemies,[])
-  assert.deepEqual(loaded.raid,{lastSpawnDay:0,wave:0,totalSpawned:0})
+  assert.deepEqual(loaded.raid,{lastSpawnDay:0,wave:0,totalSpawned:0,totalDefeated:0,lastClearedWave:0})
   validateWorld(loaded)
 })
 
@@ -385,6 +387,106 @@ test('building placement rejects an active raider cell', () => {
   sim.setTimeOfDay(21/24)
   const enemy=s.enemies[0]
   assert.ok(placementError(s,'house',{x:Math.round(enemy.x),z:Math.round(enemy.z)}))
+})
+
+
+test('player melee damages and defeats the nearest raider in range', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  s.player.x=enemy.x
+  s.player.z=enemy.z+Math.min(1,PLAYER_ATTACK_RANGE/2)
+  const first=sim.playerAttack()
+  assert.equal(first.ok,true)
+  assert.equal(first.killed,false)
+  assert.equal(enemy.health,enemy.maxHealth-PLAYER_DAMAGE)
+  for(let i=0;i<10;i++) sim.step()
+  const second=sim.playerAttack()
+  assert.equal(second.ok,true)
+  assert.equal(second.killed,true)
+  assert.ok(!s.enemies.some(e=>e.id===enemy.id))
+  assert.equal(s.raid.totalDefeated,1)
+  validateWorld(s)
+})
+
+test('a guard intercepts a nearby raider and both exchange melee damage', () => {
+  const s=createInitialWorldState()
+  s.settlers[0].role='guard'
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const guard=s.settlers[0], enemy=s.enemies[0]
+  guard.x=0; guard.z=3
+  enemy.x=0; enemy.z=4
+  enemy.path=[]; enemy.pathRevision=-1
+  for(let i=0;i<25;i++) sim.step()
+  assert.ok(enemy.health<enemy.maxHealth || !s.enemies.includes(enemy))
+  assert.ok(guard.health<guard.maxHealth)
+  assert.ok(guard.status.includes('raider') || guard.status==='Defeated raider')
+  validateWorld(s)
+})
+
+test('raider can down the player and night exit restores player health', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  s.player.health=RAIDER_DAMAGE
+  s.player.x=enemy.x; s.player.z=enemy.z+1
+  enemy.path=[]; enemy.pathRevision=-1
+  for(let i=0;i<4 && s.player.health>0;i++) sim.step()
+  assert.equal(s.player.health,0)
+  sim.setTimeOfDay(12/24)
+  assert.equal(s.player.health,s.player.maxHealth)
+  assert.equal(s.enemies.length,0)
+  validateWorld(s)
+})
+
+test('clearing the final raider records a cleared wave', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  s.enemies=[enemy]
+  s.raid.totalSpawned=1
+  s.player.x=enemy.x; s.player.z=enemy.z+1
+  enemy.health=PLAYER_DAMAGE
+  const result=sim.playerAttack()
+  assert.equal(result.killed,true)
+  assert.equal(s.enemies.length,0)
+  assert.equal(s.raid.totalDefeated,1)
+  assert.equal(s.raid.lastClearedWave,s.raid.wave)
+  validateWorld(s)
+})
+
+test('combat health and cooldown survive save load', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  s.player.x=enemy.x; s.player.z=enemy.z+1
+  sim.playerAttack()
+  s.settlers[0].health=76
+  s.settlers[0].attackCooldown=.4
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.equal(loaded.player.attackCooldown,s.player.attackCooldown)
+  assert.equal(loaded.settlers[0].health,76)
+  assert.equal(loaded.settlers[0].attackCooldown,.4)
+  assert.equal(loaded.enemies[0].health,enemy.health)
+  validateWorld(loaded)
+})
+
+test('legacy M2.1 saves migrate combat fields', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const legacy=JSON.parse(serializeWorld(s))
+  delete legacy.player.health; delete legacy.player.maxHealth; delete legacy.player.attackCooldown
+  for(const a of legacy.settlers) { delete a.health; delete a.maxHealth; delete a.attackCooldown }
+  for(const e of legacy.enemies) { delete e.health; delete e.maxHealth; delete e.attackCooldown }
+  delete legacy.raid.totalDefeated; delete legacy.raid.lastClearedWave
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.equal(loaded.player.health,100)
+  assert.ok(loaded.settlers.every(a=>a.health===100 && a.maxHealth===100 && a.attackCooldown===0))
+  assert.ok(loaded.enemies.every(e=>e.health===40 && e.maxHealth===40 && e.attackCooldown===0))
+  assert.equal(loaded.raid.totalDefeated,0)
+  assert.equal(loaded.raid.lastClearedWave,0)
+  validateWorld(loaded)
 })
 
 test('invalid and incompatible saves are rejected without touching current state', () => {

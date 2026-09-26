@@ -15,19 +15,20 @@ const integer = (v: unknown): v is number => number(v) && Number.isSafeInteger(v
 const inventory = (v: any): boolean => v && RESOURCE_IDS.every(r => integer(v[r]))
 const point = (v: any): boolean => v && Number.isFinite(v.x) && Number.isFinite(v.z) && inBounds(v)
 const gridPoint = (v: any): boolean => point(v) && Number.isInteger(v.x) && Number.isInteger(v.z)
+const combatant = (v: any): boolean => v && integer(v.maxHealth) && v.maxHealth > 0 && integer(v.health) && v.health <= v.maxHealth && number(v.attackCooldown) && v.attackCooldown <= 60
 
 // Validate the whole candidate before replacing a live world. No partial load or silent reset.
 export function validateWorld(value: unknown): asserts value is WorldState {
   const s = value as WorldState
   check(s && s.version === 1, 'unsupported version')
   check(integer(s.nextId) && integer(s.tick) && integer(s.topology) && number(s.elapsedSeconds), 'clock/identity')
-  check(integer(s.day) && s.day >= 1 && number(s.timeOfDay) && s.timeOfDay < 1 && point(s.player), 'time/player')
+  check(integer(s.day) && s.day >= 1 && number(s.timeOfDay) && s.timeOfDay < 1 && point(s.player) && combatant(s.player), 'time/player')
   check(inventory(s.targets) && RESOURCE_IDS.every(r => s.targets[r] <= 10_000), 'stock targets')
   check(Array.isArray(s.settlers) && s.settlers.length <= MAX_SETTLERS && s.settlers.length > 0, 'population')
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 80, 'buildings')
   check(Array.isArray(s.nodes) && s.nodes.length <= 1000 && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
-  check(s.raid && integer(s.raid.lastSpawnDay) && s.raid.lastSpawnDay <= s.day && integer(s.raid.wave) && integer(s.raid.totalSpawned) && s.raid.totalSpawned >= s.enemies.length, 'raid state')
+  check(s.raid && integer(s.raid.lastSpawnDay) && s.raid.lastSpawnDay <= s.day && integer(s.raid.wave) && integer(s.raid.totalSpawned) && integer(s.raid.totalDefeated) && integer(s.raid.lastClearedWave) && s.raid.lastClearedWave <= s.raid.wave && s.raid.totalSpawned >= s.enemies.length + s.raid.totalDefeated, 'raid state')
   const entities = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs]
   check(entities.every(e => e && integer(e.id) && e.id > 0 && e.id < s.nextId), 'entity IDs')
   check(new Set(entities.map(e => e.id)).size === entities.length, 'duplicate IDs')
@@ -48,7 +49,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(s.buildings.some(b => b.type === 'stockpile' && b.complete && b.x === 0 && b.z === 0), 'missing starter camp')
   for (const n of s.nodes) check(gridPoint(n) && RESOURCE_IDS.includes(n.resource) && integer(n.remaining), 'resource node')
   for (const a of s.settlers) {
-    check(point(a) && inventory(a.cargo) && a.cargo.wood + a.cargo.food <= CARRY_CAPACITY, 'settler/cargo')
+    check(point(a) && combatant(a) && inventory(a.cargo) && a.cargo.wood + a.cargo.food <= CARRY_CAPACITY, 'settler/cargo')
     check(a.role === 'worker' || a.role === 'guard', 'settler role')
     check(Array.isArray(a.path) && a.path.length <= 3000 && a.path.every(gridPoint) && Number.isInteger(a.pathRevision), 'route')
     check(typeof a.status === 'string' && a.status.length <= 120, 'status')
@@ -57,7 +58,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     check(a.jobId !== null || a.cargo.wood + a.cargo.food === 0, 'unowned cargo')
   }
   for (const enemy of s.enemies) {
-    check(point(enemy) && enemy.kind === 'raider' && integer(enemy.targetId), 'enemy')
+    check(point(enemy) && combatant(enemy) && enemy.kind === 'raider' && integer(enemy.targetId), 'enemy')
     check(Array.isArray(enemy.path) && enemy.path.length <= 3000 && enemy.path.every(gridPoint) && Number.isInteger(enemy.pathRevision), 'enemy route')
     check(typeof enemy.status === 'string' && enemy.status.length <= 120, 'enemy status')
     check(s.buildings.some(b => b.id === enemy.targetId && b.complete), 'enemy target')
@@ -107,8 +108,18 @@ export function deserializeWorld(text: string): WorldState {
   if (candidate && candidate.version === 1 && candidate.targets === undefined) candidate.targets = { ...DEFAULT_TARGETS }
   if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers))
     for (const settler of candidate.settlers) if (settler.role === undefined) settler.role = 'worker'
+  if (candidate && candidate.version === 1 && candidate.player?.health === undefined)
+    Object.assign(candidate.player, { health: 100, maxHealth: 100, attackCooldown: 0 })
+  if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers))
+    for (const settler of candidate.settlers) if (settler.health === undefined) Object.assign(settler, { health: 100, maxHealth: 100, attackCooldown: 0 })
   if (candidate && candidate.version === 1 && candidate.enemies === undefined) candidate.enemies = []
+  if (candidate && candidate.version === 1 && Array.isArray(candidate.enemies))
+    for (const enemy of candidate.enemies) if (enemy.health === undefined) Object.assign(enemy, { health: 40, maxHealth: 40, attackCooldown: 0 })
   if (candidate && candidate.version === 1 && candidate.raid === undefined) candidate.raid = { ...DEFAULT_RAID }
+  if (candidate && candidate.version === 1 && candidate.raid) {
+    if (candidate.raid.totalDefeated === undefined) candidate.raid.totalDefeated = 0
+    if (candidate.raid.lastClearedWave === undefined) candidate.raid.lastClearedWave = 0
+  }
   validateWorld(candidate)
   // Routes are transient; rebuild from saved task/cargo/schedule/raid ownership.
   for (const a of [...candidate.settlers, ...candidate.enemies]) { a.path = []; a.pathRevision = -1 }

@@ -49,8 +49,8 @@
 - [x] simple enemy entity store
 - [x] raid spawn/director
 - [x] basic enemy navigation toward settlement
-- [ ] basic NPC combat
-- [ ] player melee combat
+- [x] basic NPC combat
+- [x] player melee combat
 - [ ] wooden walls and gate
 - [ ] structure health/damage
 - [ ] morning cleanup and repairs
@@ -58,6 +58,8 @@
 **M2.0 verified:** deterministic Dawn/Day/Dusk/Night phases, daylight-only job assignment, cargo-safe dusk shutdown, civilian sheltering, guard roles and buildable Guard Posts. 20 tests pass and CI builds successfully.
 
 **M2.1 verified:** persisted Raider entities, one deterministic 12-raider wave per day, shared bounded navigation toward the settlement, dawn retreat, active-raid save/load, old-save migration, inspection/debug rendering. 26 tests pass and CI builds successfully.
+
+**M2.2 verified:** player melee, guard interception, raider counterattacks, persisted combat health/cooldowns, defender downing/recovery, raider death and raid-clear tracking. 32 tests pass and CI builds successfully.
 
 **Full M2 exit:** build by day, survive 20–40 attackers at night, repair next morning.
 
