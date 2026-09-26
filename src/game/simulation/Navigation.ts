@@ -31,7 +31,8 @@ export function flood(start: Point, blocked: Set<number>): Map<number, Point | n
   }
   return parents
 }
-// One shared queue, at most two routes per fixed tick. Failed routes cool down before retrying.
+// One shared queue serves work and schedule movement, at most two routes per fixed tick.
+// Failed routes cool down before retrying and topology changes clear the cooldown.
 export class Navigation {
   private revision = -1
   private blocked = new Set<number>()
@@ -61,7 +62,7 @@ export class Navigation {
       if (this.solved >= PATH_BUDGET) break
       this.queue.delete(id); this.solved++
       const s = state.settlers.find(s => s.id === id)
-      if (!s || s.jobId === null) continue
+      if (!s) continue
       const parents = flood(target, this.blocked)
       let cursor: Point = { x: Math.round(s.x), z: Math.round(s.z) }
       if (!parents.has(cellKey(cursor))) {

@@ -1,6 +1,7 @@
 import type { BuildingId } from '../data/buildings'
 import type { JobKind } from '../data/jobs'
 import { emptyInventory, type Inventory, type ResourceId } from '../data/resources'
+import type { SettlerRole } from './Schedule'
 
 export interface Point { x: number; z: number }
 export interface ResourceNode extends Point { id: number; resource: ResourceId; remaining: number }
@@ -9,7 +10,7 @@ export interface Building extends Point {
   inventory: Inventory; delivered: Inventory
 }
 export interface Settler extends Point {
-  id: number; homeId: number | null; jobId: number | null
+  id: number; homeId: number | null; jobId: number | null; role: SettlerRole
   cargo: Inventory; path: Point[]; pathRevision: number; status: string
 }
 export interface Job {
@@ -32,7 +33,7 @@ export function settlerLabel(state: WorldState, id: number): string {
 }
 export function spawnSettler(state: WorldState): boolean {
   if (state.settlers.length >= MAX_SETTLERS) return false
-  state.settlers.push({ id: state.nextId++, x: 0, z: 2, homeId: null, jobId: null,
+  state.settlers.push({ id: state.nextId++, x: 0, z: 2, homeId: null, jobId: null, role: 'worker',
     cargo: emptyInventory(), path: [], pathRevision: -1, status: 'Needs work' })
   return true
 }
