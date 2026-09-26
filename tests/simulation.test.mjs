@@ -269,6 +269,7 @@ test('guards report to completed guard posts at night while civilians seek shelt
   post.work=10
   post.complete=true
   s.settlers[0].role='guard'
+  s.raid.lastSpawnDay=s.day
   const sim=new Simulation(s)
   sim.setTimeOfDay(21/24)
   const assignment=assignedGuardPost(s,s.settlers[0])
