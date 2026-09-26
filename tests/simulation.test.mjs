@@ -497,6 +497,10 @@ test('completed gate is passable to friendlies but blocks raiders while wall blo
   assert.equal(hostile.has(cellKey(gate)),true)
   assert.equal(friendly.has(cellKey(wall)),true)
   assert.equal(hostile.has(cellKey(wall)),true)
+  const blueprint=createBuilding(s.nextId++,'wood-wall',7,0,false)
+  s.buildings.push(blueprint); s.topology++
+  assert.equal(blockedCells(s,false).has(cellKey(blueprint)),true)
+  assert.equal(blockedCells(s,true).has(cellKey(blueprint)),false)
   validateWorld(s)
 })
 
