@@ -25,8 +25,9 @@ const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary,
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
 const {
-  backyardForPlot, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
+  backyardForPlot, buildingPlacementPreview, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
   residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError,
+  snapPointToGrid, snapRoadControlPoint,
 } = require('../.test-build/game/simulation/TownPlanning.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
@@ -57,6 +58,54 @@ const makeAttractive = s => {
   assignHousing(s)
   return s
 }
+test('Grid Snap aligns road drags to 0/45/90 degrees while freeform preserves pointer geometry', () => {
+  const roads=[]
+  assert.deepEqual(snapPointToGrid({x:2.49,z:-3.51}),{x:2,z:-4})
+  assert.deepEqual(snapRoadControlPoint(roads,{x:5.2,z:2.2},{x:0,z:0},true),{x:5,z:0})
+  assert.deepEqual(snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},true),{x:4,z:4})
+  const free=snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},false)
+  assert.ok(Math.abs(free.x-4.2)<1e-9 && Math.abs(free.z-3.7)<1e-9)
+})
+
+test('Grid Snap rounds residential frontage and depth while keeping the plot on the road edge', () => {
+  const roads=[{id:10,width:2,points:[{x:-8,z:0},{x:8,z:0}]}]
+  const free=residentialPlotPreview(roads,{x:-2.2,z:0.1},{x:3.35,z:-7.45},2.2,false)
+  const snapped=residentialPlotPreview(roads,{x:-2.2,z:0.1},{x:3.35,z:-7.45},2.2,true)
+  assert.ok(free && snapped)
+  assert.notEqual(free.width,Math.round(free.width))
+  assert.equal(snapped.width,5)
+  assert.equal(snapped.depth,7)
+  assert.ok(Math.abs(snapped.frontageA.z+1.12)<1e-9)
+  assert.equal(snapped.housePoint.x,1)
+  assert.ok(Number.isInteger(snapped.housePoint.z))
+})
+
+test('Road Snap magnetically positions and faces conventional buildings beside a nearby street', () => {
+  const roads=[{id:21,width:1.7,points:[{x:-10,z:0},{x:10,z:0}]}]
+  const snapped=buildingPlacementPreview(roads,{x:3.2,z:-2.4},'tavern',true,3)
+  assert.equal(snapped.snappedToRoad,true)
+  assert.equal(snapped.roadId,21)
+  assert.deepEqual(snapped.point,{x:3,z:-3})
+  assert.ok(Math.abs(snapped.facingAngle)<1e-9)
+  assert.equal(snapped.rotation,0)
+
+  const manual=buildingPlacementPreview(roads,{x:3.2,z:-2.4},'tavern',false,3)
+  assert.equal(manual.snappedToRoad,false)
+  assert.deepEqual(manual.point,{x:3,z:-2})
+  assert.equal(manual.rotation,3)
+  assert.equal(manual.facingAngle,null)
+})
+
+test('Road Snap never overrides walls, gates or Campfire placement', () => {
+  const roads=[{id:21,width:1.7,points:[{x:-10,z:0},{x:10,z:0}]}]
+  for(const type of ['wood-wall','wood-gate','campfire']) {
+    const preview=buildingPlacementPreview(roads,{x:2.3,z:-1.1},type,true,2)
+    assert.equal(preview.snappedToRoad,false)
+    assert.deepEqual(preview.point,{x:2,z:-1})
+    assert.equal(preview.rotation,2)
+  }
+})
+
 test('player road strokes normalize deterministically and require meaningful length', () => {
   const points=normalizeRoadPoints([
     {x:0,z:0},{x:0.1,z:0.1},{x:1,z:0.2},{x:2,z:0.5},{x:3,z:1},
@@ -111,9 +160,11 @@ test('player roads and residential plots survive save/load with their modular ba
     side:preview.side,angle:preview.angle,backyard:backyardForPlot(plotId,preview.depth),
   })
   validateWorld(s)
+  house.facingAngle=Math.PI/4
   const loaded=deserializeWorld(serializeWorld(s))
   assert.deepEqual(loaded.roads,s.roads)
   assert.deepEqual(loaded.residentialPlots,s.residentialPlots)
+  assert.equal(loaded.buildings.find(b=>b.id===house.id).facingAngle,Math.PI/4)
   validateWorld(loaded)
 })
 
