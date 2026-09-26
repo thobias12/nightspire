@@ -287,8 +287,7 @@ M3.7 adds six production/workforce regressions on top of the 84-test M3.6 suite,
 
 - fresh settlements contain twelve finite Iron Ore deposits and no gatherable Tools nodes
 - Blacksmith production converts exactly 3 Ore → 1 Tool per 18-second Day batch and stops at its six-Tool local output cap
-- workers physically route stockpiled Ore into the Blacksmith and haul finished Tools back into stockpile storage
-- Ore conservation counts Blacksmith production consumption, while physical Tools balance exactly against lifetime Tools produced
+- workers physically route stockpiled Ore into the Blacksmith and haul finished Tools back into stockpile storage while Ore/Tools conservation remains exact
 - Tool coverage counts stockpiled Tools only, uses one Tool per two settlers, and caps at a +10% work multiplier
 - the fixed-step hands-on work rate stacks Tool coverage multiplicatively with the existing M3.6 Happiness modifier
 - current save/load preserves Blacksmith Ore, Tools and mid-batch production progress
