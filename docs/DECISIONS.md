@@ -152,3 +152,23 @@ Tavern operating food is consumed only while at least one assigned visitor is ph
 Building inventory remains the single physical location for both stockpile resources and service pantry stock. Validation applies normal shared-storage capacity to stockpiles and service-specific supply capacity to non-storage service buildings. Service operating progress is persisted and older version-1 saves migrate it to zero.
 
 M3.1 deliberately does not add Ale, Brewery production, money, staffing, opening-hour wages, immigration or happiness effects. Tavern uses Food as a temporary operating input solely to prove the generic supplied-service/logistics architecture. M3.2 should replace that placeholder input with a real Brewery → Ale → Tavern production chain.
+
+
+## M3.2 production uses physical input/output inventories
+
+Ale is promoted to a first-class ResourceId alongside Wood and Food. Every Inventory carries Wood/Food/Ale fields, and version-1 save migration backfills zero Ale into old targets, building inventories/deliveries, settler cargo and lifetime inventory counters before validation.
+
+Building definitions may expose a generic production recipe: input resource/amount/capacity, output resource/amount/capacity, cycle duration and active phases. Brewery is the first producer: a 35-wood, 3×3 building with a 20-Food input capacity and 24-Ale output capacity. During Day, each completed 12-second batch consumes 2 Food and produces 4 Ale. Production pauses rather than discarding progress when the phase is inactive, input is short or output is full.
+
+Supply jobs are generalized beyond stockpile → service movement, but stockpiles remain the authoritative staging layer for manufactured goods. Production output is hauled from producer → stockpile first. Production inputs and service supplies are then hauled stockpile → consumer. This makes the first complete chain Food Stockpile → Brewery → Ale Stockpile → Tavern while reusing the same reservation/cargo/pathing system throughout.
+
+Production consumption and output are tracked as Inventory-shaped lifetime ledgers. Service consumption is also generalized from a Food-only counter to an Inventory ledger. Food conservation is physical Food + meals + service use + production input consumed; Ale conservation is physical Ale + service Ale consumed = lifetime Ale produced. Repair Wood remains separately accounted as before.
+
+Tavern's M3.1 placeholder Food pantry is replaced by a 12-Ale pantry. Older M3.1 saves convert valid Tavern pantry Food 1:1 into Ale so existing playtests remain loadable. Historical M3.1 Tavern Food usage migrates into serviceConsumed.food rather than being rewritten as Ale usage. Old in-flight Food → Tavern supply jobs are either normalized to Ale cargo when already carried or safely released before validation.
+
+M3.2 deliberately keeps production automatic rather than adding dedicated Brewery workers, shift staffing, recipes UI, grain crops, money or quality tiers. The goal is to prove the reusable manufactured-resource and physical inter-building logistics loop before adding more economy breadth.
+
+
+## Development save compatibility policy
+
+During active milestone development, backward compatibility with saves from earlier milestones is not a requirement unless explicitly requested. Fresh-run testing is the default. New systems may change the save schema directly instead of accumulating migration code solely to preserve temporary development saves.

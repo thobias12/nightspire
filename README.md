@@ -2,7 +2,7 @@
 
 A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
 
-**Current playable milestone: M3.1 — Tavern Services.** The M3.0 needs model remains intact and recreation now runs through a reusable service-provider framework. Campfires provide free basic recreation; Taverns provide stronger 12-slot recreation but require workers to physically keep a food pantry supplied. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M3.2 — Brewery & Ale.** Nightspire now has its first proper production chain: Food is physically hauled into a Brewery, processed into Ale during Day, and hauled onward to Taverns for off-hours Recreation service. Ale is a real persisted third resource rather than a hidden Tavern counter. See [the design](docs/GAME_DESIGN.md) for future direction.
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -20,8 +20,8 @@ Open the local URL printed by Vite. A camp begins with six settlers, an empty co
 1. Watch stockpile counts rise. Click a settler or resource to inspect its task or remaining yield.
 2. Select **House**, then click clear ground. The preview is green on a valid site and red on a blocked one. A blueprint can wait for materials.
 3. Settlers reserve available wood, collect it from a stockpile, carry it to the site, then perform construction work. One house costs 20 wood and provides four beds.
-4. Build more houses and a **Stockpile** (10 wood, 400 shared wood/food capacity), then add a **Guard Post** (25 wood, two guard slots), a **Campfire** (10 wood, six free recreation slots), a **Tavern** (40 wood, twelve stronger recreation slots), **Wooden Walls** (5 wood, 120 HP), and at least one **Wooden Gate** (15 wood, 220 HP).
-5. Inspect settlers to see **Food / Housing / Safety / Recreation** plus derived Happiness. Meal service opens at 06:00. During Dusk/Dawn, civilians use the best available recreation provider: a supplied Tavern is preferred over a Campfire. Tavern pantry stock is physically hauled from stockpiles during Day and is consumed only while visitors are actually using the service. If the pantry reaches zero, the Tavern stops serving and settlers fall back to Campfire capacity.
+4. Build more houses and a **Stockpile** (10 wood, 400 shared Wood/Food/Ale capacity), then add a **Guard Post**, **Campfire**, **Brewery** (35 wood), **Tavern** (40 wood), Wooden Walls and at least one Wooden Gate. The Brewery recipe is **2 Food → 4 Ale every 12 simulated seconds during Day**.
+5. Inspect settlers to see **Food / Housing / Safety / Recreation** plus derived Happiness. During Day, workers keep Brewery Food input supplied, the Brewery produces Ale, workers haul that Ale into stockpile storage, and Tavern supply runs from stockpile to the Tavern's 12-Ale pantry. During Dusk/Dawn a supplied Tavern is preferred over Campfire; when Ale runs out, settlers fall back to Campfire capacity.
 6. Open **QA & performance** and jump to **Night**. Wave 1 contains 20 raiders. Each later wave adds four attackers until the 40-raider cap. Raiders batter walls/gates open, then retarget exposed settlement buildings. Guards intercept nearby raiders; the player can still fight with **Space**.
 7. After Night, jump/wait to **Day**. Damaged structures generate high-priority repair jobs: settlers physically carry timber from storage and restore 10 HP per wood. The QA **Damage selected structure** button can test this without waiting for a raid.
 8. Select an unfinished blueprint to cancel it. Reserved, delivered, and in-transit materials are conserved; cancellation refuses if storage cannot safely accept the refund.
@@ -44,7 +44,7 @@ Save/load uses one versioned primary localStorage slot plus one backup slot in t
 | Esc / Inspect | Cancel placement |
 | QA controls | Pause/resume, 1×/2×/4×, jump Day/Dusk/Night/Dawn, Next raid, force needs to 25%/100%, add supply to selected service, damage selected structure, set hour, stock targets, add resources, spawn settler, paths, integrity audit, backup/export/import |
 
-Time drives both work and needs. Normal jobs run during Day (06:00–18:00); meal service feeds due settlers when food is available. Housing trends toward real bed assignment and Safety responds to raids/guards/fortifications/damage. Recreation decays unless a Dusk/Dawn service slot is available. Campfires need no supplies; Taverns are higher-priority, recover Recreation twice as fast, and operate only while their food pantry is stocked. At Night the existing M2 combat/fortification loop remains unchanged.
+Time drives work, needs and production. Normal jobs and Brewery production run during Day (06:00–18:00); meal service still feeds due settlers from Food stores. Brewery input/output are physical bounded inventories. Campfires need no supplies; Taverns are higher-priority and operate only while Ale is stocked. At Night the existing M2 combat/fortification loop remains unchanged.
 
 ## Verification
 
@@ -55,7 +55,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Fifty-nine regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Sixty-four regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -82,8 +82,8 @@ docs/           design, architecture, milestones, decisions and QA
 
 ## Scope and limitations
 
-This is a small playable graybox foundation: ten settlers maximum, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four persisted settler needs, and the first generic supplied-service logistics loop. Walls are placed one segment per click; there is no drag placement or gate open/close control yet. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
+This is a small playable graybox foundation: ten settlers maximum, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four persisted settler needs, generic services, and a physical Food → Ale → Tavern production chain. Walls are placed one segment per click; there is no drag placement or gate open/close control yet. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
 
 See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.1 establishes reusable service capacity and supplied operation. Immigration and happiness consequences remain deferred. The next production slice should replace the Tavern's temporary food operating supply with a proper Brewery → Ale → Tavern chain rather than adding another one-off service rule.
+M3.2 establishes the first reusable production recipe and manufactured resource. Immigration and happiness consequences remain deferred. The next high-value M3 slice is population attraction/immigration driven by housing, happiness and safety.

@@ -136,7 +136,7 @@ export function updateServices(state: WorldState, delta: number, phase: DayPhase
     ) {
       building.serviceProgress -= service.supplySecondsPerUnit
       building.inventory[service.supplyResource]--
-      if (service.supplyResource === 'food') state.totals.serviceFoodConsumed++
+      state.totals.serviceConsumed[service.supplyResource]++
     }
     if (building.inventory[service.supplyResource] <= 0) building.serviceProgress = 0
   }

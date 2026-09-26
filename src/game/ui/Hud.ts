@@ -19,9 +19,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.1 · TAVERN SERVICES</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">SERVICES NEED SUPPLIES</span><h1>Give them somewhere better.</h1>
-        <p>Campfires provide free basic recreation. Taverns provide stronger 12-slot recreation, but workers must keep their pantry supplied with food or visitors fall back to Campfires.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.2 · BREWERY & ALE</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">FIRST PRODUCTION CHAIN</span><h1>Brew what the Tavern needs.</h1>
+        <p>Workers haul Food into a Brewery. During Day it converts 2 Food into 4 Ale, then workers haul that Ale into Taverns for off-hours recreation.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -34,7 +34,7 @@ export class Hud {
         <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label></div>
         <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="spawn">Spawn settler</button></div>
         <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
-        <div class="row"><button data-action="service-food">+5 selected service supply</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
+        <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
         <label><input type="checkbox" data-action="paths"> Show navigation paths</label>
         <button data-action="audit">Check state integrity</button>
         <h3>Save tools</h3>
@@ -47,7 +47,8 @@ export class Hud {
         <button data-action="stockpile">Stockpile <small>10 wood · 400 storage</small></button>
         <button data-action="guard-post">Guard Post <small>25 wood · 2 guards</small></button>
         <button data-action="campfire">Campfire <small>10 wood · 6 free slots</small></button>
-        <button data-action="tavern">Tavern <small>40 wood · 12 supplied slots</small></button>
+        <button data-action="brewery">Brewery <small>35 wood · Food → Ale</small></button>
+        <button data-action="tavern">Tavern <small>40 wood · 12 Ale-fed slots</small></button>
         <button data-action="wood-wall">Wood Wall <small>5 wood · 120 HP</small></button>
         <button data-action="wood-gate">Wood Gate <small>15 wood · 220 HP</small></button>
         <button data-action="cancel">Inspect / Esc</button><button data-action="camera">Follow player</button>
@@ -84,6 +85,7 @@ export class Hud {
     const stores = stockpiles(s)
     const wood = stores.reduce((n, b) => n + b.inventory.wood, 0)
     const food = stores.reduce((n, b) => n + b.inventory.food, 0)
+    const ale = stores.reduce((n, b) => n + b.inventory.ale, 0)
     const held = stores.reduce((n, b) => n + reserved(s, b.id, 'wood'), 0)
     const housed = s.settlers.filter(a => a.homeId !== null).length
     const beds = s.buildings.filter(b => b.complete && !b.destroyed).reduce((n, b) => n + BUILDINGS[b.type].housing, 0)
@@ -95,17 +97,18 @@ export class Hud {
     const gates = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'wood-gate').length
     const services = serviceSummary(s, phase)
     const taverns = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'tavern')
+    const breweries = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'brewery')
     const suppliedTaverns = taverns.filter(serviceAvailable).length
     const needSummary = settlementNeeds(s)
     const fedToday = s.settlers.filter(settler => settler.lastMealDay === s.day).length
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Fed ${fedToday}/${s.settlers.length}</b> <b>Happy ${needSummary.happiness}%</b> <span>Worst ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</span> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Ale ${ale}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Fed ${fedToday}/${s.settlers.length}</b> <b>Happy ${needSummary.happiness}%</b> <span>Worst ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</span> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
-    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Services active at Dusk/Dawn · Tavern supply is physically hauled · raids still scale 20 → 40</small>`)
+    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Production active by Day · Brewery Food → Ale → Tavern · raids still scale 20 → 40</small>`)
 
     const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
-    this.set('objective', `<div class="objective-row">${shelterReady ? '✓' : '○'} Housing · ${housed}/${s.settlers.length} settlers</div><div class="objective-row">${fedToday === s.settlers.length ? '✓' : '○'} Feed today\'s settlement · ${fedToday}/${s.settlers.length}</div><div class="objective-row">${taverns.length > 0 ? '✓' : '○'} Build a Tavern · ${taverns.length}</div><div class="objective-row">${suppliedTaverns > 0 ? '✓' : '○'} Keep a Tavern supplied · ${suppliedTaverns}/${taverns.length}</div><div class="objective-row">${services.activeVisitors > 0 ? '✓' : '○'} Serve off-hours visitors · ${services.activeVisitors}</div><div class="objective-row">${needSummary.happiness >= 70 ? '✓' : '○'} Average happiness ≥ 70% · ${needSummary.happiness}%</div>`)
+    this.set('objective', `<div class="objective-row">${breweries.length > 0 ? '✓' : '○'} Build a Brewery · ${breweries.length}</div><div class="objective-row">${s.totals.produced.ale > 0 ? '✓' : '○'} Brew Ale · ${s.totals.produced.ale} produced</div><div class="objective-row">${taverns.length > 0 ? '✓' : '○'} Build a Tavern · ${taverns.length}</div><div class="objective-row">${suppliedTaverns > 0 ? '✓' : '○'} Supply Tavern with Ale · ${suppliedTaverns}/${taverns.length}</div><div class="objective-row">${s.totals.serviceConsumed.ale > 0 ? '✓' : '○'} Serve Ale during recreation · ${s.totals.serviceConsumed.ale} used</div><div class="objective-row">${services.activeVisitors > 0 ? '✓' : '○'} Serve off-hours visitors · ${services.activeVisitors}</div>`)
 
     const a = s.settlers.find(a => a.id === ui.selectedId)
     const b = s.buildings.find(b => b.id === ui.selectedId)
@@ -116,7 +119,7 @@ export class Hud {
       const guardAssignment = assignedGuardPost(s, a)
       const service = serviceAssignment(s, a, phase)
       const serviceText = service ? service.label + ' · +' + service.gainPerSecond + ' recreation/s' : (phase === 'dusk' || phase === 'dawn' ? 'No available service slot' : 'Off hours only')
-      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p><b>Happiness ${happinessOf(a)}%</b><br>Food ${Math.round(a.needs.food)}% · Housing ${Math.round(a.needs.housing)}%<br>Safety ${Math.round(a.needs.safety)}% · Recreation ${Math.round(a.needs.recreation)}%</p><p>Recreation service: ${serviceText}<br>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Last meal: Day ${a.lastMealDay}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p><button data-action="toggle-role">${a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard'}</button>`)
+      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p><b>Happiness ${happinessOf(a)}%</b><br>Food ${Math.round(a.needs.food)}% · Housing ${Math.round(a.needs.housing)}%<br>Safety ${Math.round(a.needs.safety)}% · Recreation ${Math.round(a.needs.recreation)}%</p><p>Recreation service: ${serviceText}<br>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food, ${a.cargo.ale} ale<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Last meal: Day ${a.lastMealDay}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p><button data-action="toggle-role">${a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard'}</button>`)
     } else if (e) {
       const target = s.buildings.find(b => b.id === e.targetId)
       this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
@@ -128,13 +131,21 @@ export class Hud {
         const repairJob = s.jobs.find(j => j.kind === 'repair' && j.targetId === b.id)
         const supplyJob = s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id).reduce((sum, j) => sum + j.amount, 0)
         const service = def.service
+        const production = def.production
         const serviceText = service
           ? service.slots + ' ' + service.need + ' slots · +' + service.gainPerSecond + '/s'
             + (service.supplyResource ? '<br>Pantry: ' + b.inventory[service.supplyResource] + '/' + service.supplyCapacity + ' ' + service.supplyResource + ' · inbound ' + supplyJob : '<br>No operating supplies required')
           : ''
+        const productionText = production
+          ? production.inputAmount + ' ' + production.inputResource + ' → ' + production.outputAmount + ' ' + production.outputResource + ' every ' + production.cycleSeconds + 's'
+            + '<br>Input: ' + b.inventory[production.inputResource] + '/' + production.inputCapacity
+            + ' · Output: ' + b.inventory[production.outputResource] + '/' + production.outputCapacity
+            + '<br>Batch progress: ' + Math.round(b.productionProgress / production.cycleSeconds * 100) + '%'
+          : ''
         const functionText = def.housing ? def.housing + ' beds'
           : def.guardSlots ? def.guardSlots + ' guard slots'
-          : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}`
+          : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Ale ${b.inventory.ale}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}`
+          : production ? productionText
           : service ? serviceText
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'
           : def.fortification ? 'Blocks friendly and hostile movement until destroyed.'
@@ -152,13 +163,13 @@ export class Hud {
 
     this.set('message', escape(ui.message))
     const m = ui.metrics
-    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Fed today</dt><dd>${fedToday}/${s.settlers.length}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Service providers</dt><dd>${services.suppliedProviders}/${services.providers} supplied</dd><dt>Service slots / visitors</dt><dd>${services.slots} / ${services.activeVisitors}</dd><dt>Tavern food used</dt><dd>${s.totals.serviceFoodConsumed}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
+    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Fed today</dt><dd>${fedToday}/${s.settlers.length}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Service providers</dt><dd>${services.suppliedProviders}/${services.providers} supplied</dd><dt>Service slots / visitors</dt><dd>${services.slots} / ${services.activeVisitors}</dd><dt>Food → production</dt><dd>${s.totals.productionConsumed.food}</dd><dt>Ale produced / used</dt><dd>${s.totals.produced.ale} / ${s.totals.serviceConsumed.ale}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
     this.set('workers', '<h3>Settlers</h3>' + s.settlers.map(a => `<div class="worker">${settlerLabel(s, a.id)} · ${a.role === 'guard' ? 'Guard' : 'Worker'} · Happy ${happinessOf(a)}% · ${escape(a.status)}</div>`).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
 
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'
     this.element.querySelector('[data-action="camera"]')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
     ;(this.element.querySelector('[data-action="spawn"]') as HTMLButtonElement).disabled = s.settlers.length >= 10
-    for (const type of ['house', 'stockpile', 'guard-post', 'campfire', 'tavern', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
+    for (const type of ['house', 'stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
     if (document.activeElement !== hour) hour.value = String(Math.floor(s.timeOfDay * 24))

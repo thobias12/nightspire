@@ -202,3 +202,22 @@ M3.1 converts Recreation from a Campfire-specific rule into a generic service-pr
 The existing Campfire regression now uses the same generic service assignment/update path as Tavern. Resource-conservation assertions count both daily meal food and Tavern operating food.
 
 Browser playtest after deployment should build one Campfire and one Tavern, add food to the stockpile, let workers fill the Tavern pantry during Day, then jump to Dusk. Settlers should prefer Tavern slots and show **Visiting Tavern**. Use the QA pantry helper or wait for operation to exhaust Tavern food; when it reaches zero, up to six civilians should fall back to Campfire while excess civilians have no recreation slot. Inspection and QA metrics should show provider supply, active visitors and lifetime Tavern food used.
+
+
+## M3.2 verification target
+
+M3.2 replaces the temporary raw-Food Tavern input with the first real production chain and adds five new regressions on top of the 59-test M3.1 suite, for a target of 64 tests.
+
+Updated M3.1 service tests now use Ale as Tavern supply and verify Ale cargo save/load/conservation. New production coverage verifies:
+
+- Brewery completes **2 Food → 4 Ale** batches only during Day
+- Brewery stops cleanly at its 24-Ale output capacity and resumes after output is removed
+- mid-batch Brewery progress survives save/load and resumes without duplication
+- Ale produced, physically moved and consumed by Tavern balances exactly against the production/service ledgers
+- Tavern no longer operates from raw Food after the M3.2 migration
+
+The end-to-end logistics regression starts with Food in the stockpile and requires workers to supply Brewery input, wait for actual Ale production, haul Ale from Brewery output into stockpile storage, then haul that stored Ale from stockpile to Tavern. The regression explicitly fails if Brewery → Tavern direct hauling occurs.
+
+Save migration coverage removes Ale from an M3.1-shaped save, restores all third-resource fields, converts existing Tavern pantry Food into Ale, initializes production progress/counters, and preserves historical Food-based Tavern consumption.
+
+Browser playtest after deployment: build Brewery + Tavern, keep Food available during Day, watch Food enter Brewery, watch Ale output rise, inspect the Stockpile and confirm Ale is deposited there, then watch workers carry stored Ale from Stockpile into Tavern. At Dusk settlers should use the Tavern while its Ale pantry drains; when it reaches zero they should fall back to Campfire. The top HUD should expose total physical Ale and the QA metrics should show Food consumed by production plus Ale produced/used.
