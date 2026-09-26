@@ -1418,6 +1418,20 @@ export class SceneRenderer {
       windowIndex += 1
     }
 
+    if (plot && profile?.roofFront === 'gable' && (profile.form === 'long-burgage' || seed % 4 === 0)) {
+      const loft = this.rotatedOffset(0, depth / 2 + 0.12, rotation)
+      this.framedWindow(
+        visualB.x + loft.x,
+        wallHeight + 0.38,
+        visualB.z + loft.z,
+        rotation,
+        night * 0.72,
+        0.25,
+        0.28,
+        seed + 17,
+      )
+    }
+
     if (plot && (width > 3 || profile?.form === 'long-burgage')) {
       const side = profile?.sidePassage || (plot.id % 2 === 0 ? 1 : -1)
       const sideWin = this.rotatedOffset(side * (width / 2 + 0.105), profile?.form === 'long-burgage' ? -0.35 : -0.15, rotation)
@@ -1486,33 +1500,56 @@ export class SceneRenderer {
     if (plot && profile?.form === 'wide-deep') {
       const wingSide = -profile.sidePassage
       const wingRotation = rotation + Math.PI / 2
-      const wingWidth = 2.05
-      const wingDepth = 1.55
-      const wing = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.33), -depth * 0.1, rotation)
-      this.instance('stone', visualB.x + wing.x, 0.14, visualB.z + wing.z, wingWidth + 0.12, 0.28, wingDepth + 0.12, 0x67635b, wingRotation)
-      this.instance('plaster', visualB.x + wing.x, 0.82, visualB.z + wing.z, wingWidth, 1.36, wingDepth, plaster, wingRotation)
+      const wingWidth = profile.courtyard === 'u' ? 2.8 : 2.55
+      const wingDepth = 1.82
+      const wing = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.3), -depth * 0.12, rotation)
+      this.instance('stone', visualB.x + wing.x, 0.14, visualB.z + wing.z, wingWidth + 0.14, 0.28, wingDepth + 0.14, 0x67635b, wingRotation)
+      this.instance('plaster', visualB.x + wing.x, 0.9, visualB.z + wing.z, wingWidth, 1.52, wingDepth, plaster, wingRotation)
       this.instance(
         'gableRoofs',
         visualB.x + wing.x,
-        1.48,
+        1.63,
         visualB.z + wing.z,
-        wingWidth + 0.4,
-        0.84,
-        wingDepth + 0.42,
+        wingWidth + 0.44,
+        0.94,
+        wingDepth + 0.46,
         this.readableNightColor(roof, night),
         wingRotation,
       )
-      const wingWindow = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.64), -depth * 0.1, rotation)
+      const wingWindow = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.64), -depth * 0.12, rotation)
       this.framedWindow(
         visualB.x + wingWindow.x,
-        1.0,
+        1.08,
         visualB.z + wingWindow.z,
         rotation + (wingSide > 0 ? Math.PI / 2 : -Math.PI / 2),
         night * 0.82,
-        0.28,
-        0.36,
+        0.3,
+        0.4,
         plot.id + 31,
       )
+
+      if (profile.courtyard === 'u') {
+        const returnSide = -wingSide
+        const returnWidth = 2.15
+        const returnDepth = 1.5
+        const returnWing = this.rotatedOffset(
+          returnSide * (width / 2 + returnDepth * 0.26),
+          -depth * 0.34,
+          rotation,
+        )
+        this.instance('timber', visualB.x + returnWing.x, 0.62, visualB.z + returnWing.z, returnWidth, 1.18, returnDepth, 0x684b36, wingRotation)
+        this.instance(
+          'gableRoofs',
+          visualB.x + returnWing.x,
+          1.16,
+          visualB.z + returnWing.z,
+          returnWidth + 0.38,
+          0.72,
+          returnDepth + 0.38,
+          this.readableNightColor(0x67513e, night),
+          wingRotation,
+        )
+      }
     }
 
     if (plot && plot.depth >= 7.4 && (plot.id % 4 === 0 || profile?.form === 'wide-deep')) {
