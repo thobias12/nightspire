@@ -163,7 +163,7 @@ export class SceneRenderer {
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
     this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.26)
     this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 720, 0.11)
-    this.addBasicBatch('roadJoint', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 240, 0.18)
+    this.addBasicBatch('roadJoint', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 240, 0.12)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.075)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
@@ -516,7 +516,7 @@ export class SceneRenderer {
     for (const junction of junctions.values()) {
       if (junction.roads.size < 2) continue
       const size = junction.width * 0.72
-      this.instance('roadJoint', junction.x, 0.025, junction.z, size, 1, size, 0x62533d, 0)
+      this.instance('roadJoint', junction.x, 0.025, junction.z, size, 1, size, 0x76654b, 0)
     }
   }
 
