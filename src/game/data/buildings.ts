@@ -25,7 +25,7 @@ export interface ProductionDefinition {
 
 export type BuildingId =
   | 'house' | 'stockpile' | 'guard-post' | 'wood-wall' | 'wood-gate'
-  | 'campfire' | 'tavern' | 'brewery'
+  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -44,7 +44,7 @@ export interface BuildingDefinition {
   color: number
 }
 
-const cost = (wood: number): Inventory => ({ wood, food: 0, ale: 0 })
+const cost = (wood: number): Inventory => ({ wood, food: 0, ale: 0, ore: 0, tools: 0 })
 
 export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
   house: {
@@ -107,5 +107,16 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
       cycleSeconds: 12, activePhases: ['day'],
     },
     maxHealth: 210, fortification: false, friendlyPassable: false, color: 0x8b6848,
+  },
+  blacksmith: {
+    id: 'blacksmith', label: 'Blacksmith', footprint: 3, buildCost: cost(45),
+    constructionWork: 18, housing: 0, storage: 0, guardSlots: 0,
+    service: null,
+    production: {
+      inputResource: 'ore', inputAmount: 3, inputCapacity: 18,
+      outputResource: 'tools', outputAmount: 1, outputCapacity: 6,
+      cycleSeconds: 18, activePhases: ['day'],
+    },
+    maxHealth: 240, fortification: false, friendlyPassable: false, color: 0x75685e,
   },
 }
