@@ -1,5 +1,3 @@
-import type { Building } from '../simulation/WorldState'
-
 export interface VisualRoadLink {
   fromId: number
   toId: number
@@ -14,56 +12,6 @@ export interface VisualRoadStrip {
   z: number
   length: number
   angle: number
-}
-
-const roadEligible = (building: Building): boolean =>
-  building.complete
-  && !building.destroyed
-  && building.type !== 'wood-wall'
-  && building.type !== 'wood-gate'
-
-const distanceSquared = (a: Pick<Building, 'x' | 'z'>, b: Pick<Building, 'x' | 'z'>): number => {
-  const dx = a.x - b.x
-  const dz = a.z - b.z
-  return dx * dx + dz * dz
-}
-
-/**
- * Presentation-only deterministic road graph.
- * It deliberately does not affect navigation, jobs, placement or simulation state.
- * A center-near stockpile is preferred as the first anchor, then every remaining
- * completed civic/economy building joins its nearest already-connected neighbor.
- */
-export function visualRoadLinks(buildings: Building[]): VisualRoadLink[] {
-  const eligible = buildings.filter(roadEligible)
-  if (eligible.length < 2) return []
-
-  const stockpiles = eligible.filter(building => building.type === 'stockpile')
-  const anchor = (stockpiles.length ? stockpiles : eligible)
-    .slice()
-    .sort((a, b) => (a.x * a.x + a.z * a.z) - (b.x * b.x + b.z * b.z) || a.id - b.id)[0]
-
-  const remaining = eligible.filter(building => building.id !== anchor.id)
-    .sort((a, b) => distanceSquared(a, anchor) - distanceSquared(b, anchor) || a.id - b.id)
-  const connected = [anchor]
-  const links: VisualRoadLink[] = []
-
-  for (const building of remaining) {
-    const target = connected
-      .slice()
-      .sort((a, b) => distanceSquared(a, building) - distanceSquared(b, building) || a.id - b.id)[0]
-    links.push({
-      fromId: target.id,
-      toId: building.id,
-      ax: target.x,
-      az: target.z,
-      bx: building.x,
-      bz: building.z,
-    })
-    connected.push(building)
-  }
-
-  return links
 }
 
 export function visualRoadStrip(link: VisualRoadLink): VisualRoadStrip {
