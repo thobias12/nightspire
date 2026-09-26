@@ -222,3 +222,14 @@ Severe conditions have one explicit behavioral consequence: settlers below 20% H
 Only hands-on work timers are modified. Walking speed, path solving, guard/player combat, Brewery automatic production, Tavern/Campfire service rates and raid behavior are unchanged. This makes needs strategically meaningful without multiplying unrelated simulation systems.
 
 The consequence rules live in `Happiness.ts`. M3.6 requires narrow integration hooks in `Jobs.ts` and `Simulation.ts`, but deliberately does not change `Navigation.ts`, world/save schema or reservation representation. Keeping the policy in one helper is intended to make later integration with the parallel M4 profiling work straightforward.
+
+
+## M3.7 Tools are durable stockpile infrastructure
+
+M3.7 extends the existing generic ResourceId/Inventory model with **Ore** and **Tools** instead of adding a Blacksmith-specific ledger. Twelve finite Iron Ore deposits spawn around the map perimeter. Ore gathering uses the normal gather job, stockpile reservations and carry capacity. Blacksmith input supply and finished Tool output hauling reuse the same generic production/supply path already proven by Brewery → Ale.
+
+The first Blacksmith recipe is intentionally compact: 3 Ore → 1 Tool every 18 simulated Day seconds, with 18 Ore input capacity and six Tools output capacity. Finished Tools must reach a completed stockpile before they provide a workforce benefit; Tools sitting in Blacksmith output or settler cargo do not count.
+
+Tools are durable in this slice rather than consumed per job. One stockpiled Tool covers two settlers. Coverage interpolates from no bonus to a maximum +10% hands-on work multiplier, applied multiplicatively after the existing Happiness rate. Walking, pathfinding, combat, automated building production and service rates remain unchanged. This creates a visible economic payoff without introducing per-settler equipment ownership or extra reservation traffic before M4 scale work is integrated.
+
+The tool multiplier is derived once per fixed simulation step from stockpile state, not scanned separately per settler. No new job kind or navigation behavior is introduced.
