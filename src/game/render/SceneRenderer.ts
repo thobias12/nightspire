@@ -980,7 +980,7 @@ export class SceneRenderer {
       )
     }
 
-    this.renderVisualRoads(state)
+    this.renderVisualRoads(state.roads)
 
     for (const n of state.nodes) {
       if (n.remaining <= 0) continue
@@ -1043,12 +1043,15 @@ export class SceneRenderer {
     for (const b of state.buildings) {
       const def = BUILDINGS[b.type]
       const hit = this.recentlyHit(b.lastHitTick, state.tick)
-      const rotation = (b.rotation ?? 0) * Math.PI / 2
+      const plot = b.type === 'house' ? state.residentialPlots.find(candidate => candidate.buildingId === b.id) : undefined
+      const rotation = plot?.angle ?? (b.rotation ?? 0) * Math.PI / 2
       const damage = damageVisualStage(b.health, b.maxHealth, b.destroyed)
       const intactColor = this.damagedColor(def.color, damage)
       const baseColor = hit ? 0xff705e : this.readableNightColor(intactColor, night)
 
-      if (b.complete || b.work > 0) {
+      if (plot) this.renderResidentialPlot(plot, b, night)
+
+      if ((b.complete || b.work > 0) && !plot) {
         this.instance(
           'groundWear',
           b.x,
@@ -1088,7 +1091,7 @@ export class SceneRenderer {
         this.renderStockpile(b, rotation, baseColor, night)
       } else if (b.type === 'house') {
         const occupiedNight = occupiedHomes.has(b.id) ? night : night * 0.18
-        this.renderHouse(b, rotation, baseColor, occupiedNight)
+        this.renderHouse(b, rotation, baseColor, occupiedNight, plot)
         if (occupiedHomes.has(b.id)) {
           const houseLight = this.rotatedOffset(0, 1.15, rotation)
           this.warmGroundPool(b.x + houseLight.x, b.z + houseLight.z, 4.15, 0.34, occupiedNight)
@@ -1278,7 +1281,60 @@ export class SceneRenderer {
     }
   }
 
-  worldPoint(clientX: number, clientY: number): Point | null {
+  showRoadGhost(points: Point[], valid: boolean): void {
+    this.ghost.visible = false
+    this.ghostLine.visible = false
+    this.ghostLine.count = 0
+    this.facing.visible = false
+    this.grid.visible = false
+    if (points.length < 2) return
+
+    const color = new THREE.Color(valid ? 0xcaa56c : 0xef6d65)
+    this.ghostLine.visible = true
+    this.ghostLine.count = Math.min(points.length - 1, 120)
+    for (let i = 0; i < this.ghostLine.count; i++) {
+      const a = points[i]
+      const b = points[i + 1]
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const length = Math.max(0.05, Math.hypot(dx, dz))
+      this.matrix.position.set((a.x + b.x) / 2, 0.055, (a.z + b.z) / 2)
+      this.matrix.scale.set(1.7, 0.07, length + 0.3)
+      this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+      this.matrix.updateMatrix()
+      this.ghostLine.setMatrixAt(i, this.matrix.matrix)
+      this.ghostLine.setColorAt(i, color)
+    }
+    this.ghostLine.instanceMatrix.needsUpdate = true
+    if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+  }
+
+  showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean): void {
+    this.ghost.visible = false
+    this.ghostLine.visible = false
+    this.ghostLine.count = 0
+    this.facing.visible = false
+    this.grid.visible = false
+    if (!preview) return
+
+    const color = new THREE.Color(valid ? 0x9bc07b : 0xef6d65)
+    this.ghost.visible = true
+    this.ghost.position.set(preview.center.x, 0.045, preview.center.z)
+    this.ghost.rotation.set(0, preview.angle, 0)
+    this.ghost.scale.set(Math.max(0.1, preview.width), 0.07, Math.max(0.1, preview.depth))
+    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+
+    const frontMid = {
+      x: (preview.frontageA.x + preview.frontageB.x) / 2,
+      z: (preview.frontageA.z + preview.frontageB.z) / 2,
+    }
+    this.facing.visible = true
+    this.facing.position.set(frontMid.x, 0.09, frontMid.z)
+    this.facing.rotation.set(0, preview.angle, 0)
+    this.facing.scale.set(Math.max(0.5, preview.width * 0.75), 0.08, 0.32)
+  }
+
+  worldPointPrecise(clientX: number, clientY: number): Point | null {
     const rect = this.canvas.getBoundingClientRect()
     this.ray.setFromCamera(
       new THREE.Vector2(
@@ -1288,6 +1344,11 @@ export class SceneRenderer {
       this.camera,
     )
     const hit = this.ray.ray.intersectPlane(this.groundPlane, new THREE.Vector3())
+    return hit ? { x: hit.x, z: hit.z } : null
+  }
+
+  worldPoint(clientX: number, clientY: number): Point | null {
+    const hit = this.worldPointPrecise(clientX, clientY)
     return hit ? { x: Math.round(hit.x), z: Math.round(hit.z) } : null
   }
 
