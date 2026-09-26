@@ -24,7 +24,7 @@ export function blockedCells(state: WorldState, hostile = false): Set<number> {
   for (const building of state.buildings) {
     if (building.destroyed) continue
     const def = BUILDINGS[building.type]
-    const blocks = !building.complete || hostile || !def.friendlyPassable
+    const blocks = hostile ? building.complete : (!building.complete || !def.friendlyPassable)
     if (blocks) for (const p of footprint(building)) cells.push(cellKey(p))
   }
   return new Set(cells)
