@@ -118,12 +118,18 @@ The game should never require every background NPC to be hero-quality at all tim
 
 ## Visual direction
 
-Stylized dark fantasy rather than photoreal medieval simulation.
+Nightspire's target is **grounded medieval dark fantasy**: materially believable timber, plaster, stone, mud, smoke, roads, clutter and human-scale architecture, with stylization used to preserve readability and performance rather than to make the settlement feel toy-like.
+
+The world should grow visually from roads, terrain, yards and local activity. Buildings should be recognizable from silhouette and function-specific exterior detail before the player opens the UI. The current visible-grid/primitive look is a prototype constraint, not the long-term aesthetic.
 
 Desired contrast:
 
-**Day:** warm, productive, attractive, prosperous, busy.
+**Day:** warm, productive, attractive, prosperous, busy, green/brown and materially rich.
 
-**Night:** cold moonlight, firelight, fog, magic, panic, large enemy silhouettes and readable defenses.
+**Dusk:** concentrated lantern/fire warmth, visible social activity, lengthening shadows and a clear transition toward danger.
 
-Character art can lean sexy/stylized for clearly adult characters while retaining readable class silhouettes and modular equipment.
+**Night:** cold moonlight, firelight, fog, restrained magic, readable defenses and threatening wilderness silhouettes.
+
+Character art should support cheap background population rendering plus stronger medium/close silhouettes. Adult social and romance-oriented characters are clearly adults and may lean sensual, glamorous or revealing where appropriate to role and venue.
+
+See [DIRECTION_PIVOT.md](DIRECTION_PIVOT.md) for the concrete art/gameplay roadmap, Manor-Lords-inspired reference qualities, organic settlement plan and mature-city direction.
