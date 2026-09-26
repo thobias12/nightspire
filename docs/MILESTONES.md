@@ -240,6 +240,26 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] plot-based housing foundation (persistent lot + existing House simulation)
 - [ ] household grouping
 - [x] visual rear-yard/compound extension foundation (M3.9.0; simulation semantics deferred)
+
+### M3.9.1 — Residential street rhythm
+
+- [x] shared renderer/HUD residential presentation classifier
+- [x] narrow/deep plots classify as **Long burgage cottage** instead of upgrading from depth alone
+- [x] ~6×8 balanced medium plots classify as Homestead compounds
+- [x] wide/shallow plots classify as **Broad-front homestead**
+- [x] wide/deep plots classify as **Burgage courtyard compound**
+- [x] largest lots cap the main façade width and add a perpendicular side wing instead of becoming one huge rectangular house
+- [x] deterministic lateral offsets create small left/right frontage variation inside wider plots
+- [x] deterministic frontage offsets break the perfectly even setback line without changing persisted House coordinates
+- [x] plot form drives 1/2/3-window façade rhythms and door bias
+- [x] long/deep and wide/deep properties preserve a visible side passage
+- [x] side passages receive worn service-lane treatment toward the rear compound
+- [x] cottage/homestead/burgage threshold treatment remains compatible with shared fences
+- [x] inspector uses the same shared profile and reports the exact street form
+- [x] regression coverage for 4×11, 6×8, 9×6 and 10×12 shape cases
+- [ ] live Street-view acceptance across mixed plot shapes
+- [ ] renderer metric sanity check
+
 - [ ] traffic-generated path wear
 - [ ] first local-storage/logistics rules
 
