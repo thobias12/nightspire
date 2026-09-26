@@ -1,7 +1,7 @@
 import { FIXED_STEP } from '../data/jobs'
 import type { BuildingId } from '../data/buildings'
 import { SceneRenderer } from '../render/SceneRenderer'
-import { freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
+import { cancelBuilding, freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
 import { distance } from '../simulation/Navigation'
 import { deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
 import { Simulation } from '../simulation/Simulation'
@@ -73,6 +73,13 @@ export class Game {
           this.buildType = action; this.renderer.mode = 'settlement'
           this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
         case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a worker, resource or building.'; break
+        case 'cancel-blueprint': {
+          if (this.selectedId === null) { this.message = 'Select an unfinished blueprint first.'; break }
+          const error = cancelBuilding(s, this.selectedId)
+          if (error) this.message = error
+          else { this.selectedId = null; this.message = 'Blueprint cancelled. Delivered and carried materials were returned safely.' }
+          break
+        }
         case 'pause': this.paused = !this.paused; this.accumulator = 0; break
         case 'speed': this.speed = Number(value); break
         case 'time': s.timeOfDay = Number(value) / 24; break
