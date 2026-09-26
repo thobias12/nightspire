@@ -409,6 +409,7 @@ export class Simulation {
       if (building.health > 0) building.destroyed = false
       building.lastHitTick = 0
       s.totals.repairedHealth += heal
+      s.totals.repairWoodUsed += woodUsed
       settler.cargo.wood = 0
 
       if (unused > 0) {
