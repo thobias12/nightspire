@@ -2,7 +2,7 @@
 
 A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
 
-**Current playable milestone: M3.4 — Building & Construction UX.** The M3.3 population/economy loop remains intact, while settlement construction is faster and more legible: categorized build controls, 1–8 hotkeys, R rotation, Shift-repeat placement, drag-built wall lines, direct wall→gate conversion, footprint-aware selection, and safe completed-building demolition. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M3.5 — Settlement Visual & Atmosphere Pass.** The M3.4 construction workflow and M3.3 population/economy loop remain intact, while the settlement presentation now gives each core building a distinct silhouette and prop language, staged construction, stronger damage/repair readability, richer ground dressing, Campfire flicker, activity cues, and warm dusk/night settlement lighting against colder exterior moonlight and fog. See [the design](docs/GAME_DESIGN.md) for future direction.
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -59,7 +59,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-six regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-nine regression tests now cover the existing simulation/construction behavior plus M3.5 construction-stage, damage-state and night-atmosphere presentation derivation.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -70,7 +70,7 @@ Browser verification covered gathering and visible cargo, placing three houses a
 - One fixed 20 Hz simulation; shared job decisions at 2 Hz.
 - A shared navigation queue solves at most two grid paths per simulation tick across both settlers and raiders. Friendly and hostile blocker sets differ: completed gates are friendly-passable but hostile-blocking; destroyed fortifications reopen topology.
 - Data definitions own current resources, building costs/capacities/work, and job priorities.
-- Rendering uses instanced graybox workers, cargo, resource nodes, and building parts with shared geometry/materials.
+- Rendering uses shared/instanced geometry for workers, resources, terrain dressing, modular building parts and props; warm light sources are pooled rather than created per structure.
 - No React, external physics, ECS framework, or new runtime dependencies.
 
 ```text
@@ -90,4 +90,4 @@ This is a small playable graybox foundation: six starting / ten maximum settlers
 
 See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.4 improves the construction workflow without changing simulation scale. The population cap intentionally remains 10 while separate M4 scale work is evaluated. Build rotation is persisted and presented visually; current footprints remain square, so rotation primarily controls façade/fortification presentation rather than changing occupied cells.
+M3.5 is a presentation-only pass layered on the M3.4 construction workflow. It does not change simulation scale, saves, navigation, jobs, building costs or behavior. The population cap intentionally remains 10 while separate M4 scale work is evaluated. Current footprints remain square, so rotation controls façade/fortification presentation rather than changing occupied cells.
