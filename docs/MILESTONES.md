@@ -70,7 +70,7 @@
 ## M3 — Needs and production
 
 - [x] food/housing/safety/recreation foundation
-- [ ] blacksmith production
+- [x] blacksmith production
 - [x] tavern service
 - [x] Brewery → Ale → Tavern production chain
 - [x] population attraction/immigration
@@ -91,7 +91,9 @@
 
 **M3.5 verified:** building silhouettes, construction-stage readability, damage/ruin presentation, terrain variation, occupied settlement glow, moonlight/fog, Campfire activity and Brewery production smoke remain renderer-owned and batched.
 
-**M3.6 target:** make the four existing needs affect actual labor without new persisted state. Happiness bands provide +15% / baseline / -10% / -25% / -40% hands-on work rates, while Happiness below 20% or Food below 15% restricts settlers to Food gathering and emergency repairs. Walking speed, combat, production buildings, pathfinding and the population cap remain unchanged.
+**M3.6 verified:** the four existing needs affect actual labor without new persisted state. Happiness bands provide +15% / baseline / -10% / -25% / -40% hands-on work rates, while Happiness below 20% or Food below 15% restricts settlers to Food gathering and emergency repairs. Walking speed, combat, production buildings, pathfinding and the population cap remain unchanged.
+
+**M3.7 target:** add finite Iron Ore deposits, a 45-wood Blacksmith, physical Ore → Blacksmith → Tools → Stockpile logistics, and a durable Tool-coverage benefit. The Blacksmith converts 3 Ore into 1 Tool every 18 Day seconds, holds 18 Ore/6 Tools locally, and one stockpiled Tool covers two settlers. Full coverage adds +10% to hands-on work without consuming Tools.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 
