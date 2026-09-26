@@ -23,6 +23,7 @@ const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttract
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
+const { visualRoadLinks, visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -52,6 +53,32 @@ const makeAttractive = s => {
   assignHousing(s)
   return s
 }
+test('presentation road graph connects completed town buildings without fortifications', () => {
+  const buildings=[
+    createBuilding(1,'stockpile',0,0,true),
+    createBuilding(2,'house',4,0,true),
+    createBuilding(3,'tavern',4,5,true),
+    createBuilding(4,'blacksmith',-5,1,true),
+    createBuilding(5,'wood-wall',2,2,true),
+    createBuilding(6,'house',9,9,false),
+  ]
+  const links=visualRoadLinks(buildings)
+  assert.equal(links.length,3)
+  assert.ok(links.every(link=>link.fromId!==5 && link.toId!==5 && link.fromId!==6 && link.toId!==6))
+  assert.equal(links[0].fromId,1)
+  assert.equal(new Set(links.flatMap(link=>[link.fromId,link.toId])).size,4)
+})
+
+test('presentation road strip geometry is deterministic and does not mutate buildings', () => {
+  const link={fromId:1,toId:2,ax:0,az:0,bx:3,bz:4}
+  const strip=visualRoadStrip(link)
+  assert.equal(strip.x,1.5)
+  assert.equal(strip.z,2)
+  assert.equal(strip.length,5)
+  assert.ok(Math.abs(strip.angle-Math.atan2(3,4))<1e-12)
+  assert.deepEqual(link,{fromId:1,toId:2,ax:0,az:0,bx:3,bz:4})
+})
+
 test('visual atmosphere is bright by day, cold/dense at night and warmest near twilight', () => {
   const noon=atmosphereForTime(12/24)
   const midnight=atmosphereForTime(0)
