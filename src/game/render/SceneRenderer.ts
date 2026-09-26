@@ -154,8 +154,10 @@ export class SceneRenderer {
     this.grid.visible = false
     this.scene.add(this.grid)
 
-    this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 6), 0x354d36, 1000)
-    this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 6), 0x60758a, 1000, 0.2)
+    this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 7), 0x354d36, 1600)
+    this.addBatch('treeTrunk', new THREE.CylinderGeometry(0.14, 0.2, 1, 7), 0x4e3828, 1000)
+    this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 900)
+    this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
     this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 320, 0.34)
@@ -449,6 +451,8 @@ export class SceneRenderer {
       scaffold: 0.34,
       debris: 0.26,
       wood: 0.24,
+      treeTrunk: 0.18,
+      underbrush: 0.14,
       food: 0.16,
     }
     for (const [name, strength] of Object.entries(strengths)) {
@@ -456,6 +460,121 @@ export class SceneRenderer {
       if (!(material instanceof THREE.MeshStandardMaterial)) continue
       material.emissive.setHex(name === 'wood' || name === 'food' ? forest : cool)
       material.emissiveIntensity = night * strength
+    }
+  }
+
+  private renderVisualRoads(state: WorldState): void {
+    for (const link of visualRoadLinks(state.buildings)) {
+      const strip = visualRoadStrip(link)
+      const width = 1.5 + ((link.fromId + link.toId) % 3) * 0.12
+      this.instance('roadBase', strip.x, 0.024, strip.z, width, 1, strip.length + 1.2, TOWN_PALETTE.earth, strip.angle)
+      const normalX = Math.cos(strip.angle) * 0.18
+      const normalZ = -Math.sin(strip.angle) * 0.18
+      this.instance('roadWear', strip.x + normalX, 0.027, strip.z + normalZ, 0.46, 1, strip.length + 0.8, 0x8a7657, strip.angle)
+      this.instance('roadWear', strip.x - normalX, 0.028, strip.z - normalZ, 0.38, 1, strip.length + 0.55, 0x66563f, strip.angle)
+    }
+  }
+
+  private renderYard(b: Building, rotation: number, radius: number, color = 0x66563f): void {
+    const offset = this.rotatedOffset(0, 0.45, rotation)
+    this.instance('yardPatch', b.x + offset.x, 0.022, b.z + offset.z, radius, 1, radius * 0.86, color, rotation + (b.id % 5) * 0.08)
+  }
+
+  private timberFrame(
+    b: Building,
+    rotation: number,
+    width: number,
+    depth: number,
+    wallHeight: number,
+    plasterColor: number,
+    roofColor: number,
+    roofHeight = 1.18,
+  ): void {
+    this.instance('stone', b.x, 0.18, b.z, width + 0.18, 0.36, depth + 0.18, TOWN_PALETTE.stoneDark, rotation)
+    this.instance('plaster', b.x, 0.42 + wallHeight / 2, b.z, width, wallHeight, depth, plasterColor, rotation)
+
+    const halfX = width / 2 + 0.045
+    const halfZ = depth / 2 + 0.045
+    for (const [lx, lz] of [[-halfX, -halfZ], [halfX, -halfZ], [-halfX, halfZ], [halfX, halfZ]] as const) {
+      const o = this.rotatedOffset(lx, lz, rotation)
+      this.instance('timber', b.x + o.x, 0.42 + wallHeight / 2, b.z + o.z, 0.13, wallHeight + 0.12, 0.13, TOWN_PALETTE.timberDark, rotation)
+    }
+
+    for (const y of [0.48, 0.42 + wallHeight]) {
+      this.instance('timber', b.x, y, b.z + this.rotatedOffset(0, halfZ, rotation).z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x, y, b.z + this.rotatedOffset(0, -halfZ, rotation).z, width + 0.16, 0.12, 0.12, TOWN_PALETTE.timberMid, rotation)
+      const left = this.rotatedOffset(-halfX, 0, rotation)
+      const right = this.rotatedOffset(halfX, 0, rotation)
+      this.instance('timber', b.x + left.x, y, b.z + left.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
+      this.instance('timber', b.x + right.x, y, b.z + right.z, 0.12, 0.12, depth + 0.16, TOWN_PALETTE.timberMid, rotation)
+    }
+
+    this.instance('gableRoofs', b.x, 0.42 + wallHeight, b.z, width + 0.62, roofHeight * 2, depth + 0.7, roofColor, rotation)
+    this.instance('timber', b.x, 0.44 + wallHeight + roofHeight, b.z, 0.12, 0.12, depth + 0.76, TOWN_PALETTE.timberDark, rotation)
+  }
+
+  private fenceLine(b: Building, rotation: number, localX: number, localZ: number, length: number, alongX: boolean): void {
+    const center = this.rotatedOffset(localX, localZ, rotation)
+    const segmentRotation = alongX ? rotation : rotation + Math.PI / 2
+    this.instance('timber', b.x + center.x, 0.48, b.z + center.z, length, 0.09, 0.1, 0x604630, segmentRotation)
+    this.instance('timber', b.x + center.x, 0.82, b.z + center.z, length, 0.08, 0.09, 0x604630, segmentRotation)
+    for (const offset of [-length / 2, 0, length / 2]) {
+      const post = this.rotatedOffset(localX + (alongX ? offset : 0), localZ + (alongX ? 0 : offset), rotation)
+      this.instance('timber', b.x + post.x, 0.48, b.z + post.z, 0.11, 0.96, 0.11, 0x4e3828, rotation)
+    }
+  }
+
+  private renderAdultFigure(
+    x: number,
+    z: number,
+    id: number,
+    guard: boolean,
+    time: number,
+    colorOverride?: number,
+    facing = 0,
+  ): void {
+    const femaleSilhouette = id % 2 === 0
+    const skin = id % 3 === 0 ? 0xc89572 : id % 3 === 1 ? 0xdfb08d : 0xb87f61
+    const hair = [0x3d2b22, 0x69452d, 0x2c2725, 0x8b6a3d][id % 4]
+    const cloth = colorOverride ?? [0x705345, 0x6d6251, 0x7b4e50, 0x596452, 0x725f3f][id % 5]
+    const bob = Math.sin(time * 2.1 + id) * 0.012
+
+    if (guard) {
+      this.instance('guardCoat', x, 0.72 + bob, z, 1, 1, 1, 0x65504a, facing)
+      this.instance('metal', x, 1.18 + bob, z, 0.42, 0.17, 0.42, 0x667078, facing)
+    } else if (femaleSilhouette) {
+      this.instance('adultSkirt', x, 0.43 + bob, z, 0.9, 1, 0.9, cloth, facing)
+      this.instance('adultTorso', x, 0.88 + bob, z, 0.9, 0.88, 0.82, cloth, facing)
+    } else {
+      this.instance('adultTorso', x, 0.67 + bob, z, 1, 1.08, 0.92, cloth, facing)
+      this.instance('timber', x - 0.11, 0.24 + bob, z, 0.11, 0.48, 0.12, 0x3d342e, facing)
+      this.instance('timber', x + 0.11, 0.24 + bob, z, 0.11, 0.48, 0.12, 0x3d342e, facing)
+    }
+    this.instance('adultHead', x, 1.28 + bob, z, 1, 1.05, 1, skin, facing)
+    this.instance('adultHair', x, 1.38 + bob, z - 0.035, 1.04, 0.72, 1.04, hair, facing)
+  }
+
+  private renderTavernNightlife(b: Building, rotation: number, time: number, activity: number): void {
+    if (activity < 0.18 || b.inventory.ale <= 0) return
+    const spots = [
+      [-0.78, 2.05, TOWN_PALETTE.clothWine],
+      [0.2, 2.18, 0x6b4b65],
+      [0.9, 1.82, TOWN_PALETTE.clothOchre],
+      [-1.28, 1.45, 0x5a624c],
+    ] as const
+    for (let i = 0; i < spots.length; i++) {
+      const [lx, lz, color] = spots[i]
+      const p = this.rotatedOffset(lx, lz, rotation)
+      const sway = Math.sin(time * (1.5 + i * 0.12) + b.id + i) * 0.04 * activity
+      const facing = rotation + Math.PI + sway
+      if (i < 2) {
+        this.instance('entertainer', b.x + p.x, 0.49, b.z + p.z, 1, 1, 1, color, facing)
+        this.instance('adultTorso', b.x + p.x, 0.9, b.z + p.z, 0.82, 0.78, 0.76, color, facing)
+        this.instance('adultHead', b.x + p.x, 1.29, b.z + p.z, 1, 1.05, 1, i === 0 ? 0xd4a17d : 0xb97f62, facing)
+        this.instance('adultHair', b.x + p.x, 1.39, b.z + p.z - 0.03, 1.08, 0.78, 1.06, i === 0 ? 0x4b2e25 : 0x6a472f, facing)
+      } else {
+        this.renderAdultFigure(b.x + p.x, b.z + p.z, b.id * 10 + i, false, time, color, facing)
+      }
     }
   }
 
