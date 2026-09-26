@@ -55,3 +55,20 @@ Rejected serializing scene objects or maintaining a parallel save model. Migrati
 Node's built-in test runner and existing TypeScript compiler provide regression coverage without extra dependencies. Tests prove conservation across gathering/construction and mid-job reloads, not just individual implementation helpers.
 
 M1 is implemented for review. Day/night remains a lighting clock; work scheduling at dusk, enemies, player combat, repairs and every other M2 feature remain unimplemented.
+
+
+## M1.1 stock targets and work pressure
+
+Routine gathering now works toward player-controlled wood and food stock targets rather than gathering forever until storage fills. Construction demand is additive to those targets, so a zero stock target still permits workers to gather enough material for an active blueprint. Gather reservations are counted as inbound supply and delivery reservations are removed from available stock, keeping the policy compatible with physical hauling.
+
+Targets live in WorldState so save/load and deterministic simulation preserve them. Earlier M1 version-1 saves are migrated in memory by adding the default targets before validation; the save version remains 1 because no existing field changed meaning.
+
+## M1.1 blocked-route backoff
+
+A failed grid path no longer gets recomputed every simulation tick. Navigation gives that settler a 40-tick (two simulated second) retry cooldown. Any topology change clears retry cooldowns immediately, allowing workers to recover as soon as the world becomes reachable again. Jobs and cargo remain owned during a temporary failure; no resources are discarded to solve a navigation problem.
+
+## M1.1 persistence recovery
+
+Manual Save keeps a primary browser-local slot and rotates the previous primary into a backup slot. Loading validates the entire candidate before replacing the live world. Export produces the same validated JSON representation; import validates first, then rotates the prior primary to backup and replaces the world.
+
+This remains intentionally small: there is no autosave cadence, cloud synchronization, arbitrary save-slot manager or broad schema-migration framework yet.
