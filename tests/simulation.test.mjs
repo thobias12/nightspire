@@ -24,6 +24,7 @@ const { updateProduction } = require('../.test-build/game/simulation/Production.
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
+const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
 const {
   backyardForPlot, buildingPlacementPreview, insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
   residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError,
@@ -58,6 +59,46 @@ const makeAttractive = s => {
   assignHousing(s)
   return s
 }
+test('residential presentation keeps a 4x11 lot as a long burgage cottage instead of depth-upgrading it', () => {
+  const plot={id:106,buildingId:107,roadId:1,frontageA:{x:0,z:0},frontageB:{x:4,z:0},depth:11,side:1,angle:0,backyard:'workyard'}
+  const profile=residentialPresentationProfile(plot)
+  assert.equal(profile.tier,'cottage')
+  assert.equal(profile.form,'long-burgage')
+  assert.equal(profile.label,'Long burgage cottage')
+  assert.notEqual(profile.sidePassage,0)
+  assert.ok(profile.houseWidth<=3.05)
+})
+
+test('residential presentation makes a 6x8 plot a balanced homestead', () => {
+  const plot={id:110,buildingId:111,roadId:1,frontageA:{x:0,z:0},frontageB:{x:6,z:0},depth:8,side:1,angle:0,backyard:'garden'}
+  const profile=residentialPresentationProfile(plot)
+  assert.equal(profile.tier,'homestead')
+  assert.equal(profile.form,'balanced')
+  assert.equal(profile.label,'Homestead compound')
+  assert.equal(profile.facadeWindows,2)
+})
+
+test('residential presentation makes a wide shallow lot broad-front rather than oversized burgage', () => {
+  const plot={id:114,buildingId:115,roadId:1,frontageA:{x:0,z:0},frontageB:{x:9,z:0},depth:6,side:1,angle:0,backyard:'firewood'}
+  const profile=residentialPresentationProfile(plot)
+  assert.equal(profile.tier,'homestead')
+  assert.equal(profile.form,'wide-shallow')
+  assert.equal(profile.label,'Broad-front homestead')
+  assert.equal(profile.sidePassage,0)
+  assert.equal(profile.facadeWindows,3)
+})
+
+test('residential presentation breaks a 10x12 lot into a wide-deep burgage courtyard profile', () => {
+  const plot={id:118,buildingId:119,roadId:1,frontageA:{x:0,z:0},frontageB:{x:10,z:0},depth:12,side:1,angle:0,backyard:'garden'}
+  const profile=residentialPresentationProfile(plot)
+  assert.equal(profile.tier,'burgage')
+  assert.equal(profile.form,'wide-deep')
+  assert.equal(profile.label,'Burgage courtyard compound')
+  assert.notEqual(profile.sidePassage,0)
+  assert.ok(profile.houseWidth<5)
+  assert.equal(profile.facadeWindows,3)
+})
+
 test('road endpoints and centerline joins snap exactly and split the host road into a real junction node', () => {
   const roads=[{id:4,width:1.7,points:[{x:-6,z:0},{x:6,z:0}]}]
   assert.deepEqual(snapRoadControlPoint(roads,{x:6.8,z:0.7},{x:2,z:-4},true),{x:6,z:0})
