@@ -484,8 +484,8 @@ export class Game {
           starter.inventory.tools = 3
 
           const plan: Array<[BuildingId, number, number, number]> = [
-            ['house', -7, -3, 1],
-            ['house', 7, -3, 3],
+            ['house', -7, -3, 0],
+            ['house', 7, -3, 0],
             ['house', 0, -8, 0],
             ['tavern', -5, 5, 1],
             ['blacksmith', 5, 5, 3],
@@ -507,6 +507,26 @@ export class Game {
           tavern.inventory.ale = 12
           smith.inventory.ore = 12
           s.buildings.push(...built)
+
+          const mainRoadId = s.nextId++
+          const southRoadId = s.nextId++
+          const lowerRoadId = s.nextId++
+          s.roads.push(
+            { id: mainRoadId, width: 1.7, points: [{ x: -11, z: 0 }, { x: -6, z: 0.2 }, { x: 0, z: 0 }, { x: 6, z: 0.15 }, { x: 11, z: 0 }] },
+            { id: southRoadId, width: 1.7, points: [{ x: 0, z: 0 }, { x: 0.2, z: -2.5 }, { x: 0, z: -5 }] },
+            { id: lowerRoadId, width: 1.65, points: [{ x: -4, z: -5 }, { x: 0, z: -5 }, { x: 4, z: -5 }] },
+          )
+          const houses = built.filter(building => building.type === 'house')
+          const plotSpecs = [
+            { buildingId: houses[0].id, roadId: mainRoadId, frontageA: { x: -9, z: 0 }, frontageB: { x: -5, z: 0 }, depth: 6, side: -1 as const, angle: 0 },
+            { buildingId: houses[1].id, roadId: mainRoadId, frontageA: { x: 5, z: 0 }, frontageB: { x: 9, z: 0 }, depth: 6, side: -1 as const, angle: 0 },
+            { buildingId: houses[2].id, roadId: lowerRoadId, frontageA: { x: -2.25, z: -5 }, frontageB: { x: 2.25, z: -5 }, depth: 6.5, side: -1 as const, angle: 0 },
+          ]
+          for (const spec of plotSpecs) {
+            const plotId = s.nextId++
+            s.residentialPlots.push({ id: plotId, ...spec, backyard: backyardForPlot(plotId, spec.depth) })
+          }
+
           const clearSites = [{x:0,z:0}, ...built.map(building => ({x:building.x,z:building.z}))]
           for (const node of s.nodes) {
             if (clearSites.some(site => Math.hypot(site.x - node.x, site.z - node.z) < 3.1)) node.remaining = 0
@@ -521,7 +541,7 @@ export class Game {
           this.renderer.angle = 0.62
           this.renderer.zoom = 23
           this.selectedId = tavern.id
-          this.message = 'M3.8 Town Center visual target staged. Use Day/Dusk/Night plus V for acceptance views.'
+          this.message = 'M3.8.1 Town Center staged with player-road data and modular residential plots. Use 0 Road / 1 Residential Plot on a fresh run to test the actual tools.'
           break
         }
         case 'camera':
