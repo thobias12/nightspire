@@ -19,19 +19,20 @@ function createGableRoofGeometry(): THREE.BufferGeometry {
      0.5, 0,  0.5,
      0, 0.5,  0.5,
   ])
+
+  // Outward-facing front/back gables and the two roof slopes only.
+  // Deliberately omit the horizontal underside: the old mesh wound every face
+  // inward and left an upward-facing bottom exactly coplanar with the wall top,
+  // which caused the full-roof zoom-dependent z-fighting seen in live videos.
   const indices = [
-    0, 1, 2,
-    5, 4, 3,
-    0, 3, 4, 0, 4, 1,
-    0, 2, 5, 0, 5, 3,
-    1, 4, 5, 1, 5, 2,
+    0, 2, 1, // front gable (-Z)
+    3, 4, 5, // back gable (+Z)
+    0, 3, 5, 0, 5, 2, // left roof slope
+    1, 2, 5, 1, 5, 4, // right roof slope
   ]
   indexed.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
   indexed.setIndex(indices)
 
-  // Split every face so the sharp roof/gable/bottom edges never share interpolated
-  // normals. The old indexed prism smoothed across those edges, creating broad
-  // view-dependent shading bands that shimmered as the camera zoom changed.
   const geometry = indexed.toNonIndexed()
   indexed.dispose()
   geometry.computeVertexNormals()
