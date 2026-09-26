@@ -213,7 +213,7 @@ export class SceneRenderer {
           this.instance('campfireFire', b.x, 0.55, b.z, 1, 1, 1, hit ? 0xff705e : undefined)
         }
       } else {
-        const completeHeight = b.type === 'house' ? 2.3 : b.type === 'guard-post' ? 1.6 : 0.5
+        const completeHeight = b.type === 'house' ? 2.3 : b.type === 'guard-post' ? 1.6 : b.type === 'tavern' ? 2.05 : 0.5
         const height = b.complete ? completeHeight : 0.25 + b.work / def.constructionWork * 1.5
         this.instance('buildings', b.x, height / 2, b.z, 2.8, height, 2.8, baseColor)
         this.instance('doors', b.x, 0.05, b.z + 2, 0.65, 0.06, 0.65)
@@ -224,10 +224,14 @@ export class SceneRenderer {
         if (b.complete && b.type === 'guard-post') {
           this.instance('roofs', b.x, 2.15, b.z, 1.8, 0.8, 1.8, hit ? 0xff705e : 0x493a31, Math.PI / 4)
         }
+        if (b.complete && b.type === 'tavern') {
+          this.instance('roofs', b.x, 2.72, b.z, 2.35, 1.0, 2.35, hit ? 0xff705e : 0x654633, Math.PI / 4)
+          this.instance('doors', b.x + 1.1, 1.25, b.z + 1.55, 0.16, 1.45, 0.16, 0xd6a756)
+        }
       }
 
       if (b.complete && (b.health < b.maxHealth || b.id === selectedId)) {
-        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.7 : b.type === 'campfire' ? 1.15 : 2.6
+        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.7 : b.type === 'tavern' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.6
         this.healthBar(b.x, barY, b.z, b.health, b.maxHealth, def.fortification ? 1.1 : 2.2)
       }
 
@@ -296,7 +300,7 @@ export class SceneRenderer {
     if (!type || !p) return
 
     const def = BUILDINGS[type]
-    const height = def.fortification ? (type === 'wood-gate' ? 1.8 : 1.35) : 0.7
+    const height = def.fortification ? (type === 'wood-gate' ? 1.8 : 1.35) : type === 'tavern' ? 2.05 : 0.7
     this.ghost.position.set(p.x, height / 2, p.z)
     this.ghost.scale.set(def.footprint, height, def.footprint)
     ;(this.ghost.material as THREE.MeshBasicMaterial).color.set(valid ? 0x82d6a4 : 0xed7474)

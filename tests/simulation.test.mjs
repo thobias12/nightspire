@@ -12,7 +12,8 @@ const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
 const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
-const { happinessOf, recreationAssignment, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
+const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
+const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -22,7 +23,7 @@ const advance = (sim, seconds) => {
 }
 const total = (s, r) => s.nodes.filter(n => n.resource === r).reduce((v,n) => v+n.remaining,0) +
   s.buildings.reduce((v,b) => v+b.inventory[r]+b.delivered[r],0) + s.settlers.reduce((v,a) => v+a.cargo[r],0)
-const accountedTotal = (s, r) => total(s,r) + (r === 'wood' ? s.totals.repairWoodUsed : s.totals.foodConsumed)
+const accountedTotal = (s, r) => total(s,r) + (r === 'wood' ? s.totals.repairWoodUsed : s.totals.foodConsumed + s.totals.serviceFoodConsumed)
 const pop10 = s => { while(spawnSettler(s)) {} }
 test('ten settlers gather both resources, carry, deposit, supply three houses and a stockpile', () => {
   const s = createInitialWorldState(); pop10(s)
@@ -668,14 +669,14 @@ test('one campfire serves six workers and restores recreation during off-hours',
   const s=createInitialWorldState(); pop10(s)
   const fire=createBuilding(s.nextId++,'campfire',7,0,true)
   s.buildings.push(fire); s.topology++
-  const assigned=s.settlers.filter(a=>recreationAssignment(s,a)!==null)
+  const assigned=s.settlers.filter(a=>serviceAssignment(s,a,'dusk')!==null)
   assert.equal(assigned.length,6)
-  const settler=assigned[0], assignment=recreationAssignment(s,settler)
+  const settler=assigned[0], assignment=serviceAssignment(s,settler,'dusk')
   settler.x=assignment.target.x; settler.z=assignment.target.z
   settler.needs.recreation=20
-  updateNeeds(s,5,'dusk')
-  assert.ok(settler.needs.recreation>35)
-  assert.equal(recreationAssignment(s,s.settlers[9]),null)
+  updateServices(s,5,'dusk')
+  assert.ok(settler.needs.recreation>=40)
+  assert.equal(serviceAssignment(s,s.settlers[9],'dusk'),null)
   validateWorld(s)
 })
 
@@ -778,6 +779,140 @@ test('off-hours phase changes discard stale campfire routes before sheltering', 
   sim.setTimeOfDay(21/24)
   assert.deepEqual(worker.path,[])
   assert.equal(worker.pathRevision,-1)
+})
+
+test('supplied Tavern outranks Campfire and exposes the stronger service to all ten settlers', () => {
+  const s=createInitialWorldState(); pop10(s)
+  const fire=createBuilding(s.nextId++,'campfire',-7,0,true)
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  tavern.inventory.food=12
+  s.buildings.push(fire,tavern); s.topology++
+  const assignments=serviceAssignments(s,'dusk')
+  assert.equal(assignments.size,10)
+  assert.ok([...assignments.values()].every(a=>a.buildingId===tavern.id && a.label==='Tavern' && a.gainPerSecond===8))
+  const summary=serviceSummary(s,'dusk')
+  assert.equal(summary.providers,2)
+  assert.equal(summary.suppliedProviders,2)
+  assert.equal(summary.slots,18)
+  validateWorld(s)
+})
+
+test('dry Tavern stops serving and settlers fall back to Campfire capacity', () => {
+  const s=createInitialWorldState(); pop10(s)
+  const fire=createBuilding(s.nextId++,'campfire',-7,0,true)
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  s.buildings.push(fire,tavern); s.topology++
+  assert.equal(serviceAvailable(tavern),false)
+  const assignments=serviceAssignments(s,'dusk')
+  assert.equal(assignments.size,6)
+  assert.ok([...assignments.values()].every(a=>a.buildingId===fire.id && a.label==='Campfire'))
+  assert.equal(serviceSummary(s,'dusk').suppliedProviders,1)
+  validateWorld(s)
+})
+
+test('day workers physically fill a Tavern pantry without exceeding its capacity', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) settler.lastMealDay=s.day
+  s.buildings[0].inventory.food=20
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  s.buildings.push(tavern); s.topology++
+  const initialFood=accountedTotal(s,'food')
+  const sim=new Simulation(s)
+  let sawSupply=false
+  for(let i=0;i<2500 && tavern.inventory.food<12;i++) {
+    sim.step()
+    if(s.jobs.some(j=>j.kind==='supply' && j.targetId===tavern.id)) sawSupply=true
+    if(i%100===0) validateWorld(s)
+  }
+  assert.equal(sawSupply,true)
+  assert.equal(tavern.inventory.food,12)
+  assert.ok(tavern.inventory.food<=12)
+  assert.equal(accountedTotal(s,'food'),initialFood)
+  validateWorld(s)
+})
+
+test('service supply cargo survives save load and resumes without duplication', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) settler.lastMealDay=s.day
+  s.buildings[0].inventory.food=20
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  s.buildings.push(tavern); s.topology++
+  const sim=new Simulation(s)
+  let found=false
+  for(let i=0;i<1200;i++) {
+    sim.step()
+    if(s.jobs.some(j=>j.kind==='supply' && j.stage==='target')) { found=true; break }
+  }
+  assert.equal(found,true)
+  const before=accountedTotal(s,'food')
+  const loaded=deserializeWorld(serializeWorld(s))
+  const resumed=new Simulation(loaded)
+  for(let i=0;i<1500 && loaded.buildings.find(b=>b.id===tavern.id).inventory.food<12;i++) resumed.step()
+  assert.equal(loaded.buildings.find(b=>b.id===tavern.id).inventory.food,12)
+  assert.equal(accountedTotal(loaded,'food'),before)
+  validateWorld(loaded)
+})
+
+test('Tavern food drains only while a visitor is actually using the service', () => {
+  const s=createInitialWorldState()
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  tavern.inventory.food=2
+  s.buildings.push(tavern); s.topology++
+  const settler=s.settlers[0]
+  const assignment=serviceAssignment(s,settler,'dusk')
+  settler.x=assignment.target.x; settler.z=assignment.target.z
+  const before=settler.needs.recreation
+  updateServices(s,14,'dusk')
+  assert.equal(tavern.inventory.food,2)
+  assert.equal(s.totals.serviceFoodConsumed,0)
+  assert.ok(settler.needs.recreation>before)
+  updateServices(s,1,'dusk')
+  assert.equal(tavern.inventory.food,1)
+  assert.equal(s.totals.serviceFoodConsumed,1)
+  updateServices(s,30,'day')
+  assert.equal(tavern.inventory.food,1)
+  assert.equal(s.totals.serviceFoodConsumed,1)
+  validateWorld(s)
+})
+
+test('Tavern recreation is stronger and automatically falls back to Campfire when supplies run out', () => {
+  const s=createInitialWorldState()
+  const fire=createBuilding(s.nextId++,'campfire',-7,0,true)
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  tavern.inventory.food=1
+  s.buildings.push(fire,tavern); s.topology++
+  const settler=s.settlers[0]
+  settler.needs.recreation=10
+  const tavernAssignment=serviceAssignment(s,settler,'dusk')
+  assert.equal(tavernAssignment.label,'Tavern')
+  settler.x=tavernAssignment.target.x; settler.z=tavernAssignment.target.z
+  updateServices(s,5,'dusk')
+  assert.ok(settler.needs.recreation>=50)
+  updateServices(s,10,'dusk')
+  assert.equal(tavern.inventory.food,0)
+  const fallback=serviceAssignment(s,settler,'dusk')
+  assert.equal(fallback.label,'Campfire')
+  assert.equal(fallback.buildingId,fire.id)
+  validateWorld(s)
+})
+
+test('M3.0 saves migrate service progress and Tavern food accounting', () => {
+  const s=createInitialWorldState()
+  const legacy=JSON.parse(serializeWorld(s))
+  for(const b of legacy.buildings) delete b.serviceProgress
+  delete legacy.totals.serviceFoodConsumed
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(loaded.buildings.every(b=>b.serviceProgress===0))
+  assert.equal(loaded.totals.serviceFoodConsumed,0)
+  validateWorld(loaded)
+})
+
+test('service pantry capacity is validated and cannot be overfilled', () => {
+  const s=createInitialWorldState()
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  tavern.inventory.food=13
+  s.buildings.push(tavern); s.topology++
+  assert.throws(()=>serializeWorld(s),/service supply capacity/)
 })
 
 test('invalid and incompatible saves are rejected without touching current state', () => {

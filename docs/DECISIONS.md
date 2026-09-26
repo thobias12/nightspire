@@ -130,10 +130,25 @@ Presentation remains cheap and reconstructable: instanced graybox fortifications
 
 Each settler persists four bounded 0–100 need values: Food, Housing, Safety and Recreation. Happiness is derived as their simple mean instead of being stored separately, avoiding a second value that could drift from its inputs. Older version-1 saves migrate default need values, the current day as the last-meal day, and a zero lifetime food-consumed counter.
 
-Food is a physical economy sink. At the Day transition (06:00), each settler who has not eaten that settlement day consumes one available food unit from a real stockpile. Successful meals restore Food to 100; shortages apply an additional Food penalty and emit one aggregate event. Lifetime food consumption is tracked so conservation tests can account for eaten resources instead of treating them as lost.
+Food is a physical economy sink. From the Day transition (06:00) onward, each settler who has not eaten that settlement day consumes one available food unit from a real stockpile as soon as food is available. Successful meals restore Food to 100; a shortage leaves the settler due so later deliveries can still feed them. Lifetime food consumption is tracked so conservation tests can account for eaten resources instead of treating them as lost.
 
 Housing follows the actual bed assignment and trends toward 100 when housed or 20 when unhoused. Safety trends toward a settlement-wide target derived from active raids, living guards, intact fortifications, damaged structures and whether the latest raid was cleared. These values move gradually on the fixed simulation step; they are not recomputed display-only scores.
 
 Recreation decays over time and is restored only by an actual service slot. M3.0 introduces a 10-wood Campfire with six recreation slots. Non-guard settlers deterministically receive available Campfire slots and route there at Dusk/Dawn; recreation only rises when the settler physically reaches the assigned service point. This provides a small service-capacity proof that M3.1 Tavern behavior can extend rather than replace.
 
 No immigration, production bonus/penalty, starvation damage, Tavern, alcohol, or long-term happiness consequence is introduced in M3.0. The purpose is to prove persistence, resource consumption, service capacity and readable feedback first.
+
+
+## M3.1 services are data-driven providers with physical supplies
+
+Campfire recreation is no longer a one-off special case. Building definitions may expose a service record containing the need served, slot count, gain rate, priority, active phases, optional supply resource/capacity and operating drain interval. The first two providers both serve Recreation at Dusk/Dawn: Campfire offers six free slots at +4 Recreation/second, while Tavern offers twelve higher-priority slots at +8/second.
+
+Slot assignment is deterministic and stable by settler ID. Providers are ordered by service priority and building ID; reachable perimeter points are used as physical visitor positions. The initial implementation intentionally does not reshuffle visitors based on changing need values because that would cause route churn as Recreation rises. Smarter queue/fairness policy can be layered on later.
+
+A supplied service is available only while its local pantry contains the configured resource. Tavern has a 12-food pantry. Supply is a normal Day job: workers reserve food in a real stockpile, physically pick it up, carry it to the Tavern and deposit it without creating a parallel inventory system. Service demand is included in gathering pressure, so a pantry can refill even when the ordinary stock target is low.
+
+Tavern operating food is consumed only while at least one assigned visitor is physically at a Tavern service point. One food is consumed per 15 simulated seconds of active operation, independent of visitor count in this first tuning pass. When the pantry reaches zero the Tavern immediately becomes unavailable; stable assignment then falls back to lower-priority Campfire slots. Lifetime Tavern food consumption is tracked separately from daily meals so material conservation remains auditable.
+
+Building inventory remains the single physical location for both stockpile resources and service pantry stock. Validation applies normal shared-storage capacity to stockpiles and service-specific supply capacity to non-storage service buildings. Service operating progress is persisted and older version-1 saves migrate it to zero.
+
+M3.1 deliberately does not add Ale, Brewery production, money, staffing, opening-hour wages, immigration or happiness effects. Tavern uses Food as a temporary operating input solely to prove the generic supplied-service/logistics architecture. M3.2 should replace that placeholder input with a real Brewery → Ale → Tavern production chain.

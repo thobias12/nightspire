@@ -1,6 +1,7 @@
 export const JOBS = {
   gather: { label: 'Gather', priority: 1 },
   deliver: { label: 'Deliver materials', priority: 3 },
+  supply: { label: 'Supply service', priority: 3 },
   construct: { label: 'Construct', priority: 2 },
   repair: { label: 'Repair structure', priority: 4 },
 } as const

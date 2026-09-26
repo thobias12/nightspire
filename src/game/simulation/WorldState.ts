@@ -11,7 +11,7 @@ export interface ResourceNode extends Point { id: number; resource: ResourceId; 
 export interface Building extends Point {
   id: number; type: BuildingId; complete: boolean; work: number
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
-  inventory: Inventory; delivered: Inventory
+  inventory: Inventory; delivered: Inventory; serviceProgress: number
 }
 export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
 export type NeedLevels = Record<NeedId, number>
@@ -43,7 +43,8 @@ export interface WorldState {
   targets: Inventory; raid: RaidState
   totals: {
     gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
-    repairedHealth: number; repairWoodUsed: number; structureDamage: number; foodConsumed: number
+    repairedHealth: number; repairWoodUsed: number; structureDamage: number
+    foodConsumed: number; serviceFoodConsumed: number
   }
   events: string[]
 }
@@ -87,6 +88,7 @@ export function createBuilding(id: number, type: BuildingId, x: number, z: numbe
     lastHitTick: 0,
     inventory: emptyInventory(),
     delivered: complete ? { ...def.buildCost } : emptyInventory(),
+    serviceProgress: 0,
   }
 }
 export function createInitialWorldState(): WorldState {
@@ -97,7 +99,8 @@ export function createInitialWorldState(): WorldState {
     targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID },
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
-      constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0, foodConsumed: 0,
+      constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0,
+      foodConsumed: 0, serviceFoodConsumed: 0,
     },
     events: ['A new camp. Gather wood, then build homes for your settlers.'],
   }

@@ -71,12 +71,14 @@
 
 - [x] food/housing/safety/recreation foundation
 - [ ] blacksmith production
-- [ ] tavern service
+- [x] tavern service
 - [ ] population attraction/immigration
 - [ ] happiness consequences
 - [ ] better logistics/resource reservations
 
-**M3.0 target:** food consumption, bed-backed Housing, defense-backed Safety, capacity-limited Campfire Recreation, persisted per-settler needs and derived Happiness. Immigration and production consequences remain later M3 slices.
+**M3.0 verified:** food consumption, bed-backed Housing, defense-backed Safety, capacity-limited Campfire Recreation, persisted per-settler needs and derived Happiness.
+
+**M3.1 target:** reusable service-provider definitions, stable slot assignment, supplied Tavern operation, physical daytime pantry hauling, stronger Tavern recreation, dry-Tavern fallback to Campfires, save migration and conservation accounting. Brewery/Ale, immigration and happiness consequences remain later M3 slices.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 
