@@ -1,13 +1,20 @@
-import { MAP_MAX, MAP_MIN, blockedCells, cellKey, entrance, inBounds } from './Navigation'
-import type { Enemy, Point, WorldState } from './WorldState'
+import { BUILDINGS } from '../data/buildings'
+import {
+  MAP_MAX, MAP_MIN, blockedCells, cellKey, closestInteractionPoint,
+  distance, inBounds,
+} from './Navigation'
+import type { Building, Enemy, Point, WorldState } from './WorldState'
 
 export const RAID_SIZE = 12
 export const ENEMY_WALK_SPEED = 1.65
 
 const OFFSETS = [-18, -15, -12, -9, -6, -3, 3, 6, 9, 12, 15, 18]
 
-function raidTargetId(state: WorldState): number {
-  return (state.buildings.find(b => b.complete && b.type === 'stockpile') ?? state.buildings.find(b => b.complete))!.id
+function initialTargetId(state: WorldState): number {
+  return (
+    state.buildings.find(b => b.complete && !b.destroyed && b.type === 'stockpile')
+    ?? state.buildings.find(b => b.complete && !b.destroyed)
+  )!.id
 }
 
 function rawSpawn(side: number, offset: number): Point {
@@ -18,7 +25,7 @@ function rawSpawn(side: number, offset: number): Point {
 }
 
 function safeSpawn(state: WorldState, side: number, offset: number): Point {
-  const blocked = blockedCells(state)
+  const blocked = blockedCells(state, true)
   const start = rawSpawn(side, offset)
   if (inBounds(start) && !blocked.has(cellKey(start))) return start
 
@@ -34,17 +41,19 @@ function safeSpawn(state: WorldState, side: number, offset: number): Point {
 
 export function spawnNightRaid(state: WorldState): number {
   if (state.enemies.length > 0 || state.raid.lastSpawnDay === state.day) return 0
-  const targetId = raidTargetId(state)
+  const targetId = initialTargetId(state)
   const side = state.raid.wave % 4
+
   const spawned: Enemy[] = OFFSETS.map(offset => {
     const p = safeSpawn(state, side, offset)
     return {
       id: state.nextId++, kind: 'raider' as const, targetId,
-      health: 40, maxHealth: 40, attackCooldown: 0,
+      health: 40, maxHealth: 40, attackCooldown: 0, lastHitTick: 0,
       x: p.x, z: p.z, path: [], pathRevision: -1,
       status: 'Entering from the wilds',
     }
   })
+
   state.enemies.push(...spawned)
   state.raid.lastSpawnDay = state.day
   state.raid.wave++
@@ -58,9 +67,27 @@ export function retreatRaid(state: WorldState): number {
   return count
 }
 
+export function enemyTargetBuilding(state: WorldState, enemy: Enemy): Building | null {
+  const candidates = state.buildings.filter(b => {
+    if (!b.complete || b.destroyed) return false
+    const def = BUILDINGS[b.type]
+    return def.fortification ? b.health > 0 : b.health > 1
+  })
+  if (candidates.length === 0) return null
+
+  candidates.sort((a, b) => {
+    const da = distance(enemy, a) - (BUILDINGS[a.type].fortification ? 0.75 : 0)
+    const db = distance(enemy, b) - (BUILDINGS[b.type].fortification ? 0.75 : 0)
+    return da - db || a.id - b.id
+  })
+
+  const target = candidates[0]
+  enemy.targetId = target.id
+  return target
+}
+
 export function enemyTarget(state: WorldState, enemy: Enemy): Point {
-  const target = state.buildings.find(b => b.id === enemy.targetId && b.complete)
-    ?? state.buildings.find(b => b.complete && b.type === 'stockpile')
-    ?? state.buildings.find(b => b.complete)
-  return target ? entrance(target) : { x: 0, z: 2 }
+  const target = enemyTargetBuilding(state, enemy)
+  if (!target) return { x: 0, z: 2 }
+  return closestInteractionPoint(target, enemy, blockedCells(state, true))
 }

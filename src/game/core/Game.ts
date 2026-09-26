@@ -1,7 +1,8 @@
 import { FIXED_STEP } from '../data/jobs'
 import type { BuildingId } from '../data/buildings'
 import { SceneRenderer } from '../render/SceneRenderer'
-import { cancelBuilding, freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
+import { assignHousing, cancelBuilding, freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
+import { damageBuilding } from '../simulation/Combat'
 import { distance } from '../simulation/Navigation'
 import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
 import { Simulation } from '../simulation/Simulation'
@@ -21,7 +22,7 @@ export class Game {
   private pointer: Point | null = null
   private paused = false
   private speed = 1
-  private message = 'Assign guards, jump to Night, switch to Follow player and press Space near a raider to attack.'
+  private message = 'Fortify the camp with walls and a gate, then survive the raid and repair the damage after dawn.'
   private animationFrame = 0
   private lastTime = 0
   private accumulator = 0
@@ -85,7 +86,7 @@ export class Game {
     const s = this.simulation.state
     try {
       switch (action) {
-        case 'house': case 'stockpile': case 'guard-post':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate':
           this.buildType = action; this.renderer.mode = 'settlement'
           this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
         case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a settler, raider, resource or building.'; break
@@ -121,7 +122,7 @@ export class Game {
           this.simulation.setTimeOfDay(12 / 24)
           if (s.raid.lastSpawnDay === s.day) s.day++
           this.simulation.setTimeOfDay(21 / 24)
-          this.message = 'Advanced to raid wave ' + s.raid.wave + '. Guards will intercept nearby raiders; Space performs player melee.'
+          this.message = 'Advanced to raid wave ' + s.raid.wave + '. Raiders now attack walls, gates, and exposed structures.'
           break
         }
         case 'target-wood': case 'target-food': {
@@ -132,8 +133,18 @@ export class Game {
           this.message = resource[0].toUpperCase() + resource.slice(1) + ' stock target set to ' + target + '.'
           break
         }
+        case 'damage-selected': {
+          const building = s.buildings.find(b => b.id === this.selectedId && b.complete)
+          if (!building) { this.message = 'Select a completed structure first.'; break }
+          const destroyed = damageBuilding(s, building, 60)
+          assignHousing(s)
+          this.message = destroyed
+            ? 'QA destroyed the selected fortification. Daylight repair can rebuild it.'
+            : 'QA dealt 60 structure damage. Daylight workers will repair it with wood.'
+          break
+        }
         case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.2 maximum remains 10 settlers.'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.3 maximum remains 10 settlers.'; break
         case 'resources': {
           let added = 0
           for (const resource of ['wood', 'food'] as const) {
@@ -178,7 +189,7 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: jobs, cargo, roles, raid state, reservations, housing and connectivity.'; break
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: jobs, repairs, structure HP, raid state, reservations, housing and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()

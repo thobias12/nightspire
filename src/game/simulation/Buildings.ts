@@ -1,35 +1,56 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
-import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds } from './Navigation'
-import { recordEvent, type Building, type Point, type WorldState } from './WorldState'
+import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
+import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
 
-export const stockpiles = (s: WorldState): Building[] => s.buildings.filter(b => b.complete && BUILDINGS[b.type].storage > 0)
+export const stockpiles = (s: WorldState): Building[] =>
+  s.buildings.filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].storage > 0)
+
 export const reserved = (s: WorldState, id: number, resource: ResourceId): number =>
-  s.jobs.filter(j => j.kind === 'deliver' && j.sourceId === id && j.stage === 'source' && j.resource === resource).reduce((n, j) => n + j.amount, 0)
-export const available = (s: WorldState, b: Building, resource: ResourceId): number => b.inventory[resource] - reserved(s, b.id, resource)
+  s.jobs
+    .filter(j => (j.kind === 'deliver' || j.kind === 'repair') && j.sourceId === id && j.stage === 'source' && j.resource === resource)
+    .reduce((n, j) => n + j.amount, 0)
+
+export const available = (s: WorldState, b: Building, resource: ResourceId): number =>
+  b.inventory[resource] - reserved(s, b.id, resource)
+
 export function freeStorage(s: WorldState, b: Building): number {
   const incoming = s.jobs.filter(j => j.kind === 'gather' && j.targetId === b.id).reduce((n, j) => n + j.amount, 0)
   return BUILDINGS[b.type].storage - b.inventory.wood - b.inventory.food - incoming
 }
+
 export function placementError(s: WorldState, type: BuildingId, p: Point): string | null {
   if (!Number.isInteger(p.x) || !Number.isInteger(p.z)) return 'Place on the grid.'
-  if (s.buildings.length >= 80) return 'M1 building limit reached (80).'
-  const cells = footprint({ ...p, type }), blocked = blockedCells(s)
-  if (cells.some(c => !inBounds(c)) || !inBounds({ x: p.x, z: p.z + 2 })) return 'Outside the camp boundary.'
-  if (cells.some(c => blocked.has(cellKey(c)))) return 'Overlaps a building.'
-  const occupied = new Set(cells.map(cellKey))
-  if (s.nodes.some(n => n.remaining > 0 && occupied.has(cellKey(n)))) return 'Clear the resources first.'
+  if (s.buildings.length >= 120) return 'M2 building limit reached (120).'
+
+  const cells = footprint({ ...p, type })
+  if (cells.some(c => !inBounds(c))) return 'Outside the camp boundary.'
+
+  const occupied = occupiedCells(s)
+  if (cells.some(c => occupied.has(cellKey(c)))) return 'Overlaps a building or ruin.'
+
+  const proposed = new Set(cells.map(cellKey))
+  if (s.nodes.some(n => n.remaining > 0 && proposed.has(cellKey(n)))) return 'Clear the resources first.'
   if ([s.player, ...s.settlers, ...s.enemies].some(a => cells.some(c => distance(a, c) < 1.05))) return 'Someone is standing here.'
-  for (const c of cells) blocked.add(cellKey(c))
-  const reachable = flood({ x: 0, z: 2 }, blocked)
-  const required = [...s.buildings.map(entrance), { x: p.x, z: p.z + 2 }, s.player, ...s.settlers, ...s.enemies, ...s.nodes.filter(n => n.remaining > 0)]
-  if (required.some(a => !reachable.has(cellKey(a)))) return 'Keep entrances and gathering routes connected.'
+
+  const friendlyBlocked = blockedCells(s, false)
+  if (!BUILDINGS[type].friendlyPassable) for (const c of cells) friendlyBlocked.add(cellKey(c))
+  const reachable = flood({ x: 0, z: 2 }, friendlyBlocked)
+  const interaction = { x: p.x, z: p.z + Math.floor(BUILDINGS[type].footprint / 2) + 1 }
+  const required = [
+    ...s.buildings.filter(b => !b.destroyed).map(entrance),
+    interaction, s.player, ...s.settlers, ...s.nodes.filter(n => n.remaining > 0),
+  ]
+  if (required.some(a => !reachable.has(cellKey(a)))) return 'Keep friendly routes connected; use a gate in closed walls.'
   return null
 }
+
 export function placeBuilding(s: WorldState, type: BuildingId, p: Point): string | null {
   const error = placementError(s, type, p)
   if (error) return error
-  s.buildings.push({ id: s.nextId++, type, ...p, complete: false, work: 0, inventory: emptyInventory(), delivered: emptyInventory() })
+
+  const building = createBuilding(s.nextId++, type, p.x, p.z, false)
+  s.buildings.push(building)
   s.topology++
   recordEvent(s, BUILDINGS[type].label + ' planned. Settlers will deliver materials.')
   return null
@@ -45,7 +66,7 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
   const refunds = emptyInventory()
   for (const resource of RESOURCE_IDS) refunds[resource] = building.delivered[resource]
   for (const job of affected) {
-    if (job.kind === 'deliver' && job.stage === 'target') refunds[job.resource] += job.amount
+    if ((job.kind === 'deliver' || job.kind === 'repair') && job.stage === 'target') refunds[job.resource] += job.amount
   }
 
   const stores = stockpiles(s)
@@ -69,12 +90,13 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
   for (const job of affected) {
     const settler = s.settlers.find(a => a.id === job.settlerId)
     if (!settler) continue
-    if (job.kind === 'deliver' && job.stage === 'target') settler.cargo[job.resource] = 0
+    if ((job.kind === 'deliver' || job.kind === 'repair') && job.stage === 'target') settler.cargo[job.resource] = 0
     settler.jobId = null
     settler.path = []
     settler.pathRevision = -1
     settler.status = 'Needs work'
   }
+
   s.jobs = s.jobs.filter(job => !affectedIds.has(job.id))
   for (const refund of plan) refund.store.inventory[refund.resource] += refund.amount
   s.buildings.splice(index, 1)
@@ -84,8 +106,14 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
 }
 
 export function assignHousing(s: WorldState): void {
-  const beds = s.buildings.filter(b => b.complete && BUILDINGS[b.type].housing > 0)
+  const beds = s.buildings
+    .filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].housing > 0)
     .flatMap(b => Array<number>(BUILDINGS[b.type].housing).fill(b.id))
   s.settlers.forEach((settler, i) => { settler.homeId = beds[i] ?? null })
 }
-export const readyToBuild = (b: Building): boolean => RESOURCE_IDS.every(r => b.delivered[r] >= BUILDINGS[b.type].buildCost[r])
+
+export const readyToBuild = (b: Building): boolean =>
+  RESOURCE_IDS.every(r => b.delivered[r] >= BUILDINGS[b.type].buildCost[r])
+
+export const needsRepair = (b: Building): boolean =>
+  b.complete && b.health < b.maxHealth
