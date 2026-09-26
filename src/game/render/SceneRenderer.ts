@@ -7,6 +7,29 @@ import { atmosphereForTime, constructionVisualStage, damageVisualStage, type Dam
 
 export type CameraMode = 'settlement' | 'follow'
 
+function createRadialGlowTexture(size = 64): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const nx = (x + 0.5) / size * 2 - 1
+      const ny = (y + 0.5) / size * 2 - 1
+      const distance = Math.sqrt(nx * nx + ny * ny)
+      const falloff = Math.pow(Math.max(0, 1 - distance), 2.15)
+      const offset = (y * size + x) * 4
+      data[offset] = 255
+      data[offset + 1] = 255
+      data[offset + 2] = 255
+      data[offset + 3] = Math.round(falloff * 255)
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
+  texture.magFilter = THREE.LinearFilter
+  texture.minFilter = THREE.LinearFilter
+  texture.generateMipmaps = false
+  texture.needsUpdate = true
+  return texture
+}
+
 export class SceneRenderer {
   readonly canvas = document.createElement('canvas')
   readonly scene = new THREE.Scene()
@@ -24,6 +47,7 @@ export class SceneRenderer {
   private readonly ambient = new THREE.HemisphereLight(0xb8c7ff, 0x3b2d22, 1.25)
   private readonly settlementGlow = new THREE.PointLight(0xffa65b, 0, 36, 1.65)
   private readonly groundMaterial = new THREE.MeshStandardMaterial({ color: 0x617248, roughness: 1 })
+  private readonly radialGlowTexture = createRadialGlowTexture()
   private readonly matrix = new THREE.Object3D()
   private readonly batches: Record<string, THREE.InstancedMesh> = {}
   private readonly batchColors: Record<string, number> = {}
@@ -49,7 +73,8 @@ export class SceneRenderer {
   private readonly ambientGroundDay = new THREE.Color(0x4c3e30)
   private readonly fogNightTint = new THREE.Color(0x263a5a)
   private readonly fogDayTint = new THREE.Color(0x52615a)
-  private readonly nightSurfaceLift = new THREE.Color(0x7083a0)
+  private readonly nightSurfaceLift = new THREE.Color(0x566a80)
+  private readonly warmPropLift = new THREE.Color(0xb77a43)
   private readonly instanceColor = new THREE.Color()
   private readonly scratchColor = new THREE.Color()
 
@@ -117,11 +142,10 @@ export class SceneRenderer {
     this.addBasicBatch('groundWear', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66583e, 180, 0.16)
     this.addBasicBatch('windowHalo', this.geometry, 0xffb45b, 320, 0.18)
     this.addBasicBatch('windowGlow', this.geometry, 0xffc36a, 320, 0.96)
-    this.addBasicBatch('warmPool', new THREE.CircleGeometry(1, 24).rotateX(-Math.PI / 2), 0xff9f4f, 180, 0.24)
-    this.addBasicBatch('glow', new THREE.SphereGeometry(0.5, 8, 6), 0xff9b46, 160, 0.22)
+    this.addRadialBatch('warmPool', 0xff9f4f, 240, 0.72)
+    this.addBasicBatch('glow', new THREE.SphereGeometry(0.5, 8, 6), 0xff9b46, 160, 0.15)
     this.addBasicBatch('smoke', new THREE.SphereGeometry(0.45, 7, 5), 0x76787a, 360, 0.26)
     ;(this.batches.windowHalo.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
-    ;(this.batches.warmPool.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
     ;(this.batches.glow.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
     ;(this.batches.campfireCore.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
     ;(this.batches.treeMoon.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
@@ -187,6 +211,23 @@ export class SceneRenderer {
         transparent: opacity < 1,
         opacity,
         depthWrite: opacity >= 1,
+      }),
+      count,
+    )
+    this.finishBatch(name, mesh, color)
+  }
+
+  private addRadialBatch(name: string, color: number, count: number, opacity: number): void {
+    const mesh = new THREE.InstancedMesh(
+      new THREE.CircleGeometry(1, 28).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({
+        color,
+        map: this.radialGlowTexture,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
       }),
       count,
     )
@@ -325,7 +366,11 @@ export class SceneRenderer {
   }
 
   private readableNightColor(color: number, night: number): number {
-    return this.scratchColor.setHex(color).lerp(this.nightSurfaceLift, night * 0.3).getHex()
+    return this.scratchColor.setHex(color).lerp(this.nightSurfaceLift, night * 0.44).getHex()
+  }
+
+  private warmPropColor(color: number, night: number, strength = 0.16): number {
+    return this.scratchColor.setHex(color).lerp(this.warmPropLift, night * strength).getHex()
   }
 
   private updateNightMaterialLift(night: number): void {
@@ -352,7 +397,7 @@ export class SceneRenderer {
     }
   }
 
-  private renderStockpile(b: Building, rotation: number, color: number): void {
+  private renderStockpile(b: Building, rotation: number, color: number, night: number): void {
     this.instance('buildings', b.x, 0.14, b.z, 2.7, 0.28, 2.7, color, rotation)
     const total = b.inventory.wood + b.inventory.food + b.inventory.ale
     const stacks = Math.min(6, 2 + Math.floor(total / 60))
@@ -360,7 +405,8 @@ export class SceneRenderer {
       const lx = -0.82 + (i % 3) * 0.82
       const lz = -0.62 + Math.floor(i / 3) * 1.0
       const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('props', b.x + o.x, 0.35, b.z + o.z, 0.55, 0.55 + (i % 2) * 0.25, 0.55, i % 2 ? 0x6c4a31 : 0x7f5a39, rotation)
+      const crateColor = i % 2 ? 0x6c4a31 : 0x7f5a39
+      this.instance('props', b.x + o.x, 0.35, b.z + o.z, 0.55, 0.55 + (i % 2) * 0.25, 0.55, this.warmPropColor(crateColor, night, 0.1), rotation)
     }
     this.instance('trim', b.x, 0.36, b.z - 1.25, 2.45, 0.16, 0.14, 0x4f3c2c, rotation)
   }
@@ -403,8 +449,8 @@ export class SceneRenderer {
     this.warmWindow(b.x + winRight.x, 1.35, b.z + winRight.z, rotation, night, 0.42, 0.52)
     const barrel1 = this.rotatedOffset(-1.13, 1.42, rotation)
     const barrel2 = this.rotatedOffset(-1.18, 0.85, rotation)
-    this.instance('props', b.x + barrel1.x, 0.35, b.z + barrel1.z, 0.44, 0.7, 0.44, 0x765031, rotation)
-    this.instance('props', b.x + barrel2.x, 0.31, b.z + barrel2.z, 0.38, 0.62, 0.38, 0x6b472e, rotation)
+    this.instance('props', b.x + barrel1.x, 0.35, b.z + barrel1.z, 0.44, 0.7, 0.44, this.warmPropColor(0x765031, night, 0.22), rotation)
+    this.instance('props', b.x + barrel2.x, 0.31, b.z + barrel2.z, 0.38, 0.62, 0.38, this.warmPropColor(0x6b472e, night, 0.2), rotation)
   }
 
   private renderBrewery(
@@ -421,8 +467,8 @@ export class SceneRenderer {
     this.instance('props', b.x + chimney.x, 2.52, b.z + chimney.z, 0.38, 1.7, 0.38, 0x534944, rotation)
     const barrel1 = this.rotatedOffset(-1.1, 1.18, rotation)
     const barrel2 = this.rotatedOffset(-0.58, 1.25, rotation)
-    this.instance('props', b.x + barrel1.x, 0.38, b.z + barrel1.z, 0.48, 0.76, 0.48, 0x775032, rotation)
-    this.instance('props', b.x + barrel2.x, 0.32, b.z + barrel2.z, 0.4, 0.64, 0.4, 0x6c482f, rotation)
+    this.instance('props', b.x + barrel1.x, 0.38, b.z + barrel1.z, 0.48, 0.76, 0.48, this.warmPropColor(0x775032, night, 0.18), rotation)
+    this.instance('props', b.x + barrel2.x, 0.32, b.z + barrel2.z, 0.4, 0.64, 0.4, this.warmPropColor(0x6c482f, night, 0.16), rotation)
     const furnace = this.rotatedOffset(0.7, 1.39, rotation)
     const stocked = b.inventory.food > 0 || b.inventory.ale > 0
     this.warmWindow(
@@ -581,19 +627,21 @@ export class SceneRenderer {
         const flicker = 0.92 + Math.sin(time * 11 + b.id) * 0.08
         this.instance('campfireFire', b.x, 0.58, b.z, flicker * 1.08, 1.08 + flicker * 0.2, flicker * 1.08, hit ? 0xff705e : 0xf0a14a)
         this.instance('campfireCore', b.x, 0.66, b.z, flicker * 0.82, 0.95 + flicker * 0.16, flicker * 0.82, 0xffd06a)
-        this.instance('glow', b.x, 0.5, b.z, 1.9 + night * 1.0, 0.52, 1.9 + night * 1.0, 0xff9b46)
-        this.warmGroundPool(b.x, b.z, 4.15, 1, Math.max(night, atmosphere.twilight * 0.75))
+        this.instance('glow', b.x, 0.56, b.z, 0.9 + night * 0.35, 0.64, 0.9 + night * 0.35, 0xffa34d)
+        this.warmGroundPool(b.x, b.z, 4.4, 0.52, Math.max(night, atmosphere.twilight * 0.75))
+        this.warmGroundPool(b.x, b.z, 2.35, 1, Math.max(night, atmosphere.twilight * 0.85))
         glowX += b.x * 1.4
         glowZ += b.z * 1.4
         glowWeight += 1.4
       } else if (b.type === 'stockpile') {
-        this.renderStockpile(b, rotation, baseColor)
+        this.renderStockpile(b, rotation, baseColor, night)
       } else if (b.type === 'house') {
         const occupiedNight = occupiedHomes.has(b.id) ? night : night * 0.18
         this.renderHouse(b, rotation, baseColor, occupiedNight)
         if (occupiedHomes.has(b.id)) {
-          this.warmGroundPool(b.x, b.z + 0.35, 2.75, 0.58, occupiedNight)
-          glowX += b.x
+          const houseLight = this.rotatedOffset(0, 1.15, rotation)
+          this.warmGroundPool(b.x + houseLight.x, b.z + houseLight.z, 2.85, 0.58, occupiedNight)
+          glowX += b.x + houseLight.x * 0.35
           glowZ += b.z
           glowWeight++
         }
@@ -603,9 +651,10 @@ export class SceneRenderer {
         const serviceNight = b.inventory.ale > 0 ? night : night * 0.35
         this.renderTavern(b, rotation, baseColor, serviceNight)
         if (b.inventory.ale > 0) {
-          this.warmGroundPool(b.x, b.z + 0.35, 3.8, 0.95, serviceNight)
-          glowX += b.x * 1.8
-          glowZ += b.z * 1.8
+          const tavernLight = this.rotatedOffset(0, 1.25, rotation)
+          this.warmGroundPool(b.x + tavernLight.x, b.z + tavernLight.z, 3.95, 0.92, serviceNight)
+          glowX += (b.x + tavernLight.x * 0.45) * 1.8
+          glowZ += (b.z + tavernLight.z * 0.45) * 1.8
           glowWeight += 1.8
         }
       } else if (b.type === 'brewery') {
@@ -670,7 +719,7 @@ export class SceneRenderer {
     this.groundMaterial.color.copy(this.nightGround).lerp(this.dayGround, atmosphere.daylight)
 
     if (glowWeight > 0) {
-      this.settlementGlow.position.set(glowX / glowWeight, 2.35, glowZ / glowWeight)
+      this.settlementGlow.position.set(glowX / glowWeight, 2.15, glowZ / glowWeight)
       this.settlementGlow.intensity = atmosphere.night * Math.min(85, 28 + glowWeight * 5.5)
       this.settlementGlow.distance = Math.min(40, 25 + glowWeight * 1.45)
     } else {
@@ -813,6 +862,7 @@ export class SceneRenderer {
 
     geometries.forEach(g => g.dispose())
     materials.forEach(m => m.dispose())
+    this.radialGlowTexture.dispose()
     this.sun.shadow.dispose()
     this.renderer.dispose()
   }
