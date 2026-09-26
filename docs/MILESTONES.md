@@ -69,12 +69,14 @@
 
 ## M3 — Needs and production
 
-- [ ] food/housing/safety/recreation
+- [x] food/housing/safety/recreation foundation
 - [ ] blacksmith production
 - [ ] tavern service
 - [ ] population attraction/immigration
 - [ ] happiness consequences
 - [ ] better logistics/resource reservations
+
+**M3.0 target:** food consumption, bed-backed Housing, defense-backed Safety, capacity-limited Campfire Recreation, persisted per-settler needs and derived Happiness. Immigration and production consequences remain later M3 slices.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 

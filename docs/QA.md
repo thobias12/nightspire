@@ -63,7 +63,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 
 - One primary browser-local save plus one rotating backup slot; validated JSON export/import is available. There is no autosave, cloud sync, slot manager, or general future-version migration.
 - Six initial / ten maximum settlers; 80 building cap; fixed 47×47 grid.
-- Finite resources and shared storage capacity. Blueprint cancellation is supported for unfinished sites; completed-building demolition, regrowth, consumption, hunger and immigration are not.
+- Finite resources and shared storage capacity. Food consumption and four settler needs are active; starvation damage, completed-building demolition, regrowth and immigration are not.
 - One constructor per site and one gatherer per node; job-class priorities are fixed, while wood/food gathering is bounded by player-controlled stock targets plus outstanding construction demand.
 - Resource vegetation is traversable, NPCs can overlap, and player collision uses occupied grid cells rather than a character physics capsule.
 - Elevation/follow camera foundation only; no camera-obstacle collision, combat or character animation.
@@ -161,3 +161,26 @@ This closeout raises the raid from the original 12-enemy validation wave to the 
 Two new regressions bring the suite to 41 tests: deterministic 20→40 wave sizing/cap behavior and the capped 40-raider navigation-pressure run.
 
 Pages playtest focus after deployment: build a meaningful wall/gate perimeter, trigger the 20-raider first wave, inspect path queue/failures and structure damage, then use **Next raid** to feel the 24/28+ pressure increase. Automated verification proves bounded execution, not whether the combat numbers are fun; HP/damage/repair pacing should be tuned from the live playtest.
+
+
+## M3.0 verification target
+
+The M3.0 needs foundation adds eight renderer-independent regressions on top of the 41-test M2.4 suite:
+
+- one food consumed per due settler and no double-feeding on the same day
+- food shortages do not invent food and visibly reduce Food satisfaction
+- one Campfire exposes six deterministic recreation slots and physically restores Recreation during off-hours
+- Housing responds to real bed assignment and Safety falls under an active raid
+- Happiness/settlement summaries are derived from the four need values
+- entering Day processes the new-day meal before normal work resumes
+- M2.4 saves migrate needs, last-meal day and food-consumption accounting
+- Dusk/Dawn recreation routes are invalidated when the phase target changes, preventing stale Campfire movement at Night
+
+Conservation assertions now include lifetime food consumed, matching the existing repair-timber accounting. Browser playtest after deployment should verify that need percentages visibly move, Campfire capacity is limited, food stock falls at 06:00, and the settlement HUD correctly identifies the weakest average need.
+
+
+### M3.0 meal-service correction
+
+Live playtesting exposed that new Day-1 settlers were initialized as already fed, leaving **Food consumed = 0** until Day 2 even when storage held food. The correction makes the starting population due for its first meal and keeps any unfed settler due throughout Day until food actually reaches storage. Meal retries run at the existing decision cadence and never consume more than one food per settler per day.
+
+The HUD now shows **Fed today X/Y**. Existing M3.0 saves with zero lifetime food consumption are migrated so settlers incorrectly marked as fed become due again. Two regressions cover Day-1 delayed food availability and the M3.0 zero-meal save correction; the suite target is now 51 tests.

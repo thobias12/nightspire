@@ -2,9 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
-const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_TARGETS } = require('../.test-build/game/simulation/WorldState.js')
+const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_NEEDS, DEFAULT_TARGETS } = require('../.test-build/game/simulation/WorldState.js')
 const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
-const { cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
+const { assignHousing, cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
@@ -12,6 +12,7 @@ const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
 const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
+const { happinessOf, recreationAssignment, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -21,6 +22,7 @@ const advance = (sim, seconds) => {
 }
 const total = (s, r) => s.nodes.filter(n => n.resource === r).reduce((v,n) => v+n.remaining,0) +
   s.buildings.reduce((v,b) => v+b.inventory[r]+b.delivered[r],0) + s.settlers.reduce((v,a) => v+a.cargo[r],0)
+const accountedTotal = (s, r) => total(s,r) + (r === 'wood' ? s.totals.repairWoodUsed : s.totals.foodConsumed)
 const pop10 = s => { while(spawnSettler(s)) {} }
 test('ten settlers gather both resources, carry, deposit, supply three houses and a stockpile', () => {
   const s = createInitialWorldState(); pop10(s)
@@ -43,7 +45,7 @@ test('ten settlers gather both resources, carry, deposit, supply three houses an
   assert.ok(s.totals.deposited.wood>70 && s.totals.deposited.food>0)
   assert.equal(s.settlers.filter(a=>a.homeId!==null).length,10)
   for (const stage of ['gather:source','gather:work','gather:target','deliver:source','deliver:target','construct:work']) assert.ok(stages.has(stage),stage)
-  assert.equal(total(s,'wood'),initial.wood); assert.equal(total(s,'food'),initial.food)
+  assert.equal(accountedTotal(s,'wood'),initial.wood); assert.equal(accountedTotal(s,'food'),initial.food)
   assert.equal(sim.navigation.failures,0)
 })
 test('save/load resumes gathering, loaded cargo, deliveries and construction without loss or duplication', () => {
@@ -61,7 +63,7 @@ test('save/load resumes gathering, loaded cargo, deliveries and construction wit
     assert.deepEqual(loaded.jobs,s.jobs); assert.deepEqual(loaded.settlers.map(a=>a.cargo),s.settlers.map(a=>a.cargo))
     const resumed=new Simulation(loaded); advance(resumed,130)
     assert.ok(loaded.buildings.every(b=>b.complete),stage)
-    for(const r of ['wood','food']) assert.equal(total(loaded,r),total(s,r),stage+' '+r)
+    for(const r of ['wood','food']) assert.equal(accountedTotal(loaded,r),accountedTotal(s,r),stage+' '+r)
     assert.equal(resumed.navigation.failures,0)
   }
 })
@@ -77,6 +79,7 @@ test('queued construction waits for materials and competing sites never double r
 })
 test('full storage pauses gathering and new construction releases capacity', () => {
   const s=createInitialWorldState()
+  for(const settler of s.settlers) settler.lastMealDay=s.day
   s.buildings[0].inventory={wood:300,food:100}
   s.targets.wood=350
   const sim=new Simulation(s); advance(sim,2)
@@ -168,8 +171,8 @@ test('long-run M1 logistics conserves resources and stays valid', () => {
     if(i%500===0) validateWorld(s)
   }
   validateWorld(s)
-  assert.equal(total(s,'wood') + s.totals.repairWoodUsed,initial.wood)
-  assert.equal(total(s,'food'),initial.food)
+  assert.equal(accountedTotal(s,'wood'),initial.wood)
+  assert.equal(accountedTotal(s,'food'),initial.food)
   assert.equal(sim.navigation.failures,0)
 })
 
@@ -630,6 +633,153 @@ test('legacy M2.2 saves migrate structure health hit state and repair counters',
   validateWorld(loaded)
 })
 
+test('daily meal consumes one food per due settler exactly once per day', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.food=20
+  for(const a of s.settlers) { a.needs.food=30; a.lastMealDay=0 }
+  assert.deepEqual(serveDailyMeal(s),{served:6,missed:0})
+  assert.equal(s.buildings[0].inventory.food,14)
+  assert.equal(s.totals.foodConsumed,6)
+  assert.ok(s.settlers.every(a=>a.needs.food===100 && a.lastMealDay===s.day))
+  assert.deepEqual(serveDailyMeal(s),{served:0,missed:0})
+  assert.equal(s.totals.foodConsumed,6)
+  validateWorld(s)
+})
+
+test('food shortage keeps unfed settlers due and feeds them when food arrives later', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.food=2
+  for(const a of s.settlers) { a.needs.food=60; a.lastMealDay=0 }
+  assert.deepEqual(serveDailyMeal(s),{served:2,missed:4})
+  assert.equal(s.buildings[0].inventory.food,0)
+  assert.equal(s.totals.foodConsumed,2)
+  assert.equal(s.settlers.filter(a=>a.needs.food===100).length,2)
+  assert.equal(s.settlers.filter(a=>a.lastMealDay===0).length,4)
+  assert.equal(s.settlers.filter(a=>a.needs.food===60).length,4)
+
+  s.buildings[0].inventory.food=4
+  assert.deepEqual(serveDailyMeal(s),{served:4,missed:0})
+  assert.equal(s.totals.foodConsumed,6)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===s.day))
+  validateWorld(s)
+})
+
+test('one campfire serves six workers and restores recreation during off-hours', () => {
+  const s=createInitialWorldState(); pop10(s)
+  const fire=createBuilding(s.nextId++,'campfire',7,0,true)
+  s.buildings.push(fire); s.topology++
+  const assigned=s.settlers.filter(a=>recreationAssignment(s,a)!==null)
+  assert.equal(assigned.length,6)
+  const settler=assigned[0], assignment=recreationAssignment(s,settler)
+  settler.x=assignment.target.x; settler.z=assignment.target.z
+  settler.needs.recreation=20
+  updateNeeds(s,5,'dusk')
+  assert.ok(settler.needs.recreation>35)
+  assert.equal(recreationAssignment(s,s.settlers[9]),null)
+  validateWorld(s)
+})
+
+test('housing and active raids move needs toward real settlement conditions', () => {
+  const s=createInitialWorldState()
+  const settler=s.settlers[0]
+  settler.needs.housing=80
+  updateNeeds(s,10,'day')
+  assert.ok(settler.needs.housing<80)
+
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++; assignHousing(s)
+  const beforeHousing=settler.needs.housing
+  updateNeeds(s,10,'day')
+  assert.ok(settler.needs.housing>beforeHousing)
+
+  settler.needs.safety=80
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const beforeSafety=settler.needs.safety
+  updateNeeds(s,10,'night')
+  assert.ok(settler.needs.safety<beforeSafety)
+})
+
+test('happiness summary is derived from the four persisted needs', () => {
+  const s=createInitialWorldState()
+  for(const a of s.settlers) a.needs={food:80,housing:60,safety:40,recreation:20}
+  assert.equal(happinessOf(s.settlers[0]),50)
+  const summary=settlementNeeds(s)
+  assert.equal(summary.happiness,50)
+  assert.equal(summary.worst,'recreation')
+  assert.deepEqual(summary.averages,{food:80,housing:60,safety:40,recreation:20})
+})
+
+test('entering Day serves the new-day meal before normal work resumes', () => {
+  const s=createInitialWorldState()
+  s.day=2
+  s.timeOfDay=5/24
+  s.buildings[0].inventory.food=10
+  for(const a of s.settlers) { a.lastMealDay=1; a.needs.food=40 }
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(6/24)
+  assert.equal(s.totals.foodConsumed,6)
+  assert.equal(s.buildings[0].inventory.food,4)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===2 && a.needs.food===100))
+  validateWorld(s)
+})
+
+test('new game settlers eat on day one as soon as food reaches storage', () => {
+  const s=createInitialWorldState()
+  const sim=new Simulation(s)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===0))
+  for(let i=0;i<12;i++) sim.step()
+  assert.equal(s.totals.foodConsumed,0)
+
+  s.buildings[0].inventory.food=6
+  for(let i=0;i<12;i++) sim.step()
+  assert.equal(s.totals.foodConsumed,6)
+  assert.equal(s.buildings[0].inventory.food,0)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===1))
+
+  s.buildings[0].inventory.food=6
+  for(let i=0;i<20;i++) sim.step()
+  assert.equal(s.totals.foodConsumed,6)
+  assert.equal(s.buildings[0].inventory.food,6)
+  validateWorld(s)
+})
+
+test('legacy M2.4 saves migrate settler needs and food accounting', () => {
+  const s=createInitialWorldState()
+  const legacy=JSON.parse(serializeWorld(s))
+  for(const a of legacy.settlers) { delete a.needs; delete a.lastMealDay }
+  delete legacy.totals.foodConsumed
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(loaded.settlers.every(a=>JSON.stringify(a.needs)===JSON.stringify(DEFAULT_NEEDS)))
+  assert.ok(loaded.settlers.every(a=>a.lastMealDay===Math.max(0,loaded.day-1)))
+  assert.equal(loaded.totals.foodConsumed,0)
+  validateWorld(loaded)
+})
+
+test('M3.0 saves with zero lifetime meals are corrected as still due', () => {
+  const s=createInitialWorldState()
+  for(const a of s.settlers) a.lastMealDay=s.day
+  s.totals.foodConsumed=0
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.ok(loaded.settlers.every(a=>a.lastMealDay===Math.max(0,loaded.day-1)))
+  validateWorld(loaded)
+})
+
+test('off-hours phase changes discard stale campfire routes before sheltering', () => {
+  const s=createInitialWorldState()
+  const fire=createBuilding(s.nextId++,'campfire',7,0,true)
+  s.buildings.push(fire); s.topology++
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(18/24)
+  const worker=s.settlers[0]
+  worker.path=[{x:7,z:0}]
+  worker.pathRevision=s.topology
+  worker.jobId=null
+  sim.setTimeOfDay(21/24)
+  assert.deepEqual(worker.path,[])
+  assert.equal(worker.pathRevision,-1)
+})
+
 test('invalid and incompatible saves are rejected without touching current state', () => {
   const s=createInitialWorldState(), original=serializeWorld(s)
   for(const mutate of [
@@ -637,6 +787,7 @@ test('invalid and incompatible saves are rejected without touching current state
     s=>s.nextId=1, s=>s.settlers[0].jobId=999, s=>s.settlers[0].cargo.wood=5,
     s=>s.nodes[0].resource='iron', s=>s.buildings[0].complete=false, s=>s.targets.wood=-1, s=>s.settlers[0].role='wizard',
     s=>s.buildings[0].health=s.buildings[0].maxHealth+1, s=>s.buildings[0].destroyed=true,
+    s=>s.settlers[0].needs.food=101, s=>s.settlers[0].lastMealDay=s.day+1,
   ]) {
     const candidate=JSON.parse(original);mutate(candidate)
     assert.throws(()=>deserializeWorld(JSON.stringify(candidate)))
