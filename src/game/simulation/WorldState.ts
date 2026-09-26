@@ -9,7 +9,7 @@ export interface PlayerState extends Point {
 }
 export interface ResourceNode extends Point { id: number; resource: ResourceId; remaining: number }
 export interface Building extends Point {
-  id: number; type: BuildingId; complete: boolean; work: number
+  id: number; type: BuildingId; rotation: number; complete: boolean; work: number
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
   inventory: Inventory; delivered: Inventory; serviceProgress: number; productionProgress: number
 }
@@ -92,10 +92,17 @@ export function recordEvent(state: WorldState, message: string): void {
   state.events.unshift(message)
   state.events.length = Math.min(state.events.length, 6)
 }
-export function createBuilding(id: number, type: BuildingId, x: number, z: number, complete: boolean): Building {
+export function createBuilding(
+  id: number,
+  type: BuildingId,
+  x: number,
+  z: number,
+  complete: boolean,
+  rotation = 0,
+): Building {
   const def = BUILDINGS[type]
   return {
-    id, type, x, z, complete,
+    id, type, x, z, rotation: ((Math.round(rotation) % 4) + 4) % 4, complete,
     work: complete ? def.constructionWork : 0,
     health: complete ? def.maxHealth : 0,
     maxHealth: def.maxHealth,

@@ -9,7 +9,16 @@ import { serviceAssignment, serviceAvailable, serviceSummary } from '../simulati
 import { enemyLabel, MAX_SETTLERS, settlerLabel, type WorldState } from '../simulation/WorldState'
 
 export interface Metrics { frame: number; simulation: number; render: number; calls: number; triangles: number; paths: number; requests: number; queue: number; failures: number; dropped: number }
-export interface HudState { paused: boolean; selectedId: number | null; buildType: BuildingId | null; message: string; camera: string; metrics: Metrics }
+export interface HudState {
+  paused: boolean
+  selectedId: number | null
+  buildType: BuildingId | null
+  buildRotation: number
+  dragCount: number
+  message: string
+  camera: string
+  metrics: Metrics
+}
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 const needLabel = (value: string) => value[0].toUpperCase() + value.slice(1)
 
@@ -20,9 +29,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.3 · POPULATION ATTRACTION</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">MAKE THEM WANT TO STAY</span><h1>Grow without a spawn button.</h1>
-        <p>Spare beds, Food, Happiness, Safety and surviving raids now determine whether new settlers immigrate. Hold qualifying conditions for two Days and a newcomer walks in from the map edge.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.4 · BUILD MODE UX</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">BUILD FASTER</span><h1>Shape the settlement.</h1>
+        <p>Use 1–8 for build hotkeys, R to rotate, Shift-click for repeated placement, and drag Wooden Walls across the grid. Gates can replace an existing wall segment directly.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -45,18 +54,32 @@ export class Hud {
         <div id="metrics"></div><div id="workers"></div>
       </div></details>
       <footer class="bottom"><div class="toolbar panel">
-        <button data-action="house">House <small>20 wood · 4 beds</small></button>
-        <button data-action="stockpile">Stockpile <small>10 wood · 400 storage</small></button>
-        <button data-action="guard-post">Guard Post <small>25 wood · 2 guards</small></button>
-        <button data-action="campfire">Campfire <small>10 wood · 6 free slots</small></button>
-        <button data-action="brewery">Brewery <small>35 wood · Food → Ale</small></button>
-        <button data-action="tavern">Tavern <small>40 wood · 12 Ale-fed slots</small></button>
-        <button data-action="wood-wall">Wood Wall <small>5 wood · 120 HP</small></button>
-        <button data-action="wood-gate">Wood Gate <small>15 wood · 220 HP</small></button>
-        <button data-action="cancel">Inspect / Esc</button><button data-action="camera">Follow player</button>
-        <button data-action="center">Center camp</button><button data-action="save">Save</button><button data-action="load">Load</button>
+        <div class="build-group"><span>Housing</span>
+          <button data-action="house" title="Hotkey 1">[1] House <small>20 wood · 4 beds</small></button>
+        </div>
+        <div class="build-group"><span>Infrastructure</span>
+          <button data-action="stockpile" title="Hotkey 2">[2] Stockpile <small>10 wood · 400 storage</small></button>
+          <button data-action="campfire" title="Hotkey 3">[3] Campfire <small>10 wood · 6 free slots</small></button>
+        </div>
+        <div class="build-group"><span>Production & services</span>
+          <button data-action="brewery" title="Hotkey 4">[4] Brewery <small>35 wood · Food → Ale</small></button>
+          <button data-action="tavern" title="Hotkey 5">[5] Tavern <small>40 wood · 12 Ale-fed slots</small></button>
+        </div>
+        <div class="build-group"><span>Defense</span>
+          <button data-action="guard-post" title="Hotkey 6">[6] Guard Post <small>25 wood · 2 guards</small></button>
+          <button data-action="wood-wall" title="Hotkey 7">[7] Wood Wall <small>Drag placement</small></button>
+          <button data-action="wood-gate" title="Hotkey 8">[8] Wood Gate <small>Can replace a wall</small></button>
+        </div>
+        <div class="build-group tools"><span>Tools</span>
+          <button data-action="rotate-build" title="Rotate selected blueprint">Rotate [R]</button>
+          <button data-action="cancel">Inspect / Esc</button>
+          <button data-action="camera">Follow player</button>
+          <button data-action="center">Center camp</button>
+          <button data-action="save">Save</button>
+          <button data-action="load">Load</button>
+        </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">WASD / arrows: pan or move · Q/E: rotate · Space: melee · Wheel: zoom · Click: place / inspect · Esc: cancel</div></footer>
+      <div class="controls">1–8: build · R: rotate · Shift-click: repeat · Drag: wall line · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -129,7 +152,13 @@ export class Hud {
       this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
     } else if (b) {
       const def = BUILDINGS[b.type]
+      const starter = b.type === 'stockpile' && b.x === 0 && b.z === 0
       const cancel = b.complete ? '' : '<button data-action="cancel-blueprint">Cancel blueprint</button>'
+      const refundWood = b.destroyed ? 0 : Math.floor(def.buildCost.wood * 0.5)
+      const demolish = b.complete && !starter
+        ? '<button class="danger" data-action="demolish-selected">Demolish · refund ' + refundWood + ' wood</button>'
+        : ''
+      const facing = ['South', 'East', 'North', 'West'][b.rotation ?? 0]
       let details = ''
       if (b.complete) {
         const repairJob = s.jobs.find(j => j.kind === 'repair' && j.targetId === b.id)
@@ -158,11 +187,17 @@ export class Hud {
       } else {
         details = `Delivered: ${b.delivered.wood}/${def.buildCost.wood} wood<br>Assigned deliveries: ${s.jobs.filter(j => j.kind === 'deliver' && j.targetId === b.id).reduce((sum, j) => sum + j.amount, 0)} wood<br>Work: ${Math.round(b.work / def.constructionWork * 100)}%<br><progress value="${b.work}" max="${def.constructionWork}"></progress>${cancel}`
       }
-      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'}</p><p>${details}</p>`)
+      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}</p><p>${details}</p>${demolish}`)
     } else if (n) {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : 'Food bush'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
-      this.set('inspection', `<p>${ui.buildType ? 'Placing ' + BUILDINGS[ui.buildType].label + '. Green means valid; red means blocked.' : 'Select a settler to assign guard duty, or inspect a resource/building.'}</p>`)
+      const facing = ['South', 'East', 'North', 'West'][ui.buildRotation]
+      const placement = ui.buildType
+        ? 'Placing ' + BUILDINGS[ui.buildType].label + ' · Facing ' + facing
+          + (ui.dragCount > 1 ? ' · ' + ui.dragCount + ' wall segments' : '')
+          + '. Green means the whole placement is valid; red means blocked.'
+        : 'Select a settler to assign guard duty, or inspect a resource/building.'
+      this.set('inspection', '<p>' + placement + '</p>')
     }
 
     this.set('message', escape(ui.message))
@@ -173,6 +208,7 @@ export class Hud {
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'
     this.element.querySelector('[data-action="camera"]')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
     ;(this.element.querySelector('[data-action="spawn"]') as HTMLButtonElement).disabled = s.settlers.length >= MAX_SETTLERS
+    ;(this.element.querySelector('[data-action="rotate-build"]') as HTMLButtonElement).disabled = ui.buildType === null
     for (const type of ['house', 'stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
