@@ -14,6 +14,7 @@ This repository is a greenfield Three.js game. Read `README.md` and `docs/` befo
 8. Placeholder geometry is preferred until gameplay works.
 9. Keep `npm run build` passing.
 10. Keep README/docs current when architecture or milestone scope changes.
+11. During active development, backward compatibility with saves from earlier milestones is not required unless the user explicitly asks for it. Prefer a clean current schema and fresh-run testing over migration complexity.
 
 ## Current milestone
 

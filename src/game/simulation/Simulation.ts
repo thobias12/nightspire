@@ -14,6 +14,7 @@ import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
+import { updateProduction } from './Production'
 import { updateServices } from './Services'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
@@ -68,6 +69,7 @@ export class Simulation {
     }
 
     this.navigation.sync(s)
+    updateProduction(s, FIXED_STEP, phase)
 
     if (isWorkPhase(phase) && s.tick % DECISION_TICKS === 1) {
       serveDailyMeal(s)
@@ -167,7 +169,7 @@ export class Simulation {
       const settler = s.settlers.find(a => a.id === job.settlerId)
       if (!settler) continue
 
-      const carrying = settler.cargo.wood + settler.cargo.food > 0
+      const carrying = Object.values(settler.cargo).some(amount => amount > 0)
       if (carrying) {
         keep.add(job.id)
         continue
@@ -412,7 +414,7 @@ export class Simulation {
 
     const building = s.buildings.find(b => b.id === job.targetId)
     if (!building) {
-      settler.cargo.wood = 0
+      for (const resource of Object.keys(settler.cargo) as Array<keyof typeof settler.cargo>) settler.cargo[resource] = 0
       finishJob(s, settler, job)
       return
     }

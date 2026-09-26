@@ -72,13 +72,16 @@
 - [x] food/housing/safety/recreation foundation
 - [ ] blacksmith production
 - [x] tavern service
+- [x] Brewery → Ale → Tavern production chain
 - [ ] population attraction/immigration
 - [ ] happiness consequences
 - [ ] better logistics/resource reservations
 
 **M3.0 verified:** food consumption, bed-backed Housing, defense-backed Safety, capacity-limited Campfire Recreation, persisted per-settler needs and derived Happiness.
 
-**M3.1 target:** reusable service-provider definitions, stable slot assignment, supplied Tavern operation, physical daytime pantry hauling, stronger Tavern recreation, dry-Tavern fallback to Campfires, save migration and conservation accounting. Brewery/Ale, immigration and happiness consequences remain later M3 slices.
+**M3.1 verified:** reusable service-provider definitions, stable slot assignment, supplied Tavern operation, physical daytime pantry hauling, stronger Tavern recreation, dry-Tavern fallback to Campfires, save migration and conservation accounting.
+
+**M3.2 target:** Ale as a third persisted resource; generic production definitions/progress; Brewery Food input and Ale output; physical Brewery → Tavern Ale hauling; production/service conservation ledgers; and M3.1 save migration. Immigration and happiness consequences remain later M3 slices.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 
@@ -98,7 +101,6 @@
 
 Only after M1–M4 are healthy:
 
-- breweries/ale
 - bathhouses/hygiene
 - adult brothel/pleasure-house service economy with clearly adult characters
 - markets/trade

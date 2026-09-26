@@ -13,6 +13,7 @@ const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.j
 const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
+const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
@@ -23,7 +24,12 @@ const advance = (sim, seconds) => {
 }
 const total = (s, r) => s.nodes.filter(n => n.resource === r).reduce((v,n) => v+n.remaining,0) +
   s.buildings.reduce((v,b) => v+b.inventory[r]+b.delivered[r],0) + s.settlers.reduce((v,a) => v+a.cargo[r],0)
-const accountedTotal = (s, r) => total(s,r) + (r === 'wood' ? s.totals.repairWoodUsed : s.totals.foodConsumed + s.totals.serviceFoodConsumed)
+const accountedTotal = (s, r) => total(s,r)
+  + (r === 'wood' ? s.totals.repairWoodUsed : 0)
+  + (r === 'food' ? s.totals.foodConsumed : 0)
+  + s.totals.serviceConsumed[r]
+  + s.totals.productionConsumed[r]
+const aleBalance = s => total(s,'ale') + s.totals.serviceConsumed.ale - s.totals.produced.ale
 const pop10 = s => { while(spawnSettler(s)) {} }
 test('ten settlers gather both resources, carry, deposit, supply three houses and a stockpile', () => {
   const s = createInitialWorldState(); pop10(s)
@@ -81,7 +87,7 @@ test('queued construction waits for materials and competing sites never double r
 test('full storage pauses gathering and new construction releases capacity', () => {
   const s=createInitialWorldState()
   for(const settler of s.settlers) settler.lastMealDay=s.day
-  s.buildings[0].inventory={wood:300,food:100}
+  s.buildings[0].inventory={wood:300,food:100,ale:0}
   s.targets.wood=350
   const sim=new Simulation(s); advance(sim,2)
   assert.equal(s.jobs.length,0)
@@ -157,7 +163,7 @@ test('cancellation refuses to destroy resources when storage cannot accept the r
   const sim=new Simulation(s)
   for(let i=0;i<1400 && site.work===0;i++) sim.step()
   assert.ok(site.delivered.wood>0)
-  s.buildings[0].inventory={wood:400,food:0}
+  s.buildings[0].inventory={wood:400,food:0,ale:0}
   const before=JSON.stringify(s)
   assert.match(cancelBuilding(s,site.id),/free stockpile capacity/)
   assert.equal(JSON.stringify(s),before)
@@ -180,7 +186,7 @@ test('long-run M1 logistics conserves resources and stays valid', () => {
 
 test('stock targets bound routine gathering while construction demand can exceed them', () => {
   const s=createInitialWorldState()
-  s.targets={wood:25,food:0}
+  s.targets={wood:25,food:0,ale:0}
   const sim=new Simulation(s)
   advance(sim,70)
   const stores=stockpiles(s)
@@ -190,7 +196,7 @@ test('stock targets bound routine gathering while construction demand can exceed
   assert.ok(s.settlers.every(a=>a.status==='Stock targets met'))
 
   const build=createInitialWorldState()
-  build.targets={wood:0,food:0}
+  build.targets={wood:0,food:0,ale:0}
   assert.equal(placeBuilding(build,'house',{x:7,z:0}),null)
   const buildSim=new Simulation(build)
   advance(buildSim,100)
@@ -785,7 +791,7 @@ test('supplied Tavern outranks Campfire and exposes the stronger service to all 
   const s=createInitialWorldState(); pop10(s)
   const fire=createBuilding(s.nextId++,'campfire',-7,0,true)
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
-  tavern.inventory.food=12
+  tavern.inventory.ale=12
   s.buildings.push(fire,tavern); s.topology++
   const assignments=serviceAssignments(s,'dusk')
   assert.equal(assignments.size,10)
@@ -810,68 +816,88 @@ test('dry Tavern stops serving and settlers fall back to Campfire capacity', () 
   validateWorld(s)
 })
 
-test('day workers physically fill a Tavern pantry without exceeding its capacity', () => {
+test('day workers route Brewery Ale through stockpile storage before supplying the Tavern', () => {
   const s=createInitialWorldState()
   for(const settler of s.settlers) settler.lastMealDay=s.day
-  s.buildings[0].inventory.food=20
+  const stockpile=s.buildings[0]
+  stockpile.inventory.food=40
+  const brewery=createBuilding(s.nextId++,'brewery',-7,0,true)
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
-  s.buildings.push(tavern); s.topology++
+  s.buildings.push(brewery,tavern); s.topology++
   const initialFood=accountedTotal(s,'food')
   const sim=new Simulation(s)
-  let sawSupply=false
-  for(let i=0;i<2500 && tavern.inventory.food<12;i++) {
+  let sawFoodSupply=false
+  let sawBreweryToStockpile=false
+  let sawStockpiledAle=false
+  let sawStockpileToTavern=false
+  let sawDirectBreweryToTavern=false
+  for(let i=0;i<6000 && tavern.inventory.ale<12;i++) {
     sim.step()
-    if(s.jobs.some(j=>j.kind==='supply' && j.targetId===tavern.id)) sawSupply=true
+    for(const job of s.jobs) {
+      if(job.kind!=='supply') continue
+      if(job.targetId===brewery.id && job.resource==='food') sawFoodSupply=true
+      if(job.sourceId===brewery.id && job.targetId===stockpile.id && job.resource==='ale') sawBreweryToStockpile=true
+      if(job.sourceId===stockpile.id && job.targetId===tavern.id && job.resource==='ale') sawStockpileToTavern=true
+      if(job.sourceId===brewery.id && job.targetId===tavern.id && job.resource==='ale') sawDirectBreweryToTavern=true
+    }
+    if(stockpile.inventory.ale>0) sawStockpiledAle=true
     if(i%100===0) validateWorld(s)
   }
-  assert.equal(sawSupply,true)
-  assert.equal(tavern.inventory.food,12)
-  assert.ok(tavern.inventory.food<=12)
+  assert.equal(sawFoodSupply,true)
+  assert.equal(sawBreweryToStockpile,true)
+  assert.equal(sawStockpiledAle,true)
+  assert.equal(sawStockpileToTavern,true)
+  assert.equal(sawDirectBreweryToTavern,false)
+  assert.equal(tavern.inventory.ale,12)
+  assert.ok(s.totals.produced.ale>=12)
+  assert.ok(s.totals.productionConsumed.food>=6)
   assert.equal(accountedTotal(s,'food'),initialFood)
+  assert.equal(aleBalance(s),0)
   validateWorld(s)
 })
 
-test('service supply cargo survives save load and resumes without duplication', () => {
+test('Ale supply cargo survives save load and resumes without duplication', () => {
   const s=createInitialWorldState()
   for(const settler of s.settlers) settler.lastMealDay=s.day
-  s.buildings[0].inventory.food=20
+  const brewery=createBuilding(s.nextId++,'brewery',-7,0,true)
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
-  s.buildings.push(tavern); s.topology++
+  brewery.inventory.ale=10
+  s.buildings.push(brewery,tavern); s.topology++
   const sim=new Simulation(s)
   let found=false
   for(let i=0;i<1200;i++) {
     sim.step()
-    if(s.jobs.some(j=>j.kind==='supply' && j.stage==='target')) { found=true; break }
+    if(s.jobs.some(j=>j.kind==='supply' && j.resource==='ale' && j.stage==='target')) { found=true; break }
   }
   assert.equal(found,true)
-  const before=accountedTotal(s,'food')
+  const before=aleBalance(s)
   const loaded=deserializeWorld(serializeWorld(s))
   const resumed=new Simulation(loaded)
-  for(let i=0;i<1500 && loaded.buildings.find(b=>b.id===tavern.id).inventory.food<12;i++) resumed.step()
-  assert.equal(loaded.buildings.find(b=>b.id===tavern.id).inventory.food,12)
-  assert.equal(accountedTotal(loaded,'food'),before)
+  for(let i=0;i<1500 && loaded.buildings.find(b=>b.id===tavern.id).inventory.ale<10;i++) resumed.step()
+  assert.equal(loaded.buildings.find(b=>b.id===tavern.id).inventory.ale,10)
+  assert.equal(aleBalance(loaded),before)
   validateWorld(loaded)
 })
 
-test('Tavern food drains only while a visitor is actually using the service', () => {
+test('Tavern Ale drains only while a visitor is actually using the service', () => {
   const s=createInitialWorldState()
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
-  tavern.inventory.food=2
+  tavern.inventory.ale=2
   s.buildings.push(tavern); s.topology++
   const settler=s.settlers[0]
   const assignment=serviceAssignment(s,settler,'dusk')
   settler.x=assignment.target.x; settler.z=assignment.target.z
   const before=settler.needs.recreation
   updateServices(s,14,'dusk')
-  assert.equal(tavern.inventory.food,2)
-  assert.equal(s.totals.serviceFoodConsumed,0)
+  assert.equal(tavern.inventory.ale,2)
+  assert.equal(s.totals.serviceConsumed.ale,0)
   assert.ok(settler.needs.recreation>before)
   updateServices(s,1,'dusk')
-  assert.equal(tavern.inventory.food,1)
-  assert.equal(s.totals.serviceFoodConsumed,1)
+  assert.equal(tavern.inventory.ale,1)
+  assert.equal(s.totals.serviceConsumed.ale,1)
   updateServices(s,30,'day')
-  assert.equal(tavern.inventory.food,1)
-  assert.equal(s.totals.serviceFoodConsumed,1)
+  assert.equal(tavern.inventory.ale,1)
+  assert.equal(s.totals.serviceConsumed.ale,1)
   validateWorld(s)
 })
 
@@ -879,7 +905,7 @@ test('Tavern recreation is stronger and automatically falls back to Campfire whe
   const s=createInitialWorldState()
   const fire=createBuilding(s.nextId++,'campfire',-7,0,true)
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
-  tavern.inventory.food=1
+  tavern.inventory.ale=1
   s.buildings.push(fire,tavern); s.topology++
   const settler=s.settlers[0]
   settler.needs.recreation=10
@@ -889,30 +915,135 @@ test('Tavern recreation is stronger and automatically falls back to Campfire whe
   updateServices(s,5,'dusk')
   assert.ok(settler.needs.recreation>=50)
   updateServices(s,10,'dusk')
-  assert.equal(tavern.inventory.food,0)
+  assert.equal(tavern.inventory.ale,0)
   const fallback=serviceAssignment(s,settler,'dusk')
   assert.equal(fallback.label,'Campfire')
   assert.equal(fallback.buildingId,fire.id)
   validateWorld(s)
 })
 
-test('M3.0 saves migrate service progress and Tavern food accounting', () => {
+test('M3.1 saves migrate Ale inventories, Tavern pantry and historical service food', () => {
   const s=createInitialWorldState()
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  s.buildings.push(tavern); s.topology++
   const legacy=JSON.parse(serializeWorld(s))
-  for(const b of legacy.buildings) delete b.serviceProgress
-  delete legacy.totals.serviceFoodConsumed
+  for(const b of legacy.buildings) {
+    b.inventory.food = b.type==='tavern' ? 5 : b.inventory.food
+    delete b.inventory.ale
+    delete b.delivered.ale
+    delete b.productionProgress
+  }
+  for(const a of legacy.settlers) delete a.cargo.ale
+  delete legacy.targets.ale
+  for(const key of ['gathered','deposited','delivered']) delete legacy.totals[key].ale
+  delete legacy.totals.serviceConsumed
+  delete legacy.totals.productionConsumed
+  delete legacy.totals.produced
+  legacy.totals.serviceFoodConsumed=3
   const loaded=deserializeWorld(JSON.stringify(legacy))
-  assert.ok(loaded.buildings.every(b=>b.serviceProgress===0))
-  assert.equal(loaded.totals.serviceFoodConsumed,0)
+  const migratedTavern=loaded.buildings.find(b=>b.type==='tavern')
+  assert.equal(migratedTavern.inventory.food,0)
+  assert.equal(migratedTavern.inventory.ale,5)
+  assert.ok(loaded.buildings.every(b=>b.productionProgress===0 && b.inventory.ale>=0 && b.delivered.ale===0))
+  assert.ok(loaded.settlers.every(a=>a.cargo.ale===0))
+  assert.equal(loaded.targets.ale,0)
+  assert.equal(loaded.totals.serviceConsumed.food,3)
+  assert.deepEqual(loaded.totals.productionConsumed,{wood:0,food:0,ale:0})
+  assert.deepEqual(loaded.totals.produced,{wood:0,food:0,ale:0})
   validateWorld(loaded)
 })
 
 test('service pantry capacity is validated and cannot be overfilled', () => {
   const s=createInitialWorldState()
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
-  tavern.inventory.food=13
+  tavern.inventory.ale=13
   s.buildings.push(tavern); s.topology++
-  assert.throws(()=>serializeWorld(s),/service supply capacity/)
+  assert.throws(()=>serializeWorld(s),/building resource capacity/)
+})
+
+test('Brewery converts 2 Food into 4 Ale per completed Day batch only', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  brewery.inventory.food=4
+  s.buildings.push(brewery); s.topology++
+  updateProduction(s,11,'day')
+  assert.equal(brewery.inventory.food,4)
+  assert.equal(brewery.inventory.ale,0)
+  updateProduction(s,1,'day')
+  assert.equal(brewery.inventory.food,2)
+  assert.equal(brewery.inventory.ale,4)
+  assert.equal(s.totals.productionConsumed.food,2)
+  assert.equal(s.totals.produced.ale,4)
+  updateProduction(s,24,'dusk')
+  assert.equal(brewery.inventory.food,2)
+  assert.equal(brewery.inventory.ale,4)
+  validateWorld(s)
+})
+
+test('Brewery stops at Ale output capacity and resumes after Ale is removed', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  brewery.inventory.food=20
+  brewery.inventory.ale=24
+  s.buildings.push(brewery); s.topology++
+  updateProduction(s,60,'day')
+  assert.equal(brewery.inventory.food,20)
+  assert.equal(brewery.inventory.ale,24)
+  assert.equal(s.totals.produced.ale,0)
+  brewery.inventory.ale=20
+  updateProduction(s,12,'day')
+  assert.equal(brewery.inventory.food,18)
+  assert.equal(brewery.inventory.ale,24)
+  assert.equal(s.totals.produced.ale,4)
+  validateWorld(s)
+})
+
+test('mid-batch Brewery progress survives save load', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  brewery.inventory.food=4
+  s.buildings.push(brewery); s.topology++
+  updateProduction(s,7,'day')
+  assert.equal(brewery.productionProgress,7)
+  const loaded=deserializeWorld(serializeWorld(s))
+  const loadedBrewery=loaded.buildings.find(b=>b.id===brewery.id)
+  assert.equal(loadedBrewery.productionProgress,7)
+  updateProduction(loaded,5,'day')
+  assert.equal(loadedBrewery.inventory.food,2)
+  assert.equal(loadedBrewery.inventory.ale,4)
+  assert.equal(loadedBrewery.productionProgress,0)
+  validateWorld(loaded)
+})
+
+test('Ale production and Tavern consumption preserve the production ledger', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',-7,0,true)
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  brewery.inventory.food=10
+  s.buildings.push(brewery,tavern); s.topology++
+  updateProduction(s,60,'day')
+  assert.equal(s.totals.produced.ale,20)
+  const transfer=Math.min(12,brewery.inventory.ale)
+  brewery.inventory.ale-=transfer
+  tavern.inventory.ale+=transfer
+  const settler=s.settlers[0]
+  const assignment=serviceAssignment(s,settler,'dusk')
+  settler.x=assignment.target.x; settler.z=assignment.target.z
+  updateServices(s,30,'dusk')
+  assert.equal(s.totals.serviceConsumed.ale,2)
+  assert.equal(aleBalance(s),0)
+  validateWorld(s)
+})
+
+test('Tavern cannot operate from raw Food after the Ale migration', () => {
+  const s=createInitialWorldState()
+  const fire=createBuilding(s.nextId++,'campfire',-7,0,true)
+  const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
+  tavern.inventory.food=0
+  s.buildings.push(fire,tavern); s.topology++
+  assert.equal(serviceAvailable(tavern),false)
+  assert.ok([...serviceAssignments(s,'dusk').values()].every(a=>a.label==='Campfire'))
+  validateWorld(s)
 })
 
 test('invalid and incompatible saves are rejected without touching current state', () => {

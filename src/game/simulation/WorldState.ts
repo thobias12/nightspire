@@ -11,7 +11,7 @@ export interface ResourceNode extends Point { id: number; resource: ResourceId; 
 export interface Building extends Point {
   id: number; type: BuildingId; complete: boolean; work: number
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
-  inventory: Inventory; delivered: Inventory; serviceProgress: number
+  inventory: Inventory; delivered: Inventory; serviceProgress: number; productionProgress: number
 }
 export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
 export type NeedLevels = Record<NeedId, number>
@@ -44,13 +44,14 @@ export interface WorldState {
   totals: {
     gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
     repairedHealth: number; repairWoodUsed: number; structureDamage: number
-    foodConsumed: number; serviceFoodConsumed: number
+    foodConsumed: number; serviceConsumed: Inventory
+    productionConsumed: Inventory; produced: Inventory
   }
   events: string[]
 }
 export const MAX_SETTLERS = 10
 export const MAX_ENEMIES = 64
-export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100 }
+export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100, ale: 0 }
 export const DEFAULT_RAID: RaidState = { lastSpawnDay: 0, wave: 0, totalSpawned: 0, totalDefeated: 0, lastClearedWave: 0 }
 export const NEED_IDS: NeedId[] = ['food', 'housing', 'safety', 'recreation']
 export const DEFAULT_NEEDS: NeedLevels = { food: 90, housing: 70, safety: 65, recreation: 65 }
@@ -89,6 +90,7 @@ export function createBuilding(id: number, type: BuildingId, x: number, z: numbe
     inventory: emptyInventory(),
     delivered: complete ? { ...def.buildCost } : emptyInventory(),
     serviceProgress: 0,
+    productionProgress: 0,
   }
 }
 export function createInitialWorldState(): WorldState {
@@ -100,7 +102,8 @@ export function createInitialWorldState(): WorldState {
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
       constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0,
-      foodConsumed: 0, serviceFoodConsumed: 0,
+      foodConsumed: 0, serviceConsumed: emptyInventory(),
+      productionConsumed: emptyInventory(), produced: emptyInventory(),
     },
     events: ['A new camp. Gather wood, then build homes for your settlers.'],
   }
