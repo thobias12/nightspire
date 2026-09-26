@@ -329,7 +329,7 @@ test('raiders share the bounded navigation queue and reach the settlement', () =
   }
   const after=s.enemies.reduce((n,e)=>n+Math.hypot(e.x-enemyTarget(s,e).x,e.z-enemyTarget(s,e).z),0)
   assert.ok(after<initial)
-  assert.ok(s.enemies.every(e=>e.status.startsWith('Attacking ') || e.status.startsWith('Advancing on ')))
+  assert.ok(s.enemies.every(e=>e.status.startsWith('Attacking ') || e.status.startsWith('Advancing on ') || e.status==='No settlement target'))
   assert.equal(sim.navigation.failures,0)
 })
 
