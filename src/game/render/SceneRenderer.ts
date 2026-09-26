@@ -599,12 +599,17 @@ export class SceneRenderer {
     }
   }
 
-  private renderBuilding(building: Building, state: WorldState, selectedId: number | null, night: number): void {
+  private renderBuilding(
+    building: Building,
+    state: WorldState,
+    selectedId: number | null,
+    night: number,
+    repairing: boolean,
+  ): void {
     const def = BUILDINGS[building.type]
     const rotation = building.rotation * Math.PI / 2
     const damage = damageVisualState(building)
     const hit = this.recentlyHit(building.lastHitTick, state.tick)
-    const repairing = state.jobs.some(job => job.kind === 'repair' && job.targetId === building.id)
 
     if (!building.complete) {
       this.renderConstruction(building, state)
@@ -740,7 +745,10 @@ export class SceneRenderer {
     )
     this.healthBar(state.player.x, 1.55, state.player.z, state.player.health, state.player.maxHealth, 1.05)
 
-    for (const building of state.buildings) this.renderBuilding(building, state, selectedId, night)
+    const repairTargets = new Set(state.jobs.filter(job => job.kind === 'repair').map(job => job.targetId))
+    for (const building of state.buildings) {
+      this.renderBuilding(building, state, selectedId, night, repairTargets.has(building.id))
+    }
 
     for (let i = this.lightCursor; i < this.glowLights.length; i++) this.glowLights[i].visible = false
 
