@@ -216,14 +216,30 @@ Presentation-first art-density pass after the road/plot interaction foundation s
 
 ## M3.9 — Organic settlement structure
 
-Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.
+The renderer-only residential-composition work can proceed before M4. Movement, household simulation and logistics semantics remain deferred until the M4 architecture is integrated.
+
+### M3.9.0 — Modular residential compounds
+
+- [x] deterministic cottage / homestead / burgage visual class derived from existing plot frontage/depth/area
+- [x] House width/depth/wall/roof proportions respond much more strongly to plot dimensions
+- [x] larger plots use richer plaster/roof palettes, wider frontage and more windows
+- [x] homestead/burgage properties can add rear architectural wings
+- [x] deep/wide properties compose extra rear sheds/outbuildings without creating new simulation entities
+- [x] burgage compounds can add a second rear structure and denser utility clutter
+- [x] optional narrow service lane through deeper homestead/burgage yards
+- [x] front side fences start farther behind the road, producing a more open threshold rather than a surveyed rectangle
+- [x] cottage thresholds use vegetation while larger compounds use gate-post/hedge cues
+- [x] existing shared-boundary ownership remains intact
+- [x] House inspector reports visual compound class and plot dimensions
+- [ ] live visual acceptance across 4m/6m/8m/10m frontages and shallow/deep lots
+- [ ] confirm renderer metrics remain inside current prototype budget
 
 - [x] road placement foundation (persisted strokes; movement semantics deferred)
 - [ ] road-influenced movement/logistics
 - [x] visual road frontage/alignment foundation (M3.8.2; simulation meaning still deferred)
 - [x] plot-based housing foundation (persistent lot + existing House simulation)
 - [ ] household grouping
-- [ ] rear-yard extensions
+- [x] visual rear-yard/compound extension foundation (M3.9.0; simulation semantics deferred)
 - [ ] traffic-generated path wear
 - [ ] first local-storage/logistics rules
 

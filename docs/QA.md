@@ -497,3 +497,32 @@ M3.8.5 freezes road/plot/snapping/persistence rules and changes the render/UI/do
 ### Architectural boundary
 
 M3.8.5 does not modify `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. No snapping, placement, persistence, reservations, AI scheduling, movement cost or path budget semantics change.
+
+
+## M3.9.0 verification target
+
+M3.9.0 begins the organic-settlement roadmap without changing road placement, Residential Plot persistence, House simulation, jobs or navigation. The automated suite remains **103 tests** because this slice is renderer/UI/docs only; strict TypeScript + production build remain mandatory.
+
+### Browser workflow
+
+1. Start fresh and draw one straight road long enough for at least four plots.
+2. Build four Residential Plots with deliberately different dimensions, for example:
+   - ~4m × 6m compact lot
+   - ~6m × 8m medium lot
+   - ~8m × 10m large lot
+   - ~10m × 12m deep/wide lot
+3. Complete all four Houses. Inspect each House: the inspector should identify **Cottage compound**, **Homestead compound** or **Burgage compound** and report frontage/depth.
+4. Compare the row from Overview and Street view. Main House width, depth, wall height and roof mass should visibly scale with the lot instead of every property reading as the same box.
+5. The largest/deepest property should read as a true compound: more substantial House frontage plus rear wing/outbuilding composition and denser utility clutter.
+6. Medium/deep lots should be able to show one additional shed/outbuilding; tiny plots should stay restrained instead of being overfilled.
+7. Confirm front side fences begin behind the road threshold, leaving the frontage visually more open. Cottage thresholds should feel softer/vegetated; larger compounds should use stronger posts/hedge cues.
+8. Adjacent plots must still share a boundary once; no duplicate rails/posts should return.
+9. Deep homestead/burgage variants with the deterministic lane condition should show a narrow worn service path from the frontage toward rear structures.
+10. Verify existing backyard identity (garden/chickens/workyard/firewood) remains readable and does not collide obviously with the new compound outbuildings.
+11. Save → reload → Load. The same plot IDs/dimensions should regenerate exactly the same compound visuals without any new persisted compound data.
+12. Enable navigation paths and confirm workers still ignore roads/outbuildings for movement semantics exactly as before.
+13. Run state integrity and compare Draws / triangles / Render submission CPU with M3.8.5.
+
+### Architectural boundary
+
+M3.9.0 does not modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Cottage/homestead/burgage are deterministic **visual classes**, not new simulation entities, wealth systems, households or save fields.
