@@ -21,7 +21,7 @@ export class Game {
   private pointer: Point | null = null
   private paused = false
   private speed = 1
-  private message = 'Prepare the settlement, assign guards, then jump to Night to watch the first raiders approach.'
+  private message = 'Assign guards, jump to Night, switch to Follow player and press Space near a raider to attack.'
   private animationFrame = 0
   private lastTime = 0
   private accumulator = 0
@@ -31,7 +31,7 @@ export class Game {
   constructor(private readonly root: HTMLElement) {
     root.className = 'game-shell'; root.append(this.renderer.canvas)
     this.hud = new Hud(root, this.action)
-    this.input = new InputController(this.renderer, this.simulation, () => this.action('cancel'))
+    this.input = new InputController(this.renderer, this.simulation, () => this.action('cancel'), () => this.action('attack'))
     const signal = this.abort.signal
     this.renderer.canvas.addEventListener('pointermove', e => {
       const point = this.renderer.worldPoint(e.clientX, e.clientY)
@@ -104,6 +104,12 @@ export class Game {
           this.message = settler.role === 'guard' ? 'Assigned as guard. During dusk/night they will report to an available Guard Post.' : 'Returned to worker duty.'
           break
         }
+        case 'attack': {
+          if (this.paused) { this.message = 'Resume the simulation to attack.'; break }
+          const result = this.simulation.playerAttack()
+          this.message = result.message
+          break
+        }
         case 'pause': this.paused = !this.paused; this.accumulator = 0; break
         case 'speed': this.speed = Number(value); break
         case 'time': this.simulation.setTimeOfDay(Number(value) / 24); break
@@ -115,7 +121,7 @@ export class Game {
           this.simulation.setTimeOfDay(12 / 24)
           if (s.raid.lastSpawnDay === s.day) s.day++
           this.simulation.setTimeOfDay(21 / 24)
-          this.message = 'Advanced to raid wave ' + s.raid.wave + '. Combat is not active yet.'
+          this.message = 'Advanced to raid wave ' + s.raid.wave + '. Guards will intercept nearby raiders; Space performs player melee.'
           break
         }
         case 'target-wood': case 'target-food': {
@@ -127,7 +133,7 @@ export class Game {
           break
         }
         case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.1 maximum remains 10 settlers.'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.2 maximum remains 10 settlers.'; break
         case 'resources': {
           let added = 0
           for (const resource of ['wood', 'food'] as const) {
