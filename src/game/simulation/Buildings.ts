@@ -204,6 +204,7 @@ export function demolishBuilding(s: WorldState, id: number): string | null {
   }
 
   s.buildings.splice(index, 1)
+  s.residentialPlots = s.residentialPlots.filter(plot => plot.buildingId !== id)
   for (const refund of plan) refund.store.inventory[refund.resource] += refund.amount
   assignHousing(s)
   s.topology++
@@ -262,6 +263,7 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
   s.jobs = s.jobs.filter(job => !affectedIds.has(job.id))
   for (const refund of plan) refund.store.inventory[refund.resource] += refund.amount
   s.buildings.splice(index, 1)
+  s.residentialPlots = s.residentialPlots.filter(plot => plot.buildingId !== id)
   s.topology++
   recordEvent(s, BUILDINGS[building.type].label + ' blueprint cancelled; materials returned to storage.')
   return null
