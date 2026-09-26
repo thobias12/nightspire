@@ -28,7 +28,7 @@ const { residentialPresentationProfile } = require('../.test-build/game/render/R
 const {
   backyardForPlot, buildingPlacementPreview, insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
   residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError,
-  snapPointToGrid, snapRoadControlPoint,
+  sampleRoadCurve, snapPointToGrid, snapRoadControlPoint, snapRoadPlacementPoint,
 } = require('../.test-build/game/simulation/TownPlanning.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
@@ -149,6 +149,34 @@ test('road-snapped service buildings sit closer to the street while preserving a
   assert.equal(Number.isInteger(preview.point.z),true)
   assert.deepEqual(preview.point,{x:2,z:-3})
   assert.ok(Math.abs(preview.facingAngle)<1e-9)
+})
+
+test('point-road placement can grid-snap without forcing axis alignment and can magnetically join existing roads', () => {
+  const roads=[{id:31,width:1.7,points:[{x:-6,z:0},{x:6,z:0}]}]
+  assert.deepEqual(snapRoadPlacementPoint(roads,{x:2.42,z:3.58},true,false),{x:2,z:4})
+  assert.deepEqual(snapRoadPlacementPoint(roads,{x:2.42,z:0.62},false,true),{x:2.42,z:0})
+  assert.deepEqual(snapRoadPlacementPoint(roads,{x:6.8,z:0.4},true,true),{x:6,z:0})
+})
+
+test('road curve sampling preserves control endpoints and bends smoothly through intermediate points', () => {
+  const controls=[{x:-8,z:0},{x:-2,z:0},{x:4,z:5},{x:9,z:5}]
+  const smooth=sampleRoadCurve(controls,0.7,0.58)
+  const straight=sampleRoadCurve(controls,0,0.58)
+  assert.deepEqual(smooth[0],controls[0])
+  assert.deepEqual(smooth.at(-1),controls.at(-1))
+  assert.ok(smooth.length>controls.length)
+  assert.equal(roadPlacementError(smooth),null)
+  assert.ok(smooth.some(point=>point.z>0 && point.z<5 && point.x>-2 && point.x<4))
+  assert.ok(straight.every(point=>Number.isFinite(point.x) && Number.isFinite(point.z)))
+})
+
+test('road curve sampling remains within save-path point limits for a map-scale multi-point street', () => {
+  const controls=[
+    {x:-28,z:-18},{x:-18,z:-10},{x:-8,z:-3},{x:4,z:2},{x:16,z:10},{x:27,z:18},
+  ]
+  const sampled=sampleRoadCurve(controls,0.7,0.58)
+  assert.ok(sampled.length<=120)
+  assert.equal(roadPlacementError(sampled),null)
 })
 
 test('Grid Snap aligns road drags to 0/45/90 degrees while freeform preserves pointer geometry', () => {
