@@ -10,7 +10,7 @@ import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
 export type CameraMode = 'settlement' | 'follow'
 
 function createGableRoofGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry()
+  const indexed = new THREE.BufferGeometry()
   const vertices = new Float32Array([
     -0.5, 0, -0.5,
      0.5, 0, -0.5,
@@ -26,8 +26,14 @@ function createGableRoofGeometry(): THREE.BufferGeometry {
     0, 2, 5, 0, 5, 3,
     1, 4, 5, 1, 5, 2,
   ]
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-  geometry.setIndex(indices)
+  indexed.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+  indexed.setIndex(indices)
+
+  // Split every face so the sharp roof/gable/bottom edges never share interpolated
+  // normals. The old indexed prism smoothed across those edges, creating broad
+  // view-dependent shading bands that shimmered as the camera zoom changed.
+  const geometry = indexed.toNonIndexed()
+  indexed.dispose()
   geometry.computeVertexNormals()
   return geometry
 }
@@ -188,6 +194,14 @@ export class SceneRenderer {
     this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420)
     this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100)
     this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
+    {
+      const roofMaterial = this.batches.gableRoofs.material as THREE.MeshStandardMaterial
+      roofMaterial.flatShading = true
+      roofMaterial.roughness = 1
+      roofMaterial.metalness = 0
+      roofMaterial.dithering = true
+      roofMaterial.needsUpdate = true
+    }
     this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
@@ -316,8 +330,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch']
-    const noReceiveShadow = [...noCastShadow, 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
     mesh.frustumCulled = false
