@@ -2,9 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
-const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_NEEDS, DEFAULT_TARGETS } = require('../.test-build/game/simulation/WorldState.js')
+const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_NEEDS, DEFAULT_TARGETS, MAX_SETTLERS } = require('../.test-build/game/simulation/WorldState.js')
 const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
 const { assignHousing, cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
+const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
@@ -13,6 +14,7 @@ const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.j
 const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
+const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const advance = (sim, seconds) => {
@@ -31,6 +33,18 @@ const accountedTotal = (s, r) => total(s,r)
   + s.totals.productionConsumed[r]
 const aleBalance = s => total(s,'ale') + s.totals.serviceConsumed.ale - s.totals.produced.ale
 const pop10 = s => { while(spawnSettler(s)) {} }
+const makeAttractive = s => {
+  const sites=[[-7,0],[7,0],[0,7]]
+  for(const [x,z] of sites) {
+    const house=createBuilding(s.nextId++,'house',x,z,true)
+    s.buildings.push(house)
+  }
+  s.topology++
+  s.buildings[0].inventory.food=100
+  for(const settler of s.settlers) settler.needs={food:100,housing:100,safety:100,recreation:100}
+  assignHousing(s)
+  return s
+}
 test('ten settlers gather both resources, carry, deposit, supply three houses and a stockpile', () => {
   const s = createInitialWorldState(); pop10(s)
   const sim = new Simulation(s), initial = { wood: total(s, 'wood'), food: total(s, 'food') }
@@ -1044,6 +1058,152 @@ test('Tavern cannot operate from raw Food after the Ale migration', () => {
   assert.equal(serviceAvailable(tavern),false)
   assert.ok([...serviceAssignments(s,'dusk').values()].every(a=>a.label==='Campfire'))
   validateWorld(s)
+})
+
+test('population attraction requires real spare housing, Food, Happiness and Safety', () => {
+  const s=createInitialWorldState()
+  let attraction=populationAttraction(s)
+  assert.equal(attraction.eligible,false)
+  assert.ok(attraction.blockers.includes('No spare bed'))
+
+  makeAttractive(s)
+  attraction=populationAttraction(s)
+  assert.equal(attraction.eligible,true)
+  assert.ok(attraction.score>=70)
+  assert.equal(attraction.spareBeds,6)
+  assert.equal(attraction.food,100)
+  assert.equal(attraction.happiness,100)
+  assert.equal(attraction.safety,100)
+  validateWorld(s)
+})
+
+test('immigration needs two distinct qualifying Days and cannot double-count one Day', () => {
+  const s=makeAttractive(createInitialWorldState())
+  s.day=2
+  let result=processImmigrationDay(s)
+  assert.equal(result.arrived,false)
+  assert.equal(s.immigration.eligibleDays,1)
+  assert.equal(s.settlers.length,6)
+
+  result=processImmigrationDay(s)
+  assert.equal(result.arrived,false)
+  assert.equal(s.immigration.eligibleDays,1)
+
+  s.day=3
+  result=processImmigrationDay(s)
+  assert.equal(result.arrived,true)
+  assert.equal(s.settlers.length,7)
+  assert.equal(s.immigration.totalArrivals,1)
+  assert.equal(s.immigration.eligibleDays,0)
+  assert.equal(s.immigration.lastArrivalDay,3)
+  assert.ok(s.settlers.at(-1).arrivalTarget)
+  assert.ok(s.settlers.at(-1).homeId!==null)
+  validateWorld(s)
+})
+
+test('Simulation Day transition performs the population-attraction check', () => {
+  const s=makeAttractive(createInitialWorldState())
+  s.day=2
+  s.timeOfDay=5/24
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(6/24)
+  assert.equal(s.immigration.eligibleDays,1)
+  assert.equal(s.settlers.length,6)
+
+  sim.setTimeOfDay(5/24)
+  s.day=3
+  sim.setTimeOfDay(6/24)
+  assert.equal(s.settlers.length,7)
+  assert.equal(s.immigration.totalArrivals,1)
+  validateWorld(s)
+})
+
+test('uncleared or active raids block immigration even when settlement needs are excellent', () => {
+  const s=makeAttractive(createInitialWorldState())
+  s.raid.wave=1
+  s.raid.totalSpawned=20
+  s.raid.totalDefeated=10
+  s.raid.lastClearedWave=0
+  let attraction=populationAttraction(s)
+  assert.equal(attraction.eligible,false)
+  assert.ok(attraction.blockers.includes('Latest raid not cleared'))
+
+  const target=s.buildings[0]
+  s.enemies=[{
+    id:s.nextId++,kind:'raider',targetId:target.id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:20,z:0,path:[],pathRevision:-1,status:'Test raider',
+  }]
+  attraction=populationAttraction(s)
+  assert.equal(attraction.eligible,false)
+  assert.ok(attraction.blockers.includes('Raid in progress'))
+})
+
+test('immigrant walks in from map edge and cannot take work until arrival completes', () => {
+  const s=makeAttractive(createInitialWorldState())
+  const result=forceImmigrationIfEligible(s)
+  assert.equal(result.arrived,true)
+  const immigrant=s.settlers.at(-1)
+  assert.ok(Math.abs(immigrant.x)>=20 || Math.abs(immigrant.z)>=20)
+  assert.ok(immigrant.arrivalTarget)
+  assert.equal(immigrant.jobId,null)
+
+  assignJobs(s)
+  assert.equal(immigrant.jobId,null)
+
+  const sim=new Simulation(s)
+  let arrived=false
+  for(let i=0;i<1200;i++) {
+    sim.step()
+    if(immigrant.arrivalTarget===null) { arrived=true; break }
+  }
+  assert.equal(arrived,true)
+  assert.match(immigrant.status,/Arrived|Needs work|Gather|Travel|Supply/)
+  assignJobs(s)
+  assert.ok(immigrant.jobId!==null || immigrant.status!=='Arriving in Nightspire')
+  assert.equal(sim.navigation.failures,0)
+  validateWorld(s)
+})
+
+test('population cap blocks attraction and forced immigration', () => {
+  const s=makeAttractive(createInitialWorldState())
+  pop10(s)
+  assignHousing(s)
+  for(const settler of s.settlers) settler.needs={food:100,housing:100,safety:100,recreation:100}
+  const attraction=populationAttraction(s)
+  assert.equal(s.settlers.length,MAX_SETTLERS)
+  assert.equal(attraction.eligible,false)
+  assert.ok(attraction.blockers.includes('Population cap reached'))
+  const result=forceImmigrationIfEligible(s)
+  assert.equal(result.arrived,false)
+  assert.equal(s.settlers.length,MAX_SETTLERS)
+})
+
+test('save load preserves a partially arrived immigrant and immigration cadence', () => {
+  const s=makeAttractive(createInitialWorldState())
+  s.day=4
+  s.immigration.eligibleDays=1
+  const result=forceImmigrationIfEligible(s)
+  assert.equal(result.arrived,true)
+  const immigrant=s.settlers.at(-1)
+  const sim=new Simulation(s)
+  for(let i=0;i<30;i++) sim.step()
+  assert.ok(immigrant.arrivalTarget)
+
+  const savedPosition={x:immigrant.x,z:immigrant.z}
+  const loaded=deserializeWorld(serializeWorld(s))
+  const loadedImmigrant=loaded.settlers.find(a=>a.id===immigrant.id)
+  assert.deepEqual(loadedImmigrant.arrivalTarget,immigrant.arrivalTarget)
+  assert.equal(loadedImmigrant.x,savedPosition.x)
+  assert.equal(loadedImmigrant.z,savedPosition.z)
+  assert.equal(loaded.immigration.totalArrivals,1)
+  assert.equal(loaded.immigration.lastArrivalDay,4)
+
+  const resumed=new Simulation(loaded)
+  for(let i=0;i<1200 && loadedImmigrant.arrivalTarget;i++) resumed.step()
+  assert.equal(loadedImmigrant.arrivalTarget,null)
+  assert.equal(resumed.navigation.failures,0)
+  validateWorld(loaded)
 })
 
 test('invalid and incompatible saves are rejected without touching current state', () => {

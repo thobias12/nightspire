@@ -19,6 +19,7 @@ export interface Settler extends Point {
   id: number; homeId: number | null; jobId: number | null; role: SettlerRole
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
   needs: NeedLevels; lastMealDay: number
+  arrivalTarget: Point | null
   cargo: Inventory; path: Point[]; pathRevision: number; status: string
 }
 export interface Enemy extends Point {
@@ -37,10 +38,16 @@ export interface Job {
   id: number; kind: JobKind; settlerId: number; sourceId: number; targetId: number
   resource: ResourceId; amount: number; stage: 'source' | 'work' | 'target'; progress: number
 }
+export interface ImmigrationState {
+  eligibleDays: number
+  lastEvaluationDay: number
+  lastArrivalDay: number
+  totalArrivals: number
+}
 export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
-  targets: Inventory; raid: RaidState
+  targets: Inventory; raid: RaidState; immigration: ImmigrationState
   totals: {
     gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
     repairedHealth: number; repairWoodUsed: number; structureDamage: number
@@ -53,6 +60,7 @@ export const MAX_SETTLERS = 10
 export const MAX_ENEMIES = 64
 export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100, ale: 0 }
 export const DEFAULT_RAID: RaidState = { lastSpawnDay: 0, wave: 0, totalSpawned: 0, totalDefeated: 0, lastClearedWave: 0 }
+export const DEFAULT_IMMIGRATION: ImmigrationState = { eligibleDays: 0, lastEvaluationDay: 0, lastArrivalDay: 0, totalArrivals: 0 }
 export const NEED_IDS: NeedId[] = ['food', 'housing', 'safety', 'recreation']
 export const DEFAULT_NEEDS: NeedLevels = { food: 90, housing: 70, safety: 65, recreation: 65 }
 
@@ -64,13 +72,19 @@ export function enemyLabel(state: WorldState, id: number): string {
   const index = state.enemies.findIndex(a => a.id === id)
   return index >= 0 ? 'Raider ' + (index + 1) : 'Raider ' + id
 }
-export function spawnSettler(state: WorldState): boolean {
+export function spawnSettler(
+  state: WorldState,
+  spawn: Point = { x: 0, z: 2 },
+  arrivalTarget: Point | null = null,
+): boolean {
   if (state.settlers.length >= MAX_SETTLERS) return false
   state.settlers.push({
-    id: state.nextId++, x: 0, z: 2, homeId: null, jobId: null, role: 'worker',
+    id: state.nextId++, x: spawn.x, z: spawn.z, homeId: null, jobId: null, role: 'worker',
     health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0,
     needs: { ...DEFAULT_NEEDS }, lastMealDay: state.day,
-    cargo: emptyInventory(), path: [], pathRevision: -1, status: 'Needs work',
+    arrivalTarget,
+    cargo: emptyInventory(), path: [], pathRevision: -1,
+    status: arrivalTarget ? 'Arriving in Nightspire' : 'Needs work',
   })
   return true
 }
@@ -98,7 +112,7 @@ export function createInitialWorldState(): WorldState {
     version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
     player: { x: 0, z: 5, health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0 },
     settlers: [], enemies: [], nodes: [], buildings: [], jobs: [],
-    targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID },
+    targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID }, immigration: { ...DEFAULT_IMMIGRATION },
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
       constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0,

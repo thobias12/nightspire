@@ -73,7 +73,7 @@
 - [ ] blacksmith production
 - [x] tavern service
 - [x] Brewery → Ale → Tavern production chain
-- [ ] population attraction/immigration
+- [x] population attraction/immigration
 - [ ] happiness consequences
 - [ ] better logistics/resource reservations
 
@@ -81,7 +81,9 @@
 
 **M3.1 verified:** reusable service-provider definitions, stable slot assignment, supplied Tavern operation, physical daytime pantry hauling, stronger Tavern recreation, dry-Tavern fallback to Campfires, save migration and conservation accounting.
 
-**M3.2 target:** Ale as a third persisted resource; generic production definitions/progress; Brewery Food input and Ale output; physical Brewery → Tavern Ale hauling; production/service conservation ledgers; and M3.1 save migration. Immigration and happiness consequences remain later M3 slices.
+**M3.2 verified:** Ale as a third resource, generic production progress, Brewery Food input/Ale output, stockpile-staged Ale logistics, Tavern Ale consumption and conservation accounting.
+
+**M3.3 target:** deterministic attraction from spare housing, stored Food, Happiness, Safety and raid outcomes; two-Day qualification; physical edge-entry immigrants; arriving-settler job exclusion; QA visibility; and current-state save/load coverage. The population cap remains 10 until scale work.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 

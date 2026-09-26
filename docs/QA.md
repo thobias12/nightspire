@@ -63,7 +63,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 
 - One primary browser-local save plus one rotating backup slot; validated JSON export/import is available. There is no autosave, cloud sync, slot manager, or general future-version migration.
 - Six initial / ten maximum settlers; 80 building cap; fixed 47×47 grid.
-- Finite resources and shared storage capacity. Food consumption and four settler needs are active; starvation damage, completed-building demolition, regrowth and immigration are not.
+- Finite resources and shared storage capacity. Food consumption, four settler needs and deterministic immigration from six up to the ten-settler cap are active; starvation damage, completed-building demolition and regrowth are not.
 - One constructor per site and one gatherer per node; job-class priorities are fixed, while wood/food gathering is bounded by player-controlled stock targets plus outstanding construction demand.
 - Resource vegetation is traversable, NPCs can overlap, and player collision uses occupied grid cells rather than a character physics capsule.
 - Elevation/follow camera foundation only; no camera-obstacle collision, combat or character animation.
@@ -221,3 +221,20 @@ The end-to-end logistics regression starts with Food in the stockpile and requir
 Save migration coverage removes Ale from an M3.1-shaped save, restores all third-resource fields, converts existing Tavern pantry Food into Ale, initializes production progress/counters, and preserves historical Food-based Tavern consumption.
 
 Browser playtest after deployment: build Brewery + Tavern, keep Food available during Day, watch Food enter Brewery, watch Ale output rise, inspect the Stockpile and confirm Ale is deposited there, then watch workers carry stored Ale from Stockpile into Tavern. At Dusk settlers should use the Tavern while its Ale pantry drains; when it reaches zero they should fall back to Campfire. The top HUD should expose total physical Ale and the QA metrics should show Food consumed by production plus Ale produced/used.
+
+
+## M3.3 verification target
+
+M3.3 adds seven population regressions on top of the 64-test M3.2 suite, for a target of 71 tests:
+
+- attraction is blocked without real spare housing and becomes eligible with sufficient beds, unreserved Food, Happiness and Safety
+- one Day cannot be counted twice; two distinct qualifying Days are required before arrival
+- the actual Simulation Dawn → Day transition invokes the immigration evaluation
+- an active raid or uncleared latest raid blocks immigration despite otherwise perfect needs
+- an immigrant spawns near a deterministic map edge, cannot receive jobs while arriving, then joins normal work after physically reaching town
+- the ten-settler population cap blocks both organic and forced QA immigration
+- current save/load preserves a partially arrived immigrant plus immigration cadence/state and resumes its route without duplication
+
+The QA **Test immigration now** button is intended to shorten browser testing: establish all real requirements, press it, and one immigrant should appear near a map edge and walk toward the starter camp. It does not override missing beds, Food, low Happiness/Safety, raids or the population cap.
+
+Browser playtest after deployment: start fresh, construct enough housing for spare beds, keep Food above twice the current population, use normal services/defenses or QA need controls to satisfy Happiness/Safety, then either hold the state across two Days or use **Test immigration now**. Confirm the population counter increases, the newcomer is visibly walking in, their inspector says Immigrant, and they take no work until arrival finishes.
