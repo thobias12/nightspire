@@ -9,6 +9,62 @@ import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
 
 export type CameraMode = 'settlement' | 'follow'
 
+type ResidentialCompoundTier = 'cottage' | 'homestead' | 'burgage'
+
+interface ResidentialCompoundProfile {
+  tier: ResidentialCompoundTier
+  houseWidth: number
+  houseDepth: number
+  wallHeight: number
+  roofHeight: number
+  frontGap: number
+  outbuildingScale: number
+}
+
+function residentialCompoundProfile(plot: ResidentialPlot): ResidentialCompoundProfile {
+  const frontage = residentialPlotWidth(plot)
+  const area = frontage * plot.depth
+  const tier: ResidentialCompoundTier = frontage >= 8 && plot.depth >= 9 && area >= 76
+    ? 'burgage'
+    : frontage >= 6.2 || plot.depth >= 8
+      ? 'homestead'
+      : 'cottage'
+
+  if (tier === 'burgage') {
+    return {
+      tier,
+      houseWidth: THREE.MathUtils.clamp(frontage * 0.74, 4.05, 5.55),
+      houseDepth: THREE.MathUtils.clamp(plot.depth * 0.34, 3.0, 3.9),
+      wallHeight: 2.16 + (plot.id % 2) * 0.12,
+      roofHeight: 1.24 + (plot.id % 3) * 0.06,
+      frontGap: 1.12,
+      outbuildingScale: 1.18,
+    }
+  }
+
+  if (tier === 'homestead') {
+    return {
+      tier,
+      houseWidth: THREE.MathUtils.clamp(frontage * 0.68, 3.05, 4.4),
+      houseDepth: THREE.MathUtils.clamp(plot.depth * 0.31, 2.55, 3.35),
+      wallHeight: 1.96 + (plot.id % 3) * 0.07,
+      roofHeight: 1.08 + (plot.id % 2) * 0.08,
+      frontGap: 0.9,
+      outbuildingScale: 1,
+    }
+  }
+
+  return {
+    tier,
+    houseWidth: THREE.MathUtils.clamp(frontage * 0.6, 2.3, 3.1),
+    houseDepth: THREE.MathUtils.clamp(plot.depth * 0.28, 2.12, 2.68),
+    wallHeight: 1.78 + (plot.id % 3) * 0.055,
+    roofHeight: 0.96 + (plot.id % 2) * 0.07,
+    frontGap: 0.68,
+    outbuildingScale: 0.82,
+  }
+}
+
 function createGableRoofGeometry(): THREE.BufferGeometry {
   const indexed = new THREE.BufferGeometry()
   const vertices = new Float32Array([
@@ -699,6 +755,7 @@ export class SceneRenderer {
 
   private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number, plots: ResidentialPlot[]): void {
     const width = residentialPlotWidth(plot)
+    const profile = residentialCompoundProfile(plot)
     const center = this.plotCenter(plot)
     const halfW = width / 2
     const halfD = plot.depth / 2
@@ -718,7 +775,12 @@ export class SceneRenderer {
         x: frontA.x + (rearA.x - frontA.x) / plot.depth * depth,
         z: frontA.z + (rearA.z - frontA.z) / plot.depth * depth,
       }
-      this.renderFenceWorld(frontA, sideARear, plot.id * 3 + 1)
+      const startT = Math.min(0.32, profile.frontGap / Math.max(0.1, depth))
+      const sideAStart = {
+        x: frontA.x + (sideARear.x - frontA.x) * startT,
+        z: frontA.z + (sideARear.z - frontA.z) * startT,
+      }
+      this.renderFenceWorld(sideAStart, sideARear, plot.id * 3 + 1)
     }
     if (!neighborB || plot.id < neighborB.id) {
       const depth = Math.max(plot.depth, neighborB?.depth ?? plot.depth)
@@ -726,7 +788,12 @@ export class SceneRenderer {
         x: frontB.x + (rearB.x - frontB.x) / plot.depth * depth,
         z: frontB.z + (rearB.z - frontB.z) / plot.depth * depth,
       }
-      this.renderFenceWorld(frontB, sideBRear, plot.id * 3 + 2)
+      const startT = Math.min(0.32, profile.frontGap / Math.max(0.1, depth))
+      const sideBStart = {
+        x: frontB.x + (sideBRear.x - frontB.x) * startT,
+        z: frontB.z + (sideBRear.z - frontB.z) * startT,
+      }
+      this.renderFenceWorld(sideBStart, sideBRear, plot.id * 3 + 2)
     }
     this.renderFenceWorld(rearA, rearB, plot.id * 3 + 3, true)
 
@@ -822,6 +889,126 @@ export class SceneRenderer {
     if (plot.id % 3 === 0) {
       const water = this.rotatedOffset(-Math.min(halfW - 0.4, 1.2), rearZ + 1.0, plot.angle)
       this.instance('barrels', center.x + water.x, 0.29, center.z + water.z, 0.36, 0.58, 0.36, 0x725036, plot.angle)
+    }
+
+    this.renderResidentialCompoundOutbuildings(plot, b, profile, center, width, night)
+    this.renderResidentialStreetThreshold(plot, profile, center, width)
+  }
+
+  private renderResidentialStreetThreshold(
+    plot: ResidentialPlot,
+    profile: ResidentialCompoundProfile,
+    center: Point,
+    width: number,
+  ): void {
+    const halfW = width / 2
+    const halfD = plot.depth / 2
+    const frontZ = halfD - 0.18
+    const cornerInset = Math.min(0.72, Math.max(0.42, width * 0.09))
+
+    for (const side of [-1, 1] as const) {
+      const local = this.rotatedOffset(side * (halfW - cornerInset), frontZ, plot.angle)
+      if (profile.tier === 'cottage') {
+        this.instance('underbrush', center.x + local.x, 0.17, center.z + local.z, 0.46, 0.3, 0.46, 0x536a4b, plot.id * 0.37 + side)
+      } else {
+        this.instance('timber', center.x + local.x, 0.42, center.z + local.z, 0.09, 0.84, 0.09, 0x4d3829, plot.angle)
+        const hedge = this.rotatedOffset(side * (halfW - cornerInset * 1.7), frontZ - 0.08, plot.angle)
+        this.instance('underbrush', center.x + hedge.x, 0.18, center.z + hedge.z, 0.58, 0.34, 0.42, 0x536a4b, plot.id * 0.29 + side)
+      }
+    }
+  }
+
+  private renderResidentialCompoundOutbuildings(
+    plot: ResidentialPlot,
+    b: Building,
+    profile: ResidentialCompoundProfile,
+    center: Point,
+    width: number,
+    night: number,
+  ): void {
+    const halfW = width / 2
+    const halfD = plot.depth / 2
+    const side: 1 | -1 = plot.id % 2 === 0 ? 1 : -1
+    const rearZ = -halfD + Math.max(1.0, 1.18 * profile.outbuildingScale)
+    const freeWidth = Math.max(0.9, halfW - 0.45)
+
+    const renderShed = (localX: number, localZ: number, shedWidth: number, shedDepth: number, plastered: boolean, seed: number) => {
+      const p = this.rotatedOffset(localX, localZ, plot.angle)
+      if (plastered) {
+        this.instance('stone', center.x + p.x, 0.12, center.z + p.z, shedWidth + 0.12, 0.24, shedDepth + 0.12, 0x67635b, plot.angle)
+        this.instance('plaster', center.x + p.x, 0.54, center.z + p.z, shedWidth, 0.86, shedDepth, seed % 2 ? 0x9d9077 : 0xa79a7d, plot.angle)
+        for (const x of [-shedWidth / 2, shedWidth / 2]) {
+          const post = this.rotatedOffset(localX + x, localZ + shedDepth / 2 + 0.03, plot.angle)
+          this.instance('timber', center.x + post.x, 0.56, center.z + post.z, 0.09, 0.98, 0.09, 0x4a3427, plot.angle)
+        }
+      } else {
+        this.instance('timber', center.x + p.x, 0.5, center.z + p.z, shedWidth, 0.9, shedDepth, seed % 2 ? 0x674a35 : 0x60442f, plot.angle)
+      }
+      this.instance(
+        'gableRoofs',
+        center.x + p.x,
+        plastered ? 0.96 : 0.92,
+        center.z + p.z,
+        shedWidth + 0.34,
+        plastered ? 0.58 : 0.54,
+        shedDepth + 0.34,
+        this.readableNightColor(seed % 2 ? 0x66513e : 0x705b40, night),
+        plot.angle,
+      )
+    }
+
+    if (profile.tier === 'cottage') {
+      if (plot.depth >= 8 && plot.backyard !== 'chickens') {
+        renderShed(side * Math.min(freeWidth, 1.05), rearZ, 1.0, 0.92, false, plot.id)
+      }
+      return
+    }
+
+    if (plot.backyard !== 'workyard' && plot.backyard !== 'chickens') {
+      const shedWidth = profile.tier === 'burgage' ? Math.min(1.8, width * 0.24) : Math.min(1.4, width * 0.22)
+      renderShed(side * Math.min(freeWidth, halfW - shedWidth / 2 - 0.22), rearZ, shedWidth, profile.tier === 'burgage' ? 1.45 : 1.12, profile.tier === 'burgage', plot.id + 11)
+    }
+
+    if (profile.tier === 'burgage' && plot.depth >= 10) {
+      const opposite = -side * Math.min(freeWidth, halfW - 0.85)
+      renderShed(opposite, rearZ - 0.18, 1.45, 1.2, false, plot.id + 23)
+
+      const yardBench = this.rotatedOffset(side * Math.min(1.35, halfW - 0.55), rearZ + 1.18, plot.angle)
+      this.instance('timber', center.x + yardBench.x, 0.3, center.z + yardBench.z, 0.95, 0.1, 0.28, 0x63462f, plot.angle)
+      for (const legX of [-0.32, 0.32]) {
+        const leg = this.rotatedOffset(side * Math.min(1.35, halfW - 0.55) + legX, rearZ + 1.18, plot.angle)
+        this.instance('timber', center.x + leg.x, 0.15, center.z + leg.z, 0.07, 0.28, 0.07, 0x4e3728, plot.angle)
+      }
+    }
+
+    if (plot.depth >= 8.2 && plot.id % 3 === 1) {
+      const laneX = side * Math.min(halfW - 0.42, 1.55)
+      const laneStart = this.rotatedOffset(laneX, halfD - 0.7, plot.angle)
+      const laneEnd = this.rotatedOffset(laneX, rearZ + 0.5, plot.angle)
+      const dx = laneEnd.x - laneStart.x
+      const dz = laneEnd.z - laneStart.z
+      const length = Math.hypot(dx, dz)
+      this.instance(
+        'roadShoulder',
+        center.x + (laneStart.x + laneEnd.x) / 2,
+        0.024,
+        center.z + (laneStart.z + laneEnd.z) / 2,
+        0.36,
+        1,
+        length,
+        0x897354,
+        Math.atan2(dx, dz),
+      )
+    }
+
+    // A small service object makes the rear compound read as occupied without
+    // introducing any new simulation entity.
+    const utility = this.rotatedOffset(-side * Math.min(halfW - 0.45, 1.25), rearZ + 0.82, plot.angle)
+    if (profile.tier === 'burgage') {
+      this.instance('baskets', center.x + utility.x, 0.22, center.z + utility.z, 0.58, 0.74, 0.58, 0x967147, plot.angle)
+      this.instance('barrels', center.x + utility.x + 0.34, 0.28, center.z + utility.z + 0.12, 0.33, 0.56, 0.33, 0x725036, plot.angle)
+    } else {
+      this.instance('sacks', center.x + utility.x, 0.22, center.z + utility.z, 0.42, 0.48, 0.38, 0x97845f, plot.angle)
     }
   }
 
@@ -1104,31 +1291,46 @@ export class SceneRenderer {
   }
 
   private renderHouse(b: Building, rotation: number, color: number, night: number, plot?: ResidentialPlot): void {
-    const width = plot ? THREE.MathUtils.clamp(residentialPlotWidth(plot) * 0.58, 2.35, 3.6) : 2.48
-    const depth = plot ? 2.02 + (plot.id % 3) * 0.2 : 2.22
-    const wallHeight = plot && plot.id % 4 === 0 ? 2.05 : 1.86
+    const profile = plot ? residentialCompoundProfile(plot) : null
+    const width = profile?.houseWidth ?? 2.48
+    const depth = profile?.houseDepth ?? 2.22
+    const wallHeight = profile?.wallHeight ?? 1.86
     const plaster = plot
-      ? [0xb4a486, 0xa89b80, 0xc0ad8d, 0x9e9782][plot.id % 4]
+      ? profile?.tier === 'burgage'
+        ? [0xc0ad8d, 0xb7a584, 0xc6b393][plot.id % 3]
+        : [0xb4a486, 0xa89b80, 0xc0ad8d, 0x9e9782][plot.id % 4]
       : b.id % 3 === 0 ? 0xa99d83 : color
     const roof = plot
-      ? [TOWN_PALETTE.thatch, TOWN_PALETTE.roofBrown, 0x66533d][plot.id % 3]
+      ? profile?.tier === 'burgage'
+        ? [TOWN_PALETTE.roofBrown, 0x6c5542, TOWN_PALETTE.roofDark][plot.id % 3]
+        : [TOWN_PALETTE.thatch, TOWN_PALETTE.roofBrown, 0x66533d][plot.id % 3]
       : b.id % 2 ? TOWN_PALETTE.roofBrown : TOWN_PALETTE.thatch
 
     if (!plot) this.renderYard(b, rotation, 2.65, b.id % 2 ? 0x655740 : 0x6b5a40)
-    this.timberFrame(b, rotation, width, depth, wallHeight, plaster, this.readableNightColor(roof, night), 1.02 + (plot?.id ?? b.id) % 3 * 0.08)
+    this.timberFrame(
+      b,
+      rotation,
+      width,
+      depth,
+      wallHeight,
+      plaster,
+      this.readableNightColor(roof, night),
+      profile?.roofHeight ?? 1.02 + (plot?.id ?? b.id) % 3 * 0.08,
+    )
 
-    const doorX = ((plot?.id ?? b.id) % 3 - 1) * Math.min(0.48, width * 0.16)
+    const doorBias = profile?.tier === 'burgage' ? 0.24 : profile?.tier === 'homestead' ? 0.2 : 0.16
+    const doorX = ((plot?.id ?? b.id) % 3 - 1) * Math.min(profile?.tier === 'burgage' ? 0.7 : 0.52, width * doorBias)
     const front = this.rotatedOffset(doorX, depth / 2 + 0.08, rotation)
     this.instance('doors', b.x + front.x, 0.82, b.z + front.z, 0.54, 1.35, 0.13, 0x4b3325, rotation)
 
-    const windowSpread = Math.min(width * 0.31, 0.9)
+    const windowSpread = Math.min(width * 0.32, profile?.tier === 'burgage' ? 1.45 : profile?.tier === 'homestead' ? 1.08 : 0.9)
     for (const [index, lx] of [-windowSpread, windowSpread].entries()) {
       if (Math.abs(lx - doorX) < 0.34) continue
       const win = this.rotatedOffset(lx, depth / 2 + 0.105, rotation)
       this.framedWindow(b.x + win.x, 1.3, b.z + win.z, rotation, night, 0.34, 0.44, (plot?.id ?? b.id) + index)
     }
 
-    if (plot && width > 3.15) {
+    if (plot && width > 3.0) {
       const side = plot.id % 2 === 0 ? 1 : -1
       const sideWin = this.rotatedOffset(side * (width / 2 + 0.105), -0.15, rotation)
       this.framedWindow(
@@ -1147,7 +1349,7 @@ export class SceneRenderer {
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', b.x + chimney.x, wallHeight + 0.72, b.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
 
-    if (plot && width > 3.05 && plot.id % 3 === 0) {
+    if (plot && profile && (profile.tier === 'burgage' || (profile.tier === 'homestead' && plot.id % 3 === 0))) {
       const dormer = this.rotatedOffset(-width * 0.18, depth * 0.15, rotation)
       this.instance('plaster', b.x + dormer.x, wallHeight + 0.78, b.z + dormer.z, 0.66, 0.44, 0.56, plaster, rotation)
       this.instance('gableRoofs', b.x + dormer.x, wallHeight + 0.98, b.z + dormer.z, 0.88, 0.48, 0.82, this.readableNightColor(roof, night), rotation)
@@ -1160,25 +1362,47 @@ export class SceneRenderer {
     this.doorAwning(b, rotation, doorX, depth / 2, plot?.id ?? b.id)
     this.frontageClutter(b, rotation, plot?.id ?? b.id, Math.min(1.05, width / 2.7))
 
-    if (plot && plot.depth >= 8.2) {
+    if (plot && profile && plot.depth >= 7.6 && profile.tier !== 'cottage') {
+      const rearWidth = profile.tier === 'burgage' ? 1.55 : 1.18
+      const rearDepth = profile.tier === 'burgage' ? 1.45 : 1.08
       const rearExtension = this.rotatedOffset(
-        plot.id % 2 === 0 ? width * 0.2 : -width * 0.22,
-        -depth / 2 - 0.62,
+        plot.id % 2 === 0 ? width * 0.22 : -width * 0.24,
+        -depth / 2 - rearDepth * 0.42,
         rotation,
       )
-      this.instance('timber', b.x + rearExtension.x, 0.48, b.z + rearExtension.z, 1.2, 0.9, 1.1, 0x6b4d37, rotation)
-      this.instance('gableRoofs', b.x + rearExtension.x, 0.91, b.z + rearExtension.z, 1.48, 0.6, 1.34, this.readableNightColor(0x67513c, night), rotation)
+      this.instance(
+        profile.tier === 'burgage' ? 'plaster' : 'timber',
+        b.x + rearExtension.x,
+        0.5,
+        b.z + rearExtension.z,
+        rearWidth,
+        profile.tier === 'burgage' ? 1.05 : 0.9,
+        rearDepth,
+        profile.tier === 'burgage' ? plaster : 0x6b4d37,
+        rotation,
+      )
+      this.instance(
+        'gableRoofs',
+        b.x + rearExtension.x,
+        profile.tier === 'burgage' ? 1.02 : 0.91,
+        b.z + rearExtension.z,
+        rearWidth + 0.3,
+        profile.tier === 'burgage' ? 0.66 : 0.56,
+        rearDepth + 0.28,
+        this.readableNightColor(profile.tier === 'burgage' ? roof : 0x67513c, night),
+        rotation,
+      )
     }
 
-    if (plot && plot.depth >= 7.4 && plot.id % 4 === 0) {
+    if (plot && plot.depth >= 7.4 && (plot.id % 4 === 0 || profile?.tier === 'burgage')) {
       this.renderLaundryLine(b, rotation, 0, -depth / 2 - 1.65, plot.id)
     }
 
-    if (plot && plot.id % 3 === 1) {
+    if (plot && profile?.tier !== 'burgage' && plot.id % 3 === 1) {
       const lean = this.rotatedOffset(-width / 2 - 0.42, -0.2, rotation)
       this.instance('timber', b.x + lean.x, 0.5, b.z + lean.z, 0.72, 0.92, 1.1, 0x6b4d37, rotation)
       this.instance('cloth', b.x + lean.x, 0.98, b.z + lean.z, 0.94, 0.08, 1.3, 0x776044, rotation)
-    } else if (plot && plot.id % 3 === 2) {
+    } else if (plot && (profile?.tier === 'burgage' || plot.id % 3 === 2)) {
       const porch = this.rotatedOffset(0, depth / 2 + 0.48, rotation)
       this.instance('timber', b.x + porch.x, 0.18, b.z + porch.z, Math.min(width * 0.75, 2.2), 0.18, 0.72, 0x674a34, rotation)
       for (const lx of [-0.72, 0.72]) {

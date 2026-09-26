@@ -36,9 +36,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.5 · MEDIEVAL ART DENSITY</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">A TOWN THAT LOOKS LIVED IN</span><h1>Timber, clutter, people and working yards.</h1>
-        <p>Buildings now carry stronger roof/eave and timber-frame detail, residential lots accumulate practical backyard life, workshops spill carts and materials into their yards, Tavern adults have clearer social silhouettes, and woodland continues beyond the playable boundary.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.9.0 · MODULAR RESIDENTIAL COMPOUNDS</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">FROM PLOTS TO PROPERTIES</span><h1>Every lot becomes its own medieval compound.</h1>
+        <p>Residential frontage and depth now drive cottage, homestead or larger burgage-house proportions. Deep/wide lots accumulate rear wings, sheds, secondary outbuildings, service lanes and denser thresholds while keeping the same road/plot mechanics underneath.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -50,7 +50,7 @@ export class Hud {
         <h3>Stock targets</h3>
         <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label><label>Ore <input class="number-input" aria-label="Ore stock target" type="number" min="0" max="10000" step="5" data-action="target-ore"></label></div>
         <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="resources-ore">+30 ore</button><button data-action="spawn">Spawn settler</button></div>
-        <button data-action="town-visual">Stage M3.8 Town Center visual target</button>
+        <button data-action="town-visual">Stage M3.9 compound-street visual target</button>
         <button data-action="immigration-test">Test immigration now</button>
         <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
         <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
@@ -64,7 +64,7 @@ export class Hud {
       <footer class="bottom"><div class="toolbar panel">
         <div class="build-group"><span>Town planning</span>
           <button data-action="road" title="Hotkey 0 · Grid Snap gives aligned segments">[0] Road <small>Aligned or freeform persistent road</small></button>
-          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Road-front house · modular backyard</small></button>
+          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Plot-sized house · modular compound</small></button>
         </div>
         <div class="build-group"><span>Snapping</span>
           <button data-action="grid-snap" title="Hotkey G · affects road and plot geometry">Grid Snap [G]</button>
@@ -185,6 +185,22 @@ export class Hud {
       const facing = b.facingAngle === undefined
         ? ['South', 'East', 'North', 'West'][b.rotation ?? 0]
         : 'Road-aligned ' + Math.round(((b.facingAngle * 180 / Math.PI) + 360) % 360) + '°'
+      const residentialPlot = b.type === 'house' ? s.residentialPlots.find(plot => plot.buildingId === b.id) : undefined
+      const compoundText = residentialPlot
+        ? (() => {
+            const frontage = Math.hypot(
+              residentialPlot.frontageB.x - residentialPlot.frontageA.x,
+              residentialPlot.frontageB.z - residentialPlot.frontageA.z,
+            )
+            const area = frontage * residentialPlot.depth
+            const tier = frontage >= 8 && residentialPlot.depth >= 9 && area >= 76
+              ? 'Burgage compound'
+              : frontage >= 6.2 || residentialPlot.depth >= 8
+                ? 'Homestead compound'
+                : 'Cottage compound'
+            return '<br><b>' + tier + '</b> · ' + frontage.toFixed(1) + 'm frontage × ' + residentialPlot.depth.toFixed(1) + 'm depth · ' + residentialPlot.backyard
+          })()
+        : ''
       let details = ''
       if (b.complete) {
         const repairJob = s.jobs.find(j => j.kind === 'repair' && j.targetId === b.id)
@@ -213,7 +229,7 @@ export class Hud {
       } else {
         details = `Delivered: ${b.delivered.wood}/${def.buildCost.wood} wood<br>Assigned deliveries: ${s.jobs.filter(j => j.kind === 'deliver' && j.targetId === b.id).reduce((sum, j) => sum + j.amount, 0)} wood<br>Work: ${Math.round(b.work / def.constructionWork * 100)}%<br><progress value="${b.work}" max="${def.constructionWork}"></progress>${cancel}`
       }
-      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}</p><p>${details}</p>${demolish}`)
+      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${demolish}`)
     } else if (n) {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
