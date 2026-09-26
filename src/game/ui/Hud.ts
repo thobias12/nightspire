@@ -20,6 +20,7 @@ export interface HudState {
   dragCount: number
   message: string
   camera: string
+  cinematic: boolean
   metrics: Metrics
 }
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -32,9 +33,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.7 · BLACKSMITH & TOOLS</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">FORGE A STRONGER WORKFORCE</span><h1>Turn ore into better work.</h1>
-        <p>Mine Iron Ore, haul it into a Blacksmith, forge durable Tools, then return them to stockpile storage. Tool coverage boosts hands-on settlement work on top of existing Happiness effects.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.0 · GROUNDED TOWN CENTER</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">A TOWN WORTH DEFENDING</span><h1>Build a lived-in medieval settlement.</h1>
+        <p>Road wear now ties completed buildings together, yards explain their function, timber/stone/plaster construction replaces the toy-box look, and Tavern nightlife adds clearly adult social character at dusk.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -78,12 +79,13 @@ export class Hud {
           <button data-action="rotate-build" title="Rotate selected blueprint">Rotate [R]</button>
           <button data-action="cancel">Inspect / Esc</button>
           <button data-action="camera">Follow player</button>
+          <button data-action="cinematic" title="Toggle low street-oblique settlement camera">Street view [V]</button>
           <button data-action="center">Center camp</button>
           <button data-action="save">Save</button>
           <button data-action="load">Load</button>
         </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">1–9: build · R: rotate · Shift-click: repeat · Drag: wall line · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
+      <div class="controls">1–9: build · R: rotate · V: street view · Shift-click: repeat · Drag: wall line · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -220,6 +222,9 @@ export class Hud {
 
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'
     this.element.querySelector('[data-action="camera"]')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
+    const cinematic = this.element.querySelector('[data-action="cinematic"]') as HTMLButtonElement
+    cinematic.textContent = ui.cinematic ? 'Overview [V]' : 'Street view [V]'
+    cinematic.setAttribute('aria-pressed', String(ui.cinematic))
     ;(this.element.querySelector('[data-action="spawn"]') as HTMLButtonElement).disabled = s.settlers.length >= MAX_SETTLERS
     ;(this.element.querySelector('[data-action="rotate-build"]') as HTMLButtonElement).disabled = ui.buildType === null
     for (const type of ['house', 'stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
