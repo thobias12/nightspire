@@ -139,6 +139,35 @@ test('cancelling construction in progress returns delivered materials and clears
   assert.ok(!s.jobs.some(j=>j.targetId===site.id))
   validateWorld(s)
 })
+
+test('cancellation refuses to destroy resources when storage cannot accept the refund', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.wood=20
+  assert.equal(placeBuilding(s,'house',{x:7,z:0}),null)
+  const site=s.buildings.at(-1)
+  const sim=new Simulation(s)
+  for(let i=0;i<1400 && site.work===0;i++) sim.step()
+  assert.ok(site.delivered.wood>0)
+  s.buildings[0].inventory={wood:400,food:0}
+  const before=JSON.stringify(s)
+  assert.match(cancelBuilding(s,site.id),/free stockpile capacity/)
+  assert.equal(JSON.stringify(s),before)
+})
+test('long-run M1 logistics conserves resources and stays valid', () => {
+  const s=createInitialWorldState(); pop10(s)
+  const initial={wood:total(s,'wood'),food:total(s,'food')}
+  for (const [type,x,z] of [['house',-7,0],['house',7,0],['house',7,6],['stockpile',-7,6]]) assert.equal(placeBuilding(s,type,{x,z}),null)
+  const sim=new Simulation(s)
+  for(let i=0;i<12000;i++) {
+    sim.step()
+    if(i%500===0) validateWorld(s)
+  }
+  validateWorld(s)
+  assert.equal(total(s,'wood'),initial.wood)
+  assert.equal(total(s,'food'),initial.food)
+  assert.equal(sim.navigation.failures,0)
+})
+
 test('invalid and incompatible saves are rejected without touching current state', () => {
   const s=createInitialWorldState(), original=serializeWorld(s)
   for(const mutate of [
