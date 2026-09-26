@@ -3,7 +3,7 @@ import type { BuildingId } from '../data/buildings'
 import { SceneRenderer } from '../render/SceneRenderer'
 import { cancelBuilding, freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
 import { distance } from '../simulation/Navigation'
-import { deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
+import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
 import { Simulation } from '../simulation/Simulation'
 import { createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { Hud, type Metrics } from '../ui/Hud'
@@ -65,6 +65,22 @@ export class Game {
     cancelAnimationFrame(this.animationFrame); this.animationFrame = 0
     this.abort.abort(); this.resizeObserver.disconnect(); this.input.dispose(); this.hud.dispose(); this.renderer.dispose()
   }
+  private storePrimary(text: string): void {
+    const previous = localStorage.getItem(SAVE_KEY)
+    if (previous) localStorage.setItem(BACKUP_KEY, previous)
+    localStorage.setItem(SAVE_KEY, text)
+  }
+  private replaceWorld(text: string): void {
+    this.simulation.replace(deserializeWorld(text))
+    this.accumulator = 0; this.selectedId = null; this.buildType = null
+  }
+  private exportSave(): void {
+    const blob = new Blob([serializeWorld(this.simulation.state)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob), link = document.createElement('a')
+    link.href = url; link.download = 'nightspire-day-' + this.simulation.state.day + '.json'
+    document.body.append(link); link.click(); link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
   private readonly action = (action: string, value?: string): void => {
     const s = this.simulation.state
     try {
@@ -83,6 +99,14 @@ export class Game {
         case 'pause': this.paused = !this.paused; this.accumulator = 0; break
         case 'speed': this.speed = Number(value); break
         case 'time': s.timeOfDay = Number(value) / 24; break
+        case 'target-wood': case 'target-food': {
+          const resource = action === 'target-wood' ? 'wood' : 'food'
+          const target = Math.max(0, Math.min(10_000, Math.round(Number(value))))
+          if (!Number.isFinite(target)) throw new Error('Stock target must be a number.')
+          s.targets[resource] = target
+          this.message = resource[0].toUpperCase() + resource.slice(1) + ' stock target set to ' + target + '.'
+          break
+        }
         case 'paths': this.renderer.debug = value === 'true'; break
         case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M1 maximum: 10 settlers.'; break
         case 'resources': {
@@ -98,14 +122,38 @@ export class Game {
         }
         case 'camera': this.buildType = null; this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'; break
         case 'center': this.renderer.mode = 'settlement'; this.renderer.focus.x = 0; this.renderer.focus.z = -1; this.renderer.angle = 0; this.renderer.zoom = 36; break
-        case 'save': localStorage.setItem(SAVE_KEY, serializeWorld(s)); this.message = 'Saved locally. Jobs, cargo, stockpiles, buildings and homes preserved.'; break
+        case 'save': {
+          this.storePrimary(serializeWorld(s))
+          this.message = 'Saved locally. The previous primary save is kept as a backup.'
+          break
+        }
         case 'load': {
           const saved = localStorage.getItem(SAVE_KEY)
           if (!saved) { this.message = 'No local save yet. Use Save first.'; break }
-          this.simulation.replace(deserializeWorld(saved)); this.accumulator = 0; this.selectedId = null; this.buildType = null
-          this.message = 'Loaded local settlement. Workers resume their saved jobs.'; break
+          this.replaceWorld(saved)
+          this.message = 'Loaded local settlement. Workers resume their saved jobs.'
+          break
         }
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: identities, cargo, reservations, housing and connectivity.'; break
+        case 'load-backup': {
+          const saved = localStorage.getItem(BACKUP_KEY)
+          if (!saved) { this.message = 'No backup save exists yet.'; break }
+          this.replaceWorld(saved)
+          this.message = 'Loaded backup settlement. Use Save if you want to make it primary.'
+          break
+        }
+        case 'export-save':
+          this.exportSave(); this.message = 'Exported a validated Nightspire JSON save.'; break
+        case 'import-save': {
+          if (!value) throw new Error('No save file was provided.')
+          const imported = deserializeWorld(value)
+          const serialized = serializeWorld(imported)
+          this.storePrimary(serialized)
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null
+          this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
+          break
+        }
+        case 'import-error': throw new Error(value || 'Could not read the selected save file.')
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: identities, cargo, reservations, targets, housing and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()
