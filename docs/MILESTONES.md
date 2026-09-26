@@ -170,6 +170,24 @@ Polish pass on the player-authored street/lot workflow.
 
 **Exit:** intersections no longer read as dark circles, road branches are topologically explicit in persisted planning data, and repeated residential lots can be laid out as clean aligned rows without pixel-perfect frontage placement.
 
+## M3.8.4 — Grounded roads & plot edges
+
+Renderer-only cleanup after live M3.8.3 screenshots exposed remaining decal/fence artifacts.
+
+- [x] opaque dirt-road core so overlapping/crossing roads do not accumulate darkness
+- [x] low-opacity wider road shoulders for softer grass-to-dirt transition
+- [x] narrow deterministic wheel ruts instead of full-width translucent overlays
+- [x] remove explicit road-junction patch geometry; identical opaque road strips blend by overlap
+- [x] sparse deterministic grass intrusion along road shoulders
+- [x] reduce the full rectangular Residential Plot ground tint
+- [x] neighboring plots render a shared side boundary fence once
+- [x] deeper of two neighboring lots owns the continued shared boundary
+- [x] rear fences keep a small practical opening
+- [x] exposed lot edges get minor post-height/jitter variation and optional hedge dressing
+- [ ] live visual acceptance from straight roads, crossings and 3–5 adjacent plots
+
+**Exit:** roads read as worn earth rather than transparent strips, intersections no longer form darker rectangles, and residential rows retain clear ownership without duplicated modern-looking parcel fences.
+
 ## M3.9 — Organic settlement structure
 
 Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.
