@@ -34,6 +34,6 @@ export function nightAmount(timeOfDay: number): number {
   const hour = t * 24
   if (hour >= 20 || hour < 5) return 1
   if (hour >= 18) return (hour - 18) / 2
-  if (hour < 6) return (6 - hour)
+  if (hour < 6) return Math.min(1, 6 - hour)
   return 0
 }
