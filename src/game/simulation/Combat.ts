@@ -42,10 +42,11 @@ export function livingGuards(state: WorldState): Settler[] {
 export function damageEnemy(state: WorldState, enemy: Enemy, damage: number, source: string): boolean {
   enemy.health = Math.max(0, enemy.health - damage)
   if (enemy.health > 0) return false
+  const label = enemyLabel(state, enemy.id)
   const index = state.enemies.findIndex(e => e.id === enemy.id)
   if (index >= 0) state.enemies.splice(index, 1)
   state.raid.totalDefeated++
-  recordEvent(state, source + ' defeated ' + enemyLabel(state, enemy.id) + '.')
+  recordEvent(state, source + ' defeated ' + label + '.')
   if (state.enemies.length === 0 && state.raid.lastSpawnDay === state.day) {
     state.raid.lastClearedWave = state.raid.wave
     recordEvent(state, 'Raid wave ' + state.raid.wave + ' cleared before dawn.')
