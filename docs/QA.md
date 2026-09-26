@@ -145,3 +145,19 @@ The seven M2.3 additions cover friendly-vs-hostile gate blocking (including the 
 Existing long-run conservation now explicitly includes lifetime repair timber consumption instead of hiding that resource sink. The older raid-movement regression accepts the terminal no-target state after all available core structures have reached their critical floor.
 
 The Pages build still needs user-facing verification after deployment. Recommended playtest: build several walls plus a gate, enable paths, trigger Night, watch raiders hit/breach the perimeter, inspect structure HP/hit flashes, then go to Day and observe workers carry wood to damaged structures. The QA **Damage selected structure** button provides a deterministic repair test.
+
+
+## M2.4 verification
+
+This closeout raises the raid from the original 12-enemy validation wave to the intended M2 pressure range without changing the combat or navigation architecture.
+
+- Wave 1: 20 raiders
+- Each later wave: +4 raiders
+- Cap: 40 raiders
+- Spawn side remains deterministic by wave
+- All raiders still share the same global two-paths-per-fixed-tick navigation budget
+- A dedicated 40-raider regression runs 800 fixed steps, periodically validates the full world, requires zero path failures, and asserts the solve budget is never exceeded
+
+Two new regressions bring the suite to 41 tests: deterministic 20→40 wave sizing/cap behavior and the capped 40-raider navigation-pressure run.
+
+Pages playtest focus after deployment: build a meaningful wall/gate perimeter, trigger the 20-raider first wave, inspect path queue/failures and structure damage, then use **Next raid** to feel the 24/28+ pressure increase. Automated verification proves bounded execution, not whether the combat numbers are fun; HP/damage/repair pacing should be tuned from the live playtest.

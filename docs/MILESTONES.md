@@ -63,7 +63,9 @@
 
 **M2.3 verified:** Wooden Walls/Gates, asymmetric gate navigation, structure HP/hit state, raider structure targeting, destructible fortification breaches, critical core-building damage, and timber-consuming daylight repair jobs. 39 tests pass and CI builds successfully.
 
-**Full M2 exit remaining:** the loop is now complete at the 12-raider validation scale; raise/balance the verified raid into the intended 20–40 attacker range before calling M2 fully closed.
+**M2.4 verified:** deterministic raid pressure now starts at 20 attackers, grows by four per wave, and caps at 40. A dedicated 40-raider regression keeps all hostile routing inside the shared two-paths-per-tick budget.
+
+**Full M2 technical exit:** implemented at the intended 20–40 attacker scale. Live user balance feedback can still tune HP/damage/pacing, but the next major systems milestone is M3.
 
 ## M3 — Needs and production
 
