@@ -893,40 +893,77 @@ export class SceneRenderer {
     const hair = [0x3d2b22, 0x69452d, 0x2c2725, 0x8b6a3d][id % 4]
     const cloth = colorOverride ?? [0x705345, 0x6d6251, 0x7b4e50, 0x596452, 0x725f3f][id % 5]
     const bob = Math.sin(time * 2.1 + id) * 0.012
+    const armSwing = Math.sin(time * 2.3 + id * 0.7) * 0.035
+
+    const leftArm = this.rotatedOffset(-0.25, armSwing, facing)
+    const rightArm = this.rotatedOffset(0.25, -armSwing, facing)
+    const leftLeg = this.rotatedOffset(-0.11, 0, facing)
+    const rightLeg = this.rotatedOffset(0.11, 0, facing)
 
     if (guard) {
       this.instance('guardCoat', x, 0.72 + bob, z, 1, 1, 1, 0x65504a, facing)
+      this.instance('adultLeg', x + leftLeg.x, 0.27 + bob, z + leftLeg.z, 1, 0.92, 1, 0x383b3b, facing)
+      this.instance('adultLeg', x + rightLeg.x, 0.27 + bob, z + rightLeg.z, 1, 0.92, 1, 0x383b3b, facing)
+      this.instance('adultArm', x + leftArm.x, 0.82 + bob, z + leftArm.z, 0.92, 0.95, 0.92, 0x65504a, facing)
+      this.instance('adultArm', x + rightArm.x, 0.82 + bob, z + rightArm.z, 0.92, 0.95, 0.92, 0x65504a, facing)
       this.instance('metal', x, 1.18 + bob, z, 0.42, 0.17, 0.42, 0x667078, facing)
     } else if (femaleSilhouette) {
-      this.instance('adultSkirt', x, 0.43 + bob, z, 0.9, 1, 0.9, cloth, facing)
-      this.instance('adultTorso', x, 0.88 + bob, z, 0.9, 0.88, 0.82, cloth, facing)
+      this.instance('adultSkirt', x, 0.43 + bob, z, 0.95, 1.02, 0.95, cloth, facing)
+      this.instance('adultBodice', x, 0.91 + bob, z, 0.96, 0.98, 0.9, cloth, facing)
+      this.instance('adultArm', x + leftArm.x, 0.89 + bob, z + leftArm.z, 0.92, 0.95, 0.92, skin, facing)
+      this.instance('adultArm', x + rightArm.x, 0.89 + bob, z + rightArm.z, 0.92, 0.95, 0.92, skin, facing)
+      const sash = this.rotatedOffset(0.02, 0.08, facing)
+      this.instance('cloth', x + sash.x, 0.76 + bob, z + sash.z, 0.42, 0.08, 0.3, this.scratchColor.setHex(cloth).multiplyScalar(1.15).getHex(), facing)
     } else {
-      this.instance('adultTorso', x, 0.67 + bob, z, 1, 1.08, 0.92, cloth, facing)
-      this.instance('timber', x - 0.11, 0.24 + bob, z, 0.11, 0.48, 0.12, 0x3d342e, facing)
-      this.instance('timber', x + 0.11, 0.24 + bob, z, 0.11, 0.48, 0.12, 0x3d342e, facing)
+      this.instance('adultTorso', x, 0.72 + bob, z, 1.02, 1.06, 0.95, cloth, facing)
+      this.instance('adultLeg', x + leftLeg.x, 0.26 + bob, z + leftLeg.z, 1, 0.95, 1, 0x3d342e, facing)
+      this.instance('adultLeg', x + rightLeg.x, 0.26 + bob, z + rightLeg.z, 1, 0.95, 1, 0x3d342e, facing)
+      this.instance('adultArm', x + leftArm.x, 0.82 + bob, z + leftArm.z, 0.92, 0.96, 0.92, cloth, facing)
+      this.instance('adultArm', x + rightArm.x, 0.82 + bob, z + rightArm.z, 0.92, 0.96, 0.92, cloth, facing)
     }
-    this.instance('adultHead', x, 1.28 + bob, z, 1, 1.05, 1, skin, facing)
-    this.instance('adultHair', x, 1.38 + bob, z - 0.035, 1.04, 0.72, 1.04, hair, facing)
+
+    this.instance('adultHead', x, 1.31 + bob, z, 1, 1.06, 1, skin, facing)
+    this.instance('adultHair', x, 1.42 + bob, z - 0.025, 1.04, 0.68, 1.04, hair, facing)
+    if (femaleSilhouette || id % 4 === 1) {
+      const back = this.rotatedOffset(0, -0.12, facing)
+      this.instance('adultHairLong', x + back.x, 1.12 + bob, z + back.z, 0.92, femaleSilhouette ? 1.08 : 0.78, 0.78, hair, facing)
+    }
   }
 
   private renderTavernNightlife(b: Building, rotation: number, time: number, activity: number): void {
     if (activity < 0.18 || b.inventory.ale <= 0) return
     const spots = [
-      [-0.78, 2.05, TOWN_PALETTE.clothWine],
-      [0.2, 2.18, 0x6b4b65],
-      [0.9, 1.82, TOWN_PALETTE.clothOchre],
-      [-1.28, 1.45, 0x5a624c],
+      [-0.82, 2.08, TOWN_PALETTE.clothWine],
+      [0.12, 2.24, 0x6b4b65],
+      [0.94, 1.84, TOWN_PALETTE.clothOchre],
+      [-1.28, 1.52, 0x5a624c],
+      [1.38, 2.04, 0x665040],
     ] as const
+
     for (let i = 0; i < spots.length; i++) {
       const [lx, lz, color] = spots[i]
       const p = this.rotatedOffset(lx, lz, rotation)
-      const sway = Math.sin(time * (1.5 + i * 0.12) + b.id + i) * 0.04 * activity
+      const sway = Math.sin(time * (1.5 + i * 0.12) + b.id + i) * 0.05 * activity
       const facing = rotation + Math.PI + sway
+
       if (i < 2) {
-        this.instance('entertainer', b.x + p.x, 0.49, b.z + p.z, 1, 1, 1, color, facing)
-        this.instance('adultTorso', b.x + p.x, 0.9, b.z + p.z, 0.82, 0.78, 0.76, color, facing)
-        this.instance('adultHead', b.x + p.x, 1.29, b.z + p.z, 1, 1.05, 1, i === 0 ? 0xd4a17d : 0xb97f62, facing)
-        this.instance('adultHair', b.x + p.x, 1.39, b.z + p.z - 0.03, 1.08, 0.78, 1.06, i === 0 ? 0x4b2e25 : 0x6a472f, facing)
+        const skin = i === 0 ? 0xd4a17d : 0xb97f62
+        const hair = i === 0 ? 0x4b2e25 : 0x6a472f
+        const left = this.rotatedOffset(-0.27, 0.02, facing)
+        const right = this.rotatedOffset(0.27, -0.02, facing)
+        const back = this.rotatedOffset(0, -0.13, facing)
+
+        // Adult Tavern entertainers intentionally have a more polished/fitted
+        // silhouette than workers: fitted bodice, flowing skirt, bare arms, long
+        // hair and a metallic belt/jewelry accent. This remains stylized/non-explicit.
+        this.instance('entertainer', b.x + p.x, 0.47, b.z + p.z, 1.05, 1.04, 1.05, color, facing)
+        this.instance('adultBodice', b.x + p.x, 0.93, b.z + p.z, 1.08, 1.0, 0.92, this.scratchColor.setHex(color).multiplyScalar(1.08).getHex(), facing)
+        this.instance('adultArm', b.x + p.x + left.x, 0.9, b.z + p.z + left.z, 1, 1, 1, skin, facing)
+        this.instance('adultArm', b.x + p.x + right.x, 0.9, b.z + p.z + right.z, 1, 1, 1, skin, facing)
+        this.instance('metal', b.x + p.x, 0.72, b.z + p.z, 0.44, 0.055, 0.34, 0xb49761, facing)
+        this.instance('adultHead', b.x + p.x, 1.32, b.z + p.z, 1, 1.06, 1, skin, facing)
+        this.instance('adultHair', b.x + p.x, 1.43, b.z + p.z - 0.02, 1.08, 0.7, 1.06, hair, facing)
+        this.instance('adultHairLong', b.x + p.x + back.x, 1.13, b.z + p.z + back.z, 1, 1.18, 0.82, hair, facing)
       } else {
         this.renderAdultFigure(b.x + p.x, b.z + p.z, b.id * 10 + i, false, time, color, facing)
       }
