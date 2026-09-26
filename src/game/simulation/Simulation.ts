@@ -14,6 +14,7 @@ import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
+import { updateServices } from './Services'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
 import {
@@ -105,6 +106,7 @@ export class Simulation {
     }
 
     updateNeeds(s, FIXED_STEP, phase)
+    updateServices(s, FIXED_STEP, phase)
     this.navigation.process(s)
   }
 
@@ -195,7 +197,11 @@ export class Simulation {
     }
 
     const status = job.stage === 'target'
-      ? (job.kind === 'repair' ? 'Carrying repair timber' : 'Carrying ' + job.amount + ' ' + job.resource)
+      ? job.kind === 'repair'
+        ? 'Carrying repair timber'
+        : job.kind === 'supply'
+          ? 'Supplying ' + BUILDINGS[s.buildings.find(b => b.id === job.targetId)!.type].label
+          : 'Carrying ' + job.amount + ' ' + job.resource
       : 'Travel to ' + job.kind
     this.move(settler, target, status, WALK_SPEED)
   }
@@ -344,7 +350,10 @@ export class Simulation {
         return
       }
 
-      if (job.kind === 'gather') {
+      if (job.kind === 'supply') {
+        target.inventory[job.resource] += job.amount
+        recordEvent(s, job.amount + ' ' + job.resource + ' supplied to ' + BUILDINGS[target.type].label + '.')
+      } else if (job.kind === 'gather') {
         if (target.destroyed) {
           finishJob(s, settler, job)
           return
@@ -363,7 +372,7 @@ export class Simulation {
       return
     }
 
-    if (job.kind === 'deliver' || job.kind === 'repair') {
+    if (job.kind === 'deliver' || job.kind === 'repair' || job.kind === 'supply') {
       const source = s.buildings.find(b => b.id === job.sourceId)
       if (!source || source.inventory[job.resource] < job.amount) {
         finishJob(s, settler, job)
