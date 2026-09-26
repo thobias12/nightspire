@@ -1044,7 +1044,7 @@ export class SceneRenderer {
       const def = BUILDINGS[b.type]
       const hit = this.recentlyHit(b.lastHitTick, state.tick)
       const plot = b.type === 'house' ? state.residentialPlots.find(candidate => candidate.buildingId === b.id) : undefined
-      const rotation = plot?.angle ?? (b.rotation ?? 0) * Math.PI / 2
+      const rotation = plot?.angle ?? b.facingAngle ?? (b.rotation ?? 0) * Math.PI / 2
       const damage = damageVisualStage(b.health, b.maxHealth, b.destroyed)
       const intactColor = this.damagedColor(def.color, damage)
       const baseColor = hit ? 0xff705e : this.readableNightColor(intactColor, night)
@@ -1223,6 +1223,7 @@ export class SceneRenderer {
     valid: boolean,
     rotationSteps = 0,
     dragPoints: Point[] = [],
+    facingAngle: number | null = null,
   ): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
@@ -1232,7 +1233,7 @@ export class SceneRenderer {
     if (!type || !p) return
 
     const def = BUILDINGS[type]
-    const rotation = ((rotationSteps % 4) + 4) % 4 * Math.PI / 2
+    const rotation = facingAngle ?? (((rotationSteps % 4) + 4) % 4 * Math.PI / 2)
     const height = def.fortification
       ? (type === 'wood-gate' ? 1.8 : 1.35)
       : type === 'house' ? 2.3
