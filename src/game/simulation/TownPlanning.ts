@@ -1,6 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { inBounds } from './Navigation'
-import type { Building, Point, ResidentialPlot, RoadPath } from './WorldState'
+import type { Building, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
 
 export type BackyardKind = ResidentialPlot['backyard']
 
@@ -163,6 +163,30 @@ export function residentialPlotsOverlap(a: ResidentialPlotPreview | ResidentialP
   const ac = plotCorners(a)
   const bc = plotCorners(b)
   return [...axesFor(ac), ...axesFor(bc)].every(axis => overlapsOnAxis(ac, bc, axis))
+}
+
+export function pointInResidentialPlot(
+  plot: ResidentialPlotPreview | ResidentialPlot,
+  point: Point,
+  margin = 0,
+): boolean {
+  const tangent = normalize(subtract(plot.frontageB, plot.frontageA))
+  const rear = { x: -tangent.z * plot.side, z: tangent.x * plot.side }
+  const relative = subtract(point, plot.frontageA)
+  const along = dot(relative, tangent)
+  const back = dot(relative, rear)
+  const width = Math.hypot(plot.frontageB.x - plot.frontageA.x, plot.frontageB.z - plot.frontageA.z)
+  return along >= -margin && along <= width + margin && back >= -margin && back <= plot.depth + margin
+}
+
+export function residentialPlotResourceError(
+  preview: ResidentialPlotPreview | null,
+  nodes: ResourceNode[],
+): string | null {
+  if (!preview) return null
+  return nodes.some(node => node.remaining > 0 && pointInResidentialPlot(preview, node, 0.45))
+    ? 'Clear resources from the residential plot first.'
+    : null
 }
 
 export function residentialPlotBuildingError(
