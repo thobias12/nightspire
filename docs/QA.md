@@ -418,3 +418,34 @@ Grid Snap and Road Snap are session/UI preferences, not settlement save data. Pe
 ### Architectural boundary
 
 M3.8.2 does not change `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, reservations, AI decisions or movement cost. All assistance is resolved before the existing placement API receives the final grid cell/rotation.
+
+
+## M3.8.3 verification target
+
+M3.8.3 is a placement/presentation hardening pass on M3.8.2. The regression target rises from 100 to **103 tests**.
+
+New coverage verifies:
+
+- a road drag near an existing endpoint prefers that exact endpoint, while a centerline join returns the exact projected point
+- inserting that joined point splits the existing persisted RoadPath once, creating an explicit shared junction node without duplicate insertion
+- a second Residential Plot started near the first plot's frontage edge snaps flush to the neighbor while remaining a valid non-overlapping lot
+- the tighter conventional-building Road Snap still resolves to a valid integer grid center and road-facing angle
+
+### Browser workflow
+
+1. Start fresh with Grid Snap ON.
+2. Draw one long horizontal road.
+3. Draw a branch whose endpoint ends near the middle of that road. The branch should lock exactly onto the centerline. Visually the junction must read as continuous dirt with **no large dark round blob**.
+4. Draw another road toward an existing road endpoint. Endpoint snap should win over a nearby centerline projection.
+5. Create one Residential Plot, then start a second plot near the first plot's road-front corner. The preview should visibly jump flush to the existing edge and the HUD message should say the edge is snapped.
+6. Confirm the frontage preview has small metre tick marks so equal-width rows are easy to judge.
+7. Place 3–5 adjacent plots. Shared boundaries should line up without overlaps or tiny gaps.
+8. Confirm side fences stop short of the road frontage and no longer make every lot read as a fully enclosed modern rectangle.
+9. Select Tavern / Blacksmith / Brewery and move near the road. The ghost should sit slightly closer to the road than M3.8.2 and the brighter/wider frontage marker should make its street-facing edge obvious.
+10. Save / Load and confirm road junction control points, plots and road-facing building angles remain unchanged.
+11. Enable path debug and verify workers still ignore roads for movement cost/preference.
+12. Check state integrity.
+
+### Architectural boundary
+
+M3.8.3 still does not change `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, reservations, AI decisions or movement cost. Junction nodes are persisted now specifically so post-M4 road/path integration can consume a cleaner road graph later.
