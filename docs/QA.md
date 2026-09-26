@@ -251,3 +251,16 @@ M3.4 adds five construction-UX regressions on top of the 71-test M3.3 suite, for
 - building orientation survives save/load, while demolition refuses a building that still contains physical resources
 
 Browser playtest after deployment should verify the non-simulation-facing controls directly: use 1–8 to switch build choices, press R and watch the amber façade marker rotate, Shift-click several Houses/Campfires without reselecting, drag a multi-cell wall line, put a Gate on one finished wall segment, select a 3×3 building and verify the larger selection ring, then demolish an empty completed non-starter structure and observe the refund in storage.
+
+
+## M3.5 verification target
+
+M3.5 adds three deterministic renderer-state regressions on top of the 76-test M3.4 suite, for a target of 79 tests:
+
+- atmosphere state is bright/open by Day, colder/denser by Night, and exposes a strong twilight signal around dusk
+- construction presentation advances deterministically through foundation → frame → shell → complete
+- building damage maps deterministically through intact/worn/damaged/critical/ruin states
+
+Browser playtest after deployment should compare Day, Dusk and Night with several completed Houses, a stocked Tavern, Brewery and Campfire. Confirm occupied Houses/Tavern windows glow warmly against the colder night; Campfire flickers; Brewery smoke appears only during a viable Day production window; Houses/Tavern/Brewery/Guard Post/Stockpile have distinct silhouettes; an unfinished 3×3 building visibly progresses through scaffold stages; and the QA structure-damage control darkens a building before a destroyed ruin becomes visible debris.
+
+The visual pass intentionally keeps simulation scale and behavior unchanged and should be evaluated alongside the HUD draw-call/render-submission metrics before later art density increases.

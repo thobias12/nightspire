@@ -77,6 +77,7 @@
 - [ ] happiness consequences
 - [ ] better logistics/resource reservations
 - [x] building/construction UX pass
+- [x] settlement visual/atmosphere readability pass
 
 **M3.0 verified:** food consumption, bed-backed Housing, defense-backed Safety, capacity-limited Campfire Recreation, persisted per-settler needs and derived Happiness.
 
@@ -86,7 +87,9 @@
 
 **M3.3 verified:** deterministic attraction from spare housing, stored Food, Happiness, Safety and raid outcomes; two-Day qualification; physical edge-entry immigrants; arriving-settler job exclusion; QA visibility; and current-state save/load coverage.
 
-**M3.4 target:** categorized build mode, 1–8 hotkeys, persisted R rotation, Shift-repeat placement, atomic straight wall dragging, direct wall→gate conversion, footprint-aware selection, safe 50% demolition refunds, and clearer placement feedback. No job/navigation architecture changes are required.
+**M3.4 verified:** categorized build mode, 1–8 hotkeys, persisted R rotation, Shift-repeat placement, atomic straight wall dragging, direct wall→gate conversion, footprint-aware selection, safe 50% demolition refunds, and clearer placement feedback.
+
+**M3.5 target:** keep the current simulation untouched while improving building silhouettes, construction-stage readability, damage/ruin presentation, terrain variation, occupied settlement glow, moonlight/fog, Campfire activity and Brewery production smoke through shared renderer batches.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 

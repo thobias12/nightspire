@@ -2,7 +2,7 @@
 
 A medieval dark-fantasy settlement builder. The long-term direction is to build a living city by day and personally defend it at night.
 
-**Current playable milestone: M3.4 — Building & Construction UX.** The M3.3 population/economy loop remains intact, while settlement construction is faster and more legible: categorized build controls, 1–8 hotkeys, R rotation, Shift-repeat placement, drag-built wall lines, direct wall→gate conversion, footprint-aware selection, and safe completed-building demolition. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M3.5 — Visual & Atmosphere.** The M3.4 construction/population/economy loop remains intact while the graybox world gets a stronger visual language: distinct building silhouettes, staged construction scaffolds, damage/ruin feedback, warm occupied settlement lighting, cold moonlit nights, active Brewery smoke, Campfire flicker, ground variation and clearer world selection/placement presentation. See [the design](docs/GAME_DESIGN.md) for future direction.
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -59,7 +59,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-six regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Seventy-nine regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -70,7 +70,7 @@ Browser verification covered gathering and visible cargo, placing three houses a
 - One fixed 20 Hz simulation; shared job decisions at 2 Hz.
 - A shared navigation queue solves at most two grid paths per simulation tick across both settlers and raiders. Friendly and hostile blocker sets differ: completed gates are friendly-passable but hostile-blocking; destroyed fortifications reopen topology.
 - Data definitions own current resources, building costs/capacities/work, and job priorities.
-- Rendering uses instanced graybox workers, cargo, resource nodes, and building parts with shared geometry/materials.
+- Rendering uses shared instanced batches for workers, cargo, resource nodes, building shells, roofs, trim, props, scaffolds, debris, glow, smoke and terrain accents. Night lighting uses one moon light and one shared settlement glow rather than per-building lights.
 - No React, external physics, ECS framework, or new runtime dependencies.
 
 ```text
@@ -86,8 +86,8 @@ docs/           design, architecture, milestones, decisions and QA
 
 ## Scope and limitations
 
-This is a small playable graybox foundation: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, a physical Food → Ale → Tavern chain, deterministic population attraction from 6 → 10, and a dedicated build-mode UX layer. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
+This is a small playable stylized-graybox foundation: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, a physical Food → Ale → Tavern chain, deterministic population attraction from 6 → 10, dedicated build-mode UX, and a first settlement atmosphere/readability pass. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
 
 See [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.4 improves the construction workflow without changing simulation scale. The population cap intentionally remains 10 while separate M4 scale work is evaluated. Build rotation is persisted and presented visually; current footprints remain square, so rotation primarily controls façade/fortification presentation rather than changing occupied cells.
+M3.5 is intentionally presentation-only. It does not change Simulation.ts, Navigation.ts or Jobs.ts while separate M4 scale work is evaluated. Detail remains procedural/instanced graybox rather than final art, but buildings now have readable silhouettes and activity cues, construction/damage state is visible in-world, and night establishes the intended warm-town-versus-cold-wilderness contrast.
