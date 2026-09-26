@@ -34,6 +34,8 @@ p { line-height: 1.55; margin: 9px 0; }
 .qa button { font-size: 11px; padding: 7px; }
 .qa label { display: block; margin: 8px 0; }
 .qa input[type="range"] { width: 155px; vertical-align: middle; }
+.number-input { width: 72px; margin-left: 4px; padding: 5px; border: 1px solid #626b5d; border-radius: 4px; background: #222c25; color: #f3eee1; }
+.qa input[type="file"] { display: block; width: 100%; margin-top: 5px; font-size: 10px; color: #bfc5b8; }
 .qa dl { display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; font-size: 10px; font-variant-numeric: tabular-nums; }
 dt { color: #a9b5a5; } dd { margin: 0; text-align: right; }
 .worker { padding: 4px 0; font-size: 10px; border-top: 1px solid #3e483d; }
