@@ -17,6 +17,8 @@ export interface HudState {
   selectedId: number | null
   buildType: BuildingId | null
   planningTool: 'road' | 'residential-plot' | null
+  gridSnap: boolean
+  roadSnap: boolean
   buildRotation: number
   dragCount: number
   message: string
@@ -34,9 +36,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.1 · ROADS & RESIDENTIAL PLOTS</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">SHAPE THE TOWN YOURSELF</span><h1>Roads first. Homes grow from plots.</h1>
-        <p>Draw your own roads, then drag residential plots from the road into the land. Each plot persists, faces its road, builds a normal House underneath, and generates its own modular frontage, fences and backyard.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.8.2 · PLACEMENT & SNAPPING</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">ORGANIC WITHOUT THE FIDDLING</span><h1>Aligned when you want it. Freeform when you don't.</h1>
+        <p>Grid Snap defaults on for clean 0°/45°/90° roads and whole-metre plots. Road Snap magnetically places conventional buildings beside nearby roads and turns their frontage toward the street. Toggle either mode whenever you want freer placement.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -61,8 +63,12 @@ export class Hud {
       </div></details>
       <footer class="bottom"><div class="toolbar panel">
         <div class="build-group"><span>Town planning</span>
-          <button data-action="road" title="Hotkey 0 · drag freely">[0] Road <small>Drag a persistent dirt road</small></button>
-          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>20 wood house · 4 beds · backyard</small></button>
+          <button data-action="road" title="Hotkey 0 · Grid Snap gives aligned segments">[0] Road <small>Aligned or freeform persistent road</small></button>
+          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Road-front house · modular backyard</small></button>
+        </div>
+        <div class="build-group"><span>Snapping</span>
+          <button data-action="grid-snap" title="Hotkey G · affects road and plot geometry">Grid Snap [G]</button>
+          <button data-action="road-snap" title="Hotkey F · affects conventional building placement">Road Snap [F]</button>
         </div>
         <div class="build-group"><span>Infrastructure</span>
           <button data-action="stockpile" title="Hotkey 2">[2] Stockpile <small>10 wood · 400 storage</small></button>
@@ -88,7 +94,7 @@ export class Hud {
           <button data-action="load">Load</button>
         </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">0: draw road · 1: drag residential plot · 2–9: buildings · R: rotate · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
+      <div class="controls">0: road · 1: residential plot · G: grid snap · F: road snap · 2–9: buildings · R: rotate/manual facing · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -176,7 +182,9 @@ export class Hud {
       const demolish = b.complete && !starter
         ? '<button class="danger" data-action="demolish-selected">Demolish · refund ' + refundWood + ' wood</button>'
         : ''
-      const facing = ['South', 'East', 'North', 'West'][b.rotation ?? 0]
+      const facing = b.facingAngle === undefined
+        ? ['South', 'East', 'North', 'West'][b.rotation ?? 0]
+        : 'Road-aligned ' + Math.round(((b.facingAngle * 180 / Math.PI) + 360) % 360) + '°'
       let details = ''
       if (b.complete) {
         const repairJob = s.jobs.find(j => j.kind === 'repair' && j.targetId === b.id)
@@ -211,13 +219,14 @@ export class Hud {
     } else {
       const facing = ['South', 'East', 'North', 'West'][ui.buildRotation]
       const placement = ui.planningTool === 'road'
-        ? 'Road tool · click-drag through the landscape. Roads are persisted now but still visual-only for movement.'
+        ? 'Road tool · ' + (ui.gridSnap ? 'Grid Snap ON: straight 0°/45°/90° segments with magnetic road joins.' : 'Grid Snap OFF: freeform road stroke with magnetic endpoint joins.')
         : ui.planningTool === 'residential-plot'
-          ? 'Residential Plot · start near a road and drag diagonally along its frontage and backward into the lot. The house automatically faces the road.'
+          ? 'Residential Plot · road frontage is mandatory. ' + (ui.gridSnap ? 'Width/depth snap to whole metres.' : 'Freeform plot dimensions enabled.')
           : ui.buildType
-            ? 'Placing ' + BUILDINGS[ui.buildType].label + ' · Facing ' + facing
+            ? 'Placing ' + BUILDINGS[ui.buildType].label + ' · ' + (ui.roadSnap && !BUILDINGS[ui.buildType].fortification && ui.buildType !== 'campfire'
+              ? 'Road Snap ON: nearby streets magnetically control position/facing.'
+              : 'Manual grid facing ' + facing + '.')
               + (ui.dragCount > 1 ? ' · ' + ui.dragCount + ' wall segments' : '')
-              + '. Green means the whole placement is valid; red means blocked.'
             : 'Select a settler to assign guard duty, or inspect a resource/building.'
       this.set('inspection', '<p>' + placement + '</p>')
     }
@@ -236,6 +245,12 @@ export class Hud {
     ;(this.element.querySelector('[data-action="rotate-build"]') as HTMLButtonElement).disabled = ui.buildType === null
     this.element.querySelector('[data-action="road"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'road'))
     this.element.querySelector('[data-action="residential-plot"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'residential-plot'))
+    const gridSnap = this.element.querySelector('[data-action="grid-snap"]') as HTMLButtonElement
+    const roadSnap = this.element.querySelector('[data-action="road-snap"]') as HTMLButtonElement
+    gridSnap.textContent = 'Grid Snap ' + (ui.gridSnap ? 'ON' : 'OFF') + ' [G]'
+    roadSnap.textContent = 'Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
+    gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
+    roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
     for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
