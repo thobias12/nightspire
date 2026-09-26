@@ -14,6 +14,7 @@ import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
+import { processImmigrationDay } from './Population'
 import { updateProduction } from './Production'
 import { updateServices } from './Services'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
@@ -85,6 +86,11 @@ export class Simulation {
         continue
       }
 
+      if (settler.arrivalTarget) {
+        this.updateImmigrantArrival(settler)
+        continue
+      }
+
       const job = s.jobs.find(j => j.id === settler.jobId)
       if (job) this.updateJob(settler, job)
       else if (!isWorkPhase(phase)) {
@@ -148,6 +154,8 @@ export class Simulation {
       recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
     } else if (next === 'day') {
       assignHousing(s)
+      const immigration = processImmigrationDay(s)
+      if (immigration.arrived) assignHousing(s)
       serveDailyMeal(s, true)
       for (const settler of s.settlers) {
         if (settler.jobId === null) {
@@ -206,6 +214,22 @@ export class Simulation {
           : 'Carrying ' + job.amount + ' ' + job.resource
       : 'Travel to ' + job.kind
     this.move(settler, target, status, WALK_SPEED)
+  }
+
+  private updateImmigrantArrival(settler: Settler): void {
+    const target = settler.arrivalTarget
+    if (!target) return
+
+    if (distance(settler, target) < 0.01) {
+      settler.arrivalTarget = null
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = 'Arrived — needs work'
+      recordEvent(this.state, settlerLabel(this.state, settler.id) + ' arrived in Nightspire.')
+      return
+    }
+
+    this.move(settler, target, 'Arriving in Nightspire', WALK_SPEED)
   }
 
   private updateNightSchedule(settler: Settler): void {

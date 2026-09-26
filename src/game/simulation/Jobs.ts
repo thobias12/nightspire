@@ -39,7 +39,7 @@ export function assignJobs(state: WorldState): void {
   const stores = stockpiles(state)
 
   for (const settler of state.settlers) {
-    if (settler.jobId !== null || settler.health <= 0) continue
+    if (settler.jobId !== null || settler.health <= 0 || settler.arrivalTarget !== null) continue
 
     const options: Omit<Job, 'id' | 'settlerId'>[] = []
 

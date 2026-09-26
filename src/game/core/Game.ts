@@ -4,6 +4,7 @@ import { SceneRenderer } from '../render/SceneRenderer'
 import { assignHousing, cancelBuilding, freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
 import { damageBuilding } from '../simulation/Combat'
 import { distance } from '../simulation/Navigation'
+import { forceImmigrationIfEligible } from '../simulation/Population'
 import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
 import { Simulation } from '../simulation/Simulation'
 import { createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
@@ -22,7 +23,7 @@ export class Game {
   private pointer: Point | null = null
   private paused = false
   private speed = 1
-  private message = 'Build a Brewery, feed it Food, then watch workers haul produced Ale into the Tavern.'
+  private message = 'Create spare housing, keep people happy and safe, and make Nightspire attractive to new settlers.'
   private animationFrame = 0
   private lastTime = 0
   private accumulator = 0
@@ -150,6 +151,11 @@ export class Game {
         case 'needs-reset':
           for (const settler of s.settlers) settler.needs = { food: 100, housing: 100, safety: 100, recreation: 100 }
           this.message = 'QA reset all settler needs to 100%.'; break
+        case 'immigration-test': {
+          const result = forceImmigrationIfEligible(s)
+          this.message = result.message
+          break
+        }
         case 'building-supply': {
           const building = s.buildings.find(b => b.id === this.selectedId && b.complete && !b.destroyed)
           if (!building) {
@@ -173,7 +179,7 @@ export class Game {
           break
         }
         case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M3.2 maximum remains 10 settlers.'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'QA settler spawned directly in camp.' : 'M3.3 maximum remains 10 settlers.'; break
         case 'resources': {
           let added = 0
           for (const resource of ['wood', 'food'] as const) {
@@ -218,7 +224,7 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: needs, meals, production, Ale hauling, services, repairs, raid state, reservations and connectivity.'; break
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: population attraction, arrivals, needs, production, services, raids, reservations and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()

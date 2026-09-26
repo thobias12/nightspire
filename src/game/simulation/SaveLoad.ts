@@ -3,7 +3,7 @@ import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
-import { DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
+import { DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
 
 export const SAVE_KEY = 'nightspire.m1.save.v1'
 export const BACKUP_KEY = 'nightspire.m1.backup.v1'
@@ -252,6 +252,7 @@ export function deserializeWorld(text: string): WorldState {
       if (settler.lastHitTick === undefined) settler.lastHitTick = 0
       if (settler.needs === undefined) settler.needs = { ...DEFAULT_NEEDS }
       if (settler.lastMealDay === undefined) settler.lastMealDay = Math.max(0, candidate.day - 1)
+      if (settler.arrivalTarget === undefined) settler.arrivalTarget = null
       migrateInventory(settler.cargo)
     }
   }
@@ -289,6 +290,7 @@ export function deserializeWorld(text: string): WorldState {
   }
 
   if (candidate && candidate.version === 1 && candidate.raid === undefined) candidate.raid = { ...DEFAULT_RAID }
+  if (candidate && candidate.version === 1 && candidate.immigration === undefined) candidate.immigration = { ...DEFAULT_IMMIGRATION }
   if (candidate && candidate.version === 1 && candidate.raid) {
     if (candidate.raid.totalDefeated === undefined) candidate.raid.totalDefeated = 0
     if (candidate.raid.lastClearedWave === undefined) candidate.raid.lastClearedWave = 0
