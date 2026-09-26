@@ -4,8 +4,32 @@ import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { MAP_SIZE } from '../simulation/Navigation'
 import type { Building, Point, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
+import { TOWN_PALETTE, visualRoadLinks, visualRoadStrip } from './TownPresentation'
 
 export type CameraMode = 'settlement' | 'follow'
+
+function createGableRoofGeometry(): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry()
+  const vertices = new Float32Array([
+    -0.5, 0, -0.5,
+     0.5, 0, -0.5,
+     0, 0.5, -0.5,
+    -0.5, 0,  0.5,
+     0.5, 0,  0.5,
+     0, 0.5,  0.5,
+  ])
+  const indices = [
+    0, 1, 2,
+    5, 4, 3,
+    0, 3, 4, 0, 4, 1,
+    0, 2, 5, 0, 5, 3,
+    1, 4, 5, 1, 5, 2,
+  ]
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+  geometry.setIndex(indices)
+  geometry.computeVertexNormals()
+  return geometry
+}
 
 function createRadialGlowTexture(size = 64): THREE.DataTexture {
   const data = new Uint8Array(size * size * 4)
@@ -38,22 +62,26 @@ export class SceneRenderer {
   readonly focus = { x: 0, z: -1 }
 
   mode: CameraMode = 'settlement'
-  zoom = 36
+  zoom = 31
   angle = 0
   debug = false
+  cinematic = false
 
   private readonly renderer: THREE.WebGLRenderer
   private readonly sun = new THREE.DirectionalLight(0xfff0cf, 2.4)
   private readonly moon = new THREE.DirectionalLight(0xb7cdff, 0.75)
   private readonly ambient = new THREE.HemisphereLight(0xb8c7ff, 0x3b2d22, 1.25)
   private readonly settlementGlow = new THREE.PointLight(0xffa65b, 0, 36, 1.65)
+  private readonly grid = new THREE.GridHelper(46, 46, 0x829077, 0x68755d)
   private readonly groundMaterial = new THREE.MeshStandardMaterial({ color: 0x617248, roughness: 1 })
   private readonly radialGlowTexture = createRadialGlowTexture()
   private readonly matrix = new THREE.Object3D()
   private readonly batches: Record<string, THREE.InstancedMesh> = {}
   private readonly batchColors: Record<string, number> = {}
   private readonly settlementLitBatches = new Set([
-    'buildings', 'fortifications', 'campfireFire', 'roofs', 'doors', 'trim', 'props',
+    'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'doors', 'trim', 'props',
+    'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs',
+    'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'guardCoat', 'entertainer',
     'foundation', 'scaffold', 'debris',
   ])
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
@@ -120,16 +148,34 @@ export class SceneRenderer {
     ground.receiveShadow = true
     this.scene.add(ground)
 
-    const grid = new THREE.GridHelper(46, 46, 0x829077, 0x68755d)
-    grid.position.y = 0.012
-    ;(grid.material as THREE.Material).transparent = true
-    ;(grid.material as THREE.Material).opacity = 0.28
-    this.scene.add(grid)
+    this.grid.position.y = 0.012
+    ;(this.grid.material as THREE.Material).transparent = true
+    ;(this.grid.material as THREE.Material).opacity = 0.22
+    this.grid.visible = false
+    this.scene.add(this.grid)
 
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 6), 0x354d36, 1000)
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 6), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 320, 0.34)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 320, 0.16)
+    this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 240, 0.28)
+    this.addBatch('stone', this.geometry, TOWN_PALETTE.stone, 1200)
+    this.addBatch('plaster', this.geometry, TOWN_PALETTE.plasterWarm, 700)
+    this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600)
+    this.addBatch('metal', this.geometry, TOWN_PALETTE.iron, 520)
+    this.addBatch('cloth', this.geometry, TOWN_PALETTE.clothWine, 420)
+    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 520)
+    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 520)
+    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 700)
+    this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 360)
+    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, 80)
+    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, 80)
+    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, 100)
+    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, 100)
+    this.addBatch('guardCoat', new THREE.CapsuleGeometry(0.23, 0.38, 3, 6), 0x6a5149, 30)
+    this.addBatch('entertainer', new THREE.ConeGeometry(0.34, 0.78, 10), TOWN_PALETTE.clothWine, 40)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
     this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, 10)
     this.addBatch('enemies', new THREE.CapsuleGeometry(0.26, 0.5, 3, 5), 0x6f2525, 64)
@@ -245,8 +291,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear'].includes(name)
+    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'yardPatch'].includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'yardPatch'].includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
