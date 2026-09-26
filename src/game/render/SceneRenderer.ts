@@ -444,9 +444,24 @@ export class SceneRenderer {
       buildings: 0.38,
       fortifications: 0.34,
       roofs: 0.46,
+      gableRoofs: 0.42,
       doors: 0.28,
       trim: 0.4,
       props: 0.42,
+      stone: 0.2,
+      plaster: 0.32,
+      timber: 0.24,
+      metal: 0.28,
+      cloth: 0.2,
+      barrels: 0.22,
+      sacks: 0.18,
+      logs: 0.2,
+      adultTorso: 0.2,
+      adultSkirt: 0.2,
+      adultHead: 0.12,
+      adultHair: 0.14,
+      guardCoat: 0.24,
+      entertainer: 0.2,
       foundation: 0.3,
       scaffold: 0.34,
       debris: 0.26,
@@ -458,7 +473,7 @@ export class SceneRenderer {
     for (const [name, strength] of Object.entries(strengths)) {
       const material = this.batches[name]?.material
       if (!(material instanceof THREE.MeshStandardMaterial)) continue
-      material.emissive.setHex(name === 'wood' || name === 'food' ? forest : cool)
+      material.emissive.setHex(['wood', 'treeTrunk', 'underbrush', 'food'].includes(name) ? forest : cool)
       material.emissiveIntensity = night * strength
     }
   }
@@ -789,7 +804,7 @@ export class SceneRenderer {
     if (active) {
       const pulse = 0.92 + Math.sin(time * 8.5 + b.id) * 0.08
       this.instance('glow', b.x + forge.x, 0.82, b.z + forge.z, 0.74 * pulse, 0.32, 0.74 * pulse, 0xff853d)
-      this.warmGroundPool(b.x + forge.x * 0.02, b.z + forge.z * 0.02, 2.4, 0.38, Math.max(night, 0.42))
+      this.warmGroundPool(b.x + forge.x, b.z + forge.z, 2.4, 0.38, Math.max(night, 0.42))
       for (let i = 0; i < 2; i++) {
         const drift = Math.sin(time * 1.05 + b.id * 0.5 + i) * 0.16
         const rise = (time * 0.28 + i * 0.5) % 1
@@ -800,20 +815,24 @@ export class SceneRenderer {
 
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
-      this.instance('fortifications', b.x, 0.72, b.z, 0.88, 1.38, 0.72, color, rotation)
-      for (const localX of [-0.32, 0.32]) {
+      for (const localX of [-0.32, 0, 0.32]) {
         const o = this.rotatedOffset(localX, 0, rotation)
-        this.instance('trim', b.x + o.x, 0.83, b.z + o.z, 0.14, 1.7, 0.16, 0x4f3827, rotation)
+        this.instance('logs', b.x + o.x, 0.72, b.z + o.z, 0.72, 0.82, 0.72, color, rotation + Math.PI / 2)
+        this.instance('timber', b.x + o.x, 1.5, b.z + o.z, 0.12, 0.42, 0.12, 0x4e3828, rotation)
       }
+      this.instance('timber', b.x, 0.62, b.z, 0.92, 0.12, 0.12, 0x513927, rotation)
+      this.instance('timber', b.x, 1.1, b.z, 0.92, 0.1, 0.1, 0x513927, rotation)
       return
     }
 
-    this.instance('fortifications', b.x, 0.9, b.z, 0.82, 1.8, 0.75, color, rotation)
-    this.instance('fortifications', b.x, 1.72, b.z, 1.36, 0.2, 0.32, 0x513828, rotation)
     const left = this.rotatedOffset(-0.31, 0, rotation)
     const right = this.rotatedOffset(0.31, 0, rotation)
-    this.instance('trim', b.x + left.x, 0.95, b.z + left.z, 0.12, 1.95, 0.16, 0x493326, rotation)
-    this.instance('trim', b.x + right.x, 0.95, b.z + right.z, 0.12, 1.95, 0.16, 0x493326, rotation)
+    for (const p of [left, right]) {
+      this.instance('timber', b.x + p.x, 0.92, b.z + p.z, 0.2, 1.82, 0.2, color, rotation)
+    }
+    this.instance('timber', b.x, 1.72, b.z, 1.32, 0.2, 0.32, 0x513828, rotation)
+    this.instance('timber', b.x, 0.42, b.z, 1.12, 0.12, 0.12, 0x493326, rotation)
+    this.instance('metal', b.x, 1.05, b.z, 0.7, 0.12, 0.1, 0x596066, rotation)
   }
 
   sync(state: WorldState, selectedId: number | null): void {
@@ -824,11 +843,11 @@ export class SceneRenderer {
     const time = state.elapsedSeconds
     this.updateNightMaterialLift(night)
 
-    for (let i = 0; i < 46; i++) {
-      const x = ((i * 17) % 43) - 21
-      const z = ((i * 29 + 7) % 43) - 21
-      const sx = 1.4 + (i % 4) * 0.52
-      const sz = 0.9 + ((i * 3) % 5) * 0.34
+    for (let i = 0; i < 92; i++) {
+      const x = ((i * 17 + (i % 5) * 3) % 45) - 22
+      const z = ((i * 29 + 7 + (i % 7) * 2) % 45) - 22
+      const sx = 1.1 + (i % 5) * 0.46
+      const sz = 0.8 + ((i * 3) % 6) * 0.31
       this.instance(
         'groundPatch',
         x,
@@ -837,17 +856,29 @@ export class SceneRenderer {
         sx,
         1,
         sz,
-        i % 3 === 0 ? 0x4f6243 : i % 3 === 1 ? 0x68734c : 0x596b4d,
-        (i % 7) * 0.31,
+        i % 4 === 0 ? 0x4a5f42 : i % 4 === 1 ? 0x66734f : i % 4 === 2 ? 0x56684a : 0x6a6f4c,
+        (i % 11) * 0.23,
       )
     }
+
+    this.renderVisualRoads(state)
 
     for (const n of state.nodes) {
       if (n.remaining <= 0) continue
       if (n.resource === 'wood') {
-        this.instance('wood', n.x, 1.4, n.z)
+        const jitterX = Math.sin(n.id * 12.9898) * 0.24
+        const jitterZ = Math.cos(n.id * 7.233) * 0.24
+        const scale = 0.88 + (n.id % 7) * 0.035
+        const trunkX = n.x + jitterX
+        const trunkZ = n.z + jitterZ
+        this.instance('treeTrunk', trunkX, 0.82, trunkZ, 0.86 * scale, 1.65 * scale, 0.86 * scale, 0x493527, n.id * 0.13)
+        this.instance('wood', trunkX, 1.75, trunkZ, 1.05 * scale, 0.78 * scale, 1.05 * scale, n.id % 3 === 0 ? 0x3c553a : 0x344b35, n.id * 0.11)
+        this.instance('wood', trunkX + 0.08, 2.45, trunkZ - 0.05, 0.78 * scale, 0.58 * scale, 0.78 * scale, n.id % 4 === 0 ? 0x496044 : 0x3b5239, n.id * 0.19)
+        if (n.id % 2 === 0) {
+          this.instance('underbrush', trunkX + 0.58, 0.22, trunkZ - 0.42, 0.72, 0.44, 0.72, 0x4a6347, n.id * 0.29)
+        }
         if (night > 0.12) {
-          this.instance('treeMoon', n.x + 0.11, 2.18, n.z - 0.11, 0.82, 0.7, 0.82, 0x60758a, n.id * 0.17)
+          this.instance('treeMoon', trunkX + 0.12, 2.62, trunkZ - 0.12, 0.76 * scale, 0.62 * scale, 0.76 * scale, 0x60758a, n.id * 0.17)
         }
       } else if (n.resource === 'food') {
         this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
@@ -859,9 +890,10 @@ export class SceneRenderer {
 
     for (const a of state.settlers) {
       const hit = this.recentlyHit(a.lastHitTick, state.tick)
-      const color = hit ? 0xff7868 : a.health <= 0 ? 0x555555 : undefined
-      this.instance(a.role === 'guard' ? 'guards' : 'settlers', a.x, 0.55, a.z, 1, 1, 1, color)
-      this.healthBar(a.x, 1.25, a.z, a.health, a.maxHealth, 0.8)
+      const color = hit ? 0xa9524a : a.health <= 0 ? 0x555555 : undefined
+      const facing = a.path.length ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z) : (a.id % 8) * Math.PI / 4
+      this.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing)
+      this.healthBar(a.x, 1.62, a.z, a.health, a.maxHealth, 0.8)
 
       const resource = RESOURCE_IDS.find(resource => a.cargo[resource] > 0) ?? null
       if (resource) {
@@ -918,7 +950,13 @@ export class SceneRenderer {
       } else if (def.fortification) {
         this.renderFortification(b, rotation, baseColor)
       } else if (b.type === 'campfire') {
-        this.instance('buildings', b.x, 0.12, b.z, 1.18, 0.24, 1.18, baseColor)
+        this.renderYard(b, rotation, 1.75, 0x5e503a)
+        for (let i = 0; i < 8; i++) {
+          const a = i / 8 * Math.PI * 2
+          this.instance('stone', b.x + Math.sin(a) * 0.5, 0.12, b.z + Math.cos(a) * 0.5, 0.28, 0.2, 0.28, 0x68645b, a)
+        }
+        this.instance('logs', b.x, 0.26, b.z, 0.9, 0.9, 0.9, 0x5a3b28, Math.PI / 4)
+        this.instance('logs', b.x, 0.27, b.z, 0.9, 0.9, 0.9, 0x5a3b28, -Math.PI / 4)
         const flicker = 0.92 + Math.sin(time * 11 + b.id) * 0.08
         this.instance('campfireFire', b.x, 0.58, b.z, flicker * 1.08, 1.08 + flicker * 0.2, flicker * 1.08, hit ? 0xff705e : 0xf0a14a)
         this.instance('campfireCore', b.x, 0.66, b.z, flicker * 0.82, 0.95 + flicker * 0.16, flicker * 0.82, 0xffd06a)
@@ -940,10 +978,11 @@ export class SceneRenderer {
           glowWeight++
         }
       } else if (b.type === 'guard-post') {
-        this.renderGuardPost(b, rotation, baseColor)
+        this.renderGuardPost(b, rotation, baseColor, night)
       } else if (b.type === 'tavern') {
         const serviceNight = b.inventory.ale > 0 ? night : night * 0.35
-        this.renderTavern(b, rotation, baseColor, serviceNight)
+        const activity = state.enemies.length === 0 ? Math.max(atmosphere.twilight, night * 0.46) : 0
+        this.renderTavern(b, rotation, baseColor, serviceNight, time, activity)
         if (b.inventory.ale > 0) {
           const tavernLight = this.rotatedOffset(0, 1.25, rotation)
           this.warmGroundPool(b.x + tavernLight.x, b.z + tavernLight.z, 5.1, 0.42, serviceNight)
@@ -1026,13 +1065,15 @@ export class SceneRenderer {
       this.focus.x = state.player.x
       this.focus.z = state.player.z
     }
-    const radius = this.mode === 'follow' ? 9 : this.zoom
+    const radius = this.mode === 'follow' ? 9 : this.cinematic ? Math.min(this.zoom, 24) : this.zoom
+    const horizontal = this.mode === 'follow' ? 0.74 : this.cinematic ? 0.96 : 0.82
+    const height = this.mode === 'follow' ? 0.72 : this.cinematic ? 0.4 : 0.62
     this.camera.position.set(
-      this.focus.x + Math.sin(this.angle) * radius * 0.7,
-      radius * 0.85,
-      this.focus.z + Math.cos(this.angle) * radius * 0.7,
+      this.focus.x + Math.sin(this.angle) * radius * horizontal,
+      radius * height,
+      this.focus.z + Math.cos(this.angle) * radius * horizontal,
     )
-    this.camera.lookAt(this.focus.x, 0, this.focus.z)
+    this.camera.lookAt(this.focus.x, this.cinematic && this.mode === 'settlement' ? 1.0 : 0.45, this.focus.z)
     this.camera.updateMatrixWorld()
   }
 
@@ -1065,6 +1106,7 @@ export class SceneRenderer {
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
+    this.grid.visible = !!type
     if (!type || !p) return
 
     const def = BUILDINGS[type]
