@@ -124,3 +124,16 @@ Repairs are ordinary simulation jobs, not instant healing. A damaged completed s
 Repair timber consumption is tracked explicitly so long-run material conservation remains auditable: physical wood still in nodes/inventories/cargo plus lifetime repair wood consumed equals the pre-repair total. Structure damage, repaired HP and repair wood are persisted counters.
 
 Presentation remains cheap and reconstructable: instanced graybox fortifications, world-space health bars and short tick-based hit flashes derive from serializable state. No per-structure render controller or physics object was introduced.
+
+
+## M3.0 needs are simulation state, not UI state
+
+Each settler persists four bounded 0–100 need values: Food, Housing, Safety and Recreation. Happiness is derived as their simple mean instead of being stored separately, avoiding a second value that could drift from its inputs. Older version-1 saves migrate default need values, the current day as the last-meal day, and a zero lifetime food-consumed counter.
+
+Food is a physical economy sink. At the Day transition (06:00), each settler who has not eaten that settlement day consumes one available food unit from a real stockpile. Successful meals restore Food to 100; shortages apply an additional Food penalty and emit one aggregate event. Lifetime food consumption is tracked so conservation tests can account for eaten resources instead of treating them as lost.
+
+Housing follows the actual bed assignment and trends toward 100 when housed or 20 when unhoused. Safety trends toward a settlement-wide target derived from active raids, living guards, intact fortifications, damaged structures and whether the latest raid was cleared. These values move gradually on the fixed simulation step; they are not recomputed display-only scores.
+
+Recreation decays over time and is restored only by an actual service slot. M3.0 introduces a 10-wood Campfire with six recreation slots. Non-guard settlers deterministically receive available Campfire slots and route there at Dusk/Dawn; recreation only rises when the settler physically reaches the assigned service point. This provides a small service-capacity proof that M3.1 Tavern behavior can extend rather than replace.
+
+No immigration, production bonus/penalty, starvation damage, Tavern, alcohol, or long-term happiness consequence is introduced in M3.0. The purpose is to prove persistence, resource consumption, service capacity and readable feedback first.

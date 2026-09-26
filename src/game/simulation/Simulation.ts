@@ -13,6 +13,7 @@ import {
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
+import { serveDailyMeal, updateNeeds } from './Needs'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
 import {
@@ -102,6 +103,7 @@ export class Simulation {
       }
     }
 
+    updateNeeds(s, FIXED_STEP, phase)
     this.navigation.process(s)
   }
 
@@ -122,7 +124,15 @@ export class Simulation {
       if (damaged > 0) recordEvent(s, damaged + ' damaged structures await daylight repairs.')
     }
 
-    if (next !== 'day') this.releaseNonCarryingJobs()
+    if (next !== 'day') {
+      this.releaseNonCarryingJobs()
+      for (const settler of s.settlers) {
+        if (settler.jobId === null) {
+          settler.path = []
+          settler.pathRevision = -1
+        }
+      }
+    }
 
     if (next === 'dusk') {
       recordEvent(s, 'Dusk falls. Work stops; civilians seek shelter and guards report to posts.')
@@ -132,6 +142,8 @@ export class Simulation {
     } else if (next === 'dawn') {
       recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
     } else if (next === 'day') {
+      assignHousing(s)
+      serveDailyMeal(s)
       for (const settler of s.settlers) {
         if (settler.jobId === null) {
           settler.path = []
@@ -188,7 +200,7 @@ export class Simulation {
   }
 
   private updateNightSchedule(settler: Settler): void {
-    const { target, status } = nightTarget(this.state, settler)
+    const { target, status } = nightTarget(this.state, settler, this.phase)
 
     if (distance(settler, target) < 0.01) {
       settler.path = []

@@ -1,6 +1,7 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { available, freeStorage, reserved, stockpiles } from '../simulation/Buildings'
 import { phaseForTime, phaseLabel } from '../simulation/DayNight'
+import { happinessOf, settlementNeeds } from '../simulation/Needs'
 import { raidSizeForWave } from '../simulation/Raid'
 import { assignedGuardPost } from '../simulation/Schedule'
 import { enemyLabel, settlerLabel, type WorldState } from '../simulation/WorldState'
@@ -8,6 +9,7 @@ import { enemyLabel, settlerLabel, type WorldState } from '../simulation/WorldSt
 export interface Metrics { frame: number; simulation: number; render: number; calls: number; triangles: number; paths: number; requests: number; queue: number; failures: number; dropped: number }
 export interface HudState { paused: boolean; selectedId: number | null; buildType: BuildingId | null; message: string; camera: string; metrics: Metrics }
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+const needLabel = (value: string) => value[0].toUpperCase() + value.slice(1)
 
 export class Hud {
   readonly element = document.createElement('div')
@@ -16,9 +18,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M2.4 · RAID PRESSURE</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">SURVIVE ESCALATION</span><h1>Hold through larger raids.</h1>
-        <p>The first raid now brings 20 attackers. Each cleared day adds four more, up to 40. Fortify, fight, then repair before the next night.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.0 · SETTLER NEEDS</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">A SETTLEMENT WORTH LIVING IN</span><h1>Keep people content.</h1>
+        <p>Settlers now need food, housing, safety and recreation. Build homes and defenses, keep food stocked, and add a Campfire for off-hours recreation.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -30,6 +32,7 @@ export class Hud {
         <h3>Stock targets</h3>
         <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label></div>
         <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="spawn">Spawn settler</button></div>
+        <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
         <button data-action="damage-selected">Damage selected structure -60 HP</button>
         <label><input type="checkbox" data-action="paths"> Show navigation paths</label>
         <button data-action="audit">Check state integrity</button>
@@ -42,6 +45,7 @@ export class Hud {
         <button data-action="house">House <small>20 wood · 4 beds</small></button>
         <button data-action="stockpile">Stockpile <small>10 wood · 400 storage</small></button>
         <button data-action="guard-post">Guard Post <small>25 wood · 2 guards</small></button>
+        <button data-action="campfire">Campfire <small>10 wood · 6 recreation</small></button>
         <button data-action="wood-wall">Wood Wall <small>5 wood · 120 HP</small></button>
         <button data-action="wood-gate">Wood Gate <small>15 wood · 220 HP</small></button>
         <button data-action="cancel">Inspect / Esc</button><button data-action="camera">Follow player</button>
@@ -87,14 +91,18 @@ export class Hud {
     const damaged = s.buildings.filter(b => b.complete && b.health < b.maxHealth).length
     const walls = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'wood-wall').length
     const gates = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'wood-gate').length
+    const recreationSlots = s.buildings
+      .filter(b => b.complete && !b.destroyed)
+      .reduce((sum, b) => sum + BUILDINGS[b.type].recreationSlots, 0)
+    const needSummary = settlementNeeds(s)
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Damaged ${damaged}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <span>Worst ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</span> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
-    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Raid pressure scales 20 → 40 attackers</small>`)
+    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Needs active · daily meal at 06:00 · raids still scale 20 → 40</small>`)
 
     const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
-    this.set('objective', `<div class="objective-row">${shelterReady ? '✓' : '○'} Shelter the population · ${beds} beds</div><div class="objective-row">${hasPost ? '✓' : '○'} Complete a Guard Post</div><div class="objective-row">${walls > 0 ? '✓' : '○'} Build a Wooden Wall · ${walls}</div><div class="objective-row">${gates > 0 ? '✓' : '○'} Build a friendly-passable Gate · ${gates}</div><div class="objective-row">${s.totals.structureDamage > 0 ? '✓' : '○'} Let a raid damage a structure</div><div class="objective-row">${s.totals.repairedHealth > 0 ? '✓' : '○'} Repair damage after dawn</div><div class="objective-row">${s.raid.lastClearedWave === s.raid.wave && s.raid.wave > 0 ? '✓' : '○'} Clear a raid before dawn</div>`)
+    this.set('objective', `<div class="objective-row">${shelterReady ? '✓' : '○'} Housing · ${housed}/${s.settlers.length} settlers</div><div class="objective-row">${food > 0 ? '✓' : '○'} Keep food in storage · ${food}</div><div class="objective-row">${recreationSlots > 0 ? '✓' : '○'} Build a Campfire · ${recreationSlots} recreation slots</div><div class="objective-row">${s.totals.foodConsumed > 0 ? '✓' : '○'} Serve a daily meal</div><div class="objective-row">${needSummary.happiness >= 70 ? '✓' : '○'} Average happiness ≥ 70% · ${needSummary.happiness}%</div><div class="objective-row">${hasPost && (walls > 0 || gates > 0) ? '✓' : '○'} Provide visible defenses for safety</div>`)
 
     const a = s.settlers.find(a => a.id === ui.selectedId)
     const b = s.buildings.find(b => b.id === ui.selectedId)
@@ -103,7 +111,7 @@ export class Hud {
 
     if (a) {
       const guardAssignment = assignedGuardPost(s, a)
-      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p><button data-action="toggle-role">${a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard'}</button>`)
+      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p><b>Happiness ${happinessOf(a)}%</b><br>Food ${Math.round(a.needs.food)}% · Housing ${Math.round(a.needs.housing)}%<br>Safety ${Math.round(a.needs.safety)}% · Recreation ${Math.round(a.needs.recreation)}%</p><p>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Last meal: Day ${a.lastMealDay}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p><button data-action="toggle-role">${a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard'}</button>`)
     } else if (e) {
       const target = s.buildings.find(b => b.id === e.targetId)
       this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
@@ -116,6 +124,7 @@ export class Hud {
         const functionText = def.housing ? def.housing + ' beds'
           : def.guardSlots ? def.guardSlots + ' guard slots'
           : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}`
+          : def.recreationSlots ? def.recreationSlots + ' recreation slots · used at Dusk/Dawn'
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'
           : def.fortification ? 'Blocks friendly and hostile movement until destroyed.'
           : ''
@@ -132,13 +141,13 @@ export class Hud {
 
     this.set('message', escape(ui.message))
     const m = ui.metrics
-    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
-    this.set('workers', '<h3>Settlers</h3>' + s.settlers.map(a => `<div class="worker">${settlerLabel(s, a.id)} · ${a.role === 'guard' ? 'Guard' : 'Worker'} · ${a.health}/${a.maxHealth} HP · ${escape(a.status)}</div>`).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
+    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Recreation slots</dt><dd>${recreationSlots}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
+    this.set('workers', '<h3>Settlers</h3>' + s.settlers.map(a => `<div class="worker">${settlerLabel(s, a.id)} · ${a.role === 'guard' ? 'Guard' : 'Worker'} · Happy ${happinessOf(a)}% · ${escape(a.status)}</div>`).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
 
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'
     this.element.querySelector('[data-action="camera"]')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
     ;(this.element.querySelector('[data-action="spawn"]') as HTMLButtonElement).disabled = s.settlers.length >= 10
-    for (const type of ['house', 'stockpile', 'guard-post', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
+    for (const type of ['house', 'stockpile', 'guard-post', 'campfire', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
     if (document.activeElement !== hour) hour.value = String(Math.floor(s.timeOfDay * 24))
