@@ -251,3 +251,16 @@ M3.4 adds five construction-UX regressions on top of the 71-test M3.3 suite, for
 - building orientation survives save/load, while demolition refuses a building that still contains physical resources
 
 Browser playtest after deployment should verify the non-simulation-facing controls directly: use 1–8 to switch build choices, press R and watch the amber façade marker rotate, Shift-click several Houses/Campfires without reselecting, drag a multi-cell wall line, put a Gate on one finished wall segment, select a 3×3 building and verify the larger selection ring, then demolish an empty completed non-starter structure and observe the refund in storage.
+
+
+## M3.5 verification target
+
+M3.5 adds three renderer-independent presentation regressions on top of the 76-test M3.4 suite, for a target of 79 tests:
+
+- construction presentation derives distinct foundation, frame and finished stages from existing delivery/work state
+- structure health derives healthy, damaged, critical and ruined visual states without introducing gameplay state
+- dusk/night atmosphere ramps predictably and remains bounded through the night/dawn transition
+
+The implementation is intentionally presentation-only. It adds no save fields and does not change Simulation, Navigation, Jobs, building costs, production, services, combat, placement, or path blocking.
+
+Browser playtest after deployment should inspect every core structure from multiple camera angles, especially House/Tavern/Brewery/Guard Post/Stockpile/Wall/Gate identity. Place fresh blueprints and watch foundation → frame → finished construction, damage a structure and observe debris/scaffolding during repair, test a breached wall/gate, compare warm settlement light with the cold exterior at Dusk/Night, confirm Campfire flicker/glow, and verify Tavern/Brewery activity cues. Also confirm blueprint footprint color, façade marker and selected-building footprint remain clear and that decorative props do not alter movement.
