@@ -152,6 +152,8 @@ export function assignJobs(state: WorldState): void {
         wood: gatherNeed(state, 'wood'),
         food: gatherNeed(state, 'food'),
         ale: gatherNeed(state, 'ale'),
+        ore: gatherNeed(state, 'ore'),
+        tools: gatherNeed(state, 'tools'),
       }
       const nodes = state.nodes
         .filter(n => n.remaining > 0 && needs[n.resource] > 0 && !state.jobs.some(j => j.kind === 'gather' && j.sourceId === n.id))

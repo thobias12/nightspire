@@ -135,6 +135,7 @@ export class Game {
         '6': 'guard-post',
         '7': 'wood-wall',
         '8': 'wood-gate',
+        '9': 'blacksmith',
       }
       const hotkey = hotkeys[e.key]
       if (hotkey) {
@@ -178,7 +179,7 @@ export class Game {
     const s = this.simulation.state
     try {
       switch (action) {
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith':
           this.buildType = action
           this.buildRotation = 0
           this.dragStart = null
@@ -248,8 +249,8 @@ export class Game {
           this.message = 'Advanced to raid wave ' + s.raid.wave + '. The new day meal and needs update were processed first.'
           break
         }
-        case 'target-wood': case 'target-food': {
-          const resource = action === 'target-wood' ? 'wood' : 'food'
+        case 'target-wood': case 'target-food': case 'target-ore': {
+          const resource = action === 'target-wood' ? 'wood' : action === 'target-food' ? 'food' : 'ore'
           const target = Math.max(0, Math.min(10_000, Math.round(Number(value))))
           if (!Number.isFinite(target)) throw new Error('Stock target must be a number.')
           s.targets[resource] = target
@@ -280,7 +281,7 @@ export class Game {
         case 'building-supply': {
           const building = s.buildings.find(b => b.id === this.selectedId && b.complete && !b.destroyed)
           if (!building) {
-            this.message = 'Select a completed Brewery or supplied service building first.'
+            this.message = 'Select a completed producer or supplied service building first.'
             break
           }
           const def = BUILDINGS[building.type]
@@ -289,7 +290,7 @@ export class Game {
             ? def.service.supplyCapacity
             : def.production?.inputCapacity ?? 0
           if (!resource || capacity <= 0) {
-            this.message = 'Select a completed Brewery or supplied service building first.'
+            this.message = 'Select a completed producer or supplied service building first.'
             break
           }
           const amount = Math.min(5, Math.max(0, capacity - building.inventory[resource]))
@@ -310,7 +311,18 @@ export class Game {
               b.inventory[resource] += amount; remaining -= amount; added += amount
             }
           }
-          this.message = 'QA added ' + added + ' resources within unreserved storage capacity.'; break
+          this.message = 'QA added ' + added + ' wood/food within unreserved storage capacity.'; break
+        }
+        case 'resources-ore': {
+          let remaining = 30
+          let added = 0
+          for (const b of stockpiles(s)) {
+            const amount = Math.min(remaining, freeStorage(s, b))
+            b.inventory.ore += amount
+            remaining -= amount
+            added += amount
+          }
+          this.message = 'QA added ' + added + ' Iron Ore within unreserved storage capacity.'; break
         }
         case 'camera':
           this.buildType = null
@@ -350,7 +362,7 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: population attraction, arrivals, needs, production, services, raids, reservations and connectivity.'; break
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: population attraction, needs, Ore/Tools production, services, raids, reservations and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()
