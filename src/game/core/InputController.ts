@@ -5,12 +5,17 @@ export class InputController {
   private readonly keys = new Set<string>()
   private readonly released = new Set<string>()
   private readonly abort = new AbortController()
-  constructor(private renderer: SceneRenderer, private simulation: Simulation, cancel: () => void) {
+  constructor(private renderer: SceneRenderer, private simulation: Simulation, cancel: () => void, attack: () => void) {
     const signal = this.abort.signal
     window.addEventListener('keydown', e => {
       if ((e.target as HTMLElement).matches('input, select, textarea, button')) return
       const key = e.key.toLowerCase()
       if (key === 'escape') { cancel(); return }
+      if (key === ' ' || e.code === 'Space') {
+        e.preventDefault()
+        if (!e.repeat) attack()
+        return
+      }
       if (['w','a','s','d','q','e','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
         e.preventDefault(); this.keys.add(key); this.released.delete(key)
       }
@@ -24,6 +29,7 @@ export class InputController {
       renderer.zoom = Math.max(15, Math.min(58, renderer.zoom + e.deltaY * 0.03))
     }, { signal, passive: false })
   }
+
   update(delta: number, paused: boolean): void {
     const r = this.renderer, down = (k: string) => Number(this.keys.has(k))
     r.angle += (down('q') - down('e')) * delta
@@ -38,7 +44,7 @@ export class InputController {
     if (r.mode === 'settlement') {
       r.focus.x = Math.max(-23, Math.min(23, r.focus.x + dx * 16))
       r.focus.z = Math.max(-23, Math.min(23, r.focus.z + dz * 16))
-    } else if (!paused) {
+    } else if (!paused && this.simulation.state.player.health > 0) {
       const p = this.simulation.state.player, nav = this.simulation.navigation
       nav.sync(this.simulation.state)
       const nextX = { x: p.x + dx * 5, z: p.z }
@@ -47,5 +53,6 @@ export class InputController {
       if (nav.walkable(nextZ)) p.z = nextZ.z
     }
   }
+
   dispose(): void { this.abort.abort(); this.keys.clear(); this.released.clear() }
 }

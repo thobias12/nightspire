@@ -40,6 +40,7 @@ export function spawnNightRaid(state: WorldState): number {
     const p = safeSpawn(state, side, offset)
     return {
       id: state.nextId++, kind: 'raider' as const, targetId,
+      health: 40, maxHealth: 40, attackCooldown: 0,
       x: p.x, z: p.z, path: [], pathRevision: -1,
       status: 'Entering from the wilds',
     }
