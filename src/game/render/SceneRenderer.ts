@@ -188,8 +188,14 @@ export class SceneRenderer {
     this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420)
     this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100)
     this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
-    this.addBatch('roofCourseL', createRoofCourseGeometry(0.5), 0x46372f, 1400)
-    this.addBatch('roofCourseR', createRoofCourseGeometry(-0.5), 0x46372f, 1400)
+    this.addBatch('roofCourseL', createRoofCourseGeometry(0.62), 0x46372f, 1400)
+    this.addBatch('roofCourseR', createRoofCourseGeometry(-0.62), 0x46372f, 1400)
+    for (const name of ['roofCourseL', 'roofCourseR'] as const) {
+      const material = this.batches[name].material as THREE.MeshStandardMaterial
+      material.polygonOffset = true
+      material.polygonOffsetFactor = -2
+      material.polygonOffsetUnits = -2
+    }
     this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
@@ -318,8 +324,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch'].includes(name)
+    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'roofCourseL', 'roofCourseR'].includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'roofCourseL', 'roofCourseR'].includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
@@ -787,24 +793,32 @@ export class SceneRenderer {
     roofHeight: number,
     roofColor: number,
   ): void {
-    const slope = Math.max(0.72, Math.hypot(width / 2, roofHeight))
+    const roofHalf = (width + 0.72) / 2
+    const slopeLength = Math.max(0.72, Math.hypot(roofHalf, roofHeight))
     const baseY = 0.42 + wallHeight
-    const courseColor = this.scratchColor.setHex(roofColor).multiplyScalar(0.72).getHex()
+    const courseColor = this.scratchColor.setHex(roofColor).multiplyScalar(0.76).getHex()
+    const normalX = roofHeight / slopeLength
+    const normalY = roofHalf / slopeLength
+    const surfaceLift = 0.085
 
     for (let row = 0; row < 3; row++) {
       const t = 0.22 + row * 0.24
-      const x = width * (0.5 - t) * 0.86
-      const y = baseY + roofHeight * t + 0.03
+      const surfaceX = roofHalf * (1 - t)
+      const surfaceY = baseY + roofHeight * t
       for (const side of [-1, 1] as const) {
-        const local = this.rotatedOffset(side * x, 0, rotation)
+        // Place each course fully outside the roof plane instead of letting the
+        // thin box intersect it. This removes camera-distance dependent z-fighting.
+        const x = side * (surfaceX + normalX * surfaceLift)
+        const y = surfaceY + normalY * surfaceLift
+        const local = this.rotatedOffset(x, 0, rotation)
         this.instance(
           side < 0 ? 'roofCourseL' : 'roofCourseR',
           b.x + local.x,
           y,
           b.z + local.z,
-          Math.max(0.13, slope * 0.085),
-          0.055,
-          depth + 0.76,
+          Math.max(0.12, slopeLength * 0.072),
+          0.045,
+          depth + 0.7,
           courseColor,
           rotation,
         )
@@ -1099,10 +1113,10 @@ export class SceneRenderer {
     this.instance('stone', b.x + chimney.x, wallHeight + 0.72, b.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
 
     if (plot && width > 3.05 && plot.id % 3 === 0) {
-      const dormer = this.rotatedOffset(-width * 0.18, depth * 0.12, rotation)
-      this.instance('plaster', b.x + dormer.x, wallHeight + 0.72, b.z + dormer.z, 0.68, 0.48, 0.6, plaster, rotation)
-      this.instance('gableRoofs', b.x + dormer.x, wallHeight + 0.9, b.z + dormer.z, 0.9, 0.52, 0.86, this.readableNightColor(roof, night), rotation)
-      const dormerWindow = this.rotatedOffset(-width * 0.18, depth * 0.44, rotation)
+      const dormer = this.rotatedOffset(-width * 0.18, depth * 0.15, rotation)
+      this.instance('plaster', b.x + dormer.x, wallHeight + 0.78, b.z + dormer.z, 0.66, 0.44, 0.56, plaster, rotation)
+      this.instance('gableRoofs', b.x + dormer.x, wallHeight + 0.98, b.z + dormer.z, 0.88, 0.48, 0.82, this.readableNightColor(roof, night), rotation)
+      const dormerWindow = this.rotatedOffset(-width * 0.18, depth * 0.45, rotation)
       this.warmWindow(b.x + dormerWindow.x, wallHeight + 0.72, b.z + dormerWindow.z, rotation, night, 0.24, 0.28)
     }
 
