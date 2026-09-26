@@ -293,3 +293,53 @@ M3.7 adds six production/workforce regressions on top of the 84-test M3.6 suite,
 - current save/load preserves Blacksmith Ore, Tools and mid-batch production progress
 
 Browser playtest after deployment: build a Blacksmith with **9**, leave its local input empty, then watch workers mine the new gray Iron Ore deposits and stage Ore through the Stockpile before supplying the forge. During Day the Blacksmith should show **3 ore → 1 tools every 18s** and visible forge/smoke activity. Finished Tools must be hauled back to stockpile before the HUD Tool coverage rises. With six settlers, three stored Tools should show 100% coverage and +10% Tools productivity. Remove/relocate Tools from stockpile and confirm the bonus falls immediately without consuming Tools.
+
+
+## M3.8.0 verification target
+
+M3.8.0 is presentation-first and deliberately leaves `Simulation.ts`, `Jobs.ts`, `Navigation.ts`, save schema, reservations and population behavior unchanged.
+
+Two deterministic presentation regressions extend the 90-test M3.7 suite to **92 tests**:
+
+- the visual road graph connects only completed non-fortification town buildings and remains deterministic
+- visual road strip geometry has stable midpoint/length/heading output without mutating building data
+
+Renderer acceptance is primarily visual rather than simulation-based. A fresh-run QA button, **Stage M3.8 Town Center visual target**, creates the repeatable review cluster without changing normal new-game behavior:
+
+- three Houses
+- starter Stockpile
+- supplied Tavern
+- supplied/active-capable Blacksmith
+- Campfire
+- Guard Post
+- wall/gate edge
+- cleared central yard/road space
+- six existing clearly adult settlers
+- Tavern ambient adult entertainers/patrons at dusk when Ale is stocked
+
+The target presentation includes:
+
+- gabled roofs rather than pyramid-box silhouettes
+- stone foundations plus plaster/timber wall language
+- building-specific yards, fences, firewood, barrels, sacks, ore/tool racks and work props
+- a roofed/open Stockpile whose visible contents reflect stored resource types
+- an identifiable forge/anvil/chimney Blacksmith
+- Tavern frontage, sign, awning, tables/barrels and dusk social figures
+- procedural dirt-road wear linking completed town buildings; it is renderer-only and does not affect pathfinding
+- less regular tree placement, visible trunks, layered crowns and undergrowth
+- the global build grid hidden except while a blueprint is active
+- a lower **V / Street view** settlement camera
+- grounded medieval HUD material treatment
+
+Live acceptance after Pages deployment:
+
+1. start a fresh settlement and press **Stage M3.8 Town Center visual target**
+2. inspect the default late-afternoon street-oblique view
+3. jump to **Dusk** and confirm Tavern nightlife/social silhouettes plus warm windows
+4. jump to **Night** and confirm the existing cold-wilderness/warm-town contrast remains readable
+5. press **V** between Overview and Street view and rotate with Q/E
+6. enter any build mode and verify the placement grid appears; press Esc and verify it disappears
+7. confirm roads are purely visual by enabling path debug and observing that agent navigation remains on the existing grid/path system
+8. verify House, Tavern, Blacksmith, Stockpile and Guard Post are distinguishable without reading their HUD labels
+
+M3.8.0 is not complete until these views are visually accepted. Performance should also be checked in the existing Draws / triangles / Render submission CPU metrics because the extra detail is intentionally kept in shared instanced batches.
