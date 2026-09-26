@@ -28,6 +28,9 @@ import {
 type MovingAgent = Settler | Enemy
 
 export class Simulation {
+  /** Optional QA instrumentation; no timing calls in ordinary gameplay. */
+  profile = false
+  readonly timings = { decisions: 0, agents: 0, needsServices: 0, navigation: 0, other: 0 }
   readonly navigation = new Navigation()
   private lastPhase: DayPhase
 
@@ -57,6 +60,7 @@ export class Simulation {
   }
 
   step(): void {
+    let mark = this.profile ? performance.now() : 0
     const s = this.state
     s.tick++
     s.elapsedSeconds += FIXED_STEP
@@ -75,11 +79,15 @@ export class Simulation {
     this.navigation.sync(s)
     updateProduction(s, FIXED_STEP, phase)
 
+    if (this.profile) { this.timings.other = performance.now() - mark; mark = performance.now() }
+
     if (isWorkPhase(phase) && s.tick % DECISION_TICKS === 1) {
       serveDailyMeal(s)
       assignJobs(s)
       assignHousing(s)
     }
+
+    if (this.profile) { this.timings.decisions = performance.now() - mark; mark = performance.now() }
 
     for (const settler of s.settlers) {
       if (settler.health <= 0) {
@@ -116,9 +124,12 @@ export class Simulation {
       }
     }
 
+    if (this.profile) { this.timings.agents = performance.now() - mark; mark = performance.now() }
     updateNeeds(s, FIXED_STEP, phase)
     updateServices(s, FIXED_STEP, phase)
+    if (this.profile) { this.timings.needsServices = performance.now() - mark; mark = performance.now() }
     this.navigation.process(s)
+    if (this.profile) this.timings.navigation = performance.now() - mark
   }
 
   private beginRaid(): void {

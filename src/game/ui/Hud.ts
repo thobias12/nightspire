@@ -54,6 +54,7 @@ export class Hud {
         <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
         <label><input type="checkbox" data-action="paths"> Show navigation paths</label>
         <button data-action="audit">Check state integrity</button>
+        <p><a href="?benchmark=1" target="_blank" rel="noopener">Open M4 scale benchmark (separate QA world)</a></p>
         <h3>Save tools</h3>
         <div class="row"><button data-action="export-save">Export JSON</button><button data-action="load-backup">Load backup</button></div>
         <label>Import JSON <input aria-label="Import save file" type="file" accept=".json,application/json" data-action="import-save"></label>
