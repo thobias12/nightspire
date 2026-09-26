@@ -68,7 +68,11 @@ export function retreatRaid(state: WorldState): number {
 }
 
 export function enemyTargetBuilding(state: WorldState, enemy: Enemy): Building | null {
-  const candidates = state.buildings.filter(b => b.complete && !b.destroyed)
+  const candidates = state.buildings.filter(b => {
+    if (!b.complete || b.destroyed) return false
+    const def = BUILDINGS[b.type]
+    return def.fortification ? b.health > 0 : b.health > 1
+  })
   if (candidates.length === 0) return null
 
   candidates.sort((a, b) => {
