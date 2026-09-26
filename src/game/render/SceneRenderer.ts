@@ -684,6 +684,28 @@ export class SceneRenderer {
 
     if (!b.complete || b.destroyed) return
 
+    // Narrow worn footpath from the road frontage to the house door.
+    const frontMid = {
+      x: (plot.frontageA.x + plot.frontageB.x) / 2,
+      z: (plot.frontageA.z + plot.frontageB.z) / 2,
+    }
+    const pathDx = b.x - frontMid.x
+    const pathDz = b.z - frontMid.z
+    const pathLength = Math.hypot(pathDx, pathDz)
+    if (pathLength > 0.6) {
+      this.instance(
+        'roadShoulder',
+        (frontMid.x + b.x) / 2,
+        0.023,
+        (frontMid.z + b.z) / 2,
+        0.46,
+        1,
+        pathLength + 0.35,
+        0x8e7958,
+        Math.atan2(pathDx, pathDz),
+      )
+    }
+
     const rearZ = -halfD + Math.min(2.3, plot.depth * 0.22)
     if (plot.backyard === 'garden') {
       const rowCount = Math.max(2, Math.min(4, Math.floor(width / 1.6)))
@@ -696,6 +718,8 @@ export class SceneRenderer {
           this.instance('underbrush', center.x + plant.x, 0.18, center.z + plant.z, 0.28, 0.24, 0.28, 0x58714a, plot.id * 0.13 + i + j)
         }
       }
+      const basket = this.rotatedOffset(Math.min(halfW - 0.45, 1.2), rearZ + 0.85, plot.angle)
+      this.instance('baskets', center.x + basket.x, 0.2, center.z + basket.z, 0.5, 0.68, 0.5, 0x9b7546, plot.angle)
     } else if (plot.backyard === 'chickens') {
       const penCenter = this.rotatedOffset(0, rearZ, plot.angle)
       for (let i = 0; i < 5; i++) {
@@ -705,6 +729,9 @@ export class SceneRenderer {
         this.instance('chicken', center.x + p.x, 0.17, center.z + p.z, 1, 0.86, 1, i % 2 ? 0xc5ad7a : 0x9d815e, i * 0.7)
       }
       this.instance('timber', center.x + penCenter.x, 0.28, center.z + penCenter.z, Math.min(2.4, width * 0.55), 0.55, 0.08, 0x60452f, plot.angle)
+      const coop = this.rotatedOffset(-Math.min(halfW - 0.52, 1.05), rearZ - 0.65, plot.angle)
+      this.instance('timber', center.x + coop.x, 0.38, center.z + coop.z, 0.82, 0.68, 0.72, 0x654832, plot.angle)
+      this.instance('gableRoofs', center.x + coop.x, 0.7, center.z + coop.z, 1.02, 0.42, 0.9, this.readableNightColor(0x6a553d, night), plot.angle)
     } else if (plot.backyard === 'workyard') {
       const shed = this.rotatedOffset(-Math.min(halfW - 0.8, 1.25), rearZ, plot.angle)
       this.instance('timber', center.x + shed.x, 0.48, center.z + shed.z, 1.15, 0.9, 0.95, 0x674a35, plot.angle)
@@ -714,10 +741,18 @@ export class SceneRenderer {
         this.instance('logs', center.x + log.x, 0.18 + (i % 2) * 0.06, center.z + log.z, 0.5, 0.5, 0.5, 0x6a482f, plot.angle)
       }
     } else {
-      for (let i = 0; i < 6; i++) {
-        const log = this.rotatedOffset(-0.75 + (i % 3) * 0.42, rearZ - 0.35 + Math.floor(i / 3) * 0.35, plot.angle)
+      for (let i = 0; i < 8; i++) {
+        const log = this.rotatedOffset(-0.78 + (i % 4) * 0.42, rearZ - 0.35 + Math.floor(i / 4) * 0.35, plot.angle)
         this.instance('logs', center.x + log.x, 0.18 + (i % 2) * 0.06, center.z + log.z, 0.56, 0.56, 0.56, 0x6b4930, plot.angle)
       }
+      const chopping = this.rotatedOffset(Math.min(halfW - 0.45, 1.25), rearZ + 0.5, plot.angle)
+      this.instance('logs', center.x + chopping.x, 0.22, center.z + chopping.z, 0.45, 0.42, 0.45, 0x5f422e, plot.angle + Math.PI / 2)
+      this.instance('metal', center.x + chopping.x, 0.48, center.z + chopping.z, 0.42, 0.06, 0.08, 0x596168, plot.angle + 0.3)
+    }
+
+    if (plot.id % 3 === 0) {
+      const water = this.rotatedOffset(-Math.min(halfW - 0.4, 1.2), rearZ + 1.0, plot.angle)
+      this.instance('barrels', center.x + water.x, 0.29, center.z + water.z, 0.36, 0.58, 0.36, 0x725036, plot.angle)
     }
   }
 
@@ -1045,6 +1080,14 @@ export class SceneRenderer {
     const chimneySide = (plot?.id ?? b.id) % 2 ? 1 : -1
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', b.x + chimney.x, wallHeight + 0.72, b.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
+
+    if (plot && width > 3.05 && plot.id % 3 === 0) {
+      const dormer = this.rotatedOffset(-width * 0.18, depth * 0.12, rotation)
+      this.instance('plaster', b.x + dormer.x, wallHeight + 0.72, b.z + dormer.z, 0.68, 0.48, 0.6, plaster, rotation)
+      this.instance('gableRoofs', b.x + dormer.x, wallHeight + 0.9, b.z + dormer.z, 0.9, 0.52, 0.86, this.readableNightColor(roof, night), rotation)
+      const dormerWindow = this.rotatedOffset(-width * 0.18, depth * 0.44, rotation)
+      this.warmWindow(b.x + dormerWindow.x, wallHeight + 0.72, b.z + dormerWindow.z, rotation, night, 0.24, 0.28)
+    }
 
     const step = this.rotatedOffset(doorX, depth / 2 + 0.22, rotation)
     this.instance('stone', b.x + step.x, 0.12, b.z + step.z, 0.76, 0.22, 0.48, 0x777064, rotation)
