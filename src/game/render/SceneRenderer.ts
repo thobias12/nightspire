@@ -175,13 +175,16 @@ export class SceneRenderer {
 
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 7), 0x354d36, 1600)
     this.addBatch('treeTrunk', new THREE.CylinderGeometry(0.14, 0.2, 1, 7), 0x4e3828, 1000)
-    this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 900)
+    this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 1300)
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
-    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 720, 0.14)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 720)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 720)
+    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 1200, 0.12)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 1200)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 1400)
+    this.addBasicBatch('roadEdgePatch', new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2), 0x8d7d5f, 1400, 0.32)
+    this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
+    this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
@@ -233,7 +236,7 @@ export class SceneRenderer {
     this.addBatch('foundation', this.geometry, 0x716852, 160)
     this.addBatch('scaffold', this.geometry, 0x9b7750, 960)
     this.addBatch('debris', this.geometry, 0x4c4034, 720)
-    this.addBasicBatch('groundPatch', new THREE.CircleGeometry(1, 9).rotateX(-Math.PI / 2), 0x596746, 160, 0.12)
+    this.addBasicBatch('groundPatch', new THREE.CircleGeometry(1, 9).rotateX(-Math.PI / 2), 0x596746, 240, 0.12)
     this.addBasicBatch('groundWear', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66583e, 180, 0.16)
     this.addBasicBatch('windowHalo', this.geometry, 0xffb45b, 320, 0.18)
     this.addBasicBatch('windowGlow', this.geometry, 0xffc36a, 320, 0.96)
@@ -332,7 +335,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -574,56 +577,105 @@ export class SceneRenderer {
         const a = road.points[i - 1]
         const b = road.points[i]
         const strip = visualRoadStrip({ fromId: road.id, toId: i, ax: a.x, az: a.z, bx: b.x, bz: b.z })
-        const variation = 0.96 + ((road.id * 17 + i * 11) % 7) * 0.012
-        const width = road.width * variation
-        const baseLength = strip.length + width * 0.62
+        if (strip.length < 0.02) continue
 
-        // A faint wider shoulder softens the rectangular road silhouette, while the
-        // actual road surface is opaque so crossings never become darker from stacking.
-        this.instance('roadShoulder', strip.x, 0.021, strip.z, width * 1.28, 1, baseLength + 0.3, 0xa18d69, strip.angle)
-        this.instance('roadBase', strip.x, 0.025, strip.z, width, 1, baseLength, i % 3 === 0 ? 0x9b815d : 0x927755, strip.angle)
-
+        const tangentX = (b.x - a.x) / strip.length
+        const tangentZ = (b.z - a.z) / strip.length
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-        const tangentX = strip.length > 0 ? (b.x - a.x) / strip.length : 0
-        const tangentZ = strip.length > 0 ? (b.z - a.z) / strip.length : 1
-        const rutOffset = width * 0.2
-        const rutWidth = width * 0.052
-        const patchCount = Math.max(1, Math.min(3, Math.floor(strip.length / 4) + 1))
-        const patchLength = Math.max(0.65, strip.length / (patchCount + 0.7) * 0.68)
+        const pieceCount = Math.max(1, Math.ceil(strip.length / 2.35))
+        const pieceLength = strip.length / pieceCount
 
-        // Broken rut patches feel driven-in rather than painted from endpoint to endpoint.
-        for (let patch = 0; patch < patchCount; patch++) {
-          const t = (patch + 1) / (patchCount + 1)
-          const drift = Math.sin(road.id * 0.91 + i * 1.7 + patch * 2.2) * 0.16
-          const px = a.x + (b.x - a.x) * t + tangentX * drift
-          const pz = a.z + (b.z - a.z) * t + tangentZ * drift
-          this.instance('roadWear', px + normalX * rutOffset, 0.029, pz + normalZ * rutOffset, rutWidth, 1, patchLength, 0x735a40, strip.angle)
-          if ((road.id + i + patch) % 4 !== 1) {
-            this.instance('roadWear', px - normalX * rutOffset, 0.03, pz - normalZ * rutOffset, rutWidth * 0.9, 1, patchLength * 0.92, 0x7b6246, strip.angle)
-          }
-          if ((road.id + i + patch) % 3 === 0) {
-            this.instance('roadWear', px, 0.028, pz, width * 0.22, 1, patchLength * 0.55, 0x8a7151, strip.angle)
-          }
-        }
+        for (let piece = 0; piece < pieceCount; piece++) {
+          const t = (piece + 0.5) / pieceCount
+          const seed = road.id * 13.17 + i * 7.31 + piece * 3.73
+          const lateral = Math.sin(seed * 1.21) * Math.min(0.12, road.width * 0.055)
+          const widthScale = 0.9 + (Math.sin(seed * 0.77) * 0.5 + 0.5) * 0.14
+          const width = road.width * widthScale
+          const px = a.x + (b.x - a.x) * t + normalX * lateral
+          const pz = a.z + (b.z - a.z) * t + normalZ * lateral
+          const length = pieceLength + 0.28
 
-        // Sparse deterministic grass intrusion breaks the ruler-straight shoulder
-        // without changing the persisted road geometry.
-        if ((road.id + i) % 3 === 0 && strip.length > 2.4) {
-          const side = ((road.id * 5 + i) % 2 === 0 ? 1 : -1)
-          const edgeX = strip.x + normalX * width * 0.58 * side
-          const edgeZ = strip.z + normalZ * width * 0.58 * side
-          this.instance(
-            'underbrush',
-            edgeX + Math.sin(road.id + i) * 0.12,
-            0.12,
-            edgeZ + Math.cos(road.id * 0.7 + i) * 0.12,
-            0.3,
-            0.22,
-            0.3,
-            0x566849,
-            road.id * 0.21 + i,
-          )
+          // Overlapping short pieces vary width/lateral offset enough to stop the road
+          // from reading as one perfectly extruded brown ribbon.
+          const shoulderColor = piece % 3 === 0 ? 0x9a896b : piece % 3 === 1 ? 0x938066 : 0xa08d6c
+          const baseColor = piece % 4 === 0 ? 0x8e7253 : piece % 4 === 1 ? 0x987b58 : piece % 4 === 2 ? 0x927252 : 0x9c805e
+          this.instance('roadShoulder', px, 0.020, pz, width * 1.24, 1, length + 0.22, shoulderColor, strip.angle)
+          this.instance('roadBase', px, 0.025, pz, width, 1, length, baseColor, strip.angle)
+
+          // Circular edge stains overlap the rectangular pieces and dissolve the hard
+          // road boundary into grass/soil without changing road topology.
+          for (const side of [-1, 1] as const) {
+            const edgeSeed = seed + side * 4.9
+            const edgeOffset = width * (0.5 + Math.sin(edgeSeed) * 0.035)
+            const edgeX = px + normalX * edgeOffset * side + tangentX * Math.sin(edgeSeed * 1.7) * 0.24
+            const edgeZ = pz + normalZ * edgeOffset * side + tangentZ * Math.sin(edgeSeed * 1.7) * 0.24
+            this.instance(
+              'roadEdgePatch',
+              edgeX,
+              0.027,
+              edgeZ,
+              0.42 + (Math.cos(edgeSeed) * 0.5 + 0.5) * 0.34,
+              1,
+              0.28 + (Math.sin(edgeSeed * 0.83) * 0.5 + 0.5) * 0.32,
+              side > 0 ? 0x887a60 : 0x8f8064,
+              edgeSeed,
+            )
+
+            if ((road.id + i + piece + (side > 0 ? 1 : 0)) % 4 === 0) {
+              this.instance(
+                'underbrush',
+                edgeX + normalX * side * 0.12,
+                0.11,
+                edgeZ + normalZ * side * 0.12,
+                0.22 + (piece % 3) * 0.05,
+                0.18,
+                0.22 + (piece % 2) * 0.05,
+                0x566849,
+                edgeSeed,
+              )
+            }
+
+            if ((road.id * 3 + i + piece + (side > 0 ? 2 : 0)) % 7 === 0) {
+              this.instance(
+                'roadStone',
+                edgeX + normalX * side * 0.18,
+                0.065,
+                edgeZ + normalZ * side * 0.18,
+                0.75 + (piece % 3) * 0.14,
+                0.55 + (piece % 2) * 0.1,
+                0.82,
+                piece % 2 ? 0x70685d : 0x665f56,
+                edgeSeed * 0.4,
+              )
+            }
+          }
+
+          const rutOffset = width * 0.19
+          const rutWidth = Math.max(0.055, width * 0.05)
+          if ((road.id + i + piece) % 5 !== 2) {
+            const rutLength = length * (0.48 + ((piece + road.id) % 3) * 0.12)
+            const rutShift = tangentX * Math.sin(seed * 2.1) * 0.18
+            const rutShiftZ = tangentZ * Math.sin(seed * 2.1) * 0.18
+            this.instance('roadWear', px + normalX * rutOffset + rutShift, 0.03, pz + normalZ * rutOffset + rutShiftZ, rutWidth, 1, rutLength, 0x70563d, strip.angle)
+            if ((road.id + piece) % 3 !== 1) {
+              this.instance('roadWear', px - normalX * rutOffset - rutShift, 0.031, pz - normalZ * rutOffset - rutShiftZ, rutWidth * 0.9, 1, rutLength * 0.86, 0x785e43, strip.angle)
+            }
+          }
+
+          if ((road.id + i * 2 + piece) % 6 === 0) {
+            this.instance(
+              'roadMud',
+              px + normalX * Math.sin(seed) * width * 0.16,
+              0.032,
+              pz + normalZ * Math.sin(seed) * width * 0.16,
+              width * (0.2 + (piece % 2) * 0.08),
+              1,
+              Math.max(0.4, length * 0.28),
+              piece % 2 ? 0x65513d : 0x6d5841,
+              strip.angle + Math.sin(seed) * 0.16,
+            )
+          }
         }
       }
     }
@@ -1852,11 +1904,12 @@ export class SceneRenderer {
     const time = state.elapsedSeconds
     this.updateNightMaterialLift(night)
 
-    for (let i = 0; i < 148; i++) {
-      const x = ((i * 17 + (i % 5) * 3) % 63) - 31
-      const z = ((i * 29 + 7 + (i % 7) * 2) % 63) - 31
-      const sx = 1.1 + (i % 5) * 0.46
-      const sz = 0.8 + ((i * 3) % 6) * 0.31
+    for (let i = 0; i < 188; i++) {
+      const seed = i * 12.9898 + 4.141
+      const x = Math.sin(seed * 1.17) * 30.5 + Math.sin(seed * 0.31) * 1.8
+      const z = Math.cos(seed * 0.93) * 30.5 + Math.sin(seed * 0.47) * 1.8
+      const sx = 0.85 + (Math.sin(seed * 1.9) * 0.5 + 0.5) * 2.15
+      const sz = 0.72 + (Math.cos(seed * 1.41) * 0.5 + 0.5) * 1.72
       this.instance(
         'groundPatch',
         x,
@@ -1865,8 +1918,8 @@ export class SceneRenderer {
         sx,
         1,
         sz,
-        i % 4 === 0 ? 0x4a5f42 : i % 4 === 1 ? 0x66734f : i % 4 === 2 ? 0x56684a : 0x6a6f4c,
-        (i % 11) * 0.23,
+        i % 5 === 0 ? 0x4d6144 : i % 5 === 1 ? 0x64724f : i % 5 === 2 ? 0x57694b : i % 5 === 3 ? 0x6a714e : 0x526348,
+        seed * 0.19,
       )
     }
 
@@ -1924,7 +1977,16 @@ export class SceneRenderer {
           this.instance('treeMoon', trunkX + 0.12, 2.66, trunkZ - 0.12, 0.78 * scale, 0.64 * scale, 0.78 * scale, 0x60758a, n.id * 0.17)
         }
       } else if (n.resource === 'food') {
-        this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
+        const visualX = n.x + Math.sin(n.id * 1.93) * 0.34
+        const visualZ = n.z + Math.cos(n.id * 1.57) * 0.34
+        const scale = 0.78 + (n.id % 5) * 0.075
+        this.instance('food', visualX, 0.42 * scale, visualZ, scale, scale, scale, night > 0.45 ? 0x829b65 : undefined, n.id * 0.21)
+        if (n.id % 3 !== 1) {
+          this.instance('underbrush', visualX + 0.42, 0.13, visualZ - 0.28, 0.34, 0.24, 0.34, 0x516848, n.id * 0.33)
+        }
+        if (n.id % 4 === 0) {
+          this.instance('underbrush', visualX - 0.36, 0.11, visualZ + 0.31, 0.26, 0.2, 0.26, 0x5a704e, n.id * 0.41)
+        }
       } else if (n.resource === 'ore') {
         this.instance('ore', n.x, 0.42, n.z, 1.05, 0.78, 1.05, night > 0.45 ? 0x657487 : undefined, n.id * 0.31)
         this.instance('ore', n.x + 0.38, 0.24, n.z - 0.24, 0.58, 0.46, 0.58, 0x5d6570, n.id * 0.53)
