@@ -72,3 +72,14 @@ A failed grid path no longer gets recomputed every simulation tick. Navigation g
 Manual Save keeps a primary browser-local slot and rotates the previous primary into a backup slot. Loading validates the entire candidate before replacing the live world. Export produces the same validated JSON representation; import validates first, then rotates the prior primary to backup and replaces the world.
 
 This remains intentionally small: there is no autosave cadence, cloud synchronization, arbitrary save-slot manager or broad schema-migration framework yet.
+
+
+## M2.0 day phases and schedule handoff
+
+Time-of-day is converted into deterministic integer-minute phases: Dawn 05:00–06:00, Day 06:00–18:00, Dusk 18:00–20:00, and Night 20:00–05:00. Normal job assignment only occurs during Day.
+
+Crossing into a non-Day phase does not discard physical resources. Jobs that have not picked up cargo are safely released; partially completed construction keeps its accumulated work and delivered materials. Jobs already carrying wood/food remain active until the cargo reaches its destination. After that, civilians route to their assigned homes (or the starter camp if unhoused) while guards route to completed Guard Post slots.
+
+Guard duty is a lightweight persisted settler role rather than a separate entity type. Guards work normally during Day. Completed Guard Posts provide deterministic slots; excess guards become reserve guards and seek shelter. The shared navigation queue handles both work paths and schedule paths, preserving the existing route budget.
+
+M2.0 deliberately adds no enemy, raid, health, damage or combat state. Those remain separate slices so schedule/resource conservation can be validated independently.

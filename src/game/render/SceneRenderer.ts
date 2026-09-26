@@ -44,20 +44,24 @@ export class SceneRenderer {
     this.sun.shadow.mapSize.set(1024, 1024)
     this.sun.shadow.normalBias = 0.03
     this.scene.add(this.sun, this.ambient)
+
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE), new THREE.MeshStandardMaterial({ color: 0x617248, roughness: 1 }))
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true
     this.scene.add(ground)
     const grid = new THREE.GridHelper(46, 46, 0x8e9b7c, 0x738260)
     grid.position.y = 0.012; this.scene.add(grid)
+
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 6), 0x354d36, 1000)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
+    this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, 10)
     this.addBatch('cargo', this.geometry, 0xffffff, 10)
     this.addBatch('buildings', this.geometry, 0xffffff, 80)
     this.addBatch('roofs', new THREE.ConeGeometry(1, 1, 4), 0x594739, 80)
     this.addBatch('progress', this.geometry, 0xe4bc6b, 80)
     this.addBatch('doors', this.geometry, 0xf6dba0, 80)
     this.addBatch('player', new THREE.CapsuleGeometry(0.3, 0.65, 4, 6), 0x73d9dd, 1)
+
     this.ghost = new THREE.Mesh(this.geometry, new THREE.MeshBasicMaterial({ color: 0x82d6a4, transparent: true, opacity: 0.45, depthWrite: false }))
     this.ghost.visible = false; this.scene.add(this.ghost)
     this.selection = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.72, 32), new THREE.MeshBasicMaterial({ color: 0xffde9c, side: THREE.DoubleSide }))
@@ -65,51 +69,70 @@ export class SceneRenderer {
     this.paths = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x7ff0e4, transparent: true, opacity: 0.8 }))
     this.paths.frustumCulled = false; this.scene.add(this.paths)
   }
+
   private addBatch(name: string, geometry: THREE.BufferGeometry, color: number, count: number): void {
     const mesh = new THREE.InstancedMesh(geometry, new THREE.MeshStandardMaterial({ color, roughness: 0.9 }), count)
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0; mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false
     this.batches[name] = mesh; this.scene.add(mesh)
   }
+
   private instance(name: string, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1, color?: number, rotation = 0): void {
     const mesh = this.batches[name], i = mesh.count++
     this.matrix.position.set(x, y, z); this.matrix.scale.set(sx, sy, sz); this.matrix.rotation.set(0, rotation, 0); this.matrix.updateMatrix()
     mesh.setMatrixAt(i, this.matrix.matrix)
     if (color !== undefined) mesh.setColorAt(i, new THREE.Color(color))
   }
+
   sync(state: WorldState, selectedId: number | null): void {
     for (const mesh of Object.values(this.batches)) mesh.count = 0
     for (const n of state.nodes) if (n.remaining > 0) this.instance(n.resource, n.x, n.resource === 'wood' ? 1.4 : 0.5, n.z)
+
     for (const a of state.settlers) {
-      this.instance('settlers', a.x, 0.55, a.z)
+      this.instance(a.role === 'guard' ? 'guards' : 'settlers', a.x, 0.55, a.z)
       const resource = a.cargo.wood > 0 ? 'wood' : a.cargo.food > 0 ? 'food' : null
       if (resource) this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
     }
     this.instance('player', state.player.x, 0.7, state.player.z)
+
     for (const b of state.buildings) {
-      const def = BUILDINGS[b.type], height = b.complete ? (b.type === 'house' ? 2.3 : 0.5) : 0.25 + b.work / def.constructionWork * 1.5
+      const def = BUILDINGS[b.type]
+      const completeHeight = b.type === 'house' ? 2.3 : b.type === 'guard-post' ? 1.6 : 0.5
+      const height = b.complete ? completeHeight : 0.25 + b.work / def.constructionWork * 1.5
       this.instance('buildings', b.x, height / 2, b.z, 2.8, height, 2.8, b.complete ? def.color : 0x777c80)
       this.instance('doors', b.x, 0.05, b.z + 2, 0.65, 0.06, 0.65)
       if (b.complete && b.type === 'house') this.instance('roofs', b.x, 2.9, b.z, 2.3, 1.2, 2.3, undefined, Math.PI / 4)
+      if (b.complete && b.type === 'guard-post') {
+        this.instance('roofs', b.x, 2.15, b.z, 1.8, 0.8, 1.8, 0x493a31, Math.PI / 4)
+      }
       if (!b.complete) {
         const cost = def.buildCost.wood + def.buildCost.food
-        const ratio = ((b.delivered.wood + b.delivered.food) / cost + b.work / def.constructionWork) / 2
+        const ratio = ((b.delivered.wood + b.delivered.food) / Math.max(cost, 1) + b.work / def.constructionWork) / 2
         this.instance('progress', b.x - 1.3 + ratio * 1.3, 2.9, b.z, Math.max(0.04, ratio * 2.6), 0.12, 0.18)
       }
     }
-    for (const mesh of Object.values(this.batches)) { mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true }
+
+    for (const mesh of Object.values(this.batches)) {
+      mesh.instanceMatrix.needsUpdate = true
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+    }
+
     const selected = [...state.settlers, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
     this.selection.visible = !!selected
     if (selected) this.selection.position.set(selected.x, 0.04, selected.z)
+
     const daylight = THREE.MathUtils.clamp(Math.sin(state.timeOfDay * Math.PI * 2 - Math.PI / 2) * 0.5 + 0.5, 0.08, 1)
-    this.sun.intensity = 0.25 + daylight * 2.2; this.ambient.intensity = 0.55 + daylight
+    this.sun.intensity = 0.22 + daylight * 2.25
+    this.ambient.intensity = 0.45 + daylight * 1.05
     const sky = (this.scene.background as THREE.Color).copy(this.nightColor).lerp(this.dayColor, daylight)
     this.scene.fog!.color.copy(sky)
+
     if (this.mode === 'follow') { this.focus.x = state.player.x; this.focus.z = state.player.z }
     const radius = this.mode === 'follow' ? 9 : this.zoom
     this.camera.position.set(this.focus.x + Math.sin(this.angle) * radius * 0.7, radius * 0.85, this.focus.z + Math.cos(this.angle) * radius * 0.7)
     this.camera.lookAt(this.focus.x, 0, this.focus.z); this.camera.updateMatrixWorld()
   }
+
   updatePaths(state: WorldState): void {
     this.paths.visible = this.debug
     if (!this.debug) return
@@ -122,24 +145,29 @@ export class SceneRenderer {
     this.paths.geometry = new THREE.BufferGeometry()
     this.paths.geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
   }
+
   showGhost(type: BuildingId | null, p: Point | null, valid: boolean): void {
     this.ghost.visible = !!type && !!p
     if (!type || !p) return
     this.ghost.position.set(p.x, 0.35, p.z); this.ghost.scale.set(BUILDINGS[type].footprint, 0.7, BUILDINGS[type].footprint)
     ;(this.ghost.material as THREE.MeshBasicMaterial).color.set(valid ? 0x82d6a4 : 0xed7474)
   }
+
   worldPoint(clientX: number, clientY: number): Point | null {
     const rect = this.canvas.getBoundingClientRect()
     this.ray.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), this.camera)
     const hit = this.ray.ray.intersectPlane(this.groundPlane, new THREE.Vector3())
     return hit ? { x: Math.round(hit.x), z: Math.round(hit.z) } : null
   }
+
   resize(width: number, height: number): void {
     this.camera.aspect = Math.max(width, 1) / Math.max(height, 1); this.camera.updateProjectionMatrix()
     this.renderer.setSize(width, height, false)
   }
+
   render(): void { this.renderer.render(this.scene, this.camera) }
   get stats() { return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles } }
+
   dispose(): void {
     const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>()
     this.scene.traverse(object => {

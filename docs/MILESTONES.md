@@ -44,8 +44,8 @@
 
 ## M2 — First night
 
-- [ ] dusk behavior transition
-- [ ] guard role/post
+- [x] dusk behavior transition
+- [x] guard role/post
 - [ ] simple enemy entity store
 - [ ] raid spawn/director
 - [ ] basic enemy navigation toward settlement
@@ -55,7 +55,9 @@
 - [ ] structure health/damage
 - [ ] morning cleanup and repairs
 
-**Exit:** build by day, survive 20–40 attackers at night, repair next morning.
+**M2.0 verified:** deterministic Dawn/Day/Dusk/Night phases, daylight-only job assignment, cargo-safe dusk shutdown, civilian sheltering, guard roles and buildable Guard Posts. 20 tests pass and CI builds successfully.
+
+**Full M2 exit:** build by day, survive 20–40 attackers at night, repair next morning.
 
 ## M3 — Needs and production
 

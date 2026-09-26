@@ -8,6 +8,8 @@ const { cancelBuilding, placeBuilding, placementError, stockpiles, available, fr
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
+const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
+const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -221,12 +223,88 @@ test('blocked routes back off instead of retrying every tick and recover after t
   assert.notEqual(worker.status,'Route blocked — retrying')
 })
 
+
+test('day phase boundaries are deterministic', () => {
+  assert.equal(phaseForTime(5/24),'dawn')
+  assert.equal(phaseForTime(6/24),'day')
+  assert.equal(phaseForTime(17.999/24),'day')
+  assert.equal(phaseForTime(18/24),'dusk')
+  assert.equal(phaseForTime(20/24),'night')
+  assert.equal(phaseForTime(4.999/24),'night')
+})
+
+test('dusk stops non-carrying work but lets carried resources reach storage', () => {
+  const s=createInitialWorldState()
+  const sim=new Simulation(s)
+  let carrier=null
+  for(let i=0;i<1200 && !carrier;i++) {
+    sim.step()
+    carrier=s.settlers.find(a=>{
+      const j=s.jobs.find(j=>j.id===a.jobId)
+      return j && j.stage==='target' && a.cargo[j.resource]>0
+    })
+  }
+  assert.ok(carrier)
+  const carriedBefore=carrier.cargo.wood+carrier.cargo.food
+  assert.ok(carriedBefore>0)
+  sim.setTimeOfDay(18/24)
+  assert.ok(s.jobs.every(j=>j.stage==='target'))
+  assert.ok(s.jobs.every(j=>{ const a=s.settlers.find(a=>a.id===j.settlerId); return j.stage==='target' && a && a.cargo[j.resource]===j.amount }))
+  for(let i=0;i<800 && s.jobs.length>0;i++) sim.step()
+  assert.equal(s.jobs.length,0)
+  assert.equal(carrier.cargo.wood+carrier.cargo.food,0)
+  sim.step()
+  assert.ok(carrier.status==='Seeking shelter' || carrier.status==='Sheltering at camp' || carrier.status==='Sheltering at home')
+  validateWorld(s)
+})
+
+test('guards report to completed guard posts at night while civilians seek shelter', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.wood=25
+  assert.equal(placeBuilding(s,'guard-post',{x:7,z:0}),null)
+  const post=s.buildings.at(-1)
+  post.delivered.wood=25
+  post.work=10
+  post.complete=true
+  s.settlers[0].role='guard'
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const assignment=assignedGuardPost(s,s.settlers[0])
+  assert.ok(assignment)
+  assert.equal(assignment.buildingId,post.id)
+  for(let i=0;i<400;i++) sim.step()
+  assert.equal(s.settlers[0].status,'Guarding the settlement')
+  assert.ok(s.settlers.slice(1).every(a=>a.status==='Sheltering at camp' || a.status==='Seeking shelter'))
+  validateWorld(s)
+})
+
+test('daylight resumes normal work after night schedule', () => {
+  const s=createInitialWorldState()
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  for(let i=0;i<80;i++) sim.step()
+  assert.equal(s.jobs.length,0)
+  sim.setTimeOfDay(6/24)
+  for(let i=0;i<20;i++) sim.step()
+  assert.ok(s.jobs.length>0)
+  assert.ok(s.settlers.some(a=>a.status.includes('Travel') || a.status.includes('Gather') || a.status.includes('Carrying')))
+})
+
+test('legacy M1.1 saves migrate settler roles to worker', () => {
+  const s=createInitialWorldState()
+  const legacy=JSON.parse(serializeWorld(s))
+  for(const settler of legacy.settlers) delete settler.role
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(loaded.settlers.every(a=>a.role==='worker'))
+  validateWorld(loaded)
+})
+
 test('invalid and incompatible saves are rejected without touching current state', () => {
   const s=createInitialWorldState(), original=serializeWorld(s)
   for(const mutate of [
     s=>s.version=99, s=>s.settlers[0].x=Infinity, s=>s.buildings[0].inventory.wood=-1,
     s=>s.nextId=1, s=>s.settlers[0].jobId=999, s=>s.settlers[0].cargo.wood=5,
-    s=>s.nodes[0].resource='iron', s=>s.buildings[0].complete=false, s=>s.targets.wood=-1,
+    s=>s.nodes[0].resource='iron', s=>s.buildings[0].complete=false, s=>s.targets.wood=-1, s=>s.settlers[0].role='wizard',
   ]) {
     const candidate=JSON.parse(original);mutate(candidate)
     assert.throws(()=>deserializeWorld(JSON.stringify(candidate)))

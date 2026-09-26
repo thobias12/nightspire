@@ -70,7 +70,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 - Global BFS and linear searches are deliberately bounded M1 choices. Do not claim support for hundreds of workers without profiling.
 - Instance transforms rebuild per frame; HUD/path overlays update at 5 Hz. Profile before introducing incremental rendering or spatial indexes.
 - Vite's >500 kB minified chunk warning remains (about 578 kB / 148 kB gzip in this pass). It also occurred in the baseline and is mostly the Three.js runtime.
-- No M2 work has started.
+- M2.0 schedule behavior is implemented; enemies, raids, combat, walls, damage and repairs are not.
 
 ## M1.1 verification
 
@@ -87,3 +87,17 @@ Post-handoff M1.1 verification on 2026-09-26:
 2. Tune camera/placement/task pacing from that feedback rather than adding more simulation breadth.
 3. Add a repeatable percentile-style performance capture if needed before population limits increase.
 4. Then begin a deliberately small M2 dusk → first raid → morning repair slice.
+
+
+## M2.0 verification
+
+GitHub Actions CI run #15 verified the M2.0 code on 2026-09-26:
+
+- dependency install passed
+- strict TypeScript check passed
+- 20/20 renderer-independent simulation tests passed
+- production Vite build passed
+
+The five M2.0 tests cover exact phase boundaries, cargo-safe dusk shutdown, civilian sheltering, guard-post reporting, daylight work resumption, and legacy M1.1 role migration.
+
+The live Pages deployment is intended for user-facing verification of phase controls, Guard Post placement, role assignment, and visible dusk/night movement. Enemies and combat are deliberately absent from this slice.
