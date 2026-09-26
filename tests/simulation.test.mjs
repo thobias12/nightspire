@@ -10,7 +10,7 @@ const { blockedCells, cellKey } = require('../.test-build/game/simulation/Naviga
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
-const { RAID_SIZE, enemyTarget } = require('../.test-build/game/simulation/Raid.js')
+const { RAID_SIZE, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
@@ -559,6 +559,27 @@ test('core economy structures become critically damaged instead of disappearing'
   assert.equal(stock.destroyed,false)
   assert.equal(s.topology,topology)
   assert.equal(s.totals.structureDamage,stock.maxHealth-1)
+  validateWorld(s)
+})
+
+
+test('raiders retarget after a core building reaches its critical 1 HP floor', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',8,0,true)
+  s.buildings.push(house); s.topology++
+  const stock=s.buildings[0]
+  damageBuilding(s,stock,9999)
+  assert.equal(stock.health,1)
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:stock.id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:4,z:0,path:[],pathRevision:-1,status:'Test raider',
+  }
+  s.enemies=[enemy]
+  s.raid={lastSpawnDay:s.day,wave:1,totalSpawned:1,totalDefeated:0,lastClearedWave:0}
+  const target=enemyTargetBuilding(s,enemy)
+  assert.equal(target.id,house.id)
+  assert.equal(enemy.targetId,house.id)
   validateWorld(s)
 })
 
