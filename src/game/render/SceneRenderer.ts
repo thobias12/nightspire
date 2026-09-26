@@ -106,6 +106,7 @@ export class SceneRenderer {
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
   private readonly ghost: THREE.Mesh
   private readonly ghostLine: THREE.InstancedMesh
+  private readonly ghostPoints: THREE.InstancedMesh
   private readonly facing: THREE.Mesh
   private readonly selection: THREE.LineSegments
   private readonly paths: THREE.LineSegments
@@ -269,6 +270,17 @@ export class SceneRenderer {
     this.ghostLine.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     this.ghostLine.frustumCulled = false
     this.scene.add(this.ghostLine)
+
+    this.ghostPoints = new THREE.InstancedMesh(
+      new THREE.CircleGeometry(0.22, 18).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.94, depthWrite: false, vertexColors: true }),
+      64,
+    )
+    this.ghostPoints.count = 0
+    this.ghostPoints.visible = false
+    this.ghostPoints.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    this.ghostPoints.frustumCulled = false
+    this.scene.add(this.ghostPoints)
 
     this.facing = new THREE.Mesh(
       this.geometry,
@@ -2266,6 +2278,8 @@ export class SceneRenderer {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
+    this.ghostPoints.visible = false
+    this.ghostPoints.count = 0
     this.facing.visible = false
     this.grid.visible = !!type
     if (!type || !p) return
@@ -2320,38 +2334,75 @@ export class SceneRenderer {
     }
   }
 
-  showRoadGhost(points: Point[], valid: boolean, showGrid = false): void {
+  showRoadGhost(
+    points: Point[],
+    valid: boolean,
+    showGrid = false,
+    width = 1.7,
+    controlPoints: Point[] = [],
+    hover: Point | null = null,
+  ): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
+    this.ghostPoints.visible = false
+    this.ghostPoints.count = 0
     this.facing.visible = false
     this.grid.visible = showGrid
-    if (points.length < 2) return
 
-    const color = new THREE.Color(valid ? 0xcaa56c : 0xef6d65)
-    this.ghostLine.visible = true
-    this.ghostLine.count = Math.min(points.length - 1, 120)
-    for (let i = 0; i < this.ghostLine.count; i++) {
-      const a = points[i]
-      const b = points[i + 1]
-      const dx = b.x - a.x
-      const dz = b.z - a.z
-      const length = Math.max(0.05, Math.hypot(dx, dz))
-      this.matrix.position.set((a.x + b.x) / 2, 0.055, (a.z + b.z) / 2)
-      this.matrix.scale.set(1.7, 0.07, length + 0.3)
-      this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
-      this.matrix.updateMatrix()
-      this.ghostLine.setMatrixAt(i, this.matrix.matrix)
-      this.ghostLine.setColorAt(i, color)
+    const color = new THREE.Color(valid ? 0xd6b67e : 0xef6d65)
+    if (points.length >= 2) {
+      this.ghostLine.visible = true
+      this.ghostLine.count = Math.min(points.length - 1, 120)
+      for (let i = 0; i < this.ghostLine.count; i++) {
+        const a = points[i]
+        const b = points[i + 1]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const length = Math.max(0.05, Math.hypot(dx, dz))
+        this.matrix.position.set((a.x + b.x) / 2, 0.055, (a.z + b.z) / 2)
+        this.matrix.scale.set(width, 0.055, length + Math.min(0.32, width * 0.16))
+        this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+        this.matrix.updateMatrix()
+        this.ghostLine.setMatrixAt(i, this.matrix.matrix)
+        this.ghostLine.setColorAt(i, color)
+      }
+      this.ghostLine.instanceMatrix.needsUpdate = true
+      if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
     }
-    this.ghostLine.instanceMatrix.needsUpdate = true
-    if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+
+    const markers = [...controlPoints]
+    if (hover) {
+      const last = markers[markers.length - 1]
+      if (!last || Math.hypot(hover.x - last.x, hover.z - last.z) > 0.08) markers.push(hover)
+    }
+    if (markers.length) {
+      this.ghostPoints.visible = true
+      this.ghostPoints.count = Math.min(markers.length, 64)
+      for (let i = 0; i < this.ghostPoints.count; i++) {
+        const point = markers[i]
+        const isHover = hover !== null && i === markers.length - 1
+        this.matrix.position.set(point.x, 0.073, point.z)
+        this.matrix.rotation.set(0, 0, 0)
+        this.matrix.scale.setScalar(isHover ? 1.28 : 1)
+        this.matrix.updateMatrix()
+        this.ghostPoints.setMatrixAt(i, this.matrix.matrix)
+        this.ghostPoints.setColorAt(
+          i,
+          new THREE.Color(valid ? (isHover ? 0xffffff : 0xf2d49d) : 0xef6d65),
+        )
+      }
+      this.ghostPoints.instanceMatrix.needsUpdate = true
+      if (this.ghostPoints.instanceColor) this.ghostPoints.instanceColor.needsUpdate = true
+    }
   }
 
   showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean, showGrid = false): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
+    this.ghostPoints.visible = false
+    this.ghostPoints.count = 0
     this.facing.visible = false
     this.grid.visible = showGrid
     if (!preview) return
