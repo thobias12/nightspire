@@ -8,6 +8,23 @@ export interface PlayerState extends Point {
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
 }
 export interface ResourceNode extends Point { id: number; resource: ResourceId; remaining: number }
+export interface RoadPath {
+  id: number
+  points: Point[]
+  width: number
+}
+export type BackyardKind = 'garden' | 'chickens' | 'workyard' | 'firewood'
+export interface ResidentialPlot {
+  id: number
+  buildingId: number
+  roadId: number
+  frontageA: Point
+  frontageB: Point
+  depth: number
+  side: 1 | -1
+  angle: number
+  backyard: BackyardKind
+}
 export interface Building extends Point {
   id: number; type: BuildingId; rotation: number; complete: boolean; work: number
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
@@ -47,6 +64,7 @@ export interface ImmigrationState {
 export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
+  roads: RoadPath[]; residentialPlots: ResidentialPlot[]
   targets: Inventory; raid: RaidState; immigration: ImmigrationState
   totals: {
     gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
@@ -118,7 +136,7 @@ export function createInitialWorldState(): WorldState {
   const state: WorldState = {
     version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
     player: { x: 0, z: 5, health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0 },
-    settlers: [], enemies: [], nodes: [], buildings: [], jobs: [],
+    settlers: [], enemies: [], nodes: [], buildings: [], jobs: [], roads: [], residentialPlots: [],
     targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID }, immigration: { ...DEFAULT_IMMIGRATION },
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
