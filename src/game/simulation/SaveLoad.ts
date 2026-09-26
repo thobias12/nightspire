@@ -3,6 +3,7 @@ import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
+import { residentialPlotsOverlap } from './TownPlanning'
 import { DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
 
 export const SAVE_KEY = 'nightspire.m1.save.v1'
@@ -34,6 +35,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 120, 'buildings')
   check(Array.isArray(s.nodes) && s.nodes.length <= 1000 && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
+  check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
+  check(Array.isArray(s.residentialPlots) && s.residentialPlots.length <= 80, 'residential plots')
   check(
     s.raid
     && integer(s.raid.lastSpawnDay) && s.raid.lastSpawnDay <= s.day
@@ -45,7 +48,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     'raid state',
   )
 
-  const entities = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs]
+  const entities = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots]
   check(entities.every(e => e && integer(e.id) && e.id > 0 && e.id < s.nextId), 'entity IDs')
   check(new Set(entities.map(e => e.id)).size === entities.length, 'duplicate IDs')
 
@@ -84,6 +87,31 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   check(s.buildings.some(b => b.type === 'stockpile' && b.complete && b.x === 0 && b.z === 0), 'missing starter camp')
   for (const n of s.nodes) check(gridPoint(n) && RESOURCE_IDS.includes(n.resource) && integer(n.remaining), 'resource node')
+
+  for (const road of s.roads) {
+    check(number(road.width) && road.width >= 1 && road.width <= 4, 'road width')
+    check(
+      Array.isArray(road.points) && road.points.length >= 2 && road.points.length <= 120
+      && road.points.every(point),
+      'road path',
+    )
+  }
+
+  const plottedBuildings = new Set<number>()
+  for (let i = 0; i < s.residentialPlots.length; i++) {
+    const plot = s.residentialPlots[i]
+    const building = s.buildings.find(candidate => candidate.id === plot.buildingId)
+    check(building?.type === 'house', 'residential plot house')
+    check(s.roads.some(road => road.id === plot.roadId), 'residential plot road')
+    check(point(plot.frontageA) && point(plot.frontageB), 'residential frontage')
+    check(number(plot.depth) && plot.depth >= 5 && plot.depth <= 13, 'residential depth')
+    check(plot.side === 1 || plot.side === -1, 'residential side')
+    check(Number.isFinite(plot.angle), 'residential angle')
+    check(['garden', 'chickens', 'workyard', 'firewood'].includes(plot.backyard), 'residential backyard')
+    check(!plottedBuildings.has(plot.buildingId), 'duplicate residential house')
+    plottedBuildings.add(plot.buildingId)
+    for (let j = 0; j < i; j++) check(!residentialPlotsOverlap(plot, s.residentialPlots[j]), 'overlapping residential plots')
+  }
 
   for (const a of s.settlers) {
     check(point(a) && combatant(a, s.tick) && inventory(a.cargo) && RESOURCE_IDS.reduce((sum, resource) => sum + a.cargo[resource], 0) <= CARRY_CAPACITY, 'settler/cargo')
@@ -245,6 +273,8 @@ export function deserializeWorld(text: string): WorldState {
 
   if (candidate && candidate.version === 1 && candidate.targets === undefined) candidate.targets = { ...DEFAULT_TARGETS }
   migrateInventory(candidate?.targets)
+  if (candidate && candidate.version === 1 && candidate.roads === undefined) candidate.roads = []
+  if (candidate && candidate.version === 1 && candidate.residentialPlots === undefined) candidate.residentialPlots = []
 
   if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers)) {
     for (const settler of candidate.settlers) {
