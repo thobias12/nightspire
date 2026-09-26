@@ -185,6 +185,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     && inventory(s.totals.delivered)
     && integer(s.totals.constructed)
     && integer(s.totals.repairedHealth)
+    && integer(s.totals.repairWoodUsed)
     && integer(s.totals.structureDamage),
     'counters',
   )
@@ -242,6 +243,7 @@ export function deserializeWorld(text: string): WorldState {
 
   if (candidate && candidate.version === 1 && candidate.totals) {
     if (candidate.totals.repairedHealth === undefined) candidate.totals.repairedHealth = 0
+    if (candidate.totals.repairWoodUsed === undefined) candidate.totals.repairWoodUsed = 0
     if (candidate.totals.structureDamage === undefined) candidate.totals.structureDamage = 0
   }
 
