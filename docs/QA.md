@@ -620,3 +620,30 @@ M3.10.0 is presentation-only. It changes road/terrain/resource-node rendering bu
 ### Architectural boundary
 
 M3.10.0 changes renderer/HUD/docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Road irregularity is strictly presentation-layer geometry; persisted road points and all navigation semantics remain untouched.
+
+
+## M3.10.1 verification target
+
+M3.10.1 intentionally changes road placement UX and TownPlanning curve helpers, but keeps the persisted `RoadPath { id, points, width }` schema and leaves Navigation/Jobs/Simulation road semantics untouched. Automated coverage rises from 107 to **110 tests**.
+
+### Browser workflow
+
+1. Start fresh, select **0 / Road**, and click 4–5 control points in an S shape. The live preview should continuously curve through the points rather than drawing one mouse-drag strip.
+2. Double-click the final point to finish. Repeat with **Enter** as the finish action.
+3. During a third draft, use right-click and Backspace to undo recent points; the preview must rebuild without leaving stale markers.
+4. With **Road Join ON [J]**, start or finish close to an existing road endpoint. The marker should magnetically land on that endpoint and produce an exact connection.
+5. With Road Join ON, click the middle of an existing road as one control point and continue the new road. Finishing should insert that clicked centerline point into the host road as a real persisted junction.
+6. Toggle **Road Join OFF [J]** and place a control point near an existing road. It should stay at the requested/grid-snapped location rather than magnetically joining.
+7. Toggle **Grid Snap ON [G]**. Control points should land on whole-metre coordinates, but an S-shaped multi-point road must remain smoothly curved rather than being forced to 0°/45°/90°.
+8. Press **C** through 0%, 35%, 70%, 100%. The same draft should visibly transition from straight point-to-point segments toward increasingly rounded bends.
+9. Use **[ / ]** or the Road Width button to place Path 1.2m, Road 1.7m and Main road 2.4m. Preview footprint and final dirt width should clearly differ.
+10. Inspect the finished road visually. The dirt center should read continuously through bends without the old alternating rectangular/checkerboard pieces; ruts/mud/edge grass can still vary.
+11. Build a Residential Plot along a curved section. Its frontage and House facing must follow the local sampled road tangent rather than the global control-point chord.
+12. Place Tavern/Blacksmith or another conventional building near a curved segment with Building→Road ON. Position/facing should follow the local curved segment.
+13. Create a branch/T-junction from the middle of a curved road, save, reload and Load. The exact sampled road points, widths and host junction must survive validation.
+14. Check both Overview and Street view at Day/Dusk. Curved roads should read as worn earth integrated into terrain, not raised tiles.
+15. Stress several long curved roads while watching Draws / triangles / Render submission CPU and verify state integrity.
+
+### Architectural boundary
+
+M3.10.1 changes `Game.ts`, `TownPlanning.ts`, `SceneRenderer.ts`, `Hud.ts`, tests and docs. It deliberately changes **road authoring UX**, but does not add a new save schema or modify `WorldState.ts`, `SaveLoad.ts`, `Navigation.ts`, `Jobs.ts` or `Simulation.ts`. Curves are sampled into existing road points; movement/logistics still ignore road preference until the later scale/integration work.
