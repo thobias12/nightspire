@@ -1149,7 +1149,7 @@ export class SceneRenderer {
       const intactColor = this.damagedColor(def.color, damage)
       const baseColor = hit ? 0xff705e : this.readableNightColor(intactColor, night)
 
-      if (plot) this.renderResidentialPlot(plot, b, night)
+      if (plot) this.renderResidentialPlot(plot, b, night, state.residentialPlots)
 
       if ((b.complete || b.work > 0) && !plot) {
         this.instance(
