@@ -21,6 +21,7 @@ import { Simulation } from '../simulation/Simulation'
 import {
   backyardForPlot,
   buildingPlacementPreview,
+  insertRoadJunctionPoint,
   normalizeRoadPoints,
   residentialPlotBuildingError,
   residentialPlotError,
@@ -90,7 +91,14 @@ export class Game {
           this.roadDraft = normalizeRoadPoints([...this.roadDraft, precise])
         }
       } else if (this.planningTool === 'residential-plot' && this.planningStart && precise) {
-        this.plotDraft = residentialPlotPreview(this.simulation.state.roads, this.planningStart, precise, 2.2, this.gridSnap)
+        this.plotDraft = residentialPlotPreview(
+          this.simulation.state.roads,
+          this.planningStart,
+          precise,
+          2.2,
+          this.gridSnap,
+          this.simulation.state.residentialPlots,
+        )
       } else if (this.dragStart && point && this.buildType === 'wood-wall') {
         this.dragPoints = wallLinePoints(this.dragStart, point)
       }
@@ -153,11 +161,13 @@ export class Game {
             this.message = error
           } else {
             const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
+            insertRoadJunctionPoint(s.roads, points[0])
+            insertRoadJunctionPoint(s.roads, points[points.length - 1])
             s.roads.push({ id: s.nextId++, points, width: 1.7 })
-            this.message = 'Road placed · ' + length.toFixed(1) + 'm. Draw another road or Esc to finish.'
+            this.message = 'Road placed · ' + length.toFixed(1) + 'm. Junctions lock to exact existing road centerlines.'
           }
         } else {
-          const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap)
+          const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap, s.residentialPlots)
           let error = residentialPlotError(preview, s.residentialPlots)
           if (!error) error = residentialPlotBuildingError(preview, s.buildings)
           if (!error) error = residentialPlotResourceError(preview, s.nodes)
@@ -185,7 +195,8 @@ export class Game {
                 backyard: backyardForPlot(plotId, preview.depth),
               })
               this.selectedId = house.id
-              this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth. The house will face the road and keep the rear yard.'
+              this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
+                + (preview.adjacentSnapped ? ' Frontage snapped flush to the neighboring plot.' : ' The house will face the road and keep the rear yard.')
             }
           }
         }
@@ -691,7 +702,9 @@ export class Game {
       this.renderer.showResidentialPlotGhost(preview, !error, this.gridSnap)
       if (this.planningStart) {
         this.message = error ?? (preview
-          ? 'Residential plot preview · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth. Release to plan.'
+          ? 'Residential plot preview · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
+            + (preview.adjacentSnapped ? ' · Edge snapped to neighboring plot.' : '')
+            + ' Release to plan.'
           : 'Start close to a player road and drag diagonally into the backyard.')
       }
       return
