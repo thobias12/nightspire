@@ -1,5 +1,6 @@
+import { BUILDINGS } from '../data/buildings'
 import { inBounds } from './Navigation'
-import type { Point, ResidentialPlot, RoadPath } from './WorldState'
+import type { Building, Point, ResidentialPlot, RoadPath } from './WorldState'
 
 export type BackyardKind = ResidentialPlot['backyard']
 
@@ -162,6 +163,28 @@ export function residentialPlotsOverlap(a: ResidentialPlotPreview | ResidentialP
   const ac = plotCorners(a)
   const bc = plotCorners(b)
   return [...axesFor(ac), ...axesFor(bc)].every(axis => overlapsOnAxis(ac, bc, axis))
+}
+
+export function residentialPlotBuildingError(
+  preview: ResidentialPlotPreview | null,
+  buildings: Building[],
+): string | null {
+  if (!preview) return null
+  const plot = plotCorners(preview)
+  for (const building of buildings) {
+    if (building.destroyed) continue
+    const half = BUILDINGS[building.type].footprint / 2
+    const buildingCorners: Point[] = [
+      { x: building.x - half, z: building.z - half },
+      { x: building.x + half, z: building.z - half },
+      { x: building.x + half, z: building.z + half },
+      { x: building.x - half, z: building.z + half },
+    ]
+    if ([...axesFor(plot), ...axesFor(buildingCorners)].every(axis => overlapsOnAxis(plot, buildingCorners, axis))) {
+      return 'Residential plot overlaps an existing building or ruin.'
+    }
+  }
+  return null
 }
 
 export function residentialPlotError(
