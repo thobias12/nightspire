@@ -2,9 +2,10 @@ import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { MAP_SIZE } from '../simulation/Navigation'
-import type { Building, Point, WorldState } from '../simulation/WorldState'
+import { residentialPlotWidth, type ResidentialPlotPreview } from '../simulation/TownPlanning'
+import type { Building, Point, ResidentialPlot, RoadPath, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
-import { TOWN_PALETTE, visualRoadLinks, visualRoadStrip } from './TownPresentation'
+import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
 
 export type CameraMode = 'settlement' | 'follow'
 
@@ -160,9 +161,13 @@ export class SceneRenderer {
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 320, 0.34)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 320, 0.16)
-    this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 240, 0.28)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.34)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), TOWN_PALETTE.earthLight, 720, 0.16)
+    this.addBasicBatch('roadCap', new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2), TOWN_PALETTE.earth, 720, 0.3)
+    this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.14)
+    this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
+    this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
+    this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
     this.addBatch('stone', this.geometry, TOWN_PALETTE.stone, 1200)
     this.addBatch('plaster', this.geometry, TOWN_PALETTE.plasterWarm, 700)
     this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600)
@@ -293,8 +298,8 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'yardPatch'].includes(name)
-    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'yardPatch'].includes(name)
+    mesh.castShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadCap', 'plotGround', 'yardPatch'].includes(name)
+    mesh.receiveShadow = !name.startsWith('health') && !['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadBase', 'roadWear', 'roadCap', 'plotGround', 'yardPatch'].includes(name)
     mesh.frustumCulled = false
     if (this.settlementLitBatches.has(name)) mesh.layers.enable(1)
     this.batchColors[name] = color
@@ -468,12 +473,14 @@ export class SceneRenderer {
       wood: 0.24,
       treeTrunk: 0.18,
       underbrush: 0.14,
+      gardenRow: 0.12,
+      chicken: 0.14,
       food: 0.16,
     }
     for (const [name, strength] of Object.entries(strengths)) {
       const material = this.batches[name]?.material
       if (!(material instanceof THREE.MeshStandardMaterial)) continue
-      material.emissive.setHex(['wood', 'treeTrunk', 'underbrush', 'food'].includes(name) ? forest : cool)
+      material.emissive.setHex(['wood', 'treeTrunk', 'underbrush', 'gardenRow', 'food'].includes(name) ? forest : cool)
       material.emissiveIntensity = night * strength
     }
   }
