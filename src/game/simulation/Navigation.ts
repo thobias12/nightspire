@@ -3,6 +3,7 @@ import { PATH_BUDGET } from '../data/jobs'
 import type { Building, Point, WorldState } from './WorldState'
 
 export const MAP_MIN = -23, MAP_MAX = 23, MAP_SIZE = 47
+export const PATH_RETRY_TICKS = 40
 export const cellKey = (p: Point): number => (Math.round(p.z) - MAP_MIN) * MAP_SIZE + Math.round(p.x) - MAP_MIN
 export const inBounds = (p: Point): boolean => p.x >= MAP_MIN && p.x <= MAP_MAX && p.z >= MAP_MIN && p.z <= MAP_MAX
 export const entrance = (b: Building): Point => ({ x: b.x, z: b.z + 2 })
@@ -30,26 +31,30 @@ export function flood(start: Point, blocked: Set<number>): Map<number, Point | n
   }
   return parents
 }
-// One shared queue, at most two routes per fixed tick. Paths persist until topology changes.
+// One shared queue, at most two routes per fixed tick. Failed routes cool down before retrying.
 export class Navigation {
   private revision = -1
   private blocked = new Set<number>()
   private queue = new Map<number, Point>()
+  private retryAfter = new Map<number, number>()
   requests = 0
   solved = 0
   failures = 0
   get depth(): number { return this.queue.size }
-  reset(): void { this.revision = -1; this.queue.clear() }
+  reset(): void { this.revision = -1; this.queue.clear(); this.retryAfter.clear() }
   sync(state: WorldState): void {
     if (state.topology === this.revision) return
-    this.blocked = blockedCells(state); this.revision = state.topology; this.queue.clear()
+    this.blocked = blockedCells(state); this.revision = state.topology; this.queue.clear(); this.retryAfter.clear()
     for (const s of state.settlers) { s.path = []; s.pathRevision = -1 }
   }
   walkable(point: Point): boolean { return inBounds(point) && !this.blocked.has(cellKey(point)) }
-  request(id: number, target: Point): void {
-    if (this.queue.has(id)) return
+  request(id: number, target: Point, tick: number): boolean {
+    if ((this.retryAfter.get(id) ?? 0) > tick) return false
+    if (this.queue.has(id)) return true
     this.queue.set(id, target); this.requests++
+    return true
   }
+  isRetrying(id: number, tick: number): boolean { return (this.retryAfter.get(id) ?? 0) > tick }
   process(state: WorldState): void {
     this.solved = 0
     for (const [id, target] of this.queue) {
@@ -59,7 +64,12 @@ export class Navigation {
       if (!s || s.jobId === null) continue
       const parents = flood(target, this.blocked)
       let cursor: Point = { x: Math.round(s.x), z: Math.round(s.z) }
-      if (!parents.has(cellKey(cursor))) { this.failures++; s.status = 'Route blocked'; continue }
+      if (!parents.has(cellKey(cursor))) {
+        this.failures++; this.retryAfter.set(id, state.tick + PATH_RETRY_TICKS)
+        s.path = []; s.pathRevision = -1; s.status = 'Route blocked — retrying'
+        continue
+      }
+      this.retryAfter.delete(id)
       const path: Point[] = [cursor]
       while (parents.get(cellKey(cursor))) { cursor = parents.get(cellKey(cursor))!; path.push(cursor) }
       s.path = path; s.pathRevision = state.topology
