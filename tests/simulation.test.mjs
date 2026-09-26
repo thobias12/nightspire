@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
-const { createInitialWorldState, spawnSettler, DEFAULT_TARGETS } = require('../.test-build/game/simulation/WorldState.js')
+const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_TARGETS } = require('../.test-build/game/simulation/WorldState.js')
 const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
 const { cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
@@ -10,8 +10,8 @@ const { blockedCells, cellKey } = require('../.test-build/game/simulation/Naviga
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
-const { RAID_SIZE, enemyTarget } = require('../.test-build/game/simulation/Raid.js')
-const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE } = require('../.test-build/game/simulation/Combat.js')
+const { RAID_SIZE, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
+const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -168,7 +168,7 @@ test('long-run M1 logistics conserves resources and stays valid', () => {
     if(i%500===0) validateWorld(s)
   }
   validateWorld(s)
-  assert.equal(total(s,'wood'),initial.wood)
+  assert.equal(total(s,'wood') + s.totals.repairWoodUsed,initial.wood)
   assert.equal(total(s,'food'),initial.food)
   assert.equal(sim.navigation.failures,0)
 })
@@ -209,10 +209,7 @@ test('blocked routes back off instead of retrying every tick and recover after t
   sim.step()
   const worker=s.settlers.find(a=>a.jobId!==null)
   assert.ok(worker)
-  const blocker={
-    id:s.nextId++, type:'house', x:Math.round(worker.x), z:Math.round(worker.z),
-    complete:true, work:12, inventory:{wood:0,food:0}, delivered:{wood:20,food:0},
-  }
+  const blocker=createBuilding(s.nextId++,'house',Math.round(worker.x),Math.round(worker.z),true)
   s.buildings.push(blocker); s.topology++
   for(let i=0;i<5;i++) sim.step()
   const firstFailures=sim.navigation.failures
@@ -332,7 +329,7 @@ test('raiders share the bounded navigation queue and reach the settlement', () =
   }
   const after=s.enemies.reduce((n,e)=>n+Math.hypot(e.x-enemyTarget(s,e).x,e.z-enemyTarget(s,e).z),0)
   assert.ok(after<initial)
-  assert.ok(s.enemies.every(e=>e.status==='At the settlement — seeking a defender' || e.status==='Attacking player'))
+  assert.ok(s.enemies.every(e=>e.status.startsWith('Attacking ') || e.status.startsWith('Advancing on ') || e.status==='No settlement target'))
   assert.equal(sim.navigation.failures,0)
 })
 
@@ -489,12 +486,135 @@ test('legacy M2.1 saves migrate combat fields', () => {
   validateWorld(loaded)
 })
 
+
+test('completed gate is passable to friendlies but blocks raiders while wall blocks both', () => {
+  const s=createInitialWorldState()
+  const gate=createBuilding(s.nextId++,'wood-gate',5,0,true)
+  const wall=createBuilding(s.nextId++,'wood-wall',6,0,true)
+  s.buildings.push(gate,wall); s.topology++
+  const friendly=blockedCells(s,false), hostile=blockedCells(s,true)
+  assert.equal(friendly.has(cellKey(gate)),false)
+  assert.equal(hostile.has(cellKey(gate)),true)
+  assert.equal(friendly.has(cellKey(wall)),true)
+  assert.equal(hostile.has(cellKey(wall)),true)
+  const blueprint=createBuilding(s.nextId++,'wood-wall',7,0,false)
+  s.buildings.push(blueprint); s.topology++
+  assert.equal(blockedCells(s,false).has(cellKey(blueprint)),true)
+  assert.equal(blockedCells(s,true).has(cellKey(blueprint)),false)
+  validateWorld(s)
+})
+
+test('new wooden wall construction finishes at full structure health', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.wood=5
+  assert.equal(placeBuilding(s,'wood-wall',{x:5,z:0}),null)
+  const wall=s.buildings.at(-1)
+  const sim=new Simulation(s)
+  for(let i=0;i<1200 && !wall.complete;i++) sim.step()
+  assert.equal(wall.complete,true)
+  assert.equal(wall.health,wall.maxHealth)
+  assert.equal(wall.destroyed,false)
+  validateWorld(s)
+})
+
+test('raider destroys a wooden wall and the breach becomes hostile-walkable', () => {
+  const s=createInitialWorldState()
+  const wall=createBuilding(s.nextId++,'wood-wall',0,-5,true)
+  s.buildings.push(wall); s.topology++
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:wall.id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:0,z:-7,path:[],pathRevision:-1,status:'Test raider',
+  }
+  s.enemies=[enemy]
+  s.raid={lastSpawnDay:s.day,wave:1,totalSpawned:1,totalDefeated:0,lastClearedWave:0}
+  s.timeOfDay=21/24
+  const sim=new Simulation(s)
+  for(let i=0;i<500 && !wall.destroyed;i++) sim.step()
+  assert.equal(wall.destroyed,true)
+  assert.equal(wall.health,0)
+  assert.ok(s.totals.structureDamage>=wall.maxHealth)
+  assert.equal(blockedCells(s,true).has(cellKey(wall)),false)
+  validateWorld(s)
+})
+
+test('daylight repair consumes timber, restores HP and closes a ruined wall breach', () => {
+  const s=createInitialWorldState()
+  s.buildings[0].inventory.wood=10
+  const wall=createBuilding(s.nextId++,'wood-wall',5,0,true)
+  wall.health=0; wall.destroyed=true
+  s.buildings.push(wall); s.topology++
+  const sim=new Simulation(s)
+  for(let i=0;i<1400 && s.totals.repairedHealth===0;i++) sim.step()
+  assert.equal(wall.destroyed,false)
+  assert.equal(wall.health,50)
+  assert.equal(s.totals.repairedHealth,50)
+  assert.equal(s.totals.repairWoodUsed,5)
+  assert.equal(blockedCells(s,true).has(cellKey(wall)),true)
+  validateWorld(s)
+})
+
+test('core economy structures become critically damaged instead of disappearing', () => {
+  const s=createInitialWorldState()
+  const stock=s.buildings[0]
+  const topology=s.topology
+  assert.equal(damageBuilding(s,stock,9999),false)
+  assert.equal(stock.health,1)
+  assert.equal(stock.destroyed,false)
+  assert.equal(s.topology,topology)
+  assert.equal(s.totals.structureDamage,stock.maxHealth-1)
+  validateWorld(s)
+})
+
+
+test('raiders retarget after a core building reaches its critical 1 HP floor', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',8,0,true)
+  s.buildings.push(house); s.topology++
+  const stock=s.buildings[0]
+  damageBuilding(s,stock,9999)
+  assert.equal(stock.health,1)
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:stock.id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:4,z:0,path:[],pathRevision:-1,status:'Test raider',
+  }
+  s.enemies=[enemy]
+  s.raid={lastSpawnDay:s.day,wave:1,totalSpawned:1,totalDefeated:0,lastClearedWave:0}
+  const target=enemyTargetBuilding(s,enemy)
+  assert.equal(target.id,house.id)
+  assert.equal(enemy.targetId,house.id)
+  validateWorld(s)
+})
+
+test('legacy M2.2 saves migrate structure health hit state and repair counters', () => {
+  const s=createInitialWorldState()
+  const legacy=JSON.parse(serializeWorld(s))
+  for(const b of legacy.buildings) {
+    delete b.health; delete b.maxHealth; delete b.destroyed; delete b.lastHitTick
+  }
+  delete legacy.player.lastHitTick
+  for(const a of legacy.settlers) delete a.lastHitTick
+  delete legacy.totals.repairedHealth
+  delete legacy.totals.repairWoodUsed
+  delete legacy.totals.structureDamage
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(loaded.buildings.every(b=>b.health===b.maxHealth && b.destroyed===false && b.lastHitTick===0))
+  assert.equal(loaded.player.lastHitTick,0)
+  assert.ok(loaded.settlers.every(a=>a.lastHitTick===0))
+  assert.equal(loaded.totals.repairedHealth,0)
+  assert.equal(loaded.totals.repairWoodUsed,0)
+  assert.equal(loaded.totals.structureDamage,0)
+  validateWorld(loaded)
+})
+
 test('invalid and incompatible saves are rejected without touching current state', () => {
   const s=createInitialWorldState(), original=serializeWorld(s)
   for(const mutate of [
     s=>s.version=99, s=>s.settlers[0].x=Infinity, s=>s.buildings[0].inventory.wood=-1,
     s=>s.nextId=1, s=>s.settlers[0].jobId=999, s=>s.settlers[0].cargo.wood=5,
     s=>s.nodes[0].resource='iron', s=>s.buildings[0].complete=false, s=>s.targets.wood=-1, s=>s.settlers[0].role='wizard',
+    s=>s.buildings[0].health=s.buildings[0].maxHealth+1, s=>s.buildings[0].destroyed=true,
   ]) {
     const candidate=JSON.parse(original);mutate(candidate)
     assert.throws(()=>deserializeWorld(JSON.stringify(candidate)))

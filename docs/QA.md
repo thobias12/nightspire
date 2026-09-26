@@ -70,7 +70,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 - Global BFS and linear searches are deliberately bounded M1 choices. Do not claim support for hundreds of workers without profiling.
 - Instance transforms rebuild per frame; HUD/path overlays update at 5 Hz. Profile before introducing incremental rendering or spatial indexes.
 - Vite's >500 kB minified chunk warning remains (about 578 kB / 148 kB gzip in this pass). It also occurred in the baseline and is mostly the Three.js runtime.
-- M2.2 minimal combat is implemented; walls, structure damage, repair tasks, permanent defender death and richer combat presentation are not.
+- M2.3 fortification/damage/repair is implemented. Permanent defender death, complete destruction of core economy buildings, wall drag placement, gate controls, towers/siege systems and final combat presentation are not.
 
 ## M1.1 verification
 
@@ -129,3 +129,19 @@ GitHub Actions CI run #23 verified the implementation on 2026-09-26:
 The six M2.2 additions cover player melee damage/kill, guard-raider damage exchange, player downing and recovery on night exit, final-raider wave clearing, combat-state save/load, and migration of M2.1 saves to default combat fields. The older guard-post schedule test is explicitly isolated from raid spawning so schedule and combat behavior remain independently tested.
 
 Pages playtest focus: assign guards, jump to Night, observe guards intercept nearby raiders, switch to Follow player, approach a raider and press Space, inspect health/status changes, clear or survive the wave, then jump to Dawn/Day and verify downed defenders recover.
+
+
+## M2.3 verification
+
+GitHub Actions CI run #38 verified the implementation on 2026-09-26:
+
+- dependency install passed
+- strict TypeScript check passed
+- 39/39 renderer-independent simulation tests passed
+- production Vite build passed
+
+The seven M2.3 additions cover friendly-vs-hostile gate blocking (including the unfinished-blueprint exploit), full-health wall construction, raider destruction of a wall and opening of the hostile route, timber-consuming daylight repair that closes the breach again, critical-floor behavior for core economy structures, retargeting after a core structure reaches 1 HP, and migration of older saves to structure/repair state.
+
+Existing long-run conservation now explicitly includes lifetime repair timber consumption instead of hiding that resource sink. The older raid-movement regression accepts the terminal no-target state after all available core structures have reached their critical floor.
+
+The Pages build still needs user-facing verification after deployment. Recommended playtest: build several walls plus a gate, enable paths, trigger Night, watch raiders hit/breach the perimeter, inspect structure HP/hit flashes, then go to Day and observe workers carry wood to damaged structures. The QA **Damage selected structure** button provides a deterministic repair test.

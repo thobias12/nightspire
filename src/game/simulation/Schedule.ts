@@ -11,7 +11,7 @@ export function assignedGuardPost(state: WorldState, settler: Settler): { buildi
   if (guardIndex < 0) return null
 
   const slots = state.buildings
-    .filter(b => b.complete && BUILDINGS[b.type].guardSlots > 0)
+    .filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].guardSlots > 0)
     .flatMap(b => Array.from({ length: BUILDINGS[b.type].guardSlots }, (_, slot) => ({ buildingId: b.id, slot })))
   return slots[guardIndex] ?? null
 }
@@ -27,9 +27,9 @@ function guardTarget(state: WorldState, settler: Settler): Point | null {
 }
 
 function homeTarget(state: WorldState, settler: Settler): Point {
-  const home = state.buildings.find(b => b.id === settler.homeId && b.complete)
+  const home = state.buildings.find(b => b.id === settler.homeId && b.complete && !b.destroyed)
   if (home) return entrance(home)
-  const starter = state.buildings.find(b => b.type === 'stockpile' && b.complete) ?? state.buildings.find(b => b.complete)
+  const starter = state.buildings.find(b => b.type === 'stockpile' && b.complete && !b.destroyed) ?? state.buildings.find(b => b.complete && !b.destroyed)
   return starter ? entrance(starter) : { x: 0, z: 2 }
 }
 
