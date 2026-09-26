@@ -449,3 +449,27 @@ New coverage verifies:
 ### Architectural boundary
 
 M3.8.3 still does not change `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, reservations, AI decisions or movement cost. Junction nodes are persisted now specifically so post-M4 road/path integration can consume a cleaner road graph later.
+
+
+## M3.8.4 verification target
+
+M3.8.4 deliberately freezes M3.8.3 placement/topology behavior and changes renderer presentation only. The automated suite remains **103 tests**; strict TypeScript and production build are the code gates, while the new behavior is primarily live visual acceptance.
+
+### Browser workflow
+
+1. Start fresh with Grid Snap ON and draw one horizontal road plus a perpendicular/45° branch.
+2. Inspect the crossing from overview and Street view. The intersection must **not become darker** than the incoming road surfaces merely because two meshes overlap.
+3. Confirm the road core is visibly warmer/browner than the grass, with subtle darker wheel ruts rather than broad translucent dark strips.
+4. Inspect long straight roads: the faint wider shoulder and sparse grass intrusion should soften the rectangular edges without creating circular blobs.
+5. Draw several adjacent Residential Plots on one road and complete the Houses.
+6. Shared side boundaries between neighboring plots must render **once**, with no doubled rails/posts.
+7. Compare a shallow and deeper adjacent lot: the shared fence should continue to cover the deeper property's boundary without duplicating the shallower section.
+8. Rear fences should have a small usable opening rather than forming a fully sealed rectangle.
+9. Exposed outer lot boundaries should have mild post/hedge variation; lot ownership remains readable but should look less like modern surveyed parcels.
+10. Confirm frontage snapping, Grid Snap, Road Snap, junction-node behavior and save/load are unchanged from M3.8.3.
+11. Enable navigation debug and confirm workers still ignore roads for movement cost/preference.
+12. Check state integrity and review Draws / triangles / Render submission CPU metrics.
+
+### Architectural boundary
+
+M3.8.4 does not modify `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. No planning rules, persistence rules, path budgets, reservations, AI decisions or movement costs change in this pass.
