@@ -585,6 +585,9 @@ export class SceneRenderer {
 
   private renderVisualRoads(roads: RoadPath[]): void {
     for (const road of roads) {
+      const roadBaseColor = road.width >= 2.1 ? 0x806a4e : road.width <= 1.35 ? 0x8e7658 : 0x887052
+      const shoulderColor = road.width >= 2.1 ? 0x948268 : 0x99866a
+
       for (let i = 1; i < road.points.length; i++) {
         const a = road.points[i - 1]
         const b = road.points[i]
@@ -595,68 +598,84 @@ export class SceneRenderer {
         const tangentZ = (b.z - a.z) / strip.length
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-        const pieceCount = Math.max(1, Math.ceil(strip.length / 2.35))
+
+        // Old saves can contain long straight segments while new curved roads are
+        // already sampled densely. Subdivide only when necessary so both generations
+        // render through the same soft continuous dirt treatment.
+        const pieceCount = Math.max(1, Math.ceil(strip.length / 1.15))
         const pieceLength = strip.length / pieceCount
 
         for (let piece = 0; piece < pieceCount; piece++) {
           const t = (piece + 0.5) / pieceCount
-          const seed = road.id * 13.17 + i * 7.31 + piece * 3.73
-          const lateral = Math.sin(seed * 1.21) * Math.min(0.12, road.width * 0.055)
-          const widthScale = 0.9 + (Math.sin(seed * 0.77) * 0.5 + 0.5) * 0.14
+          const seed = road.id * 11.83 + i * 2.19 + piece * 0.91
+          const lateral = Math.sin(seed * 1.73) * Math.min(0.045, road.width * 0.018)
+          const widthScale = 0.965 + (Math.sin(seed * 0.79) * 0.5 + 0.5) * 0.055
           const width = road.width * widthScale
           const px = a.x + (b.x - a.x) * t + normalX * lateral
           const pz = a.z + (b.z - a.z) * t + normalZ * lateral
-          const length = pieceLength + 0.28
+          const length = pieceLength + Math.min(0.5, width * 0.26)
 
-          // Overlapping short pieces vary width/lateral offset enough to stop the road
-          // from reading as one perfectly extruded brown ribbon.
-          const shoulderColor = piece % 3 === 0 ? 0x9a896b : piece % 3 === 1 ? 0x938066 : 0xa08d6c
-          const baseColor = piece % 4 === 0 ? 0x8e7253 : piece % 4 === 1 ? 0x987b58 : piece % 4 === 2 ? 0x927252 : 0x9c805e
-          this.instance('roadShoulder', px, 0.020, pz, width * 1.24, 1, length + 0.22, shoulderColor, strip.angle)
-          this.instance('roadBase', px, 0.025, pz, width, 1, length, baseColor, strip.angle)
+          // Keep the central dirt tone coherent along the whole road. The earlier
+          // per-piece color swaps exposed every rectangle; shape/edge/rut variation
+          // now carries the organic look instead.
+          this.instance('roadShoulder', px, 0.020, pz, width * 1.34, 1, length + 0.22, shoulderColor, strip.angle)
+          this.instance('roadBase', px, 0.025, pz, width * 0.94, 1, length, roadBaseColor, strip.angle)
 
-          // Circular edge stains overlap the rectangular pieces and dissolve the hard
-          // road boundary into grass/soil without changing road topology.
+          // Soft round center patches cover angular joints between sampled segments
+          // and make bends read as one continuous dirt surface.
+          this.instance(
+            'roadEdgePatch',
+            px,
+            0.027,
+            pz,
+            width * 0.5,
+            1,
+            Math.max(width * 0.38, pieceLength * 0.72),
+            roadBaseColor,
+            strip.angle,
+          )
+
           for (const side of [-1, 1] as const) {
-            const edgeSeed = seed + side * 4.9
-            const edgeOffset = width * (0.5 + Math.sin(edgeSeed) * 0.035)
-            const edgeX = px + normalX * edgeOffset * side + tangentX * Math.sin(edgeSeed * 1.7) * 0.24
-            const edgeZ = pz + normalZ * edgeOffset * side + tangentZ * Math.sin(edgeSeed * 1.7) * 0.24
+            const edgeSeed = seed + side * 5.17
+            const edgeOffset = width * (0.49 + Math.sin(edgeSeed) * 0.025)
+            const along = Math.sin(edgeSeed * 1.61) * Math.min(0.2, pieceLength * 0.28)
+            const edgeX = px + normalX * edgeOffset * side + tangentX * along
+            const edgeZ = pz + normalZ * edgeOffset * side + tangentZ * along
             this.instance(
               'roadEdgePatch',
               edgeX,
-              0.027,
+              0.028,
               edgeZ,
-              0.42 + (Math.cos(edgeSeed) * 0.5 + 0.5) * 0.34,
+              0.36 + (Math.cos(edgeSeed) * 0.5 + 0.5) * 0.22,
               1,
-              0.28 + (Math.sin(edgeSeed * 0.83) * 0.5 + 0.5) * 0.32,
-              side > 0 ? 0x887a60 : 0x8f8064,
+              0.24 + (Math.sin(edgeSeed * 0.83) * 0.5 + 0.5) * 0.24,
+              side > 0 ? 0x8c7c61 : 0x928268,
               edgeSeed,
             )
 
-            if ((road.id + i + piece + (side > 0 ? 1 : 0)) % 4 === 0) {
+            if ((road.id + i + piece + (side > 0 ? 1 : 0)) % 5 === 0) {
               this.instance(
                 'underbrush',
-                edgeX + normalX * side * 0.12,
-                0.11,
-                edgeZ + normalZ * side * 0.12,
-                0.22 + (piece % 3) * 0.05,
-                0.18,
-                0.22 + (piece % 2) * 0.05,
+                edgeX + normalX * side * 0.13,
+                0.105,
+                edgeZ + normalZ * side * 0.13,
+                0.18 + (piece % 3) * 0.045,
+                0.16,
+                0.18 + (piece % 2) * 0.045,
                 0x566849,
                 edgeSeed,
               )
             }
 
-            if ((road.id * 3 + i + piece + (side > 0 ? 2 : 0)) % 7 === 0) {
+            if ((road.id * 3 + i + piece + (side > 0 ? 2 : 0)) % 9 === 0) {
               this.instance(
                 'roadStone',
                 edgeX + normalX * side * 0.18,
-                0.065,
+                0.06,
                 edgeZ + normalZ * side * 0.18,
-                0.75 + (piece % 3) * 0.14,
-                0.55 + (piece % 2) * 0.1,
-                0.82,
+                0.66 + (piece % 3) * 0.12,
+                0.5 + (piece % 2) * 0.08,
+                0.72,
                 piece % 2 ? 0x70685d : 0x665f56,
                 edgeSeed * 0.4,
               )
@@ -664,28 +683,47 @@ export class SceneRenderer {
           }
 
           const rutOffset = width * 0.19
-          const rutWidth = Math.max(0.055, width * 0.05)
+          const rutWidth = Math.max(0.052, width * 0.045)
           if ((road.id + i + piece) % 5 !== 2) {
-            const rutLength = length * (0.48 + ((piece + road.id) % 3) * 0.12)
-            const rutShift = tangentX * Math.sin(seed * 2.1) * 0.18
-            const rutShiftZ = tangentZ * Math.sin(seed * 2.1) * 0.18
-            this.instance('roadWear', px + normalX * rutOffset + rutShift, 0.03, pz + normalZ * rutOffset + rutShiftZ, rutWidth, 1, rutLength, 0x70563d, strip.angle)
+            const rutLength = Math.max(0.28, pieceLength * (0.55 + ((piece + road.id) % 3) * 0.1))
+            const drift = Math.sin(seed * 2.1) * 0.09
+            this.instance(
+              'roadWear',
+              px + normalX * rutOffset + tangentX * drift,
+              0.031,
+              pz + normalZ * rutOffset + tangentZ * drift,
+              rutWidth,
+              1,
+              rutLength,
+              0x70563d,
+              strip.angle,
+            )
             if ((road.id + piece) % 3 !== 1) {
-              this.instance('roadWear', px - normalX * rutOffset - rutShift, 0.031, pz - normalZ * rutOffset - rutShiftZ, rutWidth * 0.9, 1, rutLength * 0.86, 0x785e43, strip.angle)
+              this.instance(
+                'roadWear',
+                px - normalX * rutOffset - tangentX * drift,
+                0.032,
+                pz - normalZ * rutOffset - tangentZ * drift,
+                rutWidth * 0.9,
+                1,
+                rutLength * 0.84,
+                0x785e43,
+                strip.angle,
+              )
             }
           }
 
-          if ((road.id + i * 2 + piece) % 6 === 0) {
+          if ((road.id + i * 2 + piece) % 8 === 0) {
             this.instance(
               'roadMud',
-              px + normalX * Math.sin(seed) * width * 0.16,
-              0.032,
-              pz + normalZ * Math.sin(seed) * width * 0.16,
-              width * (0.2 + (piece % 2) * 0.08),
+              px + normalX * Math.sin(seed) * width * 0.12,
+              0.033,
+              pz + normalZ * Math.sin(seed) * width * 0.12,
+              width * 0.17,
               1,
-              Math.max(0.4, length * 0.28),
-              piece % 2 ? 0x65513d : 0x6d5841,
-              strip.angle + Math.sin(seed) * 0.16,
+              Math.max(0.28, pieceLength * 0.36),
+              0x66513d,
+              strip.angle + Math.sin(seed) * 0.12,
             )
           }
         }
