@@ -172,3 +172,18 @@ M3.2 deliberately keeps production automatic rather than adding dedicated Brewer
 ## Development save compatibility policy
 
 During active milestone development, backward compatibility with saves from earlier milestones is not a requirement unless explicitly requested. Fresh-run testing is the default. New systems may change the save schema directly instead of accumulating migration code solely to preserve temporary development saves.
+
+
+## M3.3 population growth is earned and physically represented
+
+Population attraction is derived from systems that already exist instead of a separate abstract immigration currency. A settlement must have at least one spare bed, at least two units of unreserved stored Food per current settler, average Happiness of 65% or more, average Safety of 55% or more, no active raiders, and either no raid history or a cleared latest wave. Population remains capped at ten for this milestone.
+
+Attraction also exposes a 0–100 diagnostic score for the HUD. Hard requirements remain authoritative; the score is a readable summary rather than a substitute for them. Housing contributes 25, Food up to 20, Happiness up to 30, Safety up to 20 and a safe raid state 5.
+
+Immigration is evaluated once per settlement Day. Requirements must hold for two distinct qualifying Days. The streak resets after any failed check and after each successful arrival, producing gradual growth instead of a sudden flood of settlers as soon as several houses are built.
+
+Immigrants are real Settler entities immediately, but spawn at deterministic map-edge entry points and receive an arrival target at the starter camp. Housing may reserve a bed for them immediately, but the job scheduler explicitly excludes settlers with an active arrival target. They use the existing bounded navigation queue to walk into town and become ordinary workers only after physically reaching the camp.
+
+The QA **Test immigration now** action bypasses only the two-Day wait; it still requires all real attraction conditions. The direct **Spawn settler** control remains a QA-only escape hatch and is labeled as such.
+
+The ten-settler cap is intentionally unchanged. M3.3 proves that needs, economy and defense drive population growth without silently expanding the simulation/performance promise before M4 profiling.
