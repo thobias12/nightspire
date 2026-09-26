@@ -151,6 +151,25 @@ Usability layer on top of the M3.8.1 town-planning foundation.
 
 **Exit:** straight neighborhoods are quick to lay out without sacrificing freeform village roads, and service/production buildings can be placed cleanly against streets without pixel-perfect manual rotation.
 
+## M3.8.3 — Road junctions & plot rows
+
+Polish pass on the player-authored street/lot workflow.
+
+- [x] road endpoints prefer exact existing endpoints before centerline joins
+- [x] branch attachment inserts a persisted junction control point into the host road
+- [x] remove the large circular road-cap treatment that produced dark blobs
+- [x] use lighter rectangular junction blending only where multiple persisted roads share a node
+- [x] extend road strips through bends so aligned corners remain visually continuous
+- [x] Residential Plot ghost shows metre frontage tick marks
+- [x] Grid Snap magnetically shares neighboring Residential Plot frontage endpoints
+- [x] adjacent lot placement remains non-overlapping at shared boundaries
+- [x] shorter/incomplete side fences keep road frontage visually open
+- [x] tighter Road Snap setback for conventional service/production buildings
+- [x] stronger façade/front-edge marker during building placement
+- [ ] live junction/row visual acceptance
+
+**Exit:** intersections no longer read as dark circles, road branches are topologically explicit in persisted planning data, and repeated residential lots can be laid out as clean aligned rows without pixel-perfect frontage placement.
+
 ## M3.9 — Organic settlement structure
 
 Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.
