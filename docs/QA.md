@@ -343,3 +343,42 @@ Live acceptance after Pages deployment:
 8. verify House, Tavern, Blacksmith, Stockpile and Guard Post are distinguishable without reading their HUD labels
 
 M3.8.0 is not complete until these views are visually accepted. Performance should also be checked in the existing Draws / triangles / Render submission CPU metrics because the extra detail is intentionally kept in shared instanced batches.
+
+
+## M3.8.1 verification target
+
+M3.8.1 replaces the temporary automatic presentation-road graph with real player-authored town-planning data while preserving all M4-sensitive runtime behavior.
+
+The suite target is **96 tests**. New/updated regressions cover:
+
+- freehand road-point normalization, minimum length and deterministic length
+- Residential Plot frontage snapping against a persisted road segment
+- derived road-facing plot side/orientation and House rotation
+- plot-vs-plot overlap rejection
+- plot-vs-building and plot-vs-resource rejection
+- persisted road/plot save-load round trip including deterministic backyard identity
+- cancelling a plotted House removes its attached persistent plot
+- existing visual road strip math remains deterministic
+
+### Browser workflow
+
+Start a fresh run rather than loading the M3.8.0 QA settlement.
+
+1. Press **0** or choose **Road**.
+2. Click-drag a curving road through open land. Release; the road should remain exactly where you drew it.
+3. Draw a second road connecting to or branching from the first.
+4. Press **1** or choose **Residential Plot**.
+5. Start close to a road and drag diagonally along the road and backward into open land.
+6. A valid lot requires 4–10m frontage and 5–13m depth. The green preview represents the whole lot rather than only the House footprint.
+7. Release a valid plot. A normal 20-wood House blueprint appears near its road frontage while the full fenced backyard persists.
+8. Create several plots with different width/depth. Completed homes should share the same medieval kit but vary in width, plaster/roof treatment, door placement, porch/lean-to details and backyard type.
+9. Backyards deterministically show Garden, Chickens, Workyard or Firewood dressing.
+10. Try overlapping another plot, an existing building or a live resource node; placement must refuse it.
+11. Save, reload, and confirm roads, arbitrary road curves, plot shapes and backyard variants are unchanged.
+12. Cancel an unfinished plotted House; its plot/fence/backyard must disappear with it.
+13. Enable navigation paths: paths should remain the original grid paths and should **not** prefer roads in M3.8.1.
+14. Check state integrity.
+
+### Architectural boundary
+
+This milestone intentionally does not modify `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, resource reservations or settler decision logic. Persisted roads are prepared for post-M4 movement/logistics integration, but right now they organize player-authored settlement shape and residential frontage only.
