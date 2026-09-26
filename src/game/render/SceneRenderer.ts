@@ -1011,6 +1011,10 @@ export class SceneRenderer {
         this.instance('metal', b.x + p.x, 0.55 + i * 0.05, b.z + p.z, 0.42, 0.08, 0.08, 0x6f777c, rotation + 0.2)
       }
     }
+
+    this.renderCart(b, rotation, -1.85, 0.55, b.id)
+    const basket = this.rotatedOffset(1.2, -0.9, rotation)
+    this.instance('baskets', b.x + basket.x, 0.21, b.z + basket.z, 0.62, 0.78, 0.62, 0x987044, rotation)
   }
 
   private renderHouse(b: Building, rotation: number, color: number, night: number, plot?: ResidentialPlot): void {
@@ -1041,6 +1045,24 @@ export class SceneRenderer {
     const chimneySide = (plot?.id ?? b.id) % 2 ? 1 : -1
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', b.x + chimney.x, wallHeight + 0.72, b.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
+
+    const step = this.rotatedOffset(doorX, depth / 2 + 0.22, rotation)
+    this.instance('stone', b.x + step.x, 0.12, b.z + step.z, 0.76, 0.22, 0.48, 0x777064, rotation)
+    this.frontageClutter(b, rotation, plot?.id ?? b.id, Math.min(1.05, width / 2.7))
+
+    if (plot && plot.depth >= 8.2) {
+      const rearExtension = this.rotatedOffset(
+        plot.id % 2 === 0 ? width * 0.2 : -width * 0.22,
+        -depth / 2 - 0.62,
+        rotation,
+      )
+      this.instance('timber', b.x + rearExtension.x, 0.48, b.z + rearExtension.z, 1.2, 0.9, 1.1, 0x6b4d37, rotation)
+      this.instance('gableRoofs', b.x + rearExtension.x, 0.91, b.z + rearExtension.z, 1.48, 0.6, 1.34, this.readableNightColor(0x67513c, night), rotation)
+    }
+
+    if (plot && plot.depth >= 7.4 && plot.id % 4 === 0) {
+      this.renderLaundryLine(b, rotation, 0, -depth / 2 - 1.65, plot.id)
+    }
 
     if (plot && plot.id % 3 === 1) {
       const lean = this.rotatedOffset(-width / 2 - 0.42, -0.2, rotation)
@@ -1112,6 +1134,13 @@ export class SceneRenderer {
       this.instance('timber', b.x + table.x, 0.25, b.z + table.z, 0.12, 0.5, 0.12, 0x543826, rotation)
     }
 
+    const sideCanopy = this.rotatedOffset(-1.72, 0.15, rotation)
+    this.instance('timber', b.x + sideCanopy.x, 0.78, b.z + sideCanopy.z, 0.12, 1.5, 0.12, 0x513727, rotation)
+    const sideAwning = this.rotatedOffset(-1.56, 0.34, rotation)
+    this.instance('cloth', b.x + sideAwning.x, 1.28, b.z + sideAwning.z, 1.32, 0.08, 1.4, 0x71434a, rotation)
+    this.frontageClutter(b, rotation, b.id + 7, 1.12)
+    this.renderCart(b, rotation, 1.85, -0.35, b.id + 3)
+
     this.renderTavernNightlife(b, rotation, time, activity)
   }
 
@@ -1138,6 +1167,11 @@ export class SceneRenderer {
       const p = this.rotatedOffset(-1.18, -0.7 + i * 0.34, rotation)
       this.instance('barrels', b.x + p.x, 0.28, b.z + p.z, 0.32, 0.54, 0.32, 0x66472f, rotation)
     }
+    const malt = this.rotatedOffset(1.18, -0.35, rotation)
+    this.instance('sacks', b.x + malt.x, 0.25, b.z + malt.z, 0.52, 0.62, 0.48, 0x9d895f, rotation)
+    const basket = this.rotatedOffset(1.22, 0.1, rotation)
+    this.instance('baskets', b.x + basket.x, 0.21, b.z + basket.z, 0.56, 0.72, 0.56, 0x987044, rotation)
+    this.frontageClutter(b, rotation, b.id + 11, 1.0)
 
     const furnace = this.rotatedOffset(0.62, 1.32, rotation)
     const stocked = b.inventory.food > 0 || b.inventory.ale > 0
@@ -1192,6 +1226,18 @@ export class SceneRenderer {
       const p = this.rotatedOffset(-1.08, -0.12 + i * 0.28, rotation)
       this.instance('metal', b.x + p.x, 0.58 + i * 0.14, b.z + p.z, 0.52, 0.07, 0.08, 0x70777b, rotation + (i - 1) * 0.2)
     }
+
+    const canopy = this.rotatedOffset(-0.1, 1.72, rotation)
+    this.instance('timber', b.x + canopy.x, 1.28, b.z + canopy.z, 2.6, 0.12, 1.0, 0x5b402c, rotation)
+    for (const lx of [-1.08, 1.08]) {
+      const post = this.rotatedOffset(lx, 1.72, rotation)
+      this.instance('timber', b.x + post.x, 0.68, b.z + post.z, 0.1, 1.36, 0.1, 0x493327, rotation)
+    }
+    const coal = this.rotatedOffset(1.24, -0.1, rotation)
+    for (let i = 0; i < 4; i++) {
+      this.instance('ore', b.x + coal.x + (i % 2) * 0.24, 0.12 + Math.floor(i / 2) * 0.1, b.z + coal.z + Math.floor(i / 2) * 0.2, 0.28, 0.24, 0.28, 0x3f4549, rotation + i)
+    }
+    this.renderCart(b, rotation, -1.7, -0.45, b.id + 5)
 
     const production = BUILDINGS.blacksmith.production!
     const active = productionPhaseActive
