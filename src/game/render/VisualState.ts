@@ -47,10 +47,10 @@ export function atmosphereForTime(timeOfDay: number): AtmosphereState {
     daylight,
     night,
     twilight,
-    sunIntensity: 0.12 + daylight * 2.38 + twilight * 0.22,
-    moonIntensity: 0.18 + night * 0.92,
-    ambientIntensity: 0.56 + daylight * 0.9 + twilight * 0.08,
-    fogNear: 50 + daylight * 16,
-    fogFar: 108 + daylight * 28,
+    sunIntensity: 0.14 + daylight * 2.36 + twilight * 0.22,
+    moonIntensity: 0.22 + night * 1.23,
+    ambientIntensity: 0.72 + daylight * 0.76 + twilight * 0.08,
+    fogNear: 54 + daylight * 14,
+    fogFar: 120 + daylight * 24,
   }
 }
