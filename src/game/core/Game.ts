@@ -21,7 +21,7 @@ export class Game {
   private pointer: Point | null = null
   private paused = false
   private speed = 1
-  private message = 'Build a Guard Post, assign a guard, then use QA to jump to dusk and watch the settlement prepare.'
+  private message = 'Prepare the settlement, assign guards, then jump to Night to watch the first raiders approach.'
   private animationFrame = 0
   private lastTime = 0
   private accumulator = 0
@@ -49,7 +49,7 @@ export class Game {
         this.message = error ?? 'Blueprint placed. Settlers will supply and construct it during daylight.'
         if (!error) { this.selectedId = s.buildings.at(-1)!.id; this.buildType = null }
       } else {
-        const nearby = [...s.settlers, ...s.buildings, ...s.nodes.filter(n => n.remaining > 0)].filter(e => distance(e, p) < 1.8).sort((a, b) => distance(a, p) - distance(b, p))
+        const nearby = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes.filter(n => n.remaining > 0)].filter(e => distance(e, p) < 1.8).sort((a, b) => distance(a, p) - distance(b, p))
         this.selectedId = nearby[0]?.id ?? null
       }
       this.updateGhost(); this.updateHud()
@@ -88,7 +88,7 @@ export class Game {
         case 'house': case 'stockpile': case 'guard-post':
           this.buildType = action; this.renderer.mode = 'settlement'
           this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
-        case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a worker, resource or building.'; break
+        case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a settler, raider, resource or building.'; break
         case 'cancel-blueprint': {
           if (this.selectedId === null) { this.message = 'Select an unfinished blueprint first.'; break }
           const error = cancelBuilding(s, this.selectedId)
@@ -111,6 +111,13 @@ export class Game {
         case 'jump-dusk': this.simulation.setTimeOfDay(18 / 24); break
         case 'jump-night': this.simulation.setTimeOfDay(21 / 24); break
         case 'jump-dawn': this.simulation.setTimeOfDay(5 / 24); break
+        case 'next-raid': {
+          this.simulation.setTimeOfDay(12 / 24)
+          if (s.raid.lastSpawnDay === s.day) s.day++
+          this.simulation.setTimeOfDay(21 / 24)
+          this.message = 'Advanced to raid wave ' + s.raid.wave + '. Combat is not active yet.'
+          break
+        }
         case 'target-wood': case 'target-food': {
           const resource = action === 'target-wood' ? 'wood' : 'food'
           const target = Math.max(0, Math.min(10_000, Math.round(Number(value))))
@@ -120,7 +127,7 @@ export class Game {
           break
         }
         case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.0 maximum remains 10 settlers.'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M2.1 maximum remains 10 settlers.'; break
         case 'resources': {
           let added = 0
           for (const resource of ['wood', 'food'] as const) {
@@ -165,7 +172,7 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: jobs, cargo, roles, reservations, housing and connectivity.'; break
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: jobs, cargo, roles, raid state, reservations, housing and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()

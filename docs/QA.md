@@ -70,7 +70,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 - Global BFS and linear searches are deliberately bounded M1 choices. Do not claim support for hundreds of workers without profiling.
 - Instance transforms rebuild per frame; HUD/path overlays update at 5 Hz. Profile before introducing incremental rendering or spatial indexes.
 - Vite's >500 kB minified chunk warning remains (about 578 kB / 148 kB gzip in this pass). It also occurred in the baseline and is mostly the Three.js runtime.
-- M2.0 schedule behavior is implemented; enemies, raids, combat, walls, damage and repairs are not.
+- M2.1 raid movement is implemented; combat, health/death, walls, structure damage and repairs are not.
 
 ## M1.1 verification
 
@@ -101,3 +101,17 @@ GitHub Actions CI run #15 verified the M2.0 code on 2026-09-26:
 The five M2.0 tests cover exact phase boundaries, cargo-safe dusk shutdown, civilian sheltering, guard-post reporting, daylight work resumption, and legacy M1.1 role migration.
 
 The live Pages deployment is intended for user-facing verification of phase controls, Guard Post placement, role assignment, and visible dusk/night movement. Enemies and combat are deliberately absent from this slice.
+
+
+## M2.1 verification
+
+GitHub Actions CI run #18 verified the implementation on 2026-09-26:
+
+- dependency install passed
+- strict TypeScript check passed
+- 26/26 renderer-independent simulation tests passed
+- production Vite build passed
+
+The six M2.1 tests cover one-wave-per-day spawning, shared bounded navigation to the settlement, daylight retreat and next-day respawn, active-raid save/load without duplication, migration of M2.0 saves, and placement rejection on an active raider cell.
+
+The Pages playtest should verify the visible behavior: jump to Night, observe 12 dark-red raiders enter from outside the settlement and converge on the camp, inspect their statuses/routes, then jump to Dawn/Day and confirm they retreat. **Next raid** advances the QA scenario to another wave. Combat is intentionally not part of this slice.

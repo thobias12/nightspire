@@ -5,8 +5,11 @@ import { assignHousing } from './Buildings'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
+import { ENEMY_WALK_SPEED, enemyTarget, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
-import { recordEvent, settlerLabel, type Job, type Point, type Settler, type WorldState } from './WorldState'
+import { recordEvent, settlerLabel, type Enemy, type Job, type Point, type Settler, type WorldState } from './WorldState'
+
+type MovingAgent = Settler | Enemy
 
 export class Simulation {
   readonly navigation = new Navigation()
@@ -14,6 +17,7 @@ export class Simulation {
 
   constructor(public state: WorldState) {
     this.lastPhase = phaseForTime(state.timeOfDay)
+    if (this.lastPhase === 'night') this.beginRaid()
   }
 
   get phase(): DayPhase { return phaseForTime(this.state.timeOfDay) }
@@ -22,6 +26,7 @@ export class Simulation {
     this.state = state
     this.navigation.reset()
     this.lastPhase = phaseForTime(state.timeOfDay)
+    if (this.lastPhase === 'night') this.beginRaid()
   }
 
   setTimeOfDay(timeOfDay: number): void {
@@ -56,15 +61,28 @@ export class Simulation {
       else if (settler.status !== 'Needs work' && settler.status !== 'Stock targets met' && !settler.status.startsWith('Storage') && settler.status !== 'No resources left')
         settler.status = 'Needs work'
     }
+
+    if (phase === 'night') for (const enemy of s.enemies) this.updateEnemy(enemy)
     this.navigation.process(s)
+  }
+
+  private beginRaid(): void {
+    const count = spawnNightRaid(this.state)
+    if (count > 0) recordEvent(this.state, 'Raid wave ' + this.state.raid.wave + ': ' + count + ' raiders enter from the wilds.')
   }
 
   private transition(previous: DayPhase, next: DayPhase): void {
     const s = this.state
+    if (previous === 'night' && next !== 'night') {
+      const retreated = retreatRaid(s)
+      if (retreated > 0) recordEvent(s, retreated + ' raiders retreat with the returning light.')
+    }
     if (next !== 'day') this.releaseNonCarryingJobs()
+
     if (next === 'dusk') {
       recordEvent(s, 'Dusk falls. Work stops; civilians seek shelter and guards report to posts.')
     } else if (next === 'night') {
+      this.beginRaid()
       recordEvent(s, 'Night has fallen. The settlement is on alert.')
     } else if (next === 'dawn') {
       recordEvent(s, 'Dawn breaks. The settlement waits for daylight.')
@@ -103,7 +121,7 @@ export class Simulation {
     const target = jobDestination(s, job)
     if (distance(settler, target) < 0.01) { this.arrive(settler, job); return }
     const status = job.stage === 'target' ? 'Carrying ' + job.amount + ' ' + job.resource : 'Travel to ' + job.kind
-    this.move(settler, target, status)
+    this.move(settler, target, status, WALK_SPEED)
   }
 
   private updateNightSchedule(settler: Settler): void {
@@ -115,22 +133,33 @@ export class Simulation {
     const moving = settler.role === 'guard'
       ? (status.startsWith('Guard reserve') ? 'Guard reserve — seeking shelter' : 'Reporting to guard post')
       : 'Seeking shelter'
-    this.move(settler, target, moving)
+    this.move(settler, target, moving, WALK_SPEED)
   }
 
-  private move(settler: Settler, target: Point, status: string): void {
-    const s = this.state
-    settler.status = status
-    if (settler.pathRevision !== s.topology || settler.path.length === 0) {
-      if (!this.navigation.request(settler.id, target, s.tick) && this.navigation.isRetrying(settler.id, s.tick))
-        settler.status = 'Route blocked — retrying'
+  private updateEnemy(enemy: Enemy): void {
+    const target = enemyTarget(this.state, enemy)
+    if (distance(enemy, target) < 0.01) {
+      enemy.path = []; enemy.pathRevision = -1
+      enemy.status = 'At the settlement — combat pending'
       return
     }
-    let budget = WALK_SPEED * FIXED_STEP
-    while (budget > 0 && settler.path.length) {
-      const next = settler.path[0], length = distance(settler, next)
-      if (length <= budget) { settler.x = next.x; settler.z = next.z; settler.path.shift(); budget -= length }
-      else { settler.x += (next.x - settler.x) / length * budget; settler.z += (next.z - settler.z) / length * budget; budget = 0 }
+    this.move(enemy, target, 'Advancing on the settlement', ENEMY_WALK_SPEED)
+  }
+
+  private move(agent: MovingAgent, target: Point, status: string, speed: number): void {
+    const s = this.state
+    agent.status = status
+    if (agent.pathRevision !== s.topology || agent.path.length === 0) {
+      if (!this.navigation.request(agent.id, target, s.tick) && this.navigation.isRetrying(agent.id, s.tick))
+        agent.status = 'Route blocked — retrying'
+      return
+    }
+
+    let budget = speed * FIXED_STEP
+    while (budget > 0 && agent.path.length) {
+      const next = agent.path[0], length = distance(agent, next)
+      if (length <= budget) { agent.x = next.x; agent.z = next.z; agent.path.shift(); budget -= length }
+      else { agent.x += (next.x - agent.x) / length * budget; agent.z += (next.z - agent.z) / length * budget; budget = 0 }
     }
   }
 

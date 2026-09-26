@@ -10,6 +10,7 @@ const { blockedCells, cellKey } = require('../.test-build/game/simulation/Naviga
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
+const { RAID_SIZE, enemyTarget } = require('../.test-build/game/simulation/Raid.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
@@ -297,6 +298,93 @@ test('legacy M1.1 saves migrate settler roles to worker', () => {
   const loaded=deserializeWorld(JSON.stringify(legacy))
   assert.ok(loaded.settlers.every(a=>a.role==='worker'))
   validateWorld(loaded)
+})
+
+
+test('night spawns one deterministic raid per day and does not duplicate it', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  assert.equal(s.enemies.length,RAID_SIZE)
+  assert.equal(s.raid.wave,1)
+  assert.equal(s.raid.totalSpawned,RAID_SIZE)
+  assert.equal(s.raid.lastSpawnDay,1)
+  const ids=s.enemies.map(e=>e.id)
+  sim.setTimeOfDay(22/24)
+  assert.deepEqual(s.enemies.map(e=>e.id),ids)
+
+  sim.setTimeOfDay(12/24)
+  assert.equal(s.enemies.length,0)
+  sim.setTimeOfDay(21/24)
+  assert.equal(s.enemies.length,0)
+  assert.equal(s.raid.wave,1)
+})
+
+test('raiders share the bounded navigation queue and reach the settlement', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const initial=s.enemies.reduce((n,e)=>n+Math.hypot(e.x-enemyTarget(s,e).x,e.z-enemyTarget(s,e).z),0)
+  for(let i=0;i<600;i++) {
+    sim.step()
+    assert.ok(sim.navigation.solved<=PATH_BUDGET)
+    if(i%100===0) validateWorld(s)
+  }
+  const after=s.enemies.reduce((n,e)=>n+Math.hypot(e.x-enemyTarget(s,e).x,e.z-enemyTarget(s,e).z),0)
+  assert.ok(after<initial)
+  assert.ok(s.enemies.every(e=>e.status==='At the settlement — combat pending'))
+  assert.equal(sim.navigation.failures,0)
+})
+
+test('raiders retreat with daylight and a new day can spawn the next wave', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  assert.equal(s.enemies.length,RAID_SIZE)
+  sim.setTimeOfDay(5/24)
+  assert.equal(s.enemies.length,0)
+  assert.equal(s.raid.wave,1)
+
+  s.day=2
+  sim.setTimeOfDay(12/24)
+  sim.setTimeOfDay(21/24)
+  assert.equal(s.enemies.length,RAID_SIZE)
+  assert.equal(s.raid.wave,2)
+  assert.equal(s.raid.totalSpawned,RAID_SIZE*2)
+  assert.equal(s.raid.lastSpawnDay,2)
+  validateWorld(s)
+})
+
+test('active raids survive save load without duplicate spawning', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  for(let i=0;i<80;i++) sim.step()
+  const saved=serializeWorld(s)
+  const loaded=deserializeWorld(saved)
+  assert.equal(loaded.enemies.length,RAID_SIZE)
+  assert.deepEqual(loaded.raid,s.raid)
+  assert.ok(loaded.enemies.every(e=>e.path.length===0 && e.pathRevision===-1))
+  const ids=loaded.enemies.map(e=>e.id)
+  const resumed=new Simulation(loaded)
+  assert.deepEqual(loaded.enemies.map(e=>e.id),ids)
+  assert.equal(loaded.raid.totalSpawned,RAID_SIZE)
+  for(let i=0;i<80;i++) resumed.step()
+  validateWorld(loaded)
+})
+
+test('legacy M2.0 saves migrate empty raid state', () => {
+  const s=createInitialWorldState()
+  const legacy=JSON.parse(serializeWorld(s))
+  delete legacy.enemies
+  delete legacy.raid
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.deepEqual(loaded.enemies,[])
+  assert.deepEqual(loaded.raid,{lastSpawnDay:0,wave:0,totalSpawned:0})
+  validateWorld(loaded)
+})
+
+test('building placement rejects an active raider cell', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  assert.ok(placementError(s,'house',{x:Math.round(enemy.x),z:Math.round(enemy.z)}))
 })
 
 test('invalid and incompatible saves are rejected without touching current state', () => {

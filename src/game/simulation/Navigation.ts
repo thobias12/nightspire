@@ -1,6 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { PATH_BUDGET } from '../data/jobs'
-import type { Building, Point, WorldState } from './WorldState'
+import type { Building, Enemy, Point, Settler, WorldState } from './WorldState'
 
 export const MAP_MIN = -23, MAP_MAX = 23, MAP_SIZE = 47
 export const PATH_RETRY_TICKS = 40
@@ -31,8 +31,11 @@ export function flood(start: Point, blocked: Set<number>): Map<number, Point | n
   }
   return parents
 }
-// One shared queue serves work and schedule movement, at most two routes per fixed tick.
-// Failed routes cool down before retrying and topology changes clear the cooldown.
+
+type NavigatingAgent = Settler | Enemy
+
+// One shared queue serves settlers and enemies, at most two routes per fixed tick.
+// This intentionally forces the first raid to compete for the same bounded path budget.
 export class Navigation {
   private revision = -1
   private blocked = new Set<number>()
@@ -46,7 +49,7 @@ export class Navigation {
   sync(state: WorldState): void {
     if (state.topology === this.revision) return
     this.blocked = blockedCells(state); this.revision = state.topology; this.queue.clear(); this.retryAfter.clear()
-    for (const s of state.settlers) { s.path = []; s.pathRevision = -1 }
+    for (const a of [...state.settlers, ...state.enemies]) { a.path = []; a.pathRevision = -1 }
   }
   walkable(point: Point): boolean { return inBounds(point) && !this.blocked.has(cellKey(point)) }
   request(id: number, target: Point, tick: number): boolean {
@@ -56,24 +59,27 @@ export class Navigation {
     return true
   }
   isRetrying(id: number, tick: number): boolean { return (this.retryAfter.get(id) ?? 0) > tick }
+  private agent(state: WorldState, id: number): NavigatingAgent | undefined {
+    return state.settlers.find(a => a.id === id) ?? state.enemies.find(a => a.id === id)
+  }
   process(state: WorldState): void {
     this.solved = 0
     for (const [id, target] of this.queue) {
       if (this.solved >= PATH_BUDGET) break
       this.queue.delete(id); this.solved++
-      const s = state.settlers.find(s => s.id === id)
-      if (!s) continue
+      const agent = this.agent(state, id)
+      if (!agent) continue
       const parents = flood(target, this.blocked)
-      let cursor: Point = { x: Math.round(s.x), z: Math.round(s.z) }
+      let cursor: Point = { x: Math.round(agent.x), z: Math.round(agent.z) }
       if (!parents.has(cellKey(cursor))) {
         this.failures++; this.retryAfter.set(id, state.tick + PATH_RETRY_TICKS)
-        s.path = []; s.pathRevision = -1; s.status = 'Route blocked — retrying'
+        agent.path = []; agent.pathRevision = -1; agent.status = 'Route blocked — retrying'
         continue
       }
       this.retryAfter.delete(id)
       const path: Point[] = [cursor]
       while (parents.get(cellKey(cursor))) { cursor = parents.get(cellKey(cursor))!; path.push(cursor) }
-      s.path = path; s.pathRevision = state.topology
+      agent.path = path; agent.pathRevision = state.topology
     }
   }
 }
