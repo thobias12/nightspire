@@ -1451,6 +1451,50 @@ export class SceneRenderer {
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', visualB.x + chimney.x, wallHeight + 0.72, visualB.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
 
+    if (plot && profile && (profile.form === 'wide-shallow' || profile.form === 'wide-deep')) {
+      const baySide = plot.id % 2 === 0 ? -1 : 1
+      const bayWidth = profile.form === 'wide-deep' ? 1.75 : 1.5
+      const bayDepth = profile.form === 'wide-deep' ? 1.45 : 1.2
+      const bay = this.rotatedOffset(
+        baySide * Math.min(width * 0.28, 0.92),
+        depth / 2 + bayDepth * 0.22,
+        rotation,
+      )
+      this.instance('stone', visualB.x + bay.x, 0.13, visualB.z + bay.z, bayWidth + 0.12, 0.26, bayDepth + 0.12, 0x69645b, rotation)
+      this.instance('plaster', visualB.x + bay.x, 0.72, visualB.z + bay.z, bayWidth, 1.24, bayDepth, plaster, rotation)
+      this.instance(
+        'gableRoofs',
+        visualB.x + bay.x,
+        1.31,
+        visualB.z + bay.z,
+        bayWidth + 0.42,
+        0.78,
+        bayDepth + 0.4,
+        this.readableNightColor(roof, night),
+        rotation,
+      )
+      const bayWindow = this.rotatedOffset(
+        baySide * Math.min(width * 0.28, 0.92),
+        depth / 2 + bayDepth * 0.74,
+        rotation,
+      )
+      this.framedWindow(
+        visualB.x + bayWindow.x,
+        0.92,
+        visualB.z + bayWindow.z,
+        rotation,
+        night * 0.82,
+        0.28,
+        0.36,
+        plot.id + 41,
+      )
+
+      if (profile.form === 'wide-deep') {
+        const secondChimney = this.rotatedOffset(-chimneySide * width * 0.24, -depth * 0.26, rotation)
+        this.instance('stone', visualB.x + secondChimney.x, wallHeight + 0.54, visualB.z + secondChimney.z, 0.28, 1.1, 0.28, 0x625f5a, rotation)
+      }
+    }
+
     if (plot && profile && (profile.form === 'wide-deep' || (profile.tier === 'homestead' && profile.form === 'balanced' && plot.id % 3 === 0))) {
       const dormer = this.rotatedOffset(-width * 0.18, depth * 0.15, rotation)
       this.instance('plaster', visualB.x + dormer.x, wallHeight + 0.78, visualB.z + dormer.z, 0.66, 0.44, 0.56, plaster, rotation)
@@ -1502,7 +1546,7 @@ export class SceneRenderer {
       const wingRotation = rotation + Math.PI / 2
       const wingWidth = profile.courtyard === 'u' ? 2.8 : 2.55
       const wingDepth = 1.82
-      const wing = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.3), -depth * 0.12, rotation)
+      const wing = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.3), depth * 0.08, rotation)
       this.instance('stone', visualB.x + wing.x, 0.14, visualB.z + wing.z, wingWidth + 0.14, 0.28, wingDepth + 0.14, 0x67635b, wingRotation)
       this.instance('plaster', visualB.x + wing.x, 0.9, visualB.z + wing.z, wingWidth, 1.52, wingDepth, plaster, wingRotation)
       this.instance(
@@ -1516,7 +1560,7 @@ export class SceneRenderer {
         this.readableNightColor(roof, night),
         wingRotation,
       )
-      const wingWindow = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.64), -depth * 0.12, rotation)
+      const wingWindow = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.64), depth * 0.08, rotation)
       this.framedWindow(
         visualB.x + wingWindow.x,
         1.08,
