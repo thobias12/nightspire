@@ -77,6 +77,7 @@ function nearestRoadEndpoint(
 export function insertRoadJunctionPoint(roads: RoadPath[], point: Point, epsilon = 0.06): boolean {
   let inserted = false
   for (const road of roads) {
+    if (road.points.length >= 120) continue
     if (road.points.some(existing => Math.hypot(existing.x - point.x, existing.z - point.z) <= epsilon)) continue
     for (let i = 1; i < road.points.length; i++) {
       const a = road.points[i - 1]
