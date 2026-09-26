@@ -11,6 +11,7 @@ import {
   playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
 } from './Combat'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
+import { essentialJob, happinessEffect } from './Happiness'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
@@ -194,9 +195,16 @@ export class Simulation {
 
   private updateJob(settler: Settler, job: Job): void {
     const s = this.state
+    const morale = happinessEffect(settler)
+
+    if (job.stage !== 'target' && morale.refusesNonessential && !essentialJob(job)) {
+      finishJob(s, settler, job)
+      settler.status = morale.label + ' — essentials only'
+      return
+    }
 
     if (job.stage === 'work') {
-      this.work(settler, job)
+      this.work(settler, job, morale.workRate)
       return
     }
 
@@ -414,9 +422,10 @@ export class Simulation {
     job.progress = 0
   }
 
-  private work(settler: Settler, job: Job): void {
+  private work(settler: Settler, job: Job, workRate: number): void {
     const s = this.state
-    job.progress += FIXED_STEP
+    const workDelta = FIXED_STEP * workRate
+    job.progress += workDelta
 
     if (job.kind === 'gather') {
       settler.status = 'Gathering ' + job.resource
@@ -473,7 +482,7 @@ export class Simulation {
     }
 
     settler.status = 'Constructing ' + BUILDINGS[building.type].label
-    building.work = Math.min(BUILDINGS[building.type].constructionWork, building.work + FIXED_STEP)
+    building.work = Math.min(BUILDINGS[building.type].constructionWork, building.work + workDelta)
     if (building.work + 1e-8 < BUILDINGS[building.type].constructionWork) return
 
     building.work = BUILDINGS[building.type].constructionWork
