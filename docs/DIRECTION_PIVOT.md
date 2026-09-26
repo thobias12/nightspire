@@ -431,12 +431,13 @@ No explicit scenes required.
 
 ### M3.9 — Organic Settlement Structure — after M4 integration
 
+M3.8.1 has already pulled forward persisted road drawing, road-front plot drawing and the modular plot/House visual foundation. M3.9 makes that planning data simulation-bearing.
+
 Gameplay-bearing changes:
 
-- road placement
 - road-influenced movement/cost
-- road frontage requirements/preferences
-- plot-based housing prototype
+- road frontage requirements/preferences for non-residential buildings
+- household ownership for existing residential plots
 - household grouping
 - rear-yard extensions
 - organic building alignment
@@ -472,7 +473,7 @@ The mature city layer becomes a first-class identity rather than a footnote:
 
 ## Immediate execution slice
 
-The first implementation after this roadmap should be **M3.8.0 — Town Center Visual Target**.
+The initial Town Center visual target established the material/camera direction. **M3.8.1 — Roads & Residential Plot Foundation** now replaces automatic presentation roads and fixed House placement with player-authored persisted roads plus road-front modular lots, while deferring movement/logistics semantics until M4 integration.
 
 Use the current simulation and build one screenshot-quality settlement cluster containing:
 
