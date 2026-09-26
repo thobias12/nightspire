@@ -303,6 +303,28 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 **Exit:** player roads read as worn earth embedded in the landscape rather than flat UI-like strips, and foreground resource/terrain repetition is less obvious.
 
+### M3.10.1 — Curved point road planner
+
+- [x] replace drag-stroke road authoring with click-to-place control points
+- [x] live smooth curve preview through committed points + cursor hover
+- [x] double-click or Enter finishes the current road
+- [x] right-click or Backspace undoes the last committed road point
+- [x] Road Join toggle magnetically snaps new control points to existing endpoints/centerlines
+- [x] every snapped control point on an existing road inserts a real persisted host-road junction
+- [x] Grid Snap rounds road control points to 1m without forcing axis/45° road direction
+- [x] curvature presets: 0 / 35 / 70 / 100%
+- [x] width presets: Path 1.2m / Road 1.7m / Main road 2.4m
+- [x] renderer shows control-point markers and selected-width live road footprint
+- [x] sampled Catmull-Rom/linear blend persists through the existing RoadPath points+width schema
+- [x] existing residential frontage and conventional building Road Snap operate against the sampled curved path
+- [x] road rendering uses coherent center dirt tone + overlap/joint patches instead of checkerboard rectangle colors
+- [x] regression coverage for point snapping, curve endpoints/bending and 120-point save cap
+- [ ] live QA: S-curve, branch/junction, all width/curvature presets
+- [ ] live QA: residential plot + conventional building alignment on curved segments
+- [ ] renderer metric sanity check with several long curved roads
+
+**Exit:** road placement feels like drawing an organic medieval street network rather than placing/dragging rectangular strips, while existing plot/save architecture remains usable.
+
 ## M3.11 — Medieval economy depth
 
 - [ ] richer workplace chains
