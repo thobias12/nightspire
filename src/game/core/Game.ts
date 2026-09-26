@@ -130,7 +130,6 @@ export class Game {
 
       if (this.planningTool === 'road') {
         this.renderer.canvas.focus()
-        e.preventDefault()
         return
       }
 
