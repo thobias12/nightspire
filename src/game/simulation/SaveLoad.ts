@@ -61,7 +61,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && typeof b.destroyed === 'boolean'
       && integer(b.lastHitTick) && b.lastHitTick <= s.tick
       && number(b.serviceProgress) && b.serviceProgress <= 300
-      && number(b.productionProgress) && b.productionProgress <= 300,
+      && number(b.productionProgress) && b.productionProgress <= 300
+      && integer(b.rotation) && b.rotation <= 3,
       'building state',
     )
     check(RESOURCE_IDS.every(r => b.delivered[r] <= def.buildCost[r]), 'excess delivery')
@@ -280,6 +281,7 @@ export function deserializeWorld(text: string): WorldState {
       if (building.lastHitTick === undefined) building.lastHitTick = 0
       if (building.serviceProgress === undefined) building.serviceProgress = 0
       if (building.productionProgress === undefined) building.productionProgress = 0
+      if (building.rotation === undefined) building.rotation = 0
       migrateInventory(building.inventory)
       migrateInventory(building.delivered)
       if (building.type === 'tavern' && building.inventory.food > 0 && building.inventory.ale === 0) {

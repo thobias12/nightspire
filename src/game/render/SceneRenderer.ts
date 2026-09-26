@@ -25,6 +25,8 @@ export class SceneRenderer {
   private readonly batchColors: Record<string, number> = {}
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
   private readonly ghost: THREE.Mesh
+  private readonly ghostLine: THREE.InstancedMesh
+  private readonly facing: THREE.Mesh
   private readonly selection: THREE.Mesh
   private readonly paths: THREE.LineSegments
   private readonly ray = new THREE.Raycaster()
@@ -87,6 +89,24 @@ export class SceneRenderer {
     )
     this.ghost.visible = false
     this.scene.add(this.ghost)
+
+    this.ghostLine = new THREE.InstancedMesh(
+      this.geometry,
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.42, depthWrite: false, vertexColors: true }),
+      120,
+    )
+    this.ghostLine.count = 0
+    this.ghostLine.visible = false
+    this.ghostLine.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    this.ghostLine.frustumCulled = false
+    this.scene.add(this.ghostLine)
+
+    this.facing = new THREE.Mesh(
+      this.geometry,
+      new THREE.MeshBasicMaterial({ color: 0xf1c86f, transparent: true, opacity: 0.9, depthWrite: false }),
+    )
+    this.facing.visible = false
+    this.scene.add(this.facing)
 
     this.selection = new THREE.Mesh(
       new THREE.RingGeometry(0.6, 0.72, 32),
@@ -193,6 +213,9 @@ export class SceneRenderer {
       const def = BUILDINGS[b.type]
       const hit = this.recentlyHit(b.lastHitTick, state.tick)
       const baseColor = hit ? 0xff705e : b.destroyed ? 0x4d4641 : b.complete ? def.color : 0x777c80
+      const rotation = (b.rotation ?? 0) * Math.PI / 2
+      const facingX = Math.sin(rotation)
+      const facingZ = Math.cos(rotation)
 
       if (def.fortification) {
         const height = b.destroyed
@@ -201,10 +224,10 @@ export class SceneRenderer {
             ? (b.type === 'wood-gate' ? 1.8 : 1.35)
             : 0.2 + b.work / def.constructionWork
         const width = b.type === 'wood-gate' ? 0.82 : 0.92
-        this.instance('fortifications', b.x, height / 2, b.z, width, height, 0.82, baseColor)
+        this.instance('fortifications', b.x, height / 2, b.z, width, height, 0.82, baseColor, rotation)
 
         if (b.type === 'wood-gate' && b.complete && !b.destroyed) {
-          this.instance('fortifications', b.x, 1.7, b.z, 1.35, 0.22, 0.32, hit ? 0xff705e : 0x5f432e)
+          this.instance('fortifications', b.x, 1.7, b.z, 1.35, 0.22, 0.32, hit ? 0xff705e : 0x5f432e, rotation)
         }
       } else if (b.type === 'campfire') {
         const height = b.complete ? 0.24 : 0.12 + b.work / def.constructionWork * 0.12
@@ -215,22 +238,22 @@ export class SceneRenderer {
       } else {
         const completeHeight = b.type === 'house' ? 2.3 : b.type === 'guard-post' ? 1.6 : b.type === 'tavern' ? 2.05 : b.type === 'brewery' ? 1.85 : 0.5
         const height = b.complete ? completeHeight : 0.25 + b.work / def.constructionWork * 1.5
-        this.instance('buildings', b.x, height / 2, b.z, 2.8, height, 2.8, baseColor)
-        this.instance('doors', b.x, 0.05, b.z + 2, 0.65, 0.06, 0.65)
+        this.instance('buildings', b.x, height / 2, b.z, 2.8, height, 2.8, baseColor, rotation)
+        this.instance('doors', b.x + facingX * 2, 0.05, b.z + facingZ * 2, 0.65, 0.06, 0.65, undefined, rotation)
 
         if (b.complete && b.type === 'house') {
-          this.instance('roofs', b.x, 2.9, b.z, 2.3, 1.2, 2.3, hit ? 0xff705e : undefined, Math.PI / 4)
+          this.instance('roofs', b.x, 2.9, b.z, 2.3, 1.2, 2.3, hit ? 0xff705e : undefined, Math.PI / 4 + rotation)
         }
         if (b.complete && b.type === 'guard-post') {
-          this.instance('roofs', b.x, 2.15, b.z, 1.8, 0.8, 1.8, hit ? 0xff705e : 0x493a31, Math.PI / 4)
+          this.instance('roofs', b.x, 2.15, b.z, 1.8, 0.8, 1.8, hit ? 0xff705e : 0x493a31, Math.PI / 4 + rotation)
         }
         if (b.complete && b.type === 'tavern') {
-          this.instance('roofs', b.x, 2.72, b.z, 2.35, 1.0, 2.35, hit ? 0xff705e : 0x654633, Math.PI / 4)
-          this.instance('doors', b.x + 1.1, 1.25, b.z + 1.55, 0.16, 1.45, 0.16, 0xd6a756)
+          this.instance('roofs', b.x, 2.72, b.z, 2.35, 1.0, 2.35, hit ? 0xff705e : 0x654633, Math.PI / 4 + rotation)
+          this.instance('doors', b.x + facingX * 1.55, 1.25, b.z + facingZ * 1.55, 0.16, 1.45, 0.16, 0xd6a756, rotation)
         }
         if (b.complete && b.type === 'brewery') {
-          this.instance('roofs', b.x, 2.48, b.z, 2.15, 0.82, 2.15, hit ? 0xff705e : 0x594233, Math.PI / 4)
-          this.instance('fortifications', b.x + 0.9, 2.55, b.z - 0.75, 0.32, 1.8, 0.32, hit ? 0xff705e : 0x4a3a32)
+          this.instance('roofs', b.x, 2.48, b.z, 2.15, 0.82, 2.15, hit ? 0xff705e : 0x594233, Math.PI / 4 + rotation)
+          this.instance('fortifications', b.x + facingX * 0.9, 2.55, b.z - facingZ * 0.75, 0.32, 1.8, 0.32, hit ? 0xff705e : 0x4a3a32, rotation)
         }
       }
 
@@ -255,7 +278,12 @@ export class SceneRenderer {
 
     const selected = [...state.settlers, ...state.enemies, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
     this.selection.visible = !!selected
-    if (selected) this.selection.position.set(selected.x, 0.04, selected.z)
+    if (selected) {
+      this.selection.position.set(selected.x, 0.04, selected.z)
+      const building = state.buildings.find(b => b.id === selected.id)
+      const scale = building ? Math.max(1, BUILDINGS[building.type].footprint * 1.15) : 1
+      this.selection.scale.setScalar(scale)
+    }
 
     const daylight = THREE.MathUtils.clamp(
       Math.sin(state.timeOfDay * Math.PI * 2 - Math.PI / 2) * 0.5 + 0.5,
@@ -299,15 +327,65 @@ export class SceneRenderer {
     this.paths.geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
   }
 
-  showGhost(type: BuildingId | null, p: Point | null, valid: boolean): void {
-    this.ghost.visible = !!type && !!p
+  showGhost(
+    type: BuildingId | null,
+    p: Point | null,
+    valid: boolean,
+    rotationSteps = 0,
+    dragPoints: Point[] = [],
+  ): void {
+    this.ghost.visible = false
+    this.ghostLine.visible = false
+    this.ghostLine.count = 0
+    this.facing.visible = false
     if (!type || !p) return
 
     const def = BUILDINGS[type]
-    const height = def.fortification ? (type === 'wood-gate' ? 1.8 : 1.35) : type === 'tavern' ? 2.05 : type === 'brewery' ? 1.85 : 0.7
-    this.ghost.position.set(p.x, height / 2, p.z)
-    this.ghost.scale.set(def.footprint, height, def.footprint)
-    ;(this.ghost.material as THREE.MeshBasicMaterial).color.set(valid ? 0x82d6a4 : 0xed7474)
+    const rotation = ((rotationSteps % 4) + 4) % 4 * Math.PI / 2
+    const height = def.fortification
+      ? (type === 'wood-gate' ? 1.8 : 1.35)
+      : type === 'tavern' ? 2.05
+        : type === 'brewery' ? 1.85
+          : 0.7
+    const color = new THREE.Color(valid ? 0x82d6a4 : 0xed7474)
+
+    if (dragPoints.length > 1) {
+      this.ghostLine.visible = true
+      this.ghostLine.count = Math.min(dragPoints.length, 120)
+      for (let i = 0; i < this.ghostLine.count; i++) {
+        const point = dragPoints[i]
+        this.matrix.position.set(point.x, height / 2, point.z)
+        this.matrix.scale.set(type === 'wood-wall' ? 0.92 : def.footprint, height, type === 'wood-wall' ? 0.82 : def.footprint)
+        this.matrix.rotation.set(0, rotation, 0)
+        this.matrix.updateMatrix()
+        this.ghostLine.setMatrixAt(i, this.matrix.matrix)
+        this.ghostLine.setColorAt(i, color)
+      }
+      this.ghostLine.instanceMatrix.needsUpdate = true
+      if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+    } else {
+      this.ghost.visible = true
+      this.ghost.position.set(p.x, height / 2, p.z)
+      this.ghost.rotation.set(0, rotation, 0)
+      this.ghost.scale.set(
+        def.fortification ? 0.92 : def.footprint,
+        height,
+        def.fortification ? 0.82 : def.footprint,
+      )
+      ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+    }
+
+    if (!def.fortification && type !== 'campfire') {
+      const distance = def.footprint / 2 + 0.65
+      this.facing.visible = true
+      this.facing.position.set(
+        p.x + Math.sin(rotation) * distance,
+        0.08,
+        p.z + Math.cos(rotation) * distance,
+      )
+      this.facing.rotation.set(0, rotation, 0)
+      this.facing.scale.set(0.28, 0.08, 0.7)
+    }
   }
 
   worldPoint(clientX: number, clientY: number): Point | null {

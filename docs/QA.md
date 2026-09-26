@@ -70,7 +70,7 @@ Simulation CPU includes many frames without a fixed step; it is not a worst-tick
 - Global BFS and linear searches are deliberately bounded M1 choices. Do not claim support for hundreds of workers without profiling.
 - Instance transforms rebuild per frame; HUD/path overlays update at 5 Hz. Profile before introducing incremental rendering or spatial indexes.
 - Vite's >500 kB minified chunk warning remains (about 578 kB / 148 kB gzip in this pass). It also occurred in the baseline and is mostly the Three.js runtime.
-- M2.3 fortification/damage/repair is implemented. Permanent defender death, complete destruction of core economy buildings, wall drag placement, gate controls, towers/siege systems and final combat presentation are not.
+- M2.3 fortification/damage/repair is implemented. Wall drag placement, direct gate insertion and safe demolition are now available; gate open/close controls, towers/siege systems, permanent defender death and final combat presentation remain deferred.
 
 ## M1.1 verification
 
@@ -238,3 +238,16 @@ M3.3 adds seven population regressions on top of the 64-test M3.2 suite, for a t
 The QA **Test immigration now** button is intended to shorten browser testing: establish all real requirements, press it, and one immigrant should appear near a map edge and walk toward the starter camp. It does not override missing beds, Food, low Happiness/Safety, raids or the population cap.
 
 Browser playtest after deployment: start fresh, construct enough housing for spare beds, keep Food above twice the current population, use normal services/defenses or QA need controls to satisfy Happiness/Safety, then either hold the state across two Days or use **Test immigration now**. Confirm the population counter increases, the newcomer is visibly walking in, their inspector says Immigrant, and they take no work until arrival finishes.
+
+
+## M3.4 verification target
+
+M3.4 adds five construction-UX regressions on top of the 71-test M3.3 suite, for a target of 76 tests:
+
+- wall dragging snaps to the dominant axis and atomically creates the full valid straight line
+- a wall drag crossing an occupied footprint rejects the entire batch with no partial blueprints
+- placing a Wooden Gate on a completed Wooden Wall converts the same entity into a gate blueprint, retains five delivered wood and applies the chosen orientation
+- demolishing an idle completed House removes it and refunds exactly 50% of its build wood into safe stockpile capacity
+- building orientation survives save/load, while demolition refuses a building that still contains physical resources
+
+Browser playtest after deployment should verify the non-simulation-facing controls directly: use 1–8 to switch build choices, press R and watch the amber façade marker rotate, Shift-click several Houses/Campfires without reselecting, drag a multi-cell wall line, put a Gate on one finished wall segment, select a 3×3 building and verify the larger selection ring, then demolish an empty completed non-starter structure and observe the refund in storage.

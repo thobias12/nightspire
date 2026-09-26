@@ -1,7 +1,18 @@
 import { FIXED_STEP } from '../data/jobs'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { SceneRenderer } from '../render/SceneRenderer'
-import { assignHousing, cancelBuilding, freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
+import {
+  assignHousing,
+  cancelBuilding,
+  demolishBuilding,
+  freeStorage,
+  placeBuilding,
+  placeBuildingBatch,
+  placementBatchError,
+  placementError,
+  stockpiles,
+  wallLinePoints,
+} from '../simulation/Buildings'
 import { damageBuilding } from '../simulation/Combat'
 import { distance } from '../simulation/Navigation'
 import { forceImmigrationIfEligible } from '../simulation/Population'
@@ -20,7 +31,11 @@ export class Game {
   private readonly abort = new AbortController()
   private selectedId: number | null = null
   private buildType: BuildingId | null = null
+  private buildRotation = 0
   private pointer: Point | null = null
+  private dragStart: Point | null = null
+  private dragPoints: Point[] = []
+  private suppressClick = false
   private paused = false
   private speed = 1
   private message = 'Create spare housing, keep people happy and safe, and make Nightspire attractive to new settlers.'
@@ -37,24 +52,100 @@ export class Game {
     const signal = this.abort.signal
     this.renderer.canvas.addEventListener('pointermove', e => {
       const point = this.renderer.worldPoint(e.clientX, e.clientY)
-      if (point?.x === this.pointer?.x && point?.z === this.pointer?.z) return
-      this.pointer = point; this.updateGhost()
+      if (
+        point?.x === this.pointer?.x
+        && point?.z === this.pointer?.z
+        && !(this.dragStart && this.buildType === 'wood-wall')
+      ) return
+      this.pointer = point
+      if (this.dragStart && point && this.buildType === 'wood-wall') {
+        this.dragPoints = wallLinePoints(this.dragStart, point)
+      }
+      this.updateGhost()
     }, { signal })
-    this.renderer.canvas.addEventListener('pointerleave', () => { this.pointer = null; this.updateGhost() }, { signal })
+    this.renderer.canvas.addEventListener('pointerleave', () => {
+      if (this.dragStart) return
+      this.pointer = null
+      this.updateGhost()
+    }, { signal })
+    this.renderer.canvas.addEventListener('pointerdown', e => {
+      if (e.button !== 0 || this.buildType !== 'wood-wall') return
+      const point = this.renderer.worldPoint(e.clientX, e.clientY)
+      if (!point) return
+      this.renderer.canvas.focus()
+      this.dragStart = point
+      this.pointer = point
+      this.dragPoints = [point]
+      this.renderer.canvas.setPointerCapture(e.pointerId)
+      this.updateGhost()
+      e.preventDefault()
+    }, { signal })
+    this.renderer.canvas.addEventListener('pointerup', e => {
+      if (e.button !== 0 || !this.dragStart || this.buildType !== 'wood-wall') return
+      const end = this.renderer.worldPoint(e.clientX, e.clientY) ?? this.pointer ?? this.dragStart
+      const points = wallLinePoints(this.dragStart, end)
+      const horizontal = Math.abs(end.x - this.dragStart.x) >= Math.abs(end.z - this.dragStart.z)
+      const rotation = horizontal ? 1 : 0
+      const error = placeBuildingBatch(this.simulation.state, 'wood-wall', points, rotation)
+      this.message = error ?? (points.length + ' wall blueprint' + (points.length === 1 ? '' : 's') + ' placed. Drag again or Esc to finish.')
+      if (!error) this.selectedId = this.simulation.state.buildings.at(-1)?.id ?? null
+      this.dragStart = null
+      this.dragPoints = []
+      this.suppressClick = true
+      setTimeout(() => { this.suppressClick = false }, 0)
+      if (this.renderer.canvas.hasPointerCapture(e.pointerId)) this.renderer.canvas.releasePointerCapture(e.pointerId)
+      this.updateGhost()
+      this.updateHud()
+      e.preventDefault()
+    }, { signal })
     this.renderer.canvas.addEventListener('click', e => {
+      if (this.suppressClick) {
+        this.suppressClick = false
+        return
+      }
       this.renderer.canvas.focus()
       const p = this.renderer.worldPoint(e.clientX, e.clientY)
       if (!p) return
       const s = this.simulation.state
       if (this.buildType) {
-        const error = placeBuilding(s, this.buildType, p)
-        this.message = error ?? 'Blueprint placed. Settlers will supply and construct it during daylight.'
-        if (!error) { this.selectedId = s.buildings.at(-1)!.id; this.buildType = null }
+        const type = this.buildType
+        const error = placeBuilding(s, type, p, this.buildRotation)
+        this.message = error ?? (e.shiftKey
+          ? BUILDINGS[type].label + ' blueprint placed. Shift-place again or Esc to finish.'
+          : BUILDINGS[type].label + ' blueprint placed. Settlers will supply and construct it during daylight.')
+        if (!error) {
+          const placed = [...s.buildings].reverse().find(b => b.x === p.x && b.z === p.z)
+          this.selectedId = placed?.id ?? null
+          if (!e.shiftKey) this.buildType = null
+        }
       } else {
         const nearby = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes.filter(n => n.remaining > 0)].filter(e => distance(e, p) < 1.8).sort((a, b) => distance(a, p) - distance(b, p))
         this.selectedId = nearby[0]?.id ?? null
       }
       this.updateGhost(); this.updateHud()
+    }, { signal })
+    window.addEventListener('keydown', e => {
+      if ((e.target as HTMLElement).matches('input, select, textarea, button')) return
+      const hotkeys: Record<string, BuildingId> = {
+        '1': 'house',
+        '2': 'stockpile',
+        '3': 'campfire',
+        '4': 'brewery',
+        '5': 'tavern',
+        '6': 'guard-post',
+        '7': 'wood-wall',
+        '8': 'wood-gate',
+      }
+      const hotkey = hotkeys[e.key]
+      if (hotkey) {
+        e.preventDefault()
+        this.action(hotkey)
+        return
+      }
+      if (e.key.toLowerCase() === 'r' && this.buildType) {
+        e.preventDefault()
+        this.action('rotate-build')
+      }
     }, { signal })
     document.addEventListener('visibilitychange', () => { this.lastTime = 0; this.accumulator = 0 }, { signal })
     this.resizeObserver = new ResizeObserver(() => this.renderer.resize(root.clientWidth, root.clientHeight))
@@ -74,7 +165,7 @@ export class Game {
   }
   private replaceWorld(text: string): void {
     this.simulation.replace(deserializeWorld(text))
-    this.accumulator = 0; this.selectedId = null; this.buildType = null
+    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
   }
   private exportSave(): void {
     const blob = new Blob([serializeWorld(this.simulation.state)], { type: 'application/json' })
@@ -88,14 +179,44 @@ export class Game {
     try {
       switch (action) {
         case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery':
-          this.buildType = action; this.renderer.mode = 'settlement'
-          this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
-        case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a settler, raider, resource or building.'; break
+          this.buildType = action
+          this.buildRotation = 0
+          this.dragStart = null
+          this.dragPoints = []
+          this.renderer.mode = 'settlement'
+          this.message = action === 'wood-wall'
+            ? 'Drag across the grid to plan a wall line. Esc cancels.'
+            : 'Click clear ground to place ' + BUILDINGS[action].label + '. Hold Shift to keep placing; R rotates.'
+          break
+        case 'rotate-build':
+          if (!this.buildType) { this.message = 'Choose a building first.'; break }
+          this.buildRotation = (this.buildRotation + 1) % 4
+          this.message = BUILDINGS[this.buildType].label + ' rotated to ' + ['South', 'East', 'North', 'West'][this.buildRotation] + '.'
+          break
+        case 'cancel':
+          this.buildType = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.message = 'Inspect mode. Click a settler, raider, resource or building.'
+          break
         case 'cancel-blueprint': {
           if (this.selectedId === null) { this.message = 'Select an unfinished blueprint first.'; break }
           const error = cancelBuilding(s, this.selectedId)
           if (error) this.message = error
           else { this.selectedId = null; this.message = 'Blueprint cancelled. Delivered and carried materials were returned safely.' }
+          break
+        }
+        case 'demolish-selected': {
+          if (this.selectedId === null) { this.message = 'Select a completed building first.'; break }
+          const building = s.buildings.find(b => b.id === this.selectedId)
+          if (!building) { this.message = 'Select a completed building first.'; break }
+          const label = BUILDINGS[building.type].label
+          const error = demolishBuilding(s, building.id)
+          if (error) this.message = error
+          else {
+            this.selectedId = null
+            this.message = label + ' demolished. Half of its build materials were returned when possible.'
+          }
           break
         }
         case 'toggle-role': {
@@ -191,7 +312,12 @@ export class Game {
           }
           this.message = 'QA added ' + added + ' resources within unreserved storage capacity.'; break
         }
-        case 'camera': this.buildType = null; this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'; break
+        case 'camera':
+          this.buildType = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'
+          break
         case 'center': this.renderer.mode = 'settlement'; this.renderer.focus.x = 0; this.renderer.focus.z = -1; this.renderer.angle = 0; this.renderer.zoom = 36; break
         case 'save': {
           this.storePrimary(serializeWorld(s))
@@ -219,7 +345,7 @@ export class Game {
           const imported = deserializeWorld(value)
           const serialized = serializeWorld(imported)
           this.storePrimary(serialized)
-          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
           this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
           break
         }
@@ -230,9 +356,26 @@ export class Game {
     this.updateGhost(); this.updateHud()
   }
   private updateGhost(): void {
+    if (this.buildType === 'wood-wall' && this.dragStart && this.dragPoints.length) {
+      const end = this.dragPoints.at(-1)!
+      const horizontal = Math.abs(end.x - this.dragStart.x) >= Math.abs(end.z - this.dragStart.z)
+      const rotation = horizontal ? 1 : 0
+      const error = placementBatchError(this.simulation.state, 'wood-wall', this.dragPoints, rotation)
+      this.renderer.showGhost('wood-wall', end, !error, rotation, this.dragPoints)
+      this.message = error ?? ('Wall line: ' + this.dragPoints.length + ' segment' + (this.dragPoints.length === 1 ? '' : 's') + '. Release to place.')
+      return
+    }
+
     const error = this.buildType && this.pointer ? placementError(this.simulation.state, this.buildType, this.pointer) : null
-    this.renderer.showGhost(this.buildType, this.pointer, !error)
-    if (this.buildType && this.pointer) this.message = error ?? 'Valid site. Click to place.'
+    this.renderer.showGhost(this.buildType, this.pointer, !error, this.buildRotation)
+    if (this.buildType && this.pointer) {
+      if (this.buildType === 'wood-gate' && !error) {
+        const wall = this.simulation.state.buildings.find(b => b.type === 'wood-wall' && b.x === this.pointer!.x && b.z === this.pointer!.z)
+        this.message = wall ? 'Valid gate insertion. Existing wall timber will be retained.' : 'Valid site. Click to place.'
+      } else {
+        this.message = error ?? (this.buildType === 'wood-wall' ? 'Click or drag to place Wooden Walls.' : 'Valid site. Click to place · Shift keeps build mode · R rotates.')
+      }
+    }
   }
   private readonly tick = (timestamp: number): void => {
     const rawDelta = this.lastTime === 0 ? 0 : (timestamp - this.lastTime) / 1000
@@ -263,6 +406,15 @@ export class Game {
     this.animationFrame = requestAnimationFrame(this.tick)
   }
   private updateHud(): void {
-    this.hud.update(this.simulation.state, { paused: this.paused, selectedId: this.selectedId, buildType: this.buildType, message: this.message, camera: this.renderer.mode, metrics: this.metrics })
+    this.hud.update(this.simulation.state, {
+      paused: this.paused,
+      selectedId: this.selectedId,
+      buildType: this.buildType,
+      buildRotation: this.buildRotation,
+      dragCount: this.dragPoints.length,
+      message: this.message,
+      camera: this.renderer.mode,
+      metrics: this.metrics,
+    })
   }
 }

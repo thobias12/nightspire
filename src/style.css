@@ -62,3 +62,28 @@ progress { width: 100%; accent-color: #d1b571; }
 @media (max-height: 740px) {
   .guide p, .guide .muted { display: none; } .inspector { top: 260px; } .guide { padding: 10px; }
 }
+
+.build-group {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid #465044;
+  border-radius: 6px;
+  background: rgba(18, 25, 21, .45);
+}
+.build-group > span {
+  align-self: center;
+  max-width: 72px;
+  color: #bca873;
+  font-size: 8px;
+  line-height: 1.15;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.build-group.tools { flex-wrap: wrap; justify-content: center; }
+button.danger { border-color: #8b554c; background: #57352f; }
+button.danger:hover { background: #75443a; border-color: #d58a77; }
+@media (max-width: 1200px) {
+  .build-group > span { display: none; }
+}
