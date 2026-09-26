@@ -91,7 +91,7 @@ export class Hud {
     const minutes = Math.floor(s.timeOfDay * 1440)
     this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Fortification damage + daylight repair active</small>`)
 
-    const hasPost = s.buildings.some(b => b.complete && b.type === 'guard-post')
+    const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
     this.set('objective', `<div class="objective-row">${shelterReady ? '✓' : '○'} Shelter the population · ${beds} beds</div><div class="objective-row">${hasPost ? '✓' : '○'} Complete a Guard Post</div><div class="objective-row">${walls > 0 ? '✓' : '○'} Build a Wooden Wall · ${walls}</div><div class="objective-row">${gates > 0 ? '✓' : '○'} Build a friendly-passable Gate · ${gates}</div><div class="objective-row">${s.totals.structureDamage > 0 ? '✓' : '○'} Let a raid damage a structure</div><div class="objective-row">${s.totals.repairedHealth > 0 ? '✓' : '○'} Repair damage after dawn</div><div class="objective-row">${s.raid.lastClearedWave === s.raid.wave && s.raid.wave > 0 ? '✓' : '○'} Clear a raid before dawn</div>`)
 
