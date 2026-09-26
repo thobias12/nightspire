@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
-const { createInitialWorldState, spawnSettler } = require('../.test-build/game/simulation/WorldState.js')
+const { createInitialWorldState, spawnSettler, DEFAULT_TARGETS } = require('../.test-build/game/simulation/WorldState.js')
 const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
 const { cancelBuilding, placeBuilding, placementError, stockpiles, available, freeStorage } = require('../.test-build/game/simulation/Buildings.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
@@ -168,12 +168,63 @@ test('long-run M1 logistics conserves resources and stays valid', () => {
   assert.equal(sim.navigation.failures,0)
 })
 
+
+test('stock targets bound routine gathering while construction demand can exceed them', () => {
+  const s=createInitialWorldState()
+  s.targets={wood:25,food:0}
+  const sim=new Simulation(s)
+  advance(sim,70)
+  const stores=stockpiles(s)
+  assert.equal(stores.reduce((n,b)=>n+b.inventory.wood,0),25)
+  assert.equal(s.totals.gathered.wood,25)
+  assert.equal(s.totals.gathered.food,0)
+  assert.ok(s.settlers.every(a=>a.status==='Stock targets met'))
+
+  const build=createInitialWorldState()
+  build.targets={wood:0,food:0}
+  assert.equal(placeBuilding(build,'house',{x:7,z:0}),null)
+  const buildSim=new Simulation(build)
+  advance(buildSim,100)
+  assert.ok(build.buildings.every(b=>b.complete))
+  assert.equal(build.totals.delivered.wood,20)
+})
+
+test('legacy M1 saves migrate default stock targets without changing version', () => {
+  const s=createInitialWorldState()
+  const legacy=JSON.parse(serializeWorld(s))
+  delete legacy.targets
+  const loaded=deserializeWorld(JSON.stringify(legacy))
+  assert.deepEqual(loaded.targets,DEFAULT_TARGETS)
+  assert.equal(loaded.version,1)
+  validateWorld(loaded)
+})
+
+test('blocked routes back off instead of retrying every tick and recover after topology changes', () => {
+  const s=createInitialWorldState(), sim=new Simulation(s)
+  sim.step()
+  const worker=s.settlers.find(a=>a.jobId!==null)
+  assert.ok(worker)
+  const blocker={
+    id:s.nextId++, type:'house', x:Math.round(worker.x), z:Math.round(worker.z),
+    complete:true, work:12, inventory:{wood:0,food:0}, delivered:{wood:20,food:0},
+  }
+  s.buildings.push(blocker); s.topology++
+  for(let i=0;i<5;i++) sim.step()
+  assert.equal(sim.navigation.failures,1)
+  for(let i=0;i<20;i++) sim.step()
+  assert.equal(sim.navigation.failures,1)
+  s.buildings.splice(s.buildings.findIndex(b=>b.id===blocker.id),1); s.topology++
+  for(let i=0;i<80;i++) sim.step()
+  assert.equal(sim.navigation.failures,1)
+  assert.notEqual(worker.status,'Route blocked — retrying')
+})
+
 test('invalid and incompatible saves are rejected without touching current state', () => {
   const s=createInitialWorldState(), original=serializeWorld(s)
   for(const mutate of [
     s=>s.version=99, s=>s.settlers[0].x=Infinity, s=>s.buildings[0].inventory.wood=-1,
     s=>s.nextId=1, s=>s.settlers[0].jobId=999, s=>s.settlers[0].cargo.wood=5,
-    s=>s.nodes[0].resource='iron', s=>s.buildings[0].complete=false,
+    s=>s.nodes[0].resource='iron', s=>s.buildings[0].complete=false, s=>s.targets.wood=-1,
   ]) {
     const candidate=JSON.parse(original);mutate(candidate)
     assert.throws(()=>deserializeWorld(JSON.stringify(candidate)))
