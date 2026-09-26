@@ -532,10 +532,27 @@ export class SceneRenderer {
 
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
+        const tangentX = strip.length > 0 ? (b.x - a.x) / strip.length : 0
+        const tangentZ = strip.length > 0 ? (b.z - a.z) / strip.length : 1
         const rutOffset = width * 0.2
-        const rutWidth = width * 0.055
-        this.instance('roadWear', strip.x + normalX * rutOffset, 0.029, strip.z + normalZ * rutOffset, rutWidth, 1, strip.length + 0.18, 0x735a40, strip.angle)
-        this.instance('roadWear', strip.x - normalX * rutOffset, 0.03, strip.z - normalZ * rutOffset, rutWidth * 0.9, 1, strip.length + 0.12, 0x7b6246, strip.angle)
+        const rutWidth = width * 0.052
+        const patchCount = Math.max(1, Math.min(3, Math.floor(strip.length / 4) + 1))
+        const patchLength = Math.max(0.65, strip.length / (patchCount + 0.7) * 0.68)
+
+        // Broken rut patches feel driven-in rather than painted from endpoint to endpoint.
+        for (let patch = 0; patch < patchCount; patch++) {
+          const t = (patch + 1) / (patchCount + 1)
+          const drift = Math.sin(road.id * 0.91 + i * 1.7 + patch * 2.2) * 0.16
+          const px = a.x + (b.x - a.x) * t + tangentX * drift
+          const pz = a.z + (b.z - a.z) * t + tangentZ * drift
+          this.instance('roadWear', px + normalX * rutOffset, 0.029, pz + normalZ * rutOffset, rutWidth, 1, patchLength, 0x735a40, strip.angle)
+          if ((road.id + i + patch) % 4 !== 1) {
+            this.instance('roadWear', px - normalX * rutOffset, 0.03, pz - normalZ * rutOffset, rutWidth * 0.9, 1, patchLength * 0.92, 0x7b6246, strip.angle)
+          }
+          if ((road.id + i + patch) % 3 === 0) {
+            this.instance('roadWear', px, 0.028, pz, width * 0.22, 1, patchLength * 0.55, 0x8a7151, strip.angle)
+          }
+        }
 
         // Sparse deterministic grass intrusion breaks the ruler-straight shoulder
         // without changing the persisted road geometry.
@@ -1331,9 +1348,9 @@ export class SceneRenderer {
     const time = state.elapsedSeconds
     this.updateNightMaterialLift(night)
 
-    for (let i = 0; i < 92; i++) {
-      const x = ((i * 17 + (i % 5) * 3) % 45) - 22
-      const z = ((i * 29 + 7 + (i % 7) * 2) % 45) - 22
+    for (let i = 0; i < 148; i++) {
+      const x = ((i * 17 + (i % 5) * 3) % 63) - 31
+      const z = ((i * 29 + 7 + (i % 7) * 2) % 63) - 31
       const sx = 1.1 + (i % 5) * 0.46
       const sz = 0.8 + ((i * 3) % 6) * 0.31
       this.instance(
@@ -1351,22 +1368,56 @@ export class SceneRenderer {
 
     this.renderVisualRoads(state.roads)
 
+    // Decorative outer woodland extends beyond the playable navigation square so
+    // lower cameras see a landscape/forest continuation instead of a board edge.
+    for (let i = 0; i < 72; i++) {
+      const side = i % 4
+      const along = -30 + ((i * 7) % 61)
+      const inset = 25.2 + ((i * 11) % 6) * 0.92
+      const x = side === 0 ? along : side === 1 ? inset : side === 2 ? along : -inset
+      const z = side === 0 ? -inset : side === 1 ? along : side === 2 ? inset : along
+      const scale = 0.82 + (i % 7) * 0.045
+      const trunkColor = i % 3 === 0 ? 0x493628 : 0x423328
+      this.instance('treeTrunk', x, 0.86, z, 0.82 * scale, 1.72 * scale, 0.82 * scale, trunkColor, i * 0.37)
+      this.instance('wood', x, 1.82, z, 1.06 * scale, 0.8 * scale, 1.06 * scale, i % 3 === 0 ? 0x314735 : 0x38503a, i * 0.21)
+      this.instance('wood', x + Math.sin(i) * 0.15, 2.58, z + Math.cos(i * 0.7) * 0.14, 0.76 * scale, 0.6 * scale, 0.76 * scale, 0x405941, i * 0.29)
+      if (i % 2 === 0) {
+        this.instance('underbrush', x + Math.sin(i * 1.7) * 0.7, 0.2, z + Math.cos(i * 1.3) * 0.65, 0.68, 0.38, 0.68, 0x496246, i * 0.43)
+      }
+    }
+
     for (const n of state.nodes) {
       if (n.remaining <= 0) continue
       if (n.resource === 'wood') {
-        const jitterX = Math.sin(n.id * 12.9898) * 0.24
-        const jitterZ = Math.cos(n.id * 7.233) * 0.24
-        const scale = 0.88 + (n.id % 7) * 0.035
+        const jitterX = Math.sin(n.id * 12.9898) * 0.3
+        const jitterZ = Math.cos(n.id * 7.233) * 0.3
+        const scale = 0.86 + (n.id % 7) * 0.045
         const trunkX = n.x + jitterX
         const trunkZ = n.z + jitterZ
-        this.instance('treeTrunk', trunkX, 0.82, trunkZ, 0.86 * scale, 1.65 * scale, 0.86 * scale, 0x493527, n.id * 0.13)
-        this.instance('wood', trunkX, 1.75, trunkZ, 1.05 * scale, 0.78 * scale, 1.05 * scale, n.id % 3 === 0 ? 0x3c553a : 0x344b35, n.id * 0.11)
-        this.instance('wood', trunkX + 0.08, 2.45, trunkZ - 0.05, 0.78 * scale, 0.58 * scale, 0.78 * scale, n.id % 4 === 0 ? 0x496044 : 0x3b5239, n.id * 0.19)
-        if (n.id % 2 === 0) {
-          this.instance('underbrush', trunkX + 0.58, 0.22, trunkZ - 0.42, 0.72, 0.44, 0.72, 0x4a6347, n.id * 0.29)
+        this.instance('treeTrunk', trunkX, 0.84, trunkZ, 0.86 * scale, 1.7 * scale, 0.86 * scale, 0x493527, n.id * 0.13)
+        this.instance('wood', trunkX, 1.72, trunkZ, 1.08 * scale, 0.78 * scale, 1.08 * scale, n.id % 3 === 0 ? 0x3c553a : 0x344b35, n.id * 0.11)
+        this.instance('wood', trunkX + 0.1, 2.42, trunkZ - 0.06, 0.82 * scale, 0.6 * scale, 0.82 * scale, n.id % 4 === 0 ? 0x496044 : 0x3b5239, n.id * 0.19)
+        const crownOffset = n.id % 2 === 0 ? 0.28 : -0.24
+        this.instance('wood', trunkX + crownOffset, 2.05, trunkZ + 0.16, 0.58 * scale, 0.48 * scale, 0.58 * scale, n.id % 5 === 0 ? 0x465f45 : 0x395139, n.id * 0.31)
+
+        for (let bush = 0; bush < (n.id % 3 === 0 ? 2 : 1); bush++) {
+          this.instance(
+            'underbrush',
+            trunkX + Math.sin(n.id * 0.9 + bush * 2.4) * (0.58 + bush * 0.22),
+            0.2,
+            trunkZ + Math.cos(n.id * 1.2 + bush * 1.7) * (0.52 + bush * 0.2),
+            0.68 - bush * 0.08,
+            0.4,
+            0.68 - bush * 0.08,
+            bush === 0 ? 0x4a6347 : 0x536c4b,
+            n.id * 0.29 + bush,
+          )
+        }
+        if (n.id % 7 === 0) {
+          this.instance('logs', trunkX + 0.78, 0.16, trunkZ - 0.62, 0.78, 0.65, 0.65, 0x60432f, n.id * 0.17)
         }
         if (night > 0.12) {
-          this.instance('treeMoon', trunkX + 0.12, 2.62, trunkZ - 0.12, 0.76 * scale, 0.62 * scale, 0.76 * scale, 0x60758a, n.id * 0.17)
+          this.instance('treeMoon', trunkX + 0.12, 2.66, trunkZ - 0.12, 0.78 * scale, 0.64 * scale, 0.78 * scale, 0x60758a, n.id * 0.17)
         }
       } else if (n.resource === 'food') {
         this.instance('food', n.x, 0.5, n.z, 1, 1, 1, night > 0.45 ? 0x829b65 : undefined)
