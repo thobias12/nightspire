@@ -110,5 +110,6 @@ export function createInitialWorldState(): WorldState {
     })
   }
   for (let i = 0; i < 6; i++) spawnSettler(state)
+  for (const settler of state.settlers) settler.lastMealDay = Math.max(0, state.day - 1)
   return state
 }

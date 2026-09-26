@@ -177,3 +177,10 @@ The M3.0 needs foundation adds eight renderer-independent regressions on top of 
 - Dusk/Dawn recreation routes are invalidated when the phase target changes, preventing stale Campfire movement at Night
 
 Conservation assertions now include lifetime food consumed, matching the existing repair-timber accounting. Browser playtest after deployment should verify that need percentages visibly move, Campfire capacity is limited, food stock falls at 06:00, and the settlement HUD correctly identifies the weakest average need.
+
+
+### M3.0 meal-service correction
+
+Live playtesting exposed that new Day-1 settlers were initialized as already fed, leaving **Food consumed = 0** until Day 2 even when storage held food. The correction makes the starting population due for its first meal and keeps any unfed settler due throughout Day until food actually reaches storage. Meal retries run at the existing decision cadence and never consume more than one food per settler per day.
+
+The HUD now shows **Fed today X/Y**. Existing M3.0 saves with zero lifetime food consumption are migrated so settlers incorrectly marked as fed become due again. Two regressions cover Day-1 delayed food availability and the M3.0 zero-meal save correction; the suite target is now 51 tests.

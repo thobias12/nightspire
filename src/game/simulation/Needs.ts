@@ -103,7 +103,7 @@ function safetyTarget(state: WorldState): number {
   )
 }
 
-export function serveDailyMeal(state: WorldState): { served: number; missed: number } {
+export function serveDailyMeal(state: WorldState, announceShortage = false): { served: number; missed: number } {
   const due = state.settlers.filter(settler => settler.lastMealDay < state.day)
   if (due.length === 0) return { served: 0, missed: 0 }
 
@@ -116,17 +116,20 @@ export function serveDailyMeal(state: WorldState): { served: number; missed: num
     if (source) {
       source.inventory.food--
       settler.needs.food = 100
+      settler.lastMealDay = state.day
       state.totals.foodConsumed++
       served++
     } else {
-      settler.needs.food = clamp(settler.needs.food - 25)
       missed++
     }
-    settler.lastMealDay = state.day
   }
 
-  if (missed > 0) recordEvent(state, 'Food shortage: ' + missed + ' settlers missed the daily meal.')
-  else if (served > 0) recordEvent(state, served + ' settlers ate from settlement food stores.')
+  const waiting = state.settlers.filter(settler => settler.lastMealDay < state.day).length
+  if (announceShortage && waiting > 0) {
+    recordEvent(state, 'Food shortage: ' + waiting + ' settlers are waiting for today\'s meal.')
+  } else if (served > 0 && waiting === 0) {
+    recordEvent(state, 'Daily meal complete. All ' + state.settlers.length + ' settlers have eaten.')
+  }
   return { served, missed }
 }
 

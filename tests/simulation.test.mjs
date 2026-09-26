@@ -79,6 +79,7 @@ test('queued construction waits for materials and competing sites never double r
 })
 test('full storage pauses gathering and new construction releases capacity', () => {
   const s=createInitialWorldState()
+  for(const settler of s.settlers) settler.lastMealDay=s.day
   s.buildings[0].inventory={wood:300,food:100}
   s.targets.wood=350
   const sim=new Simulation(s); advance(sim,2)
@@ -645,7 +646,7 @@ test('daily meal consumes one food per due settler exactly once per day', () => 
   validateWorld(s)
 })
 
-test('food shortage leaves unfed settlers visibly worse instead of inventing food', () => {
+test('food shortage keeps unfed settlers due and feeds them when food arrives later', () => {
   const s=createInitialWorldState()
   s.buildings[0].inventory.food=2
   for(const a of s.settlers) { a.needs.food=60; a.lastMealDay=0 }
@@ -653,7 +654,13 @@ test('food shortage leaves unfed settlers visibly worse instead of inventing foo
   assert.equal(s.buildings[0].inventory.food,0)
   assert.equal(s.totals.foodConsumed,2)
   assert.equal(s.settlers.filter(a=>a.needs.food===100).length,2)
-  assert.equal(s.settlers.filter(a=>a.needs.food===35).length,4)
+  assert.equal(s.settlers.filter(a=>a.lastMealDay===0).length,4)
+  assert.equal(s.settlers.filter(a=>a.needs.food===60).length,4)
+
+  s.buildings[0].inventory.food=4
+  assert.deepEqual(serveDailyMeal(s),{served:4,missed:0})
+  assert.equal(s.totals.foodConsumed,6)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===s.day))
   validateWorld(s)
 })
 
@@ -717,6 +724,26 @@ test('entering Day serves the new-day meal before normal work resumes', () => {
   validateWorld(s)
 })
 
+test('new game settlers eat on day one as soon as food reaches storage', () => {
+  const s=createInitialWorldState()
+  const sim=new Simulation(s)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===0))
+  for(let i=0;i<12;i++) sim.step()
+  assert.equal(s.totals.foodConsumed,0)
+
+  s.buildings[0].inventory.food=6
+  for(let i=0;i<12;i++) sim.step()
+  assert.equal(s.totals.foodConsumed,6)
+  assert.equal(s.buildings[0].inventory.food,0)
+  assert.ok(s.settlers.every(a=>a.lastMealDay===1))
+
+  s.buildings[0].inventory.food=6
+  for(let i=0;i<20;i++) sim.step()
+  assert.equal(s.totals.foodConsumed,6)
+  assert.equal(s.buildings[0].inventory.food,6)
+  validateWorld(s)
+})
+
 test('legacy M2.4 saves migrate settler needs and food accounting', () => {
   const s=createInitialWorldState()
   const legacy=JSON.parse(serializeWorld(s))
@@ -724,8 +751,17 @@ test('legacy M2.4 saves migrate settler needs and food accounting', () => {
   delete legacy.totals.foodConsumed
   const loaded=deserializeWorld(JSON.stringify(legacy))
   assert.ok(loaded.settlers.every(a=>JSON.stringify(a.needs)===JSON.stringify(DEFAULT_NEEDS)))
-  assert.ok(loaded.settlers.every(a=>a.lastMealDay===loaded.day))
+  assert.ok(loaded.settlers.every(a=>a.lastMealDay===Math.max(0,loaded.day-1)))
   assert.equal(loaded.totals.foodConsumed,0)
+  validateWorld(loaded)
+})
+
+test('M3.0 saves with zero lifetime meals are corrected as still due', () => {
+  const s=createInitialWorldState()
+  for(const a of s.settlers) a.lastMealDay=s.day
+  s.totals.foodConsumed=0
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.ok(loaded.settlers.every(a=>a.lastMealDay===Math.max(0,loaded.day-1)))
   validateWorld(loaded)
 })
 

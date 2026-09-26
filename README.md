@@ -21,7 +21,7 @@ Open the local URL printed by Vite. A camp begins with six settlers, an empty co
 2. Select **House**, then click clear ground. The preview is green on a valid site and red on a blocked one. A blueprint can wait for materials.
 3. Settlers reserve available wood, collect it from a stockpile, carry it to the site, then perform construction work. One house costs 20 wood and provides four beds.
 4. Build more houses and a **Stockpile** (10 wood, 400 shared wood/food capacity), then add a **Guard Post** (25 wood, two guard slots), a **Campfire** (10 wood, six recreation slots), **Wooden Walls** (5 wood, 120 HP), and at least one **Wooden Gate** (15 wood, 220 HP).
-5. Inspect settlers to see **Food / Housing / Safety / Recreation** plus derived Happiness. At 06:00 each due settler consumes one real food from stockpiles; shortages reduce Food satisfaction. Workers assigned a Campfire slot use it at Dusk/Dawn to recover Recreation.
+5. Inspect settlers to see **Food / Housing / Safety / Recreation** plus derived Happiness. Meal service opens at 06:00. A settler who has not eaten remains due until food is actually available in storage, then consumes one real food; each settler can eat at most once per day. Workers assigned a Campfire slot use it at Dusk/Dawn to recover Recreation.
 6. Open **QA & performance** and jump to **Night**. Wave 1 contains 20 raiders. Each later wave adds four attackers until the 40-raider cap. Raiders batter walls/gates open, then retarget exposed settlement buildings. Guards intercept nearby raiders; the player can still fight with **Space**.
 7. After Night, jump/wait to **Day**. Damaged structures generate high-priority repair jobs: settlers physically carry timber from storage and restore 10 HP per wood. The QA **Damage selected structure** button can test this without waiting for a raid.
 8. Select an unfinished blueprint to cancel it. Reserved, delivered, and in-transit materials are conserved; cancellation refuses if storage cannot safely accept the refund.
@@ -55,7 +55,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Forty-nine regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Fifty-one regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, old-save migration, invalid saves, and save/load during every task phase.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
