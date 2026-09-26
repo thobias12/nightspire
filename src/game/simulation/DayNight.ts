@@ -6,10 +6,11 @@ export const DUSK_START = 18 / 24
 export const NIGHT_START = 20 / 24
 
 export function phaseForTime(timeOfDay: number): DayPhase {
-  const t = ((timeOfDay % 1) + 1) % 1
-  if (t >= DAWN_START && t < DAY_START) return 'dawn'
-  if (t >= DAY_START && t < DUSK_START) return 'day'
-  if (t >= DUSK_START && t < NIGHT_START) return 'dusk'
+  const t = timeOfDay >= 0 && timeOfDay < 1 ? timeOfDay : ((timeOfDay % 1) + 1) % 1
+  const minute = Math.floor(t * 1440 + 1e-7)
+  if (minute >= 300 && minute < 360) return 'dawn'
+  if (minute >= 360 && minute < 1080) return 'day'
+  if (minute >= 1080 && minute < 1200) return 'dusk'
   return 'night'
 }
 
