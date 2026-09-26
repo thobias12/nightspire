@@ -161,9 +161,9 @@ export class SceneRenderer {
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
-    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x8a7756, 720, 0.12)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x746047, 720)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x5f4d38, 720)
+    this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 720, 0.14)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 720)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
@@ -497,15 +497,15 @@ export class SceneRenderer {
 
         // A faint wider shoulder softens the rectangular road silhouette, while the
         // actual road surface is opaque so crossings never become darker from stacking.
-        this.instance('roadShoulder', strip.x, 0.021, strip.z, width * 1.34, 1, baseLength + 0.36, 0x887655, strip.angle)
-        this.instance('roadBase', strip.x, 0.025, strip.z, width, 1, baseLength, i % 3 === 0 ? 0x79654a : 0x725e45, strip.angle)
+        this.instance('roadShoulder', strip.x, 0.021, strip.z, width * 1.28, 1, baseLength + 0.3, 0xa18d69, strip.angle)
+        this.instance('roadBase', strip.x, 0.025, strip.z, width, 1, baseLength, i % 3 === 0 ? 0x9b815d : 0x927755, strip.angle)
 
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-        const rutOffset = width * 0.22
-        const rutWidth = width * 0.09
-        this.instance('roadWear', strip.x + normalX * rutOffset, 0.029, strip.z + normalZ * rutOffset, rutWidth, 1, strip.length + 0.22, 0x604d38, strip.angle)
-        this.instance('roadWear', strip.x - normalX * rutOffset, 0.03, strip.z - normalZ * rutOffset, rutWidth * 0.88, 1, strip.length + 0.14, 0x68543d, strip.angle)
+        const rutOffset = width * 0.2
+        const rutWidth = width * 0.055
+        this.instance('roadWear', strip.x + normalX * rutOffset, 0.029, strip.z + normalZ * rutOffset, rutWidth, 1, strip.length + 0.18, 0x735a40, strip.angle)
+        this.instance('roadWear', strip.x - normalX * rutOffset, 0.03, strip.z - normalZ * rutOffset, rutWidth * 0.9, 1, strip.length + 0.12, 0x7b6246, strip.angle)
 
         // Sparse deterministic grass intrusion breaks the ruler-straight shoulder
         // without changing the persisted road geometry.
@@ -550,7 +550,11 @@ export class SceneRenderer {
     const length = Math.hypot(dx, dz)
     if (length < 0.35) return
 
-    const rotation = Math.atan2(dx, dz)
+    const ux = dx / length
+    const uz = dz / length
+    // Timber rails are scaled along their local X axis. Use the segment's actual
+    // world direction instead of the road-style local-Z heading used by road strips.
+    const rotation = Math.atan2(-uz, ux)
     const midX = (a.x + b.x) / 2
     const midZ = (a.z + b.z) / 2
     const gap = rear ? Math.min(0.8, length * 0.18) : 0
@@ -559,12 +563,10 @@ export class SceneRenderer {
     // Rear fences get a small gate-like opening; side fences stay continuous.
     if (gap > 0.15) {
       const half = railLength / 2
-      const alongX = Math.sin(rotation)
-      const alongZ = Math.cos(rotation)
       const offset = gap / 2 + half / 2
       for (const sign of [-1, 1]) {
-        const cx = midX + alongX * offset * sign
-        const cz = midZ + alongZ * offset * sign
+        const cx = midX + ux * offset * sign
+        const cz = midZ + uz * offset * sign
         this.instance('timber', cx, 0.38, cz, half, 0.07, 0.08, 0x59402e, rotation)
         this.instance('timber', cx, 0.68, cz, half, 0.065, 0.075, 0x59402e, rotation)
       }
@@ -573,13 +575,15 @@ export class SceneRenderer {
       this.instance('timber', midX, 0.68, midZ, railLength, 0.065, 0.075, 0x59402e, rotation)
     }
 
+    const perpendicularX = -uz
+    const perpendicularZ = ux
     const postCount = Math.max(2, Math.min(5, Math.round(length / 2.1) + 1))
     for (let i = 0; i < postCount; i++) {
       const t = postCount === 1 ? 0.5 : i / (postCount - 1)
       if (rear && Math.abs(t - 0.5) < 0.12) continue
-      const jitter = i > 0 && i < postCount - 1 ? Math.sin(seed * 1.71 + i * 2.33) * 0.06 : 0
-      const x = a.x + dx * t + Math.cos(rotation) * jitter
-      const z = a.z + dz * t - Math.sin(rotation) * jitter
+      const jitter = i > 0 && i < postCount - 1 ? Math.sin(seed * 1.71 + i * 2.33) * 0.045 : 0
+      const x = a.x + dx * t + perpendicularX * jitter
+      const z = a.z + dz * t + perpendicularZ * jitter
       const height = 0.72 + ((seed + i) % 3) * 0.06
       this.instance('timber', x, height / 2, z, 0.09, height, 0.09, i % 3 === 0 ? 0x4c382a : 0x463326, rotation)
     }
