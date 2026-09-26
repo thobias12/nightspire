@@ -4,10 +4,68 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111318" />
-    <title>Nightspire</title>
+    <title>Nightspire — Playtest</title>
+    <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/typescript@5.9.2/lib/typescript.js"></script>
+    <script type="module">
+      const moduleCache = new Map()
+      const threeUrl = 'https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js'
+
+      function resolveSpecifier(specifier, fromUrl) {
+        if (specifier === 'three') return threeUrl
+        const resolved = new URL(specifier, fromUrl)
+        const name = resolved.pathname.split('/').at(-1) || ''
+        if (!name.includes('.')) resolved.pathname += '.ts'
+        return resolved.href
+      }
+
+      async function compileModule(url) {
+        if (moduleCache.has(url)) return moduleCache.get(url)
+
+        const pending = (async () => {
+          const response = await fetch(url)
+          if (!response.ok) throw new Error(`Failed to load ${url}: HTTP ${response.status}`)
+          let source = await response.text()
+          source = source.replace(/^\s*import\s+['"][^'"]+\.css['"]\s*;?\s*$/gm, '')
+
+          const output = ts.transpileModule(source, {
+            fileName: url,
+            compilerOptions: {
+              target: ts.ScriptTarget.ES2022,
+              module: ts.ModuleKind.ES2022,
+              useDefineForClassFields: true,
+            },
+          }).outputText
+
+          const specifiers = [...output.matchAll(/\b(?:from\s*|import\s*)['"]([^'"]+)['"]/g)]
+            .map(match => match[1])
+          let code = output
+
+          for (const specifier of [...new Set(specifiers)]) {
+            const resolved = resolveSpecifier(specifier, url)
+            const replacement = resolved === threeUrl ? threeUrl : await compileModule(resolved)
+            code = code.split(`'${specifier}'`).join(`'${replacement}'`)
+            code = code.split(`"${specifier}"`).join(`"${replacement}"`)
+          }
+
+          return URL.createObjectURL(new Blob([code], { type: 'text/javascript' }))
+        })()
+
+        moduleCache.set(url, pending)
+        return pending
+      }
+
+      try {
+        const entry = await compileModule(new URL('./src/main.ts', location.href).href)
+        await import(entry)
+      } catch (error) {
+        console.error(error)
+        const root = document.querySelector('#app')
+        if (root) root.innerHTML = `<pre style="padding:24px;color:#ffd3d3;white-space:pre-wrap">Nightspire failed to start.\n\n${String(error)}</pre>`
+      }
+    </script>
   </body>
 </html>
