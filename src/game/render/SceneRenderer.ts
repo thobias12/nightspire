@@ -455,6 +455,45 @@ export class SceneRenderer {
     this.instance('windowGlow', x, y, z, width, height, 0.06, color, rotation)
   }
 
+  private framedWindow(
+    x: number,
+    y: number,
+    z: number,
+    rotation: number,
+    night: number,
+    width = 0.38,
+    height = 0.48,
+    seed = 0,
+  ): void {
+    this.warmWindow(x, y, z, rotation, night, width, height)
+    const frameColor = seed % 3 === 0 ? 0x4a3427 : 0x553a29
+    const sideOffset = width / 2 + 0.055
+    const topOffset = height / 2 + 0.055
+    for (const side of [-1, 1] as const) {
+      const o = this.rotatedOffset(side * sideOffset, 0.055, rotation)
+      this.instance('timber', x + o.x, y, z + o.z, 0.055, height + 0.18, 0.07, frameColor, rotation)
+    }
+    this.instance('timber', x, y + topOffset, z, width + 0.18, 0.055, 0.07, frameColor, rotation)
+    this.instance('timber', x, y - topOffset, z, width + 0.18, 0.055, 0.07, frameColor, rotation)
+
+    if (seed % 2 === 0) {
+      for (const side of [-1, 1] as const) {
+        const shutter = this.rotatedOffset(side * (width * 0.82 + 0.12), 0.075, rotation)
+        this.instance('timber', x + shutter.x, y, z + shutter.z, width * 0.38, height * 0.88, 0.055, side < 0 ? 0x69503a : 0x614934, rotation)
+      }
+    }
+  }
+
+  private doorAwning(b: Building, rotation: number, doorX: number, frontZ: number, seed: number): void {
+    if (seed % 3 === 0) return
+    const canopy = this.rotatedOffset(doorX, frontZ + 0.26, rotation)
+    this.instance('timber', b.x + canopy.x, 1.58, b.z + canopy.z, 1.05, 0.09, 0.56, seed % 2 ? 0x654831 : 0x5b402d, rotation)
+    for (const side of [-1, 1] as const) {
+      const post = this.rotatedOffset(doorX + side * 0.43, frontZ + 0.43, rotation)
+      this.instance('timber', b.x + post.x, 0.74, b.z + post.z, 0.075, 1.32, 0.075, 0x493327, rotation)
+    }
+  }
+
   private warmGroundPool(x: number, z: number, radius: number, strength: number, night: number): void {
     if (night < 0.06 || strength <= 0) return
     const scale = radius * (0.94 + night * 0.06)
@@ -1083,10 +1122,25 @@ export class SceneRenderer {
     this.instance('doors', b.x + front.x, 0.82, b.z + front.z, 0.54, 1.35, 0.13, 0x4b3325, rotation)
 
     const windowSpread = Math.min(width * 0.31, 0.9)
-    for (const lx of [-windowSpread, windowSpread]) {
+    for (const [index, lx] of [-windowSpread, windowSpread].entries()) {
       if (Math.abs(lx - doorX) < 0.34) continue
-      const win = this.rotatedOffset(lx, depth / 2 + 0.1, rotation)
-      this.warmWindow(b.x + win.x, 1.3, b.z + win.z, rotation, night, 0.34, 0.44)
+      const win = this.rotatedOffset(lx, depth / 2 + 0.105, rotation)
+      this.framedWindow(b.x + win.x, 1.3, b.z + win.z, rotation, night, 0.34, 0.44, (plot?.id ?? b.id) + index)
+    }
+
+    if (plot && width > 3.15) {
+      const side = plot.id % 2 === 0 ? 1 : -1
+      const sideWin = this.rotatedOffset(side * (width / 2 + 0.105), -0.15, rotation)
+      this.framedWindow(
+        b.x + sideWin.x,
+        1.26,
+        b.z + sideWin.z,
+        rotation + Math.PI / 2,
+        night * 0.82,
+        0.3,
+        0.4,
+        plot.id + 9,
+      )
     }
 
     const chimneySide = (plot?.id ?? b.id) % 2 ? 1 : -1
@@ -1103,6 +1157,7 @@ export class SceneRenderer {
 
     const step = this.rotatedOffset(doorX, depth / 2 + 0.22, rotation)
     this.instance('stone', b.x + step.x, 0.12, b.z + step.z, 0.76, 0.22, 0.48, 0x777064, rotation)
+    this.doorAwning(b, rotation, doorX, depth / 2, plot?.id ?? b.id)
     this.frontageClutter(b, rotation, plot?.id ?? b.id, Math.min(1.05, width / 2.7))
 
     if (plot && plot.depth >= 8.2) {
@@ -1177,15 +1232,20 @@ export class SceneRenderer {
 
     const front = this.rotatedOffset(0.48, 1.43, rotation)
     this.instance('doors', b.x + front.x, 0.86, b.z + front.z, 0.66, 1.48, 0.14, 0x493126, rotation)
-    for (const lx of [-0.78, 0, 0.82]) {
+    for (const [index, lx] of [-0.78, 0, 0.82].entries()) {
       const win = this.rotatedOffset(lx, 1.47, rotation)
-      this.warmWindow(b.x + win.x, 1.35, b.z + win.z, rotation, night, 0.38, 0.5)
+      this.framedWindow(b.x + win.x, 1.35, b.z + win.z, rotation, night, 0.38, 0.5, b.id + index)
     }
 
     const signPost = this.rotatedOffset(1.55, 1.22, rotation)
     this.instance('timber', b.x + signPost.x, 1.42, b.z + signPost.z, 0.12, 1.7, 0.12, 0x503526, rotation)
     const sign = this.rotatedOffset(1.55, 1.1, rotation)
-    this.instance('cloth', b.x + sign.x, 1.84, b.z + sign.z, 0.75, 0.58, 0.1, TOWN_PALETTE.clothWine, rotation)
+    this.instance('timber', b.x + sign.x, 1.84, b.z + sign.z, 0.82, 0.62, 0.1, 0x5d3e2c, rotation)
+    const signFace = this.rotatedOffset(1.55, 1.16, rotation)
+    this.instance('cloth', b.x + signFace.x, 1.84, b.z + signFace.z, 0.64, 0.44, 0.045, TOWN_PALETTE.clothWine, rotation)
+    if (night > 0.12) {
+      this.instance('glow', b.x + signFace.x, 1.7, b.z + signFace.z, 0.32, 0.26, 0.32, 0xffb766)
+    }
 
     const awning = this.rotatedOffset(-0.55, 1.72, rotation)
     this.instance('cloth', b.x + awning.x, 1.72, b.z + awning.z, 1.65, 0.1, 0.92, 0x865e4d, rotation)
@@ -1294,11 +1354,13 @@ export class SceneRenderer {
     }
 
     const canopy = this.rotatedOffset(-0.1, 1.72, rotation)
-    this.instance('timber', b.x + canopy.x, 1.28, b.z + canopy.z, 2.6, 0.12, 1.0, 0x5b402c, rotation)
+    this.instance('gableRoofs', b.x + canopy.x, 1.18, b.z + canopy.z, 2.72, 0.52, 1.2, this.readableNightColor(0x584638, night), rotation)
     for (const lx of [-1.08, 1.08]) {
       const post = this.rotatedOffset(lx, 1.72, rotation)
       this.instance('timber', b.x + post.x, 0.68, b.z + post.z, 0.1, 1.36, 0.1, 0x493327, rotation)
     }
+    const lintel = this.rotatedOffset(-0.1, 1.9, rotation)
+    this.instance('timber', b.x + lintel.x, 1.28, b.z + lintel.z, 2.42, 0.12, 0.12, 0x503727, rotation)
     const coal = this.rotatedOffset(1.24, -0.1, rotation)
     for (let i = 0; i < 4; i++) {
       this.instance('ore', b.x + coal.x + (i % 2) * 0.24, 0.12 + Math.floor(i / 2) * 0.1, b.z + coal.z + Math.floor(i / 2) * 0.2, 0.28, 0.24, 0.28, 0x3f4549, rotation + i)
@@ -1327,10 +1389,11 @@ export class SceneRenderer {
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
       // Vertical sharpened palisade stakes replace the old horizontal log-kit look.
-      for (const localX of [-0.4, -0.2, 0, 0.2, 0.4]) {
+      for (const [index, localX] of [-0.4, -0.2, 0, 0.2, 0.4].entries()) {
         const o = this.rotatedOffset(localX, 0, rotation)
-        this.instance('treeTrunk', b.x + o.x, 0.72, b.z + o.z, 0.62, 1.42, 0.62, color, rotation)
-        this.instance('wood', b.x + o.x, 1.48, b.z + o.z, 0.18, 0.22, 0.18, color, rotation)
+        const height = 1.44 + ((b.id + index) % 3) * 0.11
+        this.instance('treeTrunk', b.x + o.x, height / 2, b.z + o.z, 0.62, height, 0.62, color, rotation)
+        this.instance('wood', b.x + o.x, height + 0.11, b.z + o.z, 0.19, 0.24, 0.19, color, rotation)
       }
       for (const y of [0.52, 0.98]) {
         this.instance('timber', b.x, y, b.z, 0.96, 0.1, 0.11, 0x513927, rotation)
