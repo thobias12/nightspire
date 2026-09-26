@@ -2,7 +2,7 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
-**Current playable milestone: M3.7 — Blacksmith & Tools.** The M3.6 morale loop remains intact while Iron Ore and Tools extend the physical production economy: workers mine finite Ore deposits, haul Ore to a Blacksmith, forge Tools during Day, and return finished Tools to stockpile storage. Stockpiled Tools provide up to a +10% hands-on work bonus on top of Happiness. See [the design](docs/GAME_DESIGN.md) for future direction.
+**Current playable milestone: M3.8.0 — Grounded Town Center visual target.** The full M3.7 economy remains intact while the renderer moves toward Nightspire's grounded medieval dark-fantasy identity: gabled timber/plaster/stone buildings, functional yards and clutter, presentation-only dirt roads, richer forest edges, adult human silhouettes, Tavern nightlife, a hidden-outside-build-mode grid, and a lower street-oblique camera. See [the direction pivot](docs/DIRECTION_PIVOT.md).
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -22,7 +22,7 @@ Open the local URL printed by Vite. A camp begins with six settlers, an empty co
 1. Watch stockpile counts rise. Click a settler or resource to inspect its task or remaining yield.
 2. Select **House**, then click clear ground. The preview is green on a valid site and red on a blocked one. A blueprint can wait for materials.
 3. Settlers reserve available wood, collect it from a stockpile, carry it to the site, then perform construction work. One house costs 20 wood and provides four beds.
-4. Use the categorized build bar or hotkeys **1–8**. Press **R** to rotate the current blueprint, hold **Shift** after a click to keep placing the same building, and **drag Wooden Wall** from one grid cell to another for an atomic straight wall line. Place a Wooden Gate directly on an existing wall segment to convert it while retaining the wall's delivered timber.
+4. Use the categorized build bar or hotkeys **1–9**. Press **R** to rotate the current blueprint, hold **Shift** after a click to keep placing the same building, and **drag Wooden Wall** from one grid cell to another for an atomic straight wall line. Place a Wooden Gate directly on an existing wall segment to convert it while retaining the wall's delivered timber.
 5. Inspect settlers to see **Food / Housing / Safety / Recreation**, derived Happiness, morale band and current work-rate modifier. Thriving settlers receive a modest productivity bonus; low Happiness slows gathering/repairs/construction, while severe misery or hunger limits settlers to Food gathering and emergency repairs. During Dusk/Dawn, Tavern/Campfire recreation therefore feeds back into next-day productivity instead of being only an attraction score.
 6. Build a **Blacksmith** with hotkey **9**. Workers gather Iron Ore from the perimeter deposits, stage it through stockpile storage, supply the Blacksmith, forge **3 Ore → 1 Tool every 18 seconds** during Day, then haul Tools back to stockpiles. One stored Tool covers two settlers; full coverage adds +10% to hands-on work.
 7. Build enough Houses to leave at least one spare bed, keep at least **2 stored Food per settler**, maintain **65% Happiness** and **55% Safety**, and keep the latest raid cleared. Hold those conditions across two Day checks to attract one immigrant. The newcomer enters from the map edge and cannot work until reaching the camp.
@@ -43,9 +43,10 @@ Save/load uses one primary localStorage slot plus one backup slot in this browse
 | Space | Player melee attack against the nearest raider in range |
 | Mouse wheel | Zoom settlement camera |
 | Follow player / Settlement camera | Switch between elevated and close following views |
+| V / Street view | Toggle the lower cinematic settlement camera |
 | Center camp | Restore the initial settlement camera |
 | Click | Inspect, or place the selected blueprint; hold Shift to remain in build mode |
-| 1–8 | Select House, Stockpile, Campfire, Brewery, Tavern, Guard Post, Wall, Gate |
+| 1–9 | Select House, Stockpile, Campfire, Brewery, Tavern, Guard Post, Wall, Gate, Blacksmith |
 | R | Rotate the active blueprint / façade orientation |
 | Drag with Wooden Wall selected | Plan a straight wall line; release to place the whole valid line |
 | Esc / Inspect | Leave build mode |
@@ -62,7 +63,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Eighty-four regression tests now cover ten-settler construction, physical resource conservation, competing reservations, storage pressure, blueprint cancellation/refunds, stock targets, blocked-route backoff/recovery, needs/services/production/population behavior, M3.5 presentation-state derivation, and M3.6 happiness productivity/refusal behavior.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Ninety-two regression tests now cover the settlement/economy/combat foundation through M3.7 plus deterministic M3.8 presentation-road derivation.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -89,7 +90,7 @@ docs/           design, architecture, milestones, decisions and QA
 
 ## Scope and limitations
 
-This is a small playable stylized-graybox foundation: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, physical Food → Ale → Tavern and Ore → Tools production chains, deterministic population attraction from 6 → 10, Happiness-driven productivity, dedicated build-mode UX, and a first settlement atmosphere/readability pass. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
+This is a small playable procedural art-direction prototype: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, physical Food → Ale → Tavern and Ore → Tools production chains, deterministic population attraction from 6 → 10, Happiness-driven productivity, dedicated build-mode UX, and a first settlement atmosphere/readability pass. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
 
 See [DIRECTION PIVOT](docs/DIRECTION_PIVOT.md), [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 

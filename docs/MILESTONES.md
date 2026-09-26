@@ -93,7 +93,7 @@
 
 **M3.6 verified:** the four existing needs affect actual labor without new persisted state. Happiness bands provide +15% / baseline / -10% / -25% / -40% hands-on work rates, while Happiness below 20% or Food below 15% restricts settlers to Food gathering and emergency repairs. Walking speed, combat, production buildings, pathfinding and the population cap remain unchanged.
 
-**M3.7 target:** add finite Iron Ore deposits, a 45-wood Blacksmith, physical Ore → Blacksmith → Tools → Stockpile logistics, and a durable Tool-coverage benefit. The Blacksmith converts 3 Ore into 1 Tool every 18 Day seconds, holds 18 Ore/6 Tools locally, and one stockpiled Tool covers two settlers. Full coverage adds +10% to hands-on work without consuming Tools.
+**M3.7 verified:** finite Iron Ore deposits, a 45-wood Blacksmith, physical Ore → Blacksmith → Tools → Stockpile logistics, and durable Tool coverage are live-tested. The Blacksmith converts 3 Ore into 1 Tool every 18 Day seconds, holds 18 Ore/6 Tools locally, and one stockpiled Tool covers two settlers. Full coverage adds +10% to hands-on work without consuming Tools.
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 
@@ -101,15 +101,15 @@
 
 Safe to execute while M4 is in progress because it is presentation-first and must avoid Navigation/Jobs/simulation-scale changes.
 
-- [ ] reusable grounded medieval building art kit
-- [ ] House / Tavern / Blacksmith / Stockpile / Guard Post redesign
-- [ ] terrain/yard wear and forest-edge composition
-- [ ] presentation-only dirt road/path prototype
-- [ ] lower cinematic settlement camera preset
-- [ ] player-facing HUD hierarchy/style cleanup
-- [ ] first clearly adult attractive civilian / Tavern entertainer silhouettes
-- [ ] Tavern nightlife ambience/activity pass
-- [ ] screenshot-quality Town Center target at afternoon, dusk, night and street-oblique camera
+- [x] reusable grounded medieval building art kit
+- [x] House / Tavern / Blacksmith / Stockpile / Guard Post redesign
+- [x] terrain/yard wear and forest-edge composition
+- [x] presentation-only dirt road/path prototype
+- [x] lower cinematic settlement camera preset
+- [x] player-facing HUD hierarchy/style cleanup
+- [x] first clearly adult attractive civilian / Tavern entertainer silhouettes
+- [x] Tavern nightlife ambience/activity pass
+- [ ] screenshot-quality Town Center target at afternoon, dusk, night and street-oblique camera (implementation staged; awaiting live visual acceptance)
 
 **Exit:** the current simulation produces a settlement that reads as an authored, lived-in medieval dark-fantasy town rather than a primitive graybox, without changing M4-sensitive behavior.
 
