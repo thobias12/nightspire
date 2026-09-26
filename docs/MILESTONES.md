@@ -51,9 +51,9 @@
 - [x] basic enemy navigation toward settlement
 - [x] basic NPC combat
 - [x] player melee combat
-- [ ] wooden walls and gate
-- [ ] structure health/damage
-- [ ] morning cleanup and repairs
+- [x] wooden walls and gate
+- [x] structure health/damage
+- [x] morning cleanup and repairs
 
 **M2.0 verified:** deterministic Dawn/Day/Dusk/Night phases, daylight-only job assignment, cargo-safe dusk shutdown, civilian sheltering, guard roles and buildable Guard Posts. 20 tests pass and CI builds successfully.
 
@@ -61,7 +61,9 @@
 
 **M2.2 verified:** player melee, guard interception, raider counterattacks, persisted combat health/cooldowns, defender downing/recovery, raider death and raid-clear tracking. 32 tests pass and CI builds successfully.
 
-**Full M2 exit:** build by day, survive 20–40 attackers at night, repair next morning.
+**M2.3 verified:** Wooden Walls/Gates, asymmetric gate navigation, structure HP/hit state, raider structure targeting, destructible fortification breaches, critical core-building damage, and timber-consuming daylight repair jobs. 39 tests pass and CI builds successfully.
+
+**Full M2 exit remaining:** the loop is now complete at the 12-raider validation scale; raise/balance the verified raid into the intended 20–40 attacker range before calling M2 fully closed.
 
 ## M3 — Needs and production
 
