@@ -526,3 +526,39 @@ M3.9.0 begins the organic-settlement roadmap without changing road placement, Re
 ### Architectural boundary
 
 M3.9.0 does not modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Cottage/homestead/burgage are deterministic **visual classes**, not new simulation entities, wealth systems, households or save fields.
+
+
+## M3.9.1 verification target
+
+M3.9.1 keeps M3.9.0 mechanics/persistence frozen and changes the visual composition rule from size-only to **shape-aware**. Automated coverage rises from 103 to **107 tests**.
+
+New regression cases verify:
+
+- 4×11 remains a cottage-tier **Long burgage cottage**, gains a side passage, and does not become Homestead from depth alone
+- 6×8 resolves to a balanced **Homestead compound**
+- 9×6 resolves to **Broad-front homestead**, with a three-window façade profile and no forced side passage
+- 10×12 resolves to **Burgage courtyard compound**, keeps the main House under 5m wide, uses a side passage and requests three façade windows
+
+### Browser workflow
+
+1. Start fresh and draw one straight road.
+2. Create four plots close to **4×11, 6×8, 9×6 and 10×12**.
+3. Complete all Houses and inspect them. Their labels should respectively read approximately:
+   - Long burgage cottage
+   - Homestead compound
+   - Broad-front homestead
+   - Burgage courtyard compound
+4. Compare the street from Overview. The row should no longer have one perfectly straight façade/setback line: Houses should shift subtly left/right and slightly forward/back while staying clearly inside their plots.
+5. The 4×11 House should remain narrow and visually deep, with a visible side passage toward the rear instead of a medium-width Homestead façade.
+6. The 9×6 House should spread its frontage but avoid deep rear-compound clutter that would not fit the shallow lot.
+7. The 10×12 property should **not** be one huge stretched rectangle. The main House should stay under ~5m visual width and a perpendicular side wing/rear structures should create an L/courtyard read.
+8. Check façades from Street view: compact/long forms should use fewer windows; broad/wide forms should use a wider 2–3-window rhythm with more off-center doors.
+9. Confirm side-passage plots visibly preserve one threshold opening and carry a narrow worn path toward the rear.
+10. Confirm adjacent shared fences still render once and no house/outbuilding obviously crosses a property boundary.
+11. Save → reload and confirm the same plot IDs regenerate the exact same form, offsets, façade rhythm and outbuildings.
+12. Enable navigation paths and confirm no renderer-created wing/shed/service lane changes movement semantics.
+13. Check state integrity and compare Draws / triangles / Render submission CPU with M3.9.0.
+
+### Architectural boundary
+
+M3.9.1 adds `render/ResidentialPresentation.ts` and changes renderer/HUD/tests/docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Visual House offsets do not alter persisted building positions or collision/pathfinding.
