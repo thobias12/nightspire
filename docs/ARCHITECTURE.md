@@ -157,3 +157,7 @@ Any claim of supporting hundreds of NPCs should be demonstrated by a repeatable 
 ## WebGPU
 
 Three.js WebGPU is worth evaluating for long-term rendering/compute opportunities, but the first milestone should prioritize a stable playable loop. Renderer abstraction should avoid making gameplay systems depend on a WebGL-only implementation.
+
+## Implemented M1 ownership
+
+Game coordinates a fixed-step Simulation, InputController, SceneRenderer and Hud. WorldState owns plain records. Buildings owns placement/storage/housing rules; Jobs assigns claims; Simulation executes task phases; Navigation owns blocked cells and its bounded queue; SaveLoad validates and serializes state. See [DECISIONS.md](DECISIONS.md) for the concrete choices and [QA.md](QA.md) for verified behavior. The broader domains above remain future guidance.

@@ -1,15 +1,52 @@
-export interface WorldState {
-  elapsedSeconds: number
-  day: number
-  timeOfDay: number
-  settlers: number
-  enemies: number
-}
+import type { BuildingId } from '../data/buildings'
+import type { JobKind } from '../data/jobs'
+import { emptyInventory, type Inventory, type ResourceId } from '../data/resources'
 
-export const createInitialWorldState = (): WorldState => ({
-  elapsedSeconds: 0,
-  day: 1,
-  timeOfDay: 0.32,
-  settlers: 8,
-  enemies: 0,
-})
+export interface Point { x: number; z: number }
+export interface ResourceNode extends Point { id: number; resource: ResourceId; remaining: number }
+export interface Building extends Point {
+  id: number; type: BuildingId; complete: boolean; work: number
+  inventory: Inventory; delivered: Inventory
+}
+export interface Settler extends Point {
+  id: number; homeId: number | null; jobId: number | null
+  cargo: Inventory; path: Point[]; pathRevision: number; status: string
+}
+export interface Job {
+  id: number; kind: JobKind; settlerId: number; sourceId: number; targetId: number
+  resource: ResourceId; amount: number; stage: 'source' | 'work' | 'target'; progress: number
+}
+export interface WorldState {
+  version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
+  topology: number; player: Point; settlers: Settler[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
+  totals: { gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number }
+  events: string[]
+}
+export const MAX_SETTLERS = 10
+export function spawnSettler(state: WorldState): boolean {
+  if (state.settlers.length >= MAX_SETTLERS) return false
+  state.settlers.push({ id: state.nextId++, x: 0, z: 2, homeId: null, jobId: null,
+    cargo: emptyInventory(), path: [], pathRevision: -1, status: 'Needs work' })
+  return true
+}
+export function recordEvent(state: WorldState, message: string): void {
+  state.events.unshift(message)
+  state.events.length = Math.min(state.events.length, 6)
+}
+export function createInitialWorldState(): WorldState {
+  const state: WorldState = {
+    version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
+    player: { x: 0, z: 5 }, settlers: [], nodes: [], buildings: [], jobs: [],
+    totals: { gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(), constructed: 0 },
+    events: ['A new camp. Gather wood, then build homes for your settlers.'],
+  }
+  state.buildings.push({ id: state.nextId++, type: 'stockpile', x: 0, z: 0, complete: true,
+    work: 8, inventory: emptyInventory(), delivered: { wood: 10, food: 0 } })
+  for (let i = 0; i < 60; i++) {
+    const row = Math.floor(i / 10), col = i % 10
+    state.nodes.push({ id: state.nextId++, resource: i < 40 ? 'wood' : 'food', remaining: 40,
+      x: -19 + col * 4, z: i < 40 ? -19 + row * 3 : 13 + (row - 4) * 4 })
+  }
+  for (let i = 0; i < 6; i++) spawnSettler(state)
+  return state
+}

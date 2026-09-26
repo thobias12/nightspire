@@ -1,14 +1,8 @@
-export type ResourceId = 'wood' | 'stone' | 'food' | 'iron' | 'coin'
-
-export interface ResourceDefinition {
-  id: ResourceId
-  label: string
-}
-
-export const RESOURCES: readonly ResourceDefinition[] = [
-  { id: 'wood', label: 'Wood' },
-  { id: 'stone', label: 'Stone' },
-  { id: 'food', label: 'Food' },
-  { id: 'iron', label: 'Iron' },
-  { id: 'coin', label: 'Coin' },
-]
+export type ResourceId = 'wood' | 'food'
+export type Inventory = Record<ResourceId, number>
+export const emptyInventory = (): Inventory => ({ wood: 0, food: 0 })
+export const RESOURCES = {
+  wood: { label: 'Wood', workSeconds: 3, batch: 5, color: 0xa87849 },
+  food: { label: 'Food', workSeconds: 2, batch: 5, color: 0xda9665 },
+} as const
+export const RESOURCE_IDS: ResourceId[] = ['wood', 'food']

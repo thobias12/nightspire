@@ -1,6 +1,6 @@
 # Milestones
 
-## M0 — Foundation (current)
+## M0 — Foundation (complete)
 
 - [x] Vite + TypeScript + Three.js boots
 - [x] Strict typecheck/build
@@ -10,22 +10,22 @@
 - [x] Example instanced world content
 - [x] Agent/project documentation
 
-## M1 — Settlement loop
+## M1 — Settlement loop (implemented; ready for review)
 
-- [ ] player controller and camera modes
-- [ ] resource inventory/stockpile model
-- [ ] harvestable trees/food nodes
-- [ ] settler entity store
-- [ ] task/job queue
-- [ ] wood gathering end-to-end
-- [ ] food gathering end-to-end
-- [ ] building placement ghost
-- [ ] construction work delivered by settlers
-- [ ] houses provide housing
-- [ ] save/load foundation
-- [ ] QA panel with time/resource/spawn controls
+- [x] player controller and camera modes
+- [x] resource inventory/stockpile model
+- [x] harvestable trees/food nodes
+- [x] settler entity store
+- [x] task/job queue
+- [x] wood gathering end-to-end
+- [x] food gathering end-to-end
+- [x] building placement ghost
+- [x] construction work delivered by settlers
+- [x] houses provide housing
+- [x] save/load foundation
+- [x] QA panel with time/resource/spawn controls
 
-**Exit:** 10 settlers can gather, haul and construct a tiny settlement reliably.
+**Exit verified for this pass:** Ten-settler automated and browser playthroughs gathered both resources, physically delivered 70 wood, completed three houses and a stockpile, housed all ten settlers, and resumed after save/load. See [QA.md](QA.md) for evidence and limitations. M1 is ready for review; M2 is not started.
 
 ## M2 — First night
 
@@ -57,7 +57,7 @@
 
 - [ ] benchmark scene
 - [ ] spatial partitioning
-- [ ] path request budgets
+- [x] basic path request budget (implemented in M1; large-scale validation still pending)
 - [ ] AI update tiers
 - [ ] rendering LOD
 - [ ] large repeated-content instancing

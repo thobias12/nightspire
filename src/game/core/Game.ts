@@ -1,75 +1,142 @@
+import { FIXED_STEP } from '../data/jobs'
+import type { BuildingId } from '../data/buildings'
 import { SceneRenderer } from '../render/SceneRenderer'
-import { createInitialWorldState, type WorldState } from '../simulation/WorldState'
-
-const SECONDS_PER_GAME_DAY = 180
+import { freeStorage, placeBuilding, placementError, stockpiles } from '../simulation/Buildings'
+import { distance } from '../simulation/Navigation'
+import { deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
+import { Simulation } from '../simulation/Simulation'
+import { createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
+import { Hud, type Metrics } from '../ui/Hud'
+import { InputController } from './InputController'
 
 export class Game {
   private readonly renderer = new SceneRenderer()
-  private readonly state: WorldState = createInitialWorldState()
+  private readonly simulation = new Simulation(createInitialWorldState())
+  private readonly hud: Hud
+  private readonly input: InputController
   private readonly resizeObserver: ResizeObserver
-  private readonly hud: HTMLDivElement
+  private readonly abort = new AbortController()
+  private selectedId: number | null = null
+  private buildType: BuildingId | null = null
+  private pointer: Point | null = null
+  private paused = false
+  private speed = 1
+  private message = 'Gather → carry → stockpile → deliver → construct. Start by placing a house.'
   private animationFrame = 0
   private lastTime = 0
+  private accumulator = 0
+  private hudTime = 0
+  private metrics: Metrics = { frame: 16.7, simulation: 0, render: 0, calls: 0, triangles: 0, paths: 0, requests: 0, queue: 0, failures: 0, dropped: 0 }
 
   constructor(private readonly root: HTMLElement) {
-    this.root.className = 'game-shell'
-    this.root.append(this.renderer.canvas)
-
-    this.hud = document.createElement('div')
-    this.hud.className = 'game-hud'
-    this.root.append(this.hud)
-
-    this.resizeObserver = new ResizeObserver(() => this.resize())
-    this.resizeObserver.observe(this.root)
-    this.resize()
+    root.className = 'game-shell'; root.append(this.renderer.canvas)
+    this.hud = new Hud(root, this.action)
+    this.input = new InputController(this.renderer, this.simulation, () => this.action('cancel'))
+    const signal = this.abort.signal
+    this.renderer.canvas.addEventListener('pointermove', e => {
+      const point = this.renderer.worldPoint(e.clientX, e.clientY)
+      if (point?.x === this.pointer?.x && point?.z === this.pointer?.z) return
+      this.pointer = point; this.updateGhost()
+    }, { signal })
+    this.renderer.canvas.addEventListener('pointerleave', () => { this.pointer = null; this.updateGhost() }, { signal })
+    this.renderer.canvas.addEventListener('click', e => {
+      this.renderer.canvas.focus()
+      const p = this.renderer.worldPoint(e.clientX, e.clientY)
+      if (!p) return
+      const s = this.simulation.state
+      if (this.buildType) {
+        const error = placeBuilding(s, this.buildType, p)
+        this.message = error ?? 'Blueprint placed. Reserved materials will be carried here by settlers.'
+        if (!error) { this.selectedId = s.buildings.at(-1)!.id; this.buildType = null }
+      } else {
+        const nearby = [...s.settlers, ...s.buildings, ...s.nodes.filter(n => n.remaining > 0)].filter(e => distance(e, p) < 1.8).sort((a, b) => distance(a, p) - distance(b, p))
+        this.selectedId = nearby[0]?.id ?? null
+      }
+      this.updateGhost(); this.updateHud()
+    }, { signal })
+    document.addEventListener('visibilitychange', () => { this.lastTime = 0; this.accumulator = 0 }, { signal })
+    this.resizeObserver = new ResizeObserver(() => this.renderer.resize(root.clientWidth, root.clientHeight))
+    this.resizeObserver.observe(root)
+    this.renderer.resize(root.clientWidth, root.clientHeight)
     this.updateHud()
   }
-
-  start(): void {
-    this.animationFrame = requestAnimationFrame(this.tick)
-  }
-
+  start(): void { if (!this.animationFrame) this.animationFrame = requestAnimationFrame(this.tick) }
   stop(): void {
-    cancelAnimationFrame(this.animationFrame)
-    this.resizeObserver.disconnect()
-    this.renderer.dispose()
+    cancelAnimationFrame(this.animationFrame); this.animationFrame = 0
+    this.abort.abort(); this.resizeObserver.disconnect(); this.input.dispose(); this.hud.dispose(); this.renderer.dispose()
   }
-
+  private readonly action = (action: string, value?: string): void => {
+    const s = this.simulation.state
+    try {
+      switch (action) {
+        case 'house': case 'stockpile':
+          this.buildType = action; this.renderer.mode = 'settlement'
+          this.message = 'Click clear ground to place a ' + action + '. Esc cancels.'; break
+        case 'cancel': this.buildType = null; this.message = 'Inspect mode. Click a worker, resource or building.'; break
+        case 'pause': this.paused = !this.paused; this.accumulator = 0; break
+        case 'speed': this.speed = Number(value); break
+        case 'time': s.timeOfDay = Number(value) / 24; break
+        case 'paths': this.renderer.debug = value === 'true'; break
+        case 'spawn': this.message = spawnSettler(s) ? 'Settler joined the camp.' : 'M1 maximum: 10 settlers.'; break
+        case 'resources': {
+          let added = 0
+          for (const resource of ['wood', 'food'] as const) {
+            let remaining = 50
+            for (const b of stockpiles(s)) {
+              const amount = Math.min(remaining, freeStorage(s, b))
+              b.inventory[resource] += amount; remaining -= amount; added += amount
+            }
+          }
+          this.message = 'QA added ' + added + ' resources within unreserved storage capacity.'; break
+        }
+        case 'camera': this.buildType = null; this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'; break
+        case 'center': this.renderer.mode = 'settlement'; this.renderer.focus.x = 0; this.renderer.focus.z = -1; this.renderer.angle = 0; this.renderer.zoom = 36; break
+        case 'save': localStorage.setItem(SAVE_KEY, serializeWorld(s)); this.message = 'Saved locally. Jobs, cargo, stockpiles, buildings and homes preserved.'; break
+        case 'load': {
+          const saved = localStorage.getItem(SAVE_KEY)
+          if (!saved) { this.message = 'No local save yet. Use Save first.'; break }
+          this.simulation.replace(deserializeWorld(saved)); this.accumulator = 0; this.selectedId = null; this.buildType = null
+          this.message = 'Loaded local settlement. Workers resume their saved jobs.'; break
+        }
+        case 'audit': validateWorld(s); this.message = 'State integrity PASS: identities, cargo, reservations, housing and connectivity.'; break
+      }
+    } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
+    this.updateGhost(); this.updateHud()
+  }
+  private updateGhost(): void {
+    const error = this.buildType && this.pointer ? placementError(this.simulation.state, this.buildType, this.pointer) : null
+    this.renderer.showGhost(this.buildType, this.pointer, !error)
+    if (this.buildType && this.pointer) this.message = error ?? 'Valid site. Click to place; settlers will supply and construct it.'
+  }
   private readonly tick = (timestamp: number): void => {
-    const delta = this.lastTime === 0 ? 0 : Math.min((timestamp - this.lastTime) / 1000, 0.1)
-    this.lastTime = timestamp
-
-    this.state.elapsedSeconds += delta
-    const totalDays = this.state.elapsedSeconds / SECONDS_PER_GAME_DAY
-    this.state.day = 1 + Math.floor(totalDays)
-    this.state.timeOfDay = (0.32 + totalDays) % 1
-
-    this.renderer.setTimeOfDay(this.state.timeOfDay)
+    const rawDelta = this.lastTime === 0 ? 0 : (timestamp - this.lastTime) / 1000
+    const delta = Math.min(rawDelta, 0.1); this.lastTime = timestamp
+    this.metrics.frame += (rawDelta * 1000 - this.metrics.frame) * 0.05
+    this.input.update(delta, this.paused)
+    const started = performance.now()
+    if (!this.paused && !document.hidden) {
+      this.accumulator += delta * this.speed
+      this.metrics.dropped += Math.max(0, rawDelta - delta) * this.speed
+    }
+    const previousRequests = this.simulation.navigation.requests
+    let steps = 0, paths = 0
+    while (this.accumulator >= FIXED_STEP && steps < 8) {
+      this.simulation.step(); this.accumulator -= FIXED_STEP; steps++; paths += this.simulation.navigation.solved
+    }
+    if (this.accumulator >= FIXED_STEP) { this.metrics.dropped += this.accumulator; this.accumulator = 0 }
+    this.metrics.simulation += (performance.now() - started - this.metrics.simulation) * 0.1
+    const renderStarted = performance.now()
+    this.renderer.sync(this.simulation.state, this.selectedId)
+    this.hudTime += delta
+    if (this.hudTime >= 0.2) {
+      this.renderer.updatePaths(this.simulation.state); this.updateGhost(); this.updateHud(); this.hudTime = 0
+    }
     this.renderer.render()
-    this.updateHud()
-
+    this.metrics.render += (performance.now() - renderStarted - this.metrics.render) * 0.1
+    Object.assign(this.metrics, this.renderer.stats, { paths, requests: this.simulation.navigation.requests - previousRequests, queue: this.simulation.navigation.depth, failures: this.simulation.navigation.failures })
     this.animationFrame = requestAnimationFrame(this.tick)
   }
-
-  private resize(): void {
-    const { clientWidth, clientHeight } = this.root
-    this.renderer.resize(clientWidth, clientHeight)
-  }
-
   private updateHud(): void {
-    const hour = Math.floor(this.state.timeOfDay * 24)
-    const minute = Math.floor((this.state.timeOfDay * 24 - hour) * 60)
-    const clock = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-
-    this.hud.innerHTML = `
-      <h1>Nightspire — foundation</h1>
-      <p>Graybox only. Astra should extend the systems, not replace the project with speculative feature stubs.</p>
-      <dl>
-        <dt>Day</dt><dd>${this.state.day}</dd>
-        <dt>Time</dt><dd>${clock}</dd>
-        <dt>Settlers</dt><dd>${this.state.settlers}</dd>
-        <dt>Enemies</dt><dd>${this.state.enemies}</dd>
-      </dl>
-    `
+    this.hud.update(this.simulation.state, { paused: this.paused, selectedId: this.selectedId, buildType: this.buildType, message: this.message, camera: this.renderer.mode, metrics: this.metrics })
   }
 }

@@ -1,32 +1,17 @@
-import type { ResourceId } from './resources'
+import type { Inventory } from './resources'
 
-export type BuildingId =
-  | 'house'
-  | 'woodcutter'
-  | 'forager'
-  | 'stockpile'
-  | 'blacksmith'
-  | 'tavern'
-  | 'guard-post'
-  | 'wood-wall'
-  | 'wood-gate'
-
+export type BuildingId = 'house' | 'stockpile'
 export interface BuildingDefinition {
   id: BuildingId
   label: string
-  buildCost: Partial<Record<ResourceId, number>>
-  workerSlots: number
-  hitPoints: number
+  footprint: number
+  buildCost: Inventory
+  constructionWork: number
+  housing: number
+  storage: number
+  color: number
 }
-
-export const BUILDINGS: readonly BuildingDefinition[] = [
-  { id: 'house', label: 'House', buildCost: { wood: 20 }, workerSlots: 0, hitPoints: 160 },
-  { id: 'woodcutter', label: 'Woodcutter', buildCost: { wood: 25 }, workerSlots: 2, hitPoints: 140 },
-  { id: 'forager', label: 'Forager Hut', buildCost: { wood: 20 }, workerSlots: 2, hitPoints: 120 },
-  { id: 'stockpile', label: 'Stockpile', buildCost: { wood: 10 }, workerSlots: 0, hitPoints: 100 },
-  { id: 'blacksmith', label: 'Blacksmith', buildCost: { wood: 35, stone: 20 }, workerSlots: 2, hitPoints: 220 },
-  { id: 'tavern', label: 'Tavern', buildCost: { wood: 40, stone: 15 }, workerSlots: 3, hitPoints: 200 },
-  { id: 'guard-post', label: 'Guard Post', buildCost: { wood: 30, stone: 10 }, workerSlots: 4, hitPoints: 240 },
-  { id: 'wood-wall', label: 'Wooden Wall', buildCost: { wood: 8 }, workerSlots: 0, hitPoints: 260 },
-  { id: 'wood-gate', label: 'Wooden Gate', buildCost: { wood: 30 }, workerSlots: 0, hitPoints: 500 },
-]
+export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
+  house: { id: 'house', label: 'House', footprint: 3, buildCost: { wood: 20, food: 0 }, constructionWork: 12, housing: 4, storage: 0, color: 0xb89973 },
+  stockpile: { id: 'stockpile', label: 'Stockpile', footprint: 3, buildCost: { wood: 10, food: 0 }, constructionWork: 8, housing: 0, storage: 400, color: 0x8a9eaa },
+}

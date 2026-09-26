@@ -69,3 +69,7 @@ Do not optimize toward 1000 agents by degrading the actual 50-agent game experie
 ## Benchmark requirement
 
 Any major claim such as “supports 500 settlers” should link to a repeatable benchmark configuration, measured build/commit and captured counters.
+
+## M1 measurements
+
+See [QA.md](QA.md) for the 2026-09-26 ten-settler browser samples, measurement caveats and bottlenecks. The HUD exposes frame interval, smoothed simulation/render submission CPU, draw calls, triangles, active jobs/population, path requests/solves per frame, queue depth, path failures and dropped catch-up time. Navigation is capped at two solves per simulation tick; no larger-population performance claim is made.
