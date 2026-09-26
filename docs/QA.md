@@ -562,3 +562,29 @@ New regression cases verify:
 ### Architectural boundary
 
 M3.9.1 adds `render/ResidentialPresentation.ts` and changes renderer/HUD/tests/docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Visual House offsets do not alter persisted building positions or collision/pathfinding.
+
+
+## M3.9.2 verification target
+
+M3.9.2 keeps the M3.9.1 shared presentation classifier and adds stronger street-character fields without touching planning, persistence or simulation. The automated suite remains **107 tests**; the existing four mixed-shape profile tests now also lock roof orientation, frontage treatment, rear-service identity and courtyard mode.
+
+### Browser workflow
+
+1. Start fresh and build a mixed residential row close to **4×11, 6×8, 9×6 and 10×12**.
+2. Complete all Houses and inspect each property. The inspector now reports roof-front orientation, frontage style, rear-service structure and L/U courtyard mode when relevant.
+3. The 4×11 Long burgage cottage should keep a **gable-front** roof and a visible working side passage rather than looking like the broader Homestead forms.
+4. The 6×8 balanced Homestead should be able to turn the roof **eave-front**, creating a different silhouette from the long burgage cottage.
+5. The 9×6 Broad-front Homestead should read as an eave-front house with a strong horizontal frontage but restrained rear depth.
+6. The 10×12 Burgage courtyard compound should use an eave-front main roof and a visibly stronger secondary side range. Depending on deterministic seed it should read as L or U shaped rather than one large block.
+7. Compare several fresh plots/IDs: front boundaries should vary between open frontage, post pair, hedge, short fence and stronger gate treatment. The street should no longer repeat one fence vocabulary.
+8. For plots with a side passage, verify the road-facing entrance has gateway posts/lintel plus small barrel/log service clutter and the worn lane remains visible toward the rear.
+9. Inspect rear yards from Overview and Street view. Service structures should visibly vary between shed, lean-to, coop, workshop and covered storage instead of repeating the same gabled box.
+10. Gable-front cottage variants should sometimes show a small loft window above the main façade.
+11. Check that the strongest U-courtyard variant does not visibly cross the plot boundary or collapse the central yard.
+12. Save → reload → Load. The same plot IDs must regenerate the exact same roof orientation, frontage style, rear structure and courtyard mode without new save fields.
+13. Enable navigation paths and confirm all M3.9.2 additions remain visual-only.
+14. Run state integrity and compare Draws / triangles / Render submission CPU with M3.9.1.
+
+### Architectural boundary
+
+M3.9.2 changes `render/ResidentialPresentation.ts`, `SceneRenderer.ts`, `Hud.ts`, tests and docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Roof orientation, frontage boundaries, service structures and courtyard wings are renderer-derived and do not change persisted building positions, collision, housing or movement.

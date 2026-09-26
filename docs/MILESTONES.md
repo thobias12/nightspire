@@ -260,6 +260,26 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [ ] live Street-view acceptance across mixed plot shapes
 - [ ] renderer metric sanity check
 
+### M3.9.2 — Burgage frontage & street character
+
+- [x] residential presentation profile now carries gable/eave roof-front orientation
+- [x] long burgage cottages keep gable-front roof identity
+- [x] wide-shallow and wide-deep homes use eave-front roofs for stronger street silhouette contrast
+- [x] balanced/compact plots deterministically mix roof-front orientation
+- [x] frontage treatment varies between open, posts, hedge, short fence and gate
+- [x] side passages receive visible gateway posts/lintel plus service clutter
+- [x] rear service structures vary between shed, lean-to, coop, workshop and covered storage
+- [x] rear structure identity reuses existing backyard/plot seed without new persisted state
+- [x] gable-front houses can add a small loft window for stronger vertical frontage identity
+- [x] wide/deep burgage side wing enlarged to become a substantial secondary range
+- [x] wide/deep properties deterministically choose L- or U-courtyard composition
+- [x] U-courtyard variants add an opposite return wing
+- [x] deterministic setback/lateral variation strengthened modestly without changing collision coordinates
+- [x] HUD inspector reports roof/frontage/service-yard/courtyard presentation state
+- [x] existing 4×11 / 6×8 / 9×6 / 10×12 regression profiles extended to lock new presentation fields
+- [ ] live acceptance: roof orientation, frontage variety, side-passage readability and L/U compound silhouette
+- [ ] renderer metric sanity check
+
 - [ ] traffic-generated path wear
 - [ ] first local-storage/logistics rules
 

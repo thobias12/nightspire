@@ -37,9 +37,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.9.1 · RESIDENTIAL STREET RHYTHM</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">PLOT SHAPE DEFINES THE STREET</span><h1>Narrow lots grow deep. Wide lots spread sideways.</h1>
-        <p>Residential composition now responds to plot shape as well as size: long burgage cottages preserve side passages, broad plots use wider fronts, and deep/wide properties break into L-shaped courtyard compounds instead of stretching one oversized façade.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.9.2 · BURGAGE FRONTAGE & STREET CHARACTER</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">A STREET OF DISTINCT PROPERTIES</span><h1>Roofs, thresholds and service yards now tell different stories.</h1>
+        <p>Long burgage cottages keep gable fronts and working passages, broader homes can turn the roof eave to the street, front boundaries vary from open to hedge/fence/gate treatments, and deep burgage properties strengthen into L/U-shaped courtyard compounds with varied rear service buildings.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -51,7 +51,7 @@ export class Hud {
         <h3>Stock targets</h3>
         <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label><label>Ore <input class="number-input" aria-label="Ore stock target" type="number" min="0" max="10000" step="5" data-action="target-ore"></label></div>
         <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="resources-ore">+30 ore</button><button data-action="spawn">Spawn settler</button></div>
-        <button data-action="town-visual">Stage M3.9.1 street-rhythm visual target</button>
+        <button data-action="town-visual">Stage M3.9.2 burgage-frontage visual target</button>
         <button data-action="immigration-test">Test immigration now</button>
         <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
         <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
@@ -65,7 +65,7 @@ export class Hud {
       <footer class="bottom"><div class="toolbar panel">
         <div class="build-group"><span>Town planning</span>
           <button data-action="road" title="Hotkey 0 · Grid Snap gives aligned segments">[0] Road <small>Aligned or freeform persistent road</small></button>
-          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Shape-driven house · compound yard</small></button>
+          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Shape-driven frontage · lived-in compound</small></button>
         </div>
         <div class="build-group"><span>Snapping</span>
           <button data-action="grid-snap" title="Hotkey G · affects road and plot geometry">Grid Snap [G]</button>
@@ -192,7 +192,9 @@ export class Hud {
             const profile = residentialPresentationProfile(residentialPlot)
             const frontage = residentialFrontage(residentialPlot)
             const passage = profile.sidePassage === 0 ? '' : ' · side passage'
+            const courtyard = profile.courtyard === 'none' ? '' : ' · ' + profile.courtyard.toUpperCase() + '-courtyard'
             return '<br><b>' + profile.label + '</b> · ' + frontage.toFixed(1) + 'm frontage × ' + residentialPlot.depth.toFixed(1) + 'm depth · ' + residentialPlot.backyard + passage
+              + '<br><span class="muted">' + profile.roofFront + '-front roof · ' + profile.frontageStyle + ' frontage · ' + profile.rearStructure + courtyard + '</span>'
           })()
         : ''
       let details = ''
