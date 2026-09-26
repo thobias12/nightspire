@@ -99,9 +99,8 @@ export function placeBuilding(s: WorldState, type: BuildingId, p: Point, rotatio
       wall.maxHealth = gate.maxHealth
       wall.destroyed = false
       wall.lastHitTick = 0
-      wall.delivered.wood = Math.min(wall.delivered.wood, gate.buildCost.wood)
-      wall.delivered.food = 0
-      wall.delivered.ale = 0
+      for (const resource of RESOURCE_IDS) wall.delivered[resource] = 0
+      wall.delivered.wood = Math.min(5, gate.buildCost.wood)
       wall.serviceProgress = 0
       wall.productionProgress = 0
       s.topology++
