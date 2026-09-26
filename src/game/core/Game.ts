@@ -22,13 +22,13 @@ import {
   backyardForPlot,
   buildingPlacementPreview,
   insertRoadJunctionPoint,
-  normalizeRoadPoints,
   residentialPlotBuildingError,
   residentialPlotError,
   residentialPlotPreview,
   residentialPlotResourceError,
   roadPlacementError,
-  snapRoadControlPoint,
+  sampleRoadCurve,
+  snapRoadPlacementPoint,
   type ResidentialPlotPreview,
 } from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
@@ -47,7 +47,12 @@ export class Game {
   private buildRotation = 0
   private planningTool: 'road' | 'residential-plot' | null = null
   private planningStart: Point | null = null
+  private roadControls: Point[] = []
   private roadDraft: Point[] = []
+  private roadHover: Point | null = null
+  private roadWidth = 1.7
+  private roadCurvature = 0.7
+  private roadJoinSnap = true
   private plotDraft: ResidentialPlotPreview | null = null
   private pointer: Point | null = null
   private rawPointer: Point | null = null
@@ -83,12 +88,22 @@ export class Game {
       ) return
       this.pointer = point
 
-      if (this.planningTool === 'road' && this.planningStart && precise) {
-        if (this.gridSnap) {
-          const end = snapRoadControlPoint(this.simulation.state.roads, precise, this.planningStart, true)
-          this.roadDraft = normalizeRoadPoints([this.planningStart, end])
+      if (this.planningTool === 'road' && precise) {
+        const hover = snapRoadPlacementPoint(
+          this.simulation.state.roads,
+          precise,
+          this.gridSnap,
+          this.roadJoinSnap,
+        )
+        this.roadHover = hover
+        if (this.roadControls.length) {
+          const last = this.roadControls[this.roadControls.length - 1]
+          const previewControls = Math.hypot(hover.x - last.x, hover.z - last.z) > 0.08
+            ? [...this.roadControls, hover]
+            : [...this.roadControls]
+          this.roadDraft = sampleRoadCurve(previewControls, this.roadCurvature)
         } else {
-          this.roadDraft = normalizeRoadPoints([...this.roadDraft, precise])
+          this.roadDraft = []
         }
       } else if (this.planningTool === 'residential-plot' && this.planningStart && precise) {
         this.plotDraft = residentialPlotPreview(
@@ -105,7 +120,7 @@ export class Game {
       this.updateGhost()
     }, { signal })
     this.renderer.canvas.addEventListener('pointerleave', () => {
-      if (this.dragStart || this.planningStart) return
+      if (this.dragStart || this.planningStart || this.roadControls.length) return
       this.pointer = null
       this.rawPointer = null
       this.updateGhost()
@@ -113,17 +128,18 @@ export class Game {
     this.renderer.canvas.addEventListener('pointerdown', e => {
       if (e.button !== 0) return
 
-      if (this.planningTool) {
+      if (this.planningTool === 'road') {
+        this.renderer.canvas.focus()
+        return
+      }
+
+      if (this.planningTool === 'residential-plot') {
         const raw = this.renderer.worldPointPrecise(e.clientX, e.clientY)
         if (!raw) return
         this.renderer.canvas.focus()
-        const point = this.planningTool === 'road'
-          ? snapRoadControlPoint(this.simulation.state.roads, raw, null, this.gridSnap)
-          : raw
-        this.planningStart = point
-        this.pointer = point
+        this.planningStart = raw
+        this.pointer = raw
         this.rawPointer = raw
-        this.roadDraft = this.planningTool === 'road' ? [point] : []
         this.plotDraft = null
         this.renderer.canvas.setPointerCapture(e.pointerId)
         this.updateGhost()
@@ -145,64 +161,43 @@ export class Game {
     this.renderer.canvas.addEventListener('pointerup', e => {
       if (e.button !== 0) return
 
-      if (this.planningStart && this.planningTool) {
+      if (this.planningStart && this.planningTool === 'residential-plot') {
         const s = this.simulation.state
         const rawEnd = this.renderer.worldPointPrecise(e.clientX, e.clientY) ?? this.rawPointer ?? this.pointer ?? this.planningStart
+        const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap, s.residentialPlots)
+        let error = residentialPlotError(preview, s.residentialPlots)
+        if (!error) error = residentialPlotBuildingError(preview, s.buildings)
+        if (!error) error = residentialPlotResourceError(preview, s.nodes)
+        if (!error && preview) error = placementError(s, 'house', preview.housePoint)
 
-        if (this.planningTool === 'road') {
-          const end = this.gridSnap
-            ? snapRoadControlPoint(s.roads, rawEnd, this.planningStart, true)
-            : snapRoadControlPoint(s.roads, rawEnd, null, false)
-          const points = this.gridSnap
-            ? normalizeRoadPoints([this.planningStart, end])
-            : normalizeRoadPoints([...this.roadDraft, end])
-          const error = roadPlacementError(points)
-          if (error) {
-            this.message = error
-          } else {
-            const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
-            insertRoadJunctionPoint(s.roads, points[0])
-            insertRoadJunctionPoint(s.roads, points[points.length - 1])
-            s.roads.push({ id: s.nextId++, points, width: 1.7 })
-            this.message = 'Road placed · ' + length.toFixed(1) + 'm. Junctions lock to exact existing road centerlines.'
-          }
+        if (error || !preview) {
+          this.message = error ?? 'Could not create that residential plot.'
         } else {
-          const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap, s.residentialPlots)
-          let error = residentialPlotError(preview, s.residentialPlots)
-          if (!error) error = residentialPlotBuildingError(preview, s.buildings)
-          if (!error) error = residentialPlotResourceError(preview, s.nodes)
-          if (!error && preview) error = placementError(s, 'house', preview.housePoint)
-
-          if (error || !preview) {
-            this.message = error ?? 'Could not create that residential plot.'
+          const before = s.nextId
+          const houseError = placeBuilding(s, 'house', preview.housePoint, preview.houseRotation)
+          if (houseError) {
+            this.message = houseError
           } else {
-            const before = s.nextId
-            const houseError = placeBuilding(s, 'house', preview.housePoint, preview.houseRotation)
-            if (houseError) {
-              this.message = houseError
-            } else {
-              const house = s.buildings.find(building => building.id === before)!
-              const plotId = s.nextId++
-              s.residentialPlots.push({
-                id: plotId,
-                buildingId: house.id,
-                roadId: preview.roadId,
-                frontageA: { ...preview.frontageA },
-                frontageB: { ...preview.frontageB },
-                depth: preview.depth,
-                side: preview.side,
-                angle: preview.angle,
-                backyard: backyardForPlot(plotId, preview.depth),
-              })
-              this.selectedId = house.id
-              this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
-                + (preview.adjacentSnapped ? ' Frontage snapped flush to the neighboring plot.' : ' The house will face the road and keep the rear yard.')
-            }
+            const house = s.buildings.find(building => building.id === before)!
+            const plotId = s.nextId++
+            s.residentialPlots.push({
+              id: plotId,
+              buildingId: house.id,
+              roadId: preview.roadId,
+              frontageA: { ...preview.frontageA },
+              frontageB: { ...preview.frontageB },
+              depth: preview.depth,
+              side: preview.side,
+              angle: preview.angle,
+              backyard: backyardForPlot(plotId, preview.depth),
+            })
+            this.selectedId = house.id
+            this.message = 'Residential plot planned · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
+              + (preview.adjacentSnapped ? ' Frontage snapped flush to the neighboring plot.' : ' The house will face the road and keep the rear yard.')
           }
         }
 
         this.planningStart = null
-        this.roadDraft = []
         this.plotDraft = null
         this.rawPointer = null
         this.suppressClick = true
@@ -231,6 +226,14 @@ export class Game {
       this.updateHud()
       e.preventDefault()
     }, { signal })
+    this.renderer.canvas.addEventListener('contextmenu', e => {
+      if (this.planningTool !== 'road') return
+      e.preventDefault()
+      this.undoRoadPoint()
+      this.updateGhost()
+      this.updateHud()
+    }, { signal })
+
     this.renderer.canvas.addEventListener('click', e => {
       if (this.suppressClick) {
         this.suppressClick = false
@@ -241,6 +244,28 @@ export class Game {
       const p = precise ? { x: Math.round(precise.x), z: Math.round(precise.z) } : null
       if (!p || !precise) return
       const s = this.simulation.state
+      if (this.planningTool === 'road') {
+        const point = snapRoadPlacementPoint(s.roads, precise, this.gridSnap, this.roadJoinSnap)
+        this.roadHover = point
+
+        if (e.detail >= 2 && this.roadControls.length) {
+          const last = this.roadControls[this.roadControls.length - 1]
+          if (Math.hypot(point.x - last.x, point.z - last.z) > 0.35) this.roadControls.push(point)
+          this.finishRoadDraft(false)
+        } else {
+          const last = this.roadControls[this.roadControls.length - 1]
+          if (!last || Math.hypot(point.x - last.x, point.z - last.z) > 0.35) this.roadControls.push(point)
+          this.roadDraft = sampleRoadCurve(this.roadControls, this.roadCurvature)
+          this.message = this.roadControls.length === 1
+            ? 'Road start placed. Move the cursor and click to add another point.'
+            : this.roadControls.length + ' road points · click to continue · double-click or Enter to finish.'
+        }
+
+        this.updateGhost()
+        this.updateHud()
+        e.preventDefault()
+        return
+      }
       if (this.buildType) {
         const type = this.buildType
         const preview = buildingPlacementPreview(s.roads, precise, type, this.roadSnap, this.buildRotation)
@@ -277,6 +302,42 @@ export class Game {
         e.preventDefault()
         this.action('residential-plot')
         return
+      }
+      if (this.planningTool === 'road') {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          this.finishRoadDraft(true)
+          this.updateGhost()
+          this.updateHud()
+          return
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault()
+          this.undoRoadPoint()
+          this.updateGhost()
+          this.updateHud()
+          return
+        }
+        if (e.key.toLowerCase() === 'j') {
+          e.preventDefault()
+          this.action('road-join-snap')
+          return
+        }
+        if (e.key.toLowerCase() === 'c') {
+          e.preventDefault()
+          this.action('road-curvature')
+          return
+        }
+        if (e.key === ']') {
+          e.preventDefault()
+          this.action('road-width-next')
+          return
+        }
+        if (e.key === '[') {
+          e.preventDefault()
+          this.action('road-width-prev')
+          return
+        }
       }
       const hotkeys: Record<string, BuildingId> = {
         '2': 'stockpile',
@@ -331,7 +392,7 @@ export class Game {
   }
   private replaceWorld(text: string): void {
     this.simulation.replace(deserializeWorld(text))
-    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControls = []; this.roadDraft = []; this.roadHover = null; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
   }
   private exportSave(): void {
     const blob = new Blob([serializeWorld(this.simulation.state)], { type: 'application/json' })
@@ -339,6 +400,71 @@ export class Game {
     link.href = url; link.download = 'nightspire-day-' + this.simulation.state.day + '.json'
     document.body.append(link); link.click(); link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
+  private roadWidthLabel(): string {
+    if (this.roadWidth < 1.45) return 'Path'
+    if (this.roadWidth < 2.05) return 'Road'
+    return 'Main road'
+  }
+
+  private finishRoadDraft(includeHover: boolean): void {
+    if (this.planningTool !== 'road') return
+    const s = this.simulation.state
+    const controls = [...this.roadControls]
+    const last = controls[controls.length - 1]
+    if (
+      includeHover
+      && this.roadHover
+      && last
+      && Math.hypot(this.roadHover.x - last.x, this.roadHover.z - last.z) > 0.35
+    ) {
+      controls.push(this.roadHover)
+    }
+
+    const points = sampleRoadCurve(controls, this.roadCurvature)
+    const error = roadPlacementError(points)
+    if (error) {
+      this.message = error
+      return
+    }
+
+    // Every snapped control point can be a deliberate junction, not only the
+    // first/last point. This matches the point-planner expectation that clicking an
+    // existing centerline creates a real connection before the new sampled road is saved.
+    for (const control of controls) insertRoadJunctionPoint(s.roads, control)
+    s.roads.push({ id: s.nextId++, points, width: this.roadWidth })
+
+    const length = points.slice(1).reduce(
+      (sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z),
+      0,
+    )
+    this.roadControls = []
+    this.roadDraft = []
+    this.roadHover = null
+    this.message = this.roadWidthLabel() + ' placed · ' + length.toFixed(1)
+      + 'm · road tool stays active. Click to start another road.'
+  }
+
+  private undoRoadPoint(): void {
+    if (this.planningTool !== 'road') return
+    if (this.roadControls.length === 0) {
+      this.message = 'No road point to remove.'
+      return
+    }
+    this.roadControls.pop()
+    if (this.roadControls.length === 0) {
+      this.roadDraft = []
+      this.roadHover = null
+      this.message = 'Road draft cleared. Click to place a new start point.'
+      return
+    }
+    const controls = this.roadHover
+      ? [...this.roadControls, this.roadHover]
+      : [...this.roadControls]
+    this.roadDraft = sampleRoadCurve(controls, this.roadCurvature)
+    this.message = 'Removed last road point · ' + this.roadControls.length + ' committed point'
+      + (this.roadControls.length === 1 ? '' : 's') + ' remain.'
   }
   private readonly action = (action: string, value?: string): void => {
     const s = this.simulation.state
@@ -348,14 +474,14 @@ export class Game {
           this.buildType = null
           this.planningTool = 'road'
           this.planningStart = null
+          this.roadControls = []
           this.roadDraft = []
+          this.roadHover = null
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
-          this.message = this.gridSnap
-            ? 'Road tool · Grid Snap ON: each drag creates a clean 0°/45°/90° segment. Press G for freeform.'
-            : 'Road tool · Grid Snap OFF: click-drag a freeform road. Press G for aligned roads.'
+          this.message = 'Road tool · click points to draw a smooth road · double-click/Enter finishes · right-click/Backspace undoes · J toggles road joins · C adjusts curvature · [ ] changes width.'
           break
         case 'residential-plot':
           if (s.roads.length === 0) {
@@ -365,7 +491,9 @@ export class Game {
           this.buildType = null
           this.planningTool = 'residential-plot'
           this.planningStart = null
+          this.roadControls = []
           this.roadDraft = []
+          this.roadHover = null
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
@@ -376,7 +504,9 @@ export class Game {
           this.buildType = action
           this.planningTool = null
           this.planningStart = null
+          this.roadControls = []
           this.roadDraft = []
+          this.roadHover = null
           this.plotDraft = null
           this.buildRotation = 0
           this.dragStart = null
@@ -395,22 +525,58 @@ export class Game {
           break
         case 'grid-snap':
           this.gridSnap = !this.gridSnap
-          this.message = 'Grid Snap ' + (this.gridSnap ? 'ON · roads prefer 0°/45°/90° and plot dimensions snap to 1m.' : 'OFF · roads and plot dimensions are freeform.')
-          if (this.planningStart) {
+          this.message = 'Grid Snap ' + (this.gridSnap
+            ? 'ON · road control points and plot dimensions snap to the 1m grid; road curves stay smooth.'
+            : 'OFF · road control points and plots use freeform dimensions.')
+          if (this.planningTool === 'residential-plot' && this.planningStart) {
             this.planningStart = null
-            this.roadDraft = []
             this.plotDraft = null
+          }
+          if (this.planningTool === 'road' && this.roadControls.length) {
+            const controls = this.roadHover ? [...this.roadControls, this.roadHover] : [...this.roadControls]
+            this.roadDraft = sampleRoadCurve(controls, this.roadCurvature)
           }
           break
         case 'road-snap':
           this.roadSnap = !this.roadSnap
           this.message = 'Road Snap ' + (this.roadSnap ? 'ON · conventional buildings magnetically align and face nearby roads.' : 'OFF · conventional buildings use manual grid placement/rotation.')
           break
+        case 'road-join-snap':
+          this.roadJoinSnap = !this.roadJoinSnap
+          this.message = 'Road Join Snap ' + (this.roadJoinSnap
+            ? 'ON · road points magnetically connect to existing road endpoints/centerlines.'
+            : 'OFF · road points stay where you place them.')
+          break
+        case 'road-curvature': {
+          const levels = [0, 0.35, 0.7, 1]
+          const index = levels.findIndex(level => Math.abs(level - this.roadCurvature) < 0.01)
+          this.roadCurvature = levels[(index + 1 + levels.length) % levels.length]
+          if (this.roadControls.length) {
+            const controls = this.roadHover ? [...this.roadControls, this.roadHover] : [...this.roadControls]
+            this.roadDraft = sampleRoadCurve(controls, this.roadCurvature)
+          }
+          this.message = 'Road curvature ' + Math.round(this.roadCurvature * 100) + '% · C cycles straight → gentle → smooth → organic.'
+          break
+        }
+        case 'road-width-next':
+        case 'road-width-prev': {
+          const widths = [1.2, 1.7, 2.4]
+          let index = widths.findIndex(width => Math.abs(width - this.roadWidth) < 0.01)
+          if (index < 0) index = 1
+          index = action === 'road-width-next'
+            ? (index + 1) % widths.length
+            : (index - 1 + widths.length) % widths.length
+          this.roadWidth = widths[index]
+          this.message = this.roadWidthLabel() + ' width selected · ' + this.roadWidth.toFixed(1) + 'm.'
+          break
+        }
         case 'cancel':
           this.buildType = null
           this.planningTool = null
           this.planningStart = null
+          this.roadControls = []
           this.roadDraft = []
+          this.roadHover = null
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
@@ -671,7 +837,7 @@ export class Game {
           const imported = deserializeWorld(value)
           const serialized = serializeWorld(imported)
           this.storePrimary(serialized)
-          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControls = []; this.roadDraft = []; this.roadHover = null; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
           this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
           break
         }
@@ -683,12 +849,25 @@ export class Game {
   }
   private updateGhost(): void {
     if (this.planningTool === 'road') {
-      const points = this.planningStart ? this.roadDraft : []
+      const points = this.roadControls.length ? this.roadDraft : []
       const error = points.length >= 2 ? roadPlacementError(points) : null
-      this.renderer.showRoadGhost(points, !error, this.gridSnap)
-      if (this.planningStart) {
-        const length = points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z), 0)
-        this.message = error ?? ('Road preview · ' + length.toFixed(1) + 'm. Release to place.')
+      this.renderer.showRoadGhost(
+        points,
+        !error,
+        this.gridSnap,
+        this.roadWidth,
+        this.roadControls,
+        this.roadHover,
+      )
+      if (this.roadControls.length) {
+        const length = points.slice(1).reduce(
+          (sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.z - points[index].z),
+          0,
+        )
+        this.message = error ?? (
+          'Road preview · ' + length.toFixed(1) + 'm · ' + this.roadWidthLabel() + ' ' + this.roadWidth.toFixed(1)
+          + 'm · curvature ' + Math.round(this.roadCurvature * 100) + '% · click point · double-click/Enter finish.'
+        )
       }
       return
     }
@@ -772,6 +951,10 @@ export class Game {
       planningTool: this.planningTool,
       gridSnap: this.gridSnap,
       roadSnap: this.roadSnap,
+      roadJoinSnap: this.roadJoinSnap,
+      roadWidth: this.roadWidth,
+      roadCurvature: this.roadCurvature,
+      roadControlCount: this.roadControls.length,
       buildRotation: this.buildRotation,
       dragCount: this.dragPoints.length,
       message: this.message,
