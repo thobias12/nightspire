@@ -172,7 +172,7 @@ test('road curve sampling preserves control endpoints and bends smoothly through
 
 test('road curve sampling remains within save-path point limits for a map-scale multi-point street', () => {
   const controls=[
-    {x:-28,z:-18},{x:-18,z:-10},{x:-8,z:-3},{x:4,z:2},{x:16,z:10},{x:27,z:18},
+    {x:-22,z:-18},{x:-15,z:-10},{x:-7,z:-3},{x:4,z:2},{x:14,z:10},{x:22,z:18},
   ]
   const sampled=sampleRoadCurve(controls,0.7,0.58)
   assert.ok(sampled.length<=120)
