@@ -212,7 +212,7 @@ export function deserializeWorld(text: string): WorldState {
       if (settler.health === undefined) Object.assign(settler, { health: 100, maxHealth: 100, attackCooldown: 0 })
       if (settler.lastHitTick === undefined) settler.lastHitTick = 0
       if (settler.needs === undefined) settler.needs = { ...DEFAULT_NEEDS }
-      if (settler.lastMealDay === undefined) settler.lastMealDay = candidate.day
+      if (settler.lastMealDay === undefined) settler.lastMealDay = Math.max(0, candidate.day - 1)
     }
   }
 
@@ -251,6 +251,17 @@ export function deserializeWorld(text: string): WorldState {
     if (candidate.totals.repairWoodUsed === undefined) candidate.totals.repairWoodUsed = 0
     if (candidate.totals.structureDamage === undefined) candidate.totals.structureDamage = 0
     if (candidate.totals.foodConsumed === undefined) candidate.totals.foodConsumed = 0
+  }
+
+  if (
+    candidate && candidate.version === 1
+    && Number.isInteger(candidate.day) && candidate.day >= 1
+    && candidate.totals?.foodConsumed === 0
+    && Array.isArray(candidate.settlers)
+  ) {
+    for (const settler of candidate.settlers) {
+      if (settler.lastMealDay === candidate.day) settler.lastMealDay = Math.max(0, candidate.day - 1)
+    }
   }
 
   validateWorld(candidate)

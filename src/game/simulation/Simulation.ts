@@ -69,6 +69,7 @@ export class Simulation {
     this.navigation.sync(s)
 
     if (isWorkPhase(phase) && s.tick % DECISION_TICKS === 1) {
+      serveDailyMeal(s)
       assignJobs(s)
       assignHousing(s)
     }
@@ -143,7 +144,7 @@ export class Simulation {
       recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
     } else if (next === 'day') {
       assignHousing(s)
-      serveDailyMeal(s)
+      serveDailyMeal(s, true)
       for (const settler of s.settlers) {
         if (settler.jobId === null) {
           settler.path = []
