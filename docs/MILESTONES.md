@@ -97,6 +97,49 @@
 
 **Exit:** settlement layout and production meaningfully affect growth and survival.
 
+## M3.8 — Grounded world vertical slice
+
+Safe to execute while M4 is in progress because it is presentation-first and must avoid Navigation/Jobs/simulation-scale changes.
+
+- [ ] reusable grounded medieval building art kit
+- [ ] House / Tavern / Blacksmith / Stockpile / Guard Post redesign
+- [ ] terrain/yard wear and forest-edge composition
+- [ ] presentation-only dirt road/path prototype
+- [ ] lower cinematic settlement camera preset
+- [ ] player-facing HUD hierarchy/style cleanup
+- [ ] first clearly adult attractive civilian / Tavern entertainer silhouettes
+- [ ] Tavern nightlife ambience/activity pass
+- [ ] screenshot-quality Town Center target at afternoon, dusk, night and street-oblique camera
+
+**Exit:** the current simulation produces a settlement that reads as an authored, lived-in medieval dark-fantasy town rather than a primitive graybox, without changing M4-sensitive behavior.
+
+## M3.9 — Organic settlement structure
+
+Starts after M4 integration because this is expected to touch movement, placement and logistics architecture.
+
+- [ ] road placement
+- [ ] road-influenced movement/logistics
+- [ ] road frontage/alignment
+- [ ] plot-based housing
+- [ ] household grouping
+- [ ] rear-yard extensions
+- [ ] traffic-generated path wear
+- [ ] first local-storage/logistics rules
+
+**Exit:** settlement shape emerges from roads, plots, terrain and household/workplace relationships rather than isolated grid footprints.
+
+## M3.10 — Medieval economy depth
+
+- [ ] richer workplace chains
+- [ ] local input/output storage
+- [ ] markets/trade
+- [ ] household-side production
+- [ ] transport-distance pressure
+- [ ] specialization/upgrades
+- [ ] land-use/seasonal hooks only if compatible with proven scale targets
+
+**Exit:** the player can read and optimize a believable local medieval economy by watching the settlement.
+
 ## M4 — Scale proof
 
 - [ ] benchmark scene
@@ -109,13 +152,18 @@
 
 **Exit:** documented performance envelope and architecture validated before content explosion.
 
-## M5 — Mature city expansion
+## M5 — Mature Nightspire city
 
-Only after M1–M4 are healthy:
+The mature layer becomes a first-class part of Nightspire's identity after the core settlement/scale architecture is healthy.
 
-- bathhouses/hygiene
-- adult brothel/pleasure-house service economy with clearly adult characters
-- markets/trade
-- richer citizen classes
-- more enemy archetypes
-- modular equipment and higher-quality hero characters
+- [ ] Bathhouse / Hygiene / Recreation / Luxury service chain
+- [ ] Tavern nightlife upgrades with clearly adult entertainers and richer evening activity
+- [ ] adult pleasure/courtesan-house service economy with clearly adult staff/patrons
+- [ ] prestige / luxury / district desirability hooks
+- [ ] richer adult citizen classes, clothing and social roles
+- [ ] romance / companionship hooks where they reinforce household/city simulation
+- [ ] noble / decadent / occult district identity
+- [ ] modular equipment and higher-quality player/featured-adult characters
+- [ ] more enemy archetypes and dark-fantasy threats
+
+**Tone:** sensual adult fantasy integrated into a functioning settlement economy; suggestive presentation is sufficient for the city-builder layer and explicit scenes are not required for progression.
