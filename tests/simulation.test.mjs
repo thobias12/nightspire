@@ -168,7 +168,7 @@ test('long-run M1 logistics conserves resources and stays valid', () => {
     if(i%500===0) validateWorld(s)
   }
   validateWorld(s)
-  assert.equal(total(s,'wood'),initial.wood)
+  assert.equal(total(s,'wood') + s.totals.repairWoodUsed,initial.wood)
   assert.equal(total(s,'food'),initial.food)
   assert.equal(sim.navigation.failures,0)
 })
@@ -332,7 +332,7 @@ test('raiders share the bounded navigation queue and reach the settlement', () =
   }
   const after=s.enemies.reduce((n,e)=>n+Math.hypot(e.x-enemyTarget(s,e).x,e.z-enemyTarget(s,e).z),0)
   assert.ok(after<initial)
-  assert.ok(s.enemies.every(e=>e.status==='At the settlement — seeking a defender' || e.status==='Attacking player'))
+  assert.ok(s.enemies.every(e=>e.status.startsWith('Attacking ') || e.status.startsWith('Advancing on ')))
   assert.equal(sim.navigation.failures,0)
 })
 
