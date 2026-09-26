@@ -750,6 +750,49 @@ export class SceneRenderer {
     return { x: frontageMid.x + rear.x, z: frontageMid.z + rear.z }
   }
 
+  private residentialDoorOffset(profile: ResidentialPresentationProfile, seed: number, width: number): number {
+    if (profile.form === 'wide-deep') return -profile.sidePassage * Math.min(0.82, width * 0.2)
+    if (profile.form === 'long-burgage') return -profile.sidePassage * Math.min(0.42, width * 0.16)
+    if (profile.form === 'wide-shallow') return (seed % 2 === 0 ? -1 : 1) * Math.min(0.66, width * 0.16)
+    return ((seed % 3) - 1) * Math.min(profile.tier === 'homestead' ? 0.52 : 0.4, width * 0.17)
+  }
+
+  private residentialVisualPlacement(
+    b: Building,
+    plot: ResidentialPlot,
+    profile: ResidentialPresentationProfile,
+  ): { visualB: Building; doorX: number; frontClearance: number; localX: number } {
+    const width = profile.houseWidth
+    const depth = profile.houseDepth
+    const center = this.plotCenter(plot)
+    const right = this.rotatedOffset(1, 0, plot.angle)
+    const towardRoad = this.rotatedOffset(0, 1, plot.angle)
+    const frontMid = {
+      x: (plot.frontageA.x + plot.frontageB.x) / 2,
+      z: (plot.frontageA.z + plot.frontageB.z) / 2,
+    }
+
+    const bLocalX = (b.x - center.x) * right.x + (b.z - center.z) * right.z
+    const safeHalfWidth = Math.max(0, residentialPlotWidth(plot) / 2 - width / 2 - 0.3)
+    const desiredLocalX = bLocalX + profile.lateralOffset
+    const clampedLocalX = THREE.MathUtils.clamp(desiredLocalX, -safeHalfWidth, safeHalfWidth)
+    const lateralOffset = clampedLocalX - bLocalX
+
+    const frontDistance = (frontMid.x - b.x) * towardRoad.x + (frontMid.z - b.z) * towardRoad.z
+    const maxFrontageOffset = frontDistance - depth / 2 - 0.34
+    const frontageOffset = Math.min(profile.frontageOffset, maxFrontageOffset)
+    const visualOffset = this.rotatedOffset(lateralOffset, frontageOffset, plot.angle)
+    const visualB = { ...b, x: b.x + visualOffset.x, z: b.z + visualOffset.z }
+    const frontClearance = Math.max(0, frontDistance - frontageOffset - depth / 2)
+
+    return {
+      visualB,
+      doorX: this.residentialDoorOffset(profile, plot.id, width),
+      frontClearance,
+      localX: clampedLocalX,
+    }
+  }
+
   private renderResidentialPlot(plot: ResidentialPlot, b: Building, night: number, plots: ResidentialPlot[]): void {
     const width = residentialPlotWidth(plot)
     const profile = residentialPresentationProfile(plot)
@@ -817,23 +860,28 @@ export class SceneRenderer {
 
     if (!b.complete || b.destroyed) return
 
-    // Narrow worn footpath from the road frontage to the house door.
+    // Narrow worn footpath from the road frontage to the *visual* front door.
+    // M3.9 presentation offsets are renderer-only, so deriving the path from the
+    // persisted building anchor can visibly miss the house or clip a frontage fence.
     const frontMid = {
       x: (plot.frontageA.x + plot.frontageB.x) / 2,
       z: (plot.frontageA.z + plot.frontageB.z) / 2,
     }
-    const pathDx = b.x - frontMid.x
-    const pathDz = b.z - frontMid.z
+    const placement = this.residentialVisualPlacement(b, plot, profile)
+    const door = this.rotatedOffset(placement.doorX, profile.houseDepth / 2 + 0.2, plot.angle)
+    const doorPoint = { x: placement.visualB.x + door.x, z: placement.visualB.z + door.z }
+    const pathDx = doorPoint.x - frontMid.x
+    const pathDz = doorPoint.z - frontMid.z
     const pathLength = Math.hypot(pathDx, pathDz)
     if (pathLength > 0.6) {
       this.instance(
         'roadShoulder',
-        (frontMid.x + b.x) / 2,
+        (frontMid.x + doorPoint.x) / 2,
         0.023,
-        (frontMid.z + b.z) / 2,
-        0.46,
+        (frontMid.z + doorPoint.z) / 2,
+        0.42,
         1,
-        pathLength + 0.35,
+        Math.max(0.45, pathLength - 0.16),
         0x8e7958,
         Math.atan2(pathDx, pathDz),
       )
@@ -1410,8 +1458,8 @@ export class SceneRenderer {
     const width = profile?.houseWidth ?? 2.48
     const depth = profile?.houseDepth ?? 2.22
     const wallHeight = profile?.wallHeight ?? 1.86
-    const visualOffset = profile ? this.rotatedOffset(profile.lateralOffset, profile.frontageOffset, rotation) : { x: 0, z: 0 }
-    const visualB: Building = profile ? { ...b, x: b.x + visualOffset.x, z: b.z + visualOffset.z } : b
+    const residentialPlacement = plot && profile ? this.residentialVisualPlacement(b, plot, profile) : null
+    const visualB: Building = residentialPlacement?.visualB ?? b
 
     const plaster = plot
       ? profile?.tier === 'burgage'
@@ -1439,13 +1487,7 @@ export class SceneRenderer {
 
     const seed = plot?.id ?? b.id
     const doorX = profile
-      ? profile.form === 'wide-deep'
-        ? -profile.sidePassage * Math.min(0.82, width * 0.2)
-        : profile.form === 'long-burgage'
-          ? -profile.sidePassage * Math.min(0.42, width * 0.16)
-          : profile.form === 'wide-shallow'
-            ? (seed % 2 === 0 ? -1 : 1) * Math.min(0.66, width * 0.16)
-            : ((seed % 3) - 1) * Math.min(profile.tier === 'homestead' ? 0.52 : 0.4, width * 0.17)
+      ? residentialPlacement?.doorX ?? this.residentialDoorOffset(profile, seed, width)
       : ((seed % 3) - 1) * Math.min(0.48, width * 0.16)
 
     const front = this.rotatedOffset(doorX, depth / 2 + 0.08, rotation)
@@ -1503,15 +1545,16 @@ export class SceneRenderer {
     const chimney = this.rotatedOffset(chimneySide * width * 0.3, -depth * 0.18, rotation)
     this.instance('stone', visualB.x + chimney.x, wallHeight + 0.72, visualB.z + chimney.z, 0.32, 1.45, 0.32, 0x66645f, rotation)
 
-    if (plot && profile && (profile.form === 'wide-shallow' || profile.form === 'wide-deep')) {
+    if (plot && profile && residentialPlacement && (profile.form === 'wide-shallow' || profile.form === 'wide-deep')) {
       const baySide = plot.id % 2 === 0 ? -1 : 1
       const bayWidth = profile.form === 'wide-deep' ? 1.75 : 1.5
       const bayDepth = profile.form === 'wide-deep' ? 1.45 : 1.2
-      const bay = this.rotatedOffset(
-        baySide * Math.min(width * 0.28, 0.92),
-        depth / 2 + bayDepth * 0.22,
-        rotation,
-      )
+      const desiredProjection = profile.form === 'wide-deep' ? 0.38 : 0.28
+      const safeProjection = Math.max(0.08, residentialPlacement.frontClearance - 0.28)
+      const projection = Math.min(desiredProjection, safeProjection)
+      const bayX = baySide * Math.min(width * 0.28, 0.92)
+      const bayZ = depth / 2 - bayDepth / 2 + projection
+      const bay = this.rotatedOffset(bayX, bayZ, rotation)
       this.instance('stone', visualB.x + bay.x, 0.13, visualB.z + bay.z, bayWidth + 0.12, 0.26, bayDepth + 0.12, 0x69645b, rotation)
       this.instance('plaster', visualB.x + bay.x, 0.72, visualB.z + bay.z, bayWidth, 1.24, bayDepth, plaster, rotation)
       this.instance(
@@ -1525,11 +1568,7 @@ export class SceneRenderer {
         this.readableNightColor(roof, night),
         rotation,
       )
-      const bayWindow = this.rotatedOffset(
-        baySide * Math.min(width * 0.28, 0.92),
-        depth / 2 + bayDepth * 0.74,
-        rotation,
-      )
+      const bayWindow = this.rotatedOffset(bayX, bayZ + bayDepth / 2 + 0.08, rotation)
       this.framedWindow(
         visualB.x + bayWindow.x,
         0.92,
@@ -1593,12 +1632,17 @@ export class SceneRenderer {
       )
     }
 
-    if (plot && profile?.form === 'wide-deep') {
+    if (plot && profile?.form === 'wide-deep' && residentialPlacement) {
       const wingSide = -profile.sidePassage
       const wingRotation = rotation + Math.PI / 2
       const wingWidth = profile.courtyard === 'u' ? 2.8 : 2.55
       const wingDepth = 1.82
-      const wing = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.3), depth * 0.08, rotation)
+      const plotHalfW = residentialPlotWidth(plot) / 2
+      const desiredWingX = residentialPlacement.localX + wingSide * (width / 2 + wingDepth * 0.3)
+      const maxWingCenter = Math.max(0.2, plotHalfW - wingDepth / 2 - 0.28)
+      const clampedWingPlotX = THREE.MathUtils.clamp(desiredWingX, -maxWingCenter, maxWingCenter)
+      const wingLocalX = clampedWingPlotX - residentialPlacement.localX
+      const wing = this.rotatedOffset(wingLocalX, -depth * 0.02, rotation)
       this.instance('stone', visualB.x + wing.x, 0.14, visualB.z + wing.z, wingWidth + 0.14, 0.28, wingDepth + 0.14, 0x67635b, wingRotation)
       this.instance('plaster', visualB.x + wing.x, 0.9, visualB.z + wing.z, wingWidth, 1.52, wingDepth, plaster, wingRotation)
       this.instance(
@@ -1612,7 +1656,11 @@ export class SceneRenderer {
         this.readableNightColor(roof, night),
         wingRotation,
       )
-      const wingWindow = this.rotatedOffset(wingSide * (width / 2 + wingDepth * 0.64), depth * 0.08, rotation)
+      const wingWindow = this.rotatedOffset(
+        wingLocalX + wingSide * wingDepth * 0.34,
+        -depth * 0.02,
+        rotation,
+      )
       this.framedWindow(
         visualB.x + wingWindow.x,
         1.08,
@@ -1628,8 +1676,12 @@ export class SceneRenderer {
         const returnSide = -wingSide
         const returnWidth = 2.15
         const returnDepth = 1.5
+        const desiredReturnX = residentialPlacement.localX + returnSide * (width / 2 + returnDepth * 0.26)
+        const maxReturnCenter = Math.max(0.2, plotHalfW - returnDepth / 2 - 0.28)
+        const clampedReturnPlotX = THREE.MathUtils.clamp(desiredReturnX, -maxReturnCenter, maxReturnCenter)
+        const returnLocalX = clampedReturnPlotX - residentialPlacement.localX
         const returnWing = this.rotatedOffset(
-          returnSide * (width / 2 + returnDepth * 0.26),
+          returnLocalX,
           -depth * 0.34,
           rotation,
         )
