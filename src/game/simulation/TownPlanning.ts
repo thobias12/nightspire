@@ -161,6 +161,8 @@ export function sampleRoadCurve(
   if (curvature <= 0.001) return normalizeRoadPoints(controls)
 
   const strength = Math.max(0, Math.min(1, curvature)) * 0.5
+  const approximateLength = roadLength(controls)
+  const effectiveSpacing = Math.max(0.35, sampleSpacing, approximateLength / 90)
   const sampled: Point[] = [{ ...controls[0] }]
 
   for (let segment = 0; segment < controls.length - 1; segment++) {
@@ -169,7 +171,7 @@ export function sampleRoadCurve(
     const p2 = controls[segment + 1]
     const p3 = controls[Math.min(controls.length - 1, segment + 2)]
     const segmentLength = Math.hypot(p2.x - p1.x, p2.z - p1.z)
-    const steps = Math.max(1, Math.ceil(segmentLength / Math.max(0.35, sampleSpacing)))
+    const steps = Math.max(1, Math.ceil(segmentLength / effectiveSpacing))
 
     const m1 = {
       x: (p2.x - p0.x) * strength,
