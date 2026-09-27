@@ -47,7 +47,7 @@ const {
   tradeReputation,
 } = require('../.test-build/game/simulation/Trading.js')
 const {
-  createField, fieldArea, fieldCentroid, fieldPlacementError, pointInPolygon,
+  createField, fieldArea, fieldCentroid, fieldPlacementError, nearestFarmhouseForField, pointInPolygon,
 } = require('../.test-build/game/simulation/FieldPlanning.js')
 const {
   FIELD_GROWTH_DAYS, agricultureSummary, assignFieldsToFarmhouses, farmerFieldAssignment,
@@ -60,7 +60,8 @@ const { atmosphereForTime, constructionVisualStage, damageVisualStage } = requir
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
 const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
 const {
-  backyardForPlot, buildingPlacementPreview, insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
+  backyardForPlot, buildingPlacementPreview, buildingRequiresRoadFrontage, buildingRoadPlacementError,
+  insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
   residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError, sampleRoadCurve,
   snapPointToGrid, snapRoadControlPoint,
 } = require('../.test-build/game/simulation/TownPlanning.js')
@@ -249,14 +250,31 @@ test('Road Snap magnetically positions and faces conventional buildings beside a
   assert.equal(manual.facingAngle,null)
 })
 
-test('Road Snap never overrides walls, gates or Campfire placement', () => {
+test('Road frontage snaps Campfires and conventional buildings but leaves fortifications manual', () => {
   const roads=[{id:21,width:1.7,points:[{x:-10,z:0},{x:10,z:0}]}]
-  for(const type of ['wood-wall','wood-gate','campfire']) {
+  const campfire=buildingPlacementPreview(roads,{x:2.3,z:-1.1},'campfire',true,2)
+  assert.equal(campfire.snappedToRoad,true)
+  assert.equal(campfire.roadId,21)
+  assert.equal(buildingRequiresRoadFrontage('campfire'),true)
+
+  for(const type of ['wood-wall','wood-gate']) {
     const preview=buildingPlacementPreview(roads,{x:2.3,z:-1.1},type,true,2)
     assert.equal(preview.snappedToRoad,false)
     assert.deepEqual(preview.point,{x:2,z:-1})
     assert.equal(preview.rotation,2)
+    assert.equal(buildingRequiresRoadFrontage(type),false)
   }
+  assert.equal(buildingRequiresRoadFrontage('house'),false)
+})
+
+test('road-frontage validation rejects off-road conventional buildings and accepts snapped sites', () => {
+  const roads=[{id:51,width:1.7,points:[{x:-10,z:0},{x:10,z:0}]}]
+  const snapped=buildingPlacementPreview(roads,{x:3.1,z:-2.5},'farmhouse',true,0)
+  assert.equal(snapped.snappedToRoad,true)
+  assert.equal(buildingRoadPlacementError(roads,snapped.point,'farmhouse'),null)
+  assert.match(buildingRoadPlacementError(roads,{x:3,z:-10},'farmhouse'),/road/i)
+  assert.match(buildingRoadPlacementError([],{x:3,z:-3},'market'),/Build a road first/i)
+  assert.equal(buildingRoadPlacementError([],{x:3,z:-3},'wood-wall'),null)
 })
 
 test('curved road sampling preserves endpoints and bends smoothly through control points', () => {
@@ -2752,12 +2770,37 @@ test('M3.11.7 point-drawn fields support irregular Manor Lords-style polygons', 
     {x:14,z:17},
     {x:8,z:15},
   ]
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',4,11,true)
+  s.buildings.push(farmhouse)
+  s.topology++
   assert.equal(fieldPlacementError(points,[],s.buildings,[],s.nodes,[]),null)
-  const field=createField(s.nextId++,points)
+  assert.equal(nearestFarmhouseForField(points,s.buildings).id,farmhouse.id)
+  const field=createField(s.nextId++,points,farmhouse.id)
   assert.ok(fieldArea(points)>40)
   assert.ok(pointInPolygon(fieldCentroid(points),points))
   assert.equal(field.points.length,5)
   assert.ok(field.yield>=8)
+  s.fields.push(field)
+  validateWorld(s)
+})
+
+test('M3.11.7 fields require a nearby Farmhouse and bind to it at placement', () => {
+  const s=createInitialWorldState()
+  for(const node of s.nodes) node.remaining=0
+  const points=[{x:10,z:8},{x:16,z:8},{x:16,z:13},{x:10,z:13}]
+  assert.match(fieldPlacementError(points,[],s.buildings,[],s.nodes,[]),/Farmhouse within 18m/i)
+
+  const far=createBuilding(s.nextId++,'farmhouse',-20,-20,true)
+  s.buildings.push(far)
+  assert.match(fieldPlacementError(points,[],s.buildings,[],s.nodes,[]),/Farmhouse within 18m/i)
+
+  const near=createBuilding(s.nextId++,'farmhouse',6,10,true)
+  s.buildings.push(near)
+  assert.equal(fieldPlacementError(points,[],s.buildings,[],s.nodes,[]),null)
+  assert.equal(nearestFarmhouseForField(points,s.buildings).id,near.id)
+
+  const field=createField(s.nextId++,points,near.id)
+  assert.equal(field.farmhouseId,near.id)
   s.fields.push(field)
   validateWorld(s)
 })
