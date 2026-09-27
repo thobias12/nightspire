@@ -14,6 +14,18 @@ export interface RoadPath {
   width: number
 }
 export type BackyardKind = 'garden' | 'chickens' | 'workyard' | 'firewood'
+export type FieldPhase = 'fallow' | 'sown' | 'growing' | 'ready' | 'harvested'
+export interface FieldPlot extends Point {
+  id: number
+  points: Point[]
+  area: number
+  yield: number
+  phase: FieldPhase
+  work: number
+  growthDays: number
+  lastGrowthDay: number
+  farmhouseId: number | null
+}
 export interface ResidentialPlot {
   id: number
   buildingId: number
@@ -85,7 +97,7 @@ export interface ImmigrationState {
 export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
-  roads: RoadPath[]; residentialPlots: ResidentialPlot[]
+  roads: RoadPath[]; residentialPlots: ResidentialPlot[]; fields: FieldPlot[]
   targets: Inventory; raid: RaidState; immigration: ImmigrationState; trade: TradeState
   totals: {
     gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
@@ -182,7 +194,7 @@ export function createInitialWorldState(): WorldState {
   const state: WorldState = {
     version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
     player: { x: 0, z: 5, health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0 },
-    settlers: [], enemies: [], nodes: [], buildings: [], jobs: [], roads: [], residentialPlots: [],
+    settlers: [], enemies: [], nodes: [], buildings: [], jobs: [], roads: [], residentialPlots: [], fields: [],
     targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID }, immigration: { ...DEFAULT_IMMIGRATION }, trade: defaultTradeState(),
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
