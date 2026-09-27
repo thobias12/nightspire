@@ -1,5 +1,6 @@
 import { FIXED_STEP } from '../data/jobs'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
+import { RESOURCE_IDS, type ResourceId } from '../data/resources'
 import { SceneRenderer } from '../render/SceneRenderer'
 import {
   assignHousing,
@@ -34,6 +35,7 @@ import {
 } from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
+import { nextStockpilePriority, stockpilePriorityLabel } from '../simulation/StockpileLogistics'
 import { haulPriorityLabel, nextHaulPriority } from '../simulation/WorkplaceLogistics'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
@@ -623,6 +625,26 @@ export class Game {
           building.haulPriority = nextHaulPriority(building.haulPriority)
           this.message = BUILDINGS[building.type].label + ' hauling priority set to ' + haulPriorityLabel(building.haulPriority)
             + '. This changes its local input reserve and finished-goods pickup threshold.'
+          break
+        }
+        case 'stockpile-priority': {
+          const building = s.buildings.find(candidate => candidate.id === this.selectedId && candidate.complete && !candidate.destroyed)
+          if (!building || BUILDINGS[building.type].storage <= 0) { this.message = 'Select a completed stockpile first.'; break }
+          building.stockpilePriority = nextStockpilePriority(building.stockpilePriority)
+          this.message = BUILDINGS[building.type].label + ' receiving priority set to ' + stockpilePriorityLabel(building.stockpilePriority)
+            + '. Priority is chosen before distance when Laborers select a destination.'
+          break
+        }
+        case 'stockpile-filter': {
+          const building = s.buildings.find(candidate => candidate.id === this.selectedId && candidate.complete && !candidate.destroyed)
+          const resource = value as ResourceId | undefined
+          if (!building || BUILDINGS[building.type].storage <= 0 || !resource || !RESOURCE_IDS.includes(resource)) {
+            this.message = 'Select a stockpile and a valid resource filter first.'
+            break
+          }
+          building.stockpileFilters[resource] = !building.stockpileFilters[resource]
+          this.message = BUILDINGS[building.type].label + ' now ' + (building.stockpileFilters[resource] ? 'accepts ' : 'rejects ') + resource
+            + '. Existing stock and already-carried deliveries are not discarded.'
           break
         }
         case 'toggle-role': {
