@@ -193,9 +193,10 @@ export class SceneRenderer {
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
-    this.addBatch('fieldFurrow', new THREE.BoxGeometry(1, 0.024, 0.24), 0x654f3a, 4200)
-    this.addBatch('fieldCrop', new THREE.ConeGeometry(0.16, 0.42, 5), 0x70804b, 5600)
-    this.addBatch('fieldEdgeGrass', new THREE.BoxGeometry(1, 0.055, 0.42), 0x708052, 2200)
+    this.addBasicBatch('fieldFurrow', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x6b573f, 4200, 0.34)
+    this.addBatch('fieldCrop', new THREE.ConeGeometry(0.13, 0.4, 5), 0x70804b, 7200)
+    this.addBatch('fieldEdgeGrass', new THREE.BoxGeometry(1, 0.04, 0.18), 0x748356, 2200)
+    this.addBasicBatch('fieldSoilPatch', new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2), 0x80664a, 1800, 0.16)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
@@ -376,7 +377,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -616,14 +617,14 @@ export class SceneRenderer {
 
   private fieldGroundColor(field: FieldPlot): number {
     return field.phase === 'ready'
-      ? 0x8b7550
+      ? 0x887551
       : field.phase === 'growing'
-        ? 0x705b40
+        ? 0x745f45
         : field.phase === 'sown'
-          ? 0x6b533b
+          ? 0x705a42
           : field.phase === 'harvested'
-            ? 0x867052
-            : 0x73583f
+            ? 0x857052
+            : 0x795f46
   }
 
   private syncFieldGrounds(fields: FieldPlot[]): void {
@@ -679,6 +680,30 @@ export class SceneRenderer {
     this.syncFieldGrounds(fields)
 
     for (const field of fields) {
+      // Break up the large polygon with low-contrast soil mottling. These patches are
+      // deterministic so the field never shimmers or changes pattern with camera distance.
+      const minFieldX = Math.min(...field.points.map(point => point.x))
+      const maxFieldX = Math.max(...field.points.map(point => point.x))
+      const minFieldZ = Math.min(...field.points.map(point => point.z))
+      const maxFieldZ = Math.max(...field.points.map(point => point.z))
+      const patchCount = Math.max(4, Math.min(18, Math.round(field.area / 11)))
+      for (let patch = 0; patch < patchCount; patch++) {
+        const seed = field.id * 19.37 + patch * 7.91
+        const u = (Math.sin(seed * 1.31) * 0.5 + 0.5)
+        const v = (Math.cos(seed * 1.77) * 0.5 + 0.5)
+        const point = {
+          x: minFieldX + (maxFieldX - minFieldX) * u,
+          z: minFieldZ + (maxFieldZ - minFieldZ) * v,
+        }
+        if (!pointInPolygon(point, field.points)) continue
+        const radius = 0.75 + (Math.sin(seed * 2.11) * 0.5 + 0.5) * 1.35
+        const patchColor = patch % 3 === 0
+          ? 0x8a7154
+          : patch % 3 === 1
+            ? 0x6f5943
+            : 0x80674c
+        this.instance('fieldSoilPatch', point.x, 0.037, point.z, radius, 1, radius * 0.72, patchColor, seed)
+      }
       let edgeA = field.points[0]
       let edgeB = field.points[1] ?? field.points[0]
       let edgeLength = 0
@@ -717,10 +742,10 @@ export class SceneRenderer {
       const sampleStep = 0.24
 
       const furrowColor = field.phase === 'ready'
-        ? 0x776247
+        ? 0x816b4e
         : field.phase === 'growing'
-          ? 0x654f3a
-          : 0x614a36
+          ? 0x765f47
+          : 0x725b44
       const cropColor = field.phase === 'ready'
         ? 0xc5aa63
         : field.phase === 'growing'
@@ -751,18 +776,18 @@ export class SceneRenderer {
           this.instance(
             'fieldFurrow',
             x + nx * rowJitter,
-            0.05,
+            0.051,
             z + nz * rowJitter,
-            Math.max(0.3, segmentLength * 0.985),
+            Math.max(0.3, segmentLength * 0.97),
             1,
-            1,
+            0.12,
             furrowColor,
             rowRotation,
           )
         }
 
         if (cropScale > 0) {
-          const plantSpacing = field.phase === 'ready' ? 0.52 : field.phase === 'growing' ? 0.62 : 0.72
+          const plantSpacing = field.phase === 'ready' ? 0.46 : field.phase === 'growing' ? 0.56 : 0.68
           const plantCount = Math.max(1, Math.floor(segmentLength / plantSpacing))
           for (let plant = 0; plant < plantCount; plant++) {
             const fraction = (plant + 0.5) / plantCount
@@ -771,15 +796,16 @@ export class SceneRenderer {
             const across = n + rowJitter + Math.cos(seed * 1.13) * 0.035
             const px = tx * along + nx * across
             const pz = tz * along + nz * across
-            const variation = 0.86 + (Math.sin(seed * 2.03) * 0.5 + 0.5) * 0.28
+            const variation = 0.78 + (Math.sin(seed * 2.03) * 0.5 + 0.5) * 0.34
+            const sideJitter = Math.sin(seed * 3.71) * 0.045
             this.instance(
               'fieldCrop',
-              px,
-              0.064 + cropScale * variation * 0.21,
-              pz,
-              variation,
+              px + nx * sideJitter,
+              0.06 + cropScale * variation * 0.2,
+              pz + nz * sideJitter,
+              variation * 0.82,
               cropScale * variation,
-              variation,
+              variation * 0.82,
               cropColor,
               seed,
             )
@@ -807,8 +833,8 @@ export class SceneRenderer {
         rowIndex++
       }
 
-      // Manor Lords-like grassy verge: fields read as parcels with a soft green boundary
-      // instead of a black frame or hard tiled edge.
+      // Keep parcel edges soft: sparse grass strips and hedge-like clumps instead
+      // of one continuous dark frame around every field.
       for (let i = 0; i < field.points.length; i++) {
         const a = field.points[i]
         const b = field.points[(i + 1) % field.points.length]
@@ -816,19 +842,27 @@ export class SceneRenderer {
         const dz = b.z - a.z
         const segmentLength = Math.max(0.05, Math.hypot(dx, dz))
         const rotation = Math.atan2(-dz, dx)
-        this.instance(
-          'fieldEdgeGrass',
-          (a.x + b.x) / 2,
-          0.046,
-          (a.z + b.z) / 2,
-          segmentLength,
-          1,
-          1,
-          i % 3 === 0 ? 0x738454 : 0x697b4d,
-          rotation,
-        )
+        const stripCount = Math.max(1, Math.ceil(segmentLength / 4.4))
+        for (let strip = 0; strip < stripCount; strip++) {
+          const startT = strip / stripCount
+          const endT = Math.min(1, startT + 0.62 / stripCount)
+          const midT = (startT + endT) / 2
+          const stripLength = segmentLength * (endT - startT)
+          if (stripLength < 0.25) continue
+          this.instance(
+            'fieldEdgeGrass',
+            a.x + dx * midT,
+            0.043,
+            a.z + dz * midT,
+            stripLength,
+            1,
+            1,
+            (i + strip) % 3 === 0 ? 0x748653 : 0x697b4d,
+            rotation,
+          )
+        }
 
-        const clumps = Math.max(1, Math.floor(segmentLength / 3.2))
+        const clumps = Math.max(1, Math.floor(segmentLength / 2.8))
         for (let j = 0; j < clumps; j++) {
           const t = (j + 0.5) / clumps
           const seed = field.id * 17.13 + i * 5.17 + j * 2.31
