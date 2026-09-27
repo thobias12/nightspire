@@ -376,14 +376,14 @@ export class Simulation {
       if (defenderDistance <= profile.attackRange) {
         enemy.path = []
         enemy.pathRevision = -1
-        enemy.status = profile.label + ' attacking ' + defender.label
+        enemy.status = 'Attacking ' + defender.label + ' — ' + profile.label
         if (enemy.attackCooldown <= 0) {
           enemy.attackCooldown = profile.attackCooldown
           if (defender.settler) damageSettler(s, defender.settler, profile.damage)
           else damagePlayer(s, profile.damage)
         }
       } else {
-        this.move(enemy, defender.point, profile.label + ' engaging ' + defender.label, profile.walkSpeed)
+        this.move(enemy, defender.point, 'Engaging ' + defender.label + ' — ' + profile.label, profile.walkSpeed)
       }
       return
     }
@@ -413,7 +413,7 @@ export class Simulation {
       return
     }
 
-    this.move(enemy, target, profile.label + ' advancing on ' + BUILDINGS[targetBuilding.type].label, profile.walkSpeed)
+    this.move(enemy, target, 'Advancing on ' + BUILDINGS[targetBuilding.type].label + ' — ' + profile.label, profile.walkSpeed)
   }
 
   private move(agent: MovingAgent, target: Point, status: string, speed: number): void {

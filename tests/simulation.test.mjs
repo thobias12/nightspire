@@ -18,7 +18,10 @@ const { blockedCells, cellKey, entrance } = require('../.test-build/game/simulat
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
-const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
+const {
+  RAID_SIZE, RAID_MAX_SIZE, RAID_GROWTH, RAIDER_PROFILES, enemyTarget, enemyTargetBuilding,
+  raidArchetypeForSpawn, raidFrontCountForWave, raidPlanForWave, raidSizeForWave, raiderArchetype,
+} = require('../.test-build/game/simulation/Raid.js')
 const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
 const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
@@ -835,7 +838,73 @@ test('night spawns one deterministic raid per day and does not duplicate it', ()
 test('raid pressure scales from 20 to 40 and caps deterministically', () => {
   assert.deepEqual([1,2,3,4,5,6,7].map(raidSizeForWave),[20,24,28,32,36,40,40])
   assert.equal(RAID_SIZE,20)
+  assert.equal(RAID_GROWTH,4)
   assert.equal(RAID_MAX_SIZE,40)
+})
+
+test('raid plans add deterministic skirmishers, brutes and a second attack front', () => {
+  assert.deepEqual(raidPlanForWave(1),{
+    wave:1,size:20,fronts:1,skirmishers:5,raiders:15,brutes:0,
+  })
+  assert.deepEqual(raidPlanForWave(2),{
+    wave:2,size:24,fronts:2,skirmishers:5,raiders:16,brutes:3,
+  })
+  assert.equal(raidFrontCountForWave(1),1)
+  assert.equal(raidFrontCountForWave(6),2)
+  assert.equal(raidArchetypeForSpawn(1,3),'skirmisher')
+  assert.equal(raidArchetypeForSpawn(2,5),'brute')
+})
+
+test('second-wave raid physically enters from opposite map fronts with encoded archetypes', () => {
+  const s=createInitialWorldState()
+  s.raid.wave=1
+  s.day=2
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+
+  const plan=raidPlanForWave(2)
+  assert.equal(s.enemies.length,plan.size)
+  const edgeXs=new Set(s.enemies.filter(e=>Math.abs(e.x)>=21).map(e=>Math.sign(e.x)))
+  assert.deepEqual([...edgeXs].sort(),[-1,1])
+  const counts={skirmisher:0,raider:0,brute:0}
+  for(const enemy of s.enemies) counts[raiderArchetype(enemy)]++
+  assert.deepEqual(counts,{
+    skirmisher:plan.skirmishers,
+    raider:plan.raiders,
+    brute:plan.brutes,
+  })
+  assert.ok(s.enemies.some(e=>e.maxHealth===RAIDER_PROFILES.brute.maxHealth))
+  validateWorld(s)
+})
+
+test('raider archetypes pressure different settlement targets', () => {
+  const s=createInitialWorldState()
+  const guard=createBuilding(s.nextId++,'guard-post',0,7,true)
+  const wall=createBuilding(s.nextId++,'wood-wall',0,9,true)
+  s.buildings.push(guard,wall); s.topology++
+
+  const skirmisher={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:28,maxHealth:28,attackCooldown:0,lastHitTick:0,
+    x:0,z:11,path:[],pathRevision:-1,status:'test',
+  }
+  const brute={...skirmisher,id:s.nextId++,health:72,maxHealth:72}
+  assert.equal(enemyTargetBuilding(s,skirmisher).id,guard.id)
+  assert.equal(enemyTargetBuilding(s,brute).id,wall.id)
+})
+
+test('raiders actively break from structure pressure to engage nearby defenders', () => {
+  const s=createInitialWorldState()
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  enemy.x=0; enemy.z=5; enemy.path=[]; enemy.pathRevision=-1
+  s.player.x=4; s.player.z=5
+  const beforeX=enemy.x
+  for(let i=0;i<80;i++) sim.step()
+  assert.ok(enemy.x>beforeX)
+  assert.ok(enemy.status.includes('player') || s.player.health<s.player.maxHealth)
+  validateWorld(s)
 })
 
 test('a capped 40-raider wave stays inside the shared path budget', () => {
