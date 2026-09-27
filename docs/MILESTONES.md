@@ -426,9 +426,26 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] no renderer/road changes
 - [ ] live neighborhood-layout acceptance with intentionally covered/uncovered Houses
 
+### M3.11.5 — Household prosperity & home progression
+
+- [x] persistent House prosperity level
+- [x] Level 1 Cottage provides 4 beds
+- [x] Level 2 Established Home provides 5 beds after two qualifying Days
+- [x] Level 3 Prosperous Home provides 6 beds after three stronger qualifying Days
+- [x] Level 2 requires occupancy, Food access, recreation, Safety ≥ 60% and satisfaction ≥ 70%
+- [x] Level 3 requires occupancy, Food access, recreation, Safety ≥ 70% and satisfaction ≥ 80%
+- [x] failed requirements reset the current prosperity streak
+- [x] progression evaluates at most once per Day
+- [x] upgraded bed capacity affects housing and immigration spare-bed calculations
+- [x] housing reassignment preserves existing household membership when capacity changes
+- [x] House inspector shows tier, next tier, streak and current blockers
+- [x] HUD exposes L1/L2/L3 home counts and total bed capacity
+- [x] save/load persists progression state and older saves migrate to Cottage/default counters
+- [x] no renderer/road changes
+- [ ] live acceptance for multi-Day prosperity progression
+
 ### Later M3.11 slices
 
-- [ ] house upgrades/progression
 - [ ] broader market/trade foundation
 - [ ] household-side production
 - [ ] transport-distance pressure
