@@ -182,32 +182,43 @@ export class Hud {
             <button data-build-tab="defense" aria-pressed="false"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
           </div>
 
+          <div class="catalog-tools" aria-label="Planning utilities">
+            <button class="catalog-tool" data-action="grid-snap" title="Hotkey G · shared 1m planning grid">
+              <span class="category-icon" data-art-slot="tool-grid-snap" aria-hidden="true"></span>
+              <span class="catalog-tool-label">Grid Snap</span>
+              <small>[G]</small>
+            </button>
+            <span class="catalog-tool-note">Planning tools use the same 1m grid as roads and fields.</span>
+          </div>
+
           <div class="build-panel is-active" data-build-panel="planning">
             <button class="build-card" data-action="road" title="Hotkey 0 · point-drawn curved road"><span class="build-art-slot" data-art-slot="build-road" aria-hidden="true"></span><span class="build-name">Road</span><small>[0] Draw point by point</small></button>
             <button class="build-card" data-action="residential-plot" title="Hotkey 1 · requires road frontage"><span class="build-art-slot" data-art-slot="build-residential-plot" aria-hidden="true"></span><span class="build-name">Residential Plot</span><small>[1] Road-fronted parcel</small></button>
             <button class="build-card" data-action="field" title="Hotkey P · requires nearby Farmhouse"><span class="build-art-slot" data-art-slot="build-field" aria-hidden="true"></span><span class="build-name">Field</span><small>[P] Irregular crop parcel</small></button>
-            <button class="build-card compact-card" data-action="grid-snap" title="Hotkey G · shared 1m planning grid"><span class="build-art-slot" data-art-slot="tool-grid-snap" aria-hidden="true"></span><span class="build-name">Grid Snap</span><small>[G] Shared planning grid</small></button>
           </div>
 
           <div class="build-panel" data-build-panel="logistics">
-            <button class="build-card" data-action="stockpile" title="Hotkey 2"><span class="build-art-slot" data-art-slot="build-stockpile" aria-hidden="true"></span><span class="build-name">Stockpile</span><small>10 wood · 400 storage</small></button>
-            <button class="build-card" data-action="trading-post" title="Hotkey T"><span class="build-art-slot" data-art-slot="build-trading-post" aria-hidden="true"></span><span class="build-name">Trading Post</span><small>50 wood · 2 Traders</small></button>
+            <button class="build-card" data-action="stockpile" data-building-type="stockpile" title="Hotkey 2"><span class="build-art-slot" data-art-slot="build-stockpile" aria-hidden="true"></span><span class="build-name">Stockpile</span><small>10 wood · 400 storage</small></button>
+            <button class="build-card" data-action="trading-post" data-building-type="trading-post" title="Hotkey T"><span class="build-art-slot" data-art-slot="build-trading-post" aria-hidden="true"></span><span class="build-name">Trading Post</span><small>50 wood · 2 Traders</small></button>
+            <div class="planned-divider"><span>Planned</span></div>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-granary" aria-hidden="true"></span><span class="build-name">Granary</span><small>Planned · food logistics</small></button>
           </div>
 
           <div class="build-panel" data-build-panel="industry">
-            <button class="build-card" data-action="farmhouse" title="Hotkey A"><span class="build-art-slot" data-art-slot="build-farmhouse" aria-hidden="true"></span><span class="build-name">Farmhouse</span><small>45 wood · 3 Farmers</small></button>
-            <button class="build-card" data-action="brewery" title="Hotkey 4"><span class="build-art-slot" data-art-slot="build-brewery" aria-hidden="true"></span><span class="build-name">Brewery</span><small>35 wood · Food → Ale</small></button>
-            <button class="build-card" data-action="blacksmith" title="Hotkey 9"><span class="build-art-slot" data-art-slot="build-blacksmith" aria-hidden="true"></span><span class="build-name">Blacksmith</span><small>45 wood · Ore → Tools</small></button>
+            <button class="build-card" data-action="farmhouse" data-building-type="farmhouse" title="Hotkey A"><span class="build-art-slot" data-art-slot="build-farmhouse" aria-hidden="true"></span><span class="build-name">Farmhouse</span><small>45 wood · 3 Farmers</small></button>
+            <button class="build-card" data-action="brewery" data-building-type="brewery" title="Hotkey 4"><span class="build-art-slot" data-art-slot="build-brewery" aria-hidden="true"></span><span class="build-name">Brewery</span><small>35 wood · Food → Ale</small></button>
+            <button class="build-card" data-action="blacksmith" data-building-type="blacksmith" title="Hotkey 9"><span class="build-art-slot" data-art-slot="build-blacksmith" aria-hidden="true"></span><span class="build-name">Blacksmith</span><small>45 wood · Ore → Tools</small></button>
+            <div class="planned-divider"><span>Planned</span></div>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-bakery" aria-hidden="true"></span><span class="build-name">Bakery</span><small>Planned · processed food</small></button>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-quarry" aria-hidden="true"></span><span class="build-name">Quarry</span><small>Planned · stone</small></button>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-mine" aria-hidden="true"></span><span class="build-name">Mine</span><small>Planned · ore extraction</small></button>
           </div>
 
           <div class="build-panel" data-build-panel="services">
-            <button class="build-card" data-action="campfire" title="Hotkey 3"><span class="build-art-slot" data-art-slot="build-campfire" aria-hidden="true"></span><span class="build-name">Campfire</span><small>10 wood · recreation</small></button>
-            <button class="build-card" data-action="tavern" title="Hotkey 5"><span class="build-art-slot" data-art-slot="build-tavern" aria-hidden="true"></span><span class="build-name">Tavern</span><small>40 wood · Ale service</small></button>
-            <button class="build-card" data-action="market" title="Hotkey M"><span class="build-art-slot" data-art-slot="build-market" aria-hidden="true"></span><span class="build-name">Market</span><small>30 wood · Food stalls</small></button>
+            <button class="build-card" data-action="campfire" data-building-type="campfire" title="Hotkey 3"><span class="build-art-slot" data-art-slot="build-campfire" aria-hidden="true"></span><span class="build-name">Campfire</span><small>10 wood · recreation</small></button>
+            <button class="build-card" data-action="tavern" data-building-type="tavern" title="Hotkey 5"><span class="build-art-slot" data-art-slot="build-tavern" aria-hidden="true"></span><span class="build-name">Tavern</span><small>40 wood · Ale service</small></button>
+            <button class="build-card" data-action="market" data-building-type="market" title="Hotkey M"><span class="build-art-slot" data-art-slot="build-market" aria-hidden="true"></span><span class="build-name">Market</span><small>30 wood · Food stalls</small></button>
+            <div class="planned-divider"><span>Planned</span></div>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-well" aria-hidden="true"></span><span class="build-name">Well</span><small>Planned · water service</small></button>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-chapel" aria-hidden="true"></span><span class="build-name">Chapel</span><small>Planned · faith service</small></button>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-bathhouse" aria-hidden="true"></span><span class="build-name">Bathhouse</span><small>Planned · hygiene & luxury</small></button>
@@ -216,9 +227,10 @@ export class Hud {
           </div>
 
           <div class="build-panel" data-build-panel="defense">
-            <button class="build-card" data-action="guard-post" title="Hotkey 6"><span class="build-art-slot" data-art-slot="build-guard-post" aria-hidden="true"></span><span class="build-name">Guard Post</span><small>25 wood · 2 Guards</small></button>
-            <button class="build-card" data-action="wood-wall" title="Hotkey 7"><span class="build-art-slot" data-art-slot="build-wood-wall" aria-hidden="true"></span><span class="build-name">Wood Wall</span><small>[7] Drag placement</small></button>
-            <button class="build-card" data-action="wood-gate" title="Hotkey 8"><span class="build-art-slot" data-art-slot="build-wood-gate" aria-hidden="true"></span><span class="build-name">Wood Gate</span><small>[8] Wall opening</small></button>
+            <button class="build-card" data-action="guard-post" data-building-type="guard-post" title="Hotkey 6"><span class="build-art-slot" data-art-slot="build-guard-post" aria-hidden="true"></span><span class="build-name">Guard Post</span><small>25 wood · 2 Guards</small></button>
+            <button class="build-card" data-action="wood-wall" data-building-type="wood-wall" title="Hotkey 7"><span class="build-art-slot" data-art-slot="build-wood-wall" aria-hidden="true"></span><span class="build-name">Wood Wall</span><small>[7] Drag placement</small></button>
+            <button class="build-card" data-action="wood-gate" data-building-type="wood-gate" title="Hotkey 8"><span class="build-art-slot" data-art-slot="build-wood-gate" aria-hidden="true"></span><span class="build-name">Wood Gate</span><small>[8] Wall opening</small></button>
+            <div class="planned-divider"><span>Planned</span></div>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-watchtower" aria-hidden="true"></span><span class="build-name">Watchtower</span><small>Planned · ranged defense</small></button>
             <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-barracks" aria-hidden="true"></span><span class="build-name">Barracks</span><small>Planned · military</small></button>
           </div>
@@ -1029,14 +1041,21 @@ export class Hud {
     const roadSnap = this.element.querySelector('[data-action="road-snap"]') as HTMLButtonElement
     const curveLabel = ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
     const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main' : 'Lane'
-    gridSnap.querySelector<HTMLElement>('.build-name')!.textContent = 'Grid Snap ' + (ui.gridSnap ? 'ON' : 'OFF')
+    gridSnap.querySelector<HTMLElement>('.catalog-tool-label')!.textContent = 'Grid Snap ' + (ui.gridSnap ? 'ON' : 'OFF')
     roadCurve.textContent = 'Curve ' + curveLabel + ' [C]'
     roadWidth.textContent = 'Width ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm'
     roadSnap.textContent = 'Road Join ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
     gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
     roadCurve.setAttribute('aria-pressed', String(ui.roadCurve > 0.05))
     roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
-    for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'farmhouse', 'market', 'trading-post', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
+    for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'farmhouse', 'market', 'trading-post', 'wood-wall', 'wood-gate']) {
+      const button = this.element.querySelector<HTMLButtonElement>('[data-action="' + type + '"]')!
+      button.setAttribute('aria-pressed', String(ui.buildType === type))
+      const definition = BUILDINGS[type as BuildingId]
+      const affordable = definition.buildCost.wood <= wood
+      button.classList.toggle('is-unaffordable', !affordable)
+      button.setAttribute('data-affordable', String(affordable))
+    }
     this.element.querySelector('[data-action="field"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'field'))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
