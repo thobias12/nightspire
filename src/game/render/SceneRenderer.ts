@@ -716,15 +716,18 @@ export class SceneRenderer {
     this.instance('scaffold', b.x, postHeight, b.z, 0.12, 0.12, Math.max(0.7, half * 2.25), 0x8b6542, rotation)
     if (stage === 'frame') return
 
-    // Exterior scaffolding arrives only once the structural frame can support it.
-    const scaffoldHeight = def.fortification ? 1.15 : 2.15
+    // Exterior scaffolding grows upward as the crew advances through this stage.
+    const scaffoldProgress = Math.max(0, Math.min(1, (workRatio - 0.45) / 0.2))
+    const fullScaffoldHeight = def.fortification ? 1.15 : 2.15
+    const scaffoldHeight = fullScaffoldHeight * (0.3 + scaffoldProgress * 0.7)
     for (const side of [-1, 1] as const) {
       const a = this.rotatedOffset(side * (half + 0.36), 0, rotation)
       this.instance('scaffold', b.x + a.x, scaffoldHeight / 2, b.z + a.z, 0.08, scaffoldHeight, 0.08, 0x9b7750, rotation)
       const bSide = this.rotatedOffset(0, side * (half + 0.36), rotation)
       this.instance('scaffold', b.x + bSide.x, scaffoldHeight / 2, b.z + bSide.z, 0.08, scaffoldHeight, 0.08, 0x9b7750, rotation)
     }
-    this.instance('scaffold', b.x, 1.0, b.z, Math.max(0.8, half * 2.65), 0.08, 0.08, 0xa07a4f, rotation)
+    const scaffoldDeckY = Math.max(0.25, scaffoldHeight * 0.55)
+    this.instance('scaffold', b.x, scaffoldDeckY, b.z, Math.max(0.8, half * 2.65), 0.08, 0.08, 0xa07a4f, rotation)
     if (stage === 'scaffold') return
 
     const shellProgress = Math.max(0.18, Math.min(1, (workRatio - 0.65) / 0.2))
