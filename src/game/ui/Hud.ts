@@ -49,88 +49,180 @@ export class Hud {
   readonly element = document.createElement('div')
   private readonly abort = new AbortController()
   private rosterPage = 0
+  private buildMenuOpen = false
+  private activeBuildTab = 'planning'
 
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.7 · AGRICULTURE & FARMS</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">SHAPE THE LAND LIKE MANOR LORDS</span><h1>Farm fields are point-drawn polygons, not fixed building tiles.</h1>
-        <p>Place a Farmhouse, assign Farmers, then use the Field tool to click 3–8 corners around the land you want to cultivate. Farmers physically walk to fallow/ready fields to sow and harvest them; crops grow across Days, harvest into Farmhouse storage, then Laborers haul Food into your normal Stockpile and Market network.</p>
-        <div id="objective"></div>
-        <div id="workforce"></div>
-        <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
+      <header class="topbar">
+        <div class="settlement-brand">
+          <span class="ui-crest-slot" data-art-slot="settlement-crest" aria-hidden="true"></span>
+          <div class="settlement-copy">
+            <b>NIGHTSPIRE</b>
+            <div id="settlement-summary" class="settlement-summary"></div>
+          </div>
+        </div>
+        <div id="resources" class="resource-strip" aria-label="Settlement resources"></div>
+        <div class="time-block">
+          <div id="time-readout" class="time-readout"></div>
+          <div class="simulation-controls">
+            <button class="sim-button" data-action="pause" title="Pause / resume simulation"><span class="ui-icon-slot compact" data-icon-slot="time-pause" aria-hidden="true"></span><span>Pause</span></button>
+            <label class="speed-control">Speed
+              <select aria-label="Simulation speed" data-action="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select>
+            </label>
+          </div>
+        </div>
+      </header>
+
+      <details class="settlement-drawer panel">
+        <summary><span class="ui-icon-slot" data-icon-slot="settlement-overview" aria-hidden="true"></span><span>Settlement overview</span></summary>
+        <div class="drawer-body">
+          <div id="objective"></div>
+          <div id="workforce"></div>
+        </div>
+      </details>
+
+      <section class="inspector panel">
+        <div class="panel-kicker"><span class="ui-icon-slot" data-icon-slot="selection" aria-hidden="true"></span><span>Selection</span></div>
+        <div id="inspection">Select something in the world.</div>
       </section>
-      <section class="inspector panel"><span class="eyebrow">INSPECT</span><div id="inspection">Select something in the world.</div></section>
-      <details class="qa panel" open><summary>QA & performance</summary><div class="qa-body">
-        <div class="row"><button data-action="pause">Pause</button><label>Speed <select aria-label="Simulation speed" data-action="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
-        <label>Set hour <input aria-label="Set hour" type="range" min="0" max="23" value="8" data-action="time"></label>
-        <div class="row phase-buttons"><button data-action="jump-day">Day</button><button data-action="jump-dusk">Dusk</button><button data-action="jump-night">Night</button><button data-action="jump-dawn">Dawn</button></div><button data-action="next-raid">Next raid</button>
-        <h3>Stock targets</h3>
-        <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label><label>Ore <input class="number-input" aria-label="Ore stock target" type="number" min="0" max="10000" step="5" data-action="target-ore"></label></div>
-        <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="resources-ore">+30 ore</button><button data-action="spawn">Spawn settler</button></div>
-        <button data-action="town-visual">Stage M3.10.2 road-planner visual target</button>
-        <button data-action="immigration-test">Test immigration now</button>
-        <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
-        <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
-        <label><input type="checkbox" data-action="paths"> Show navigation paths</label>
-        <button data-action="audit">Check state integrity</button>
-        <p><a href="?benchmark=1" target="_blank" rel="noopener">Open M4 scale benchmark (separate QA world)</a></p>
-        <h3>Save tools</h3>
-        <div class="row"><button data-action="export-save">Export JSON</button><button data-action="load-backup">Load backup</button></div>
-        <label>Import JSON <input aria-label="Import save file" type="file" accept=".json,application/json" data-action="import-save"></label>
-        <div id="metrics"></div><div id="workers"></div>
-      </div></details>
-      <footer class="bottom"><div class="toolbar panel">
-        <div class="build-group"><span>Town planning</span>
-          <button data-action="road" title="Hotkey 0 · LMB points · double-click/Enter finish · RMB cancel draft · Esc exit">[0] Road <small>Point-drawn curved road</small></button>
-          <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Shape-driven frontage · lived-in compound</small></button>
+
+      <details class="qa panel">
+        <summary><span class="ui-icon-slot compact" data-icon-slot="developer" aria-hidden="true"></span><span>DEV / QA</span></summary>
+        <div class="qa-body">
+          <label>Set hour <input aria-label="Set hour" type="range" min="0" max="23" value="8" data-action="time"></label>
+          <div class="row phase-buttons"><button data-action="jump-day">Day</button><button data-action="jump-dusk">Dusk</button><button data-action="jump-night">Night</button><button data-action="jump-dawn">Dawn</button></div>
+          <button data-action="next-raid">Next raid</button>
+          <h3>Stock targets</h3>
+          <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label><label>Ore <input class="number-input" aria-label="Ore stock target" type="number" min="0" max="10000" step="5" data-action="target-ore"></label></div>
+          <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="resources-ore">+30 ore</button><button data-action="spawn">Spawn settler</button></div>
+          <button data-action="town-visual">Stage road-planner visual target</button>
+          <button data-action="immigration-test">Test immigration now</button>
+          <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
+          <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
+          <label><input type="checkbox" data-action="paths"> Show navigation paths</label>
+          <button data-action="audit">Check state integrity</button>
+          <p><a href="?benchmark=1" target="_blank" rel="noopener">Open M4 scale benchmark</a></p>
+          <h3>Save tools</h3>
+          <div class="row"><button data-action="export-save">Export JSON</button><button data-action="load-backup">Load backup</button></div>
+          <label>Import JSON <input aria-label="Import save file" type="file" accept=".json,application/json" data-action="import-save"></label>
+          <div id="metrics"></div><div id="workers"></div>
         </div>
-        <div class="build-group"><span>Road controls</span>
-          <button data-action="grid-snap" title="Hotkey G · 1m road control points / plot dimensions">Grid Snap [G]</button>
-          <button data-action="road-curve" title="Hotkey C · cycles Straight / Smooth / Curved">Curve [C]</button>
-          <button data-action="road-width" title="Cycles Path / Lane / Main Road; [ and ] also adjust while drawing">Road width</button>
-          <button data-action="road-snap" title="Hotkey F · road endpoint/centerline joins + conventional building alignment">Road Snap [F]</button>
+      </details>
+
+      <footer class="bottom">
+        <div class="build-catalog panel" aria-hidden="true">
+          <div class="catalog-header">
+            <div><span class="eyebrow">CONSTRUCTION</span><strong>Choose what to place</strong></div>
+            <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
+          </div>
+          <div class="build-tabs" role="tablist" aria-label="Construction categories">
+            <button data-build-tab="planning" aria-pressed="true">Planning</button>
+            <button data-build-tab="logistics" aria-pressed="false">Logistics</button>
+            <button data-build-tab="industry" aria-pressed="false">Industry</button>
+            <button data-build-tab="services" aria-pressed="false">Services</button>
+            <button data-build-tab="defense" aria-pressed="false">Defense</button>
+          </div>
+
+          <div class="build-panel is-active" data-build-panel="planning">
+            <button class="build-card" data-action="road" title="Hotkey 0 · point-drawn curved road"><span class="build-art-slot" data-art-slot="build-road" aria-hidden="true"></span><span class="build-name">Road</span><small>[0] Draw point by point</small></button>
+            <button class="build-card" data-action="residential-plot" title="Hotkey 1 · requires road frontage"><span class="build-art-slot" data-art-slot="build-residential-plot" aria-hidden="true"></span><span class="build-name">Residential Plot</span><small>[1] Road-fronted parcel</small></button>
+            <button class="build-card" data-action="field" title="Hotkey P · requires nearby Farmhouse"><span class="build-art-slot" data-art-slot="build-field" aria-hidden="true"></span><span class="build-name">Field</span><small>[P] Irregular crop parcel</small></button>
+            <button class="build-card compact-card" data-action="grid-snap" title="Hotkey G · shared 1m planning grid"><span class="build-art-slot" data-art-slot="tool-grid-snap" aria-hidden="true"></span><span class="build-name">Grid Snap</span><small>[G] Shared planning grid</small></button>
+          </div>
+
+          <div class="build-panel" data-build-panel="logistics">
+            <button class="build-card" data-action="stockpile" title="Hotkey 2"><span class="build-art-slot" data-art-slot="build-stockpile" aria-hidden="true"></span><span class="build-name">Stockpile</span><small>10 wood · 400 storage</small></button>
+            <button class="build-card" data-action="trading-post" title="Hotkey T"><span class="build-art-slot" data-art-slot="build-trading-post" aria-hidden="true"></span><span class="build-name">Trading Post</span><small>50 wood · 2 Traders</small></button>
+          </div>
+
+          <div class="build-panel" data-build-panel="industry">
+            <button class="build-card" data-action="farmhouse" title="Hotkey A"><span class="build-art-slot" data-art-slot="build-farmhouse" aria-hidden="true"></span><span class="build-name">Farmhouse</span><small>45 wood · 3 Farmers</small></button>
+            <button class="build-card" data-action="brewery" title="Hotkey 4"><span class="build-art-slot" data-art-slot="build-brewery" aria-hidden="true"></span><span class="build-name">Brewery</span><small>35 wood · Food → Ale</small></button>
+            <button class="build-card" data-action="blacksmith" title="Hotkey 9"><span class="build-art-slot" data-art-slot="build-blacksmith" aria-hidden="true"></span><span class="build-name">Blacksmith</span><small>45 wood · Ore → Tools</small></button>
+          </div>
+
+          <div class="build-panel" data-build-panel="services">
+            <button class="build-card" data-action="campfire" title="Hotkey 3"><span class="build-art-slot" data-art-slot="build-campfire" aria-hidden="true"></span><span class="build-name">Campfire</span><small>10 wood · recreation</small></button>
+            <button class="build-card" data-action="tavern" title="Hotkey 5"><span class="build-art-slot" data-art-slot="build-tavern" aria-hidden="true"></span><span class="build-name">Tavern</span><small>40 wood · Ale service</small></button>
+            <button class="build-card" data-action="market" title="Hotkey M"><span class="build-art-slot" data-art-slot="build-market" aria-hidden="true"></span><span class="build-name">Market</span><small>30 wood · Food stalls</small></button>
+          </div>
+
+          <div class="build-panel" data-build-panel="defense">
+            <button class="build-card" data-action="guard-post" title="Hotkey 6"><span class="build-art-slot" data-art-slot="build-guard-post" aria-hidden="true"></span><span class="build-name">Guard Post</span><small>25 wood · 2 Guards</small></button>
+            <button class="build-card" data-action="wood-wall" title="Hotkey 7"><span class="build-art-slot" data-art-slot="build-wood-wall" aria-hidden="true"></span><span class="build-name">Wood Wall</span><small>[7] Drag placement</small></button>
+            <button class="build-card" data-action="wood-gate" title="Hotkey 8"><span class="build-art-slot" data-art-slot="build-wood-gate" aria-hidden="true"></span><span class="build-name">Wood Gate</span><small>[8] Wall opening</small></button>
+          </div>
+
+          <div class="catalog-help">Hotkeys remain active while this menu is closed. Building artwork and icons intentionally use empty <code>data-art-slot</code> / <code>data-icon-slot</code> hooks.</div>
         </div>
-        <div class="build-group"><span>Infrastructure</span>
-          <button data-action="stockpile" title="Hotkey 2">[2] Stockpile <small>10 wood · 400 storage</small></button>
-          <button data-action="campfire" title="Hotkey 3">[3] Campfire <small>10 wood · 6 free slots</small></button>
+
+        <div class="road-context panel">
+          <span class="context-title">Road</span>
+          <button data-action="road-curve" title="Hotkey C">Curve [C]</button>
+          <button data-action="road-width" title="Hotkeys [ and ]">Road width</button>
+          <button data-action="road-snap" title="Hotkey F">Road Join [F]</button>
         </div>
-        <div class="build-group"><span>Agriculture</span>
-          <button data-action="farmhouse" title="Hotkey A">[A] Farmhouse <small>45 wood · 3 Farmers · 60 Food</small></button>
-          <button data-action="field" title="Hotkey P · click polygon corners · Enter/double-click finish">[P] Field <small>Point-drawn irregular crop field</small></button>
+
+        <div class="status" role="status" id="message"></div>
+
+        <div class="command-dock" aria-label="Primary controls">
+          <button class="dock-button primary" data-hud-toggle="build-menu" aria-pressed="false" title="Construction menu">
+            <span class="dock-icon-slot" data-icon-slot="command-build" aria-hidden="true"></span><span>Build</span>
+          </button>
+          <button class="dock-button" data-action="rotate-build" title="Rotate selected blueprint [R]">
+            <span class="dock-icon-slot" data-icon-slot="command-rotate" aria-hidden="true"></span><span>Rotate</span>
+          </button>
+          <button class="dock-button" data-action="cancel" title="Leave placement / inspect [Esc]">
+            <span class="dock-icon-slot" data-icon-slot="command-inspect" aria-hidden="true"></span><span>Inspect</span>
+          </button>
+          <button class="dock-button" data-action="camera" title="Toggle settlement/player camera">
+            <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span>Follow player</span>
+          </button>
+          <button class="dock-button" data-action="cinematic" title="Street view [V]">
+            <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span>Street view</span>
+          </button>
+          <button class="dock-button" data-action="center" title="Center settlement">
+            <span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Center</span>
+          </button>
+          <button class="dock-button" data-action="save" title="Save game">
+            <span class="dock-icon-slot" data-icon-slot="command-save" aria-hidden="true"></span><span>Save</span>
+          </button>
+          <button class="dock-button" data-action="load" title="Load game">
+            <span class="dock-icon-slot" data-icon-slot="command-load" aria-hidden="true"></span><span>Load</span>
+          </button>
         </div>
-        <div class="build-group"><span>Production & services</span>
-          <button data-action="brewery" title="Hotkey 4">[4] Brewery <small>35 wood · Food → Ale · 2 Brewers</small></button>
-          <button data-action="tavern" title="Hotkey 5">[5] Tavern <small>40 wood · 12 Ale-fed slots</small></button>
-          <button data-action="blacksmith" title="Hotkey 9">[9] Blacksmith <small>45 wood · Ore → Tools · 2 Smiths</small></button>
-          <button data-action="market" title="Hotkey M">[M] Market <small>30 wood · 20 Food · 2 Vendors</small></button>
-          <button data-action="trading-post" title="Hotkey T">[T] Trading Post <small>50 wood · 60 cargo · 2 Traders</small></button>
-        </div>
-        <div class="build-group"><span>Defense</span>
-          <button data-action="guard-post" title="Hotkey 6">[6] Guard Post <small>25 wood · 2 guards</small></button>
-          <button data-action="wood-wall" title="Hotkey 7">[7] Wood Wall <small>Drag placement</small></button>
-          <button data-action="wood-gate" title="Hotkey 8">[8] Wood Gate <small>Can replace a wall</small></button>
-        </div>
-        <div class="build-group tools"><span>Tools</span>
-          <button data-action="rotate-build" title="Rotate selected blueprint">Rotate [R]</button>
-          <button data-action="cancel">Inspect / Esc</button>
-          <button data-action="camera">Follow player</button>
-          <button data-action="cinematic" title="Toggle low street-oblique settlement camera">Street view [V]</button>
-          <button data-action="center">Center camp</button>
-          <button data-action="save">Save</button>
-          <button data-action="load">Load</button>
-        </div>
-      </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">0: road · 1: residential plot · P: Farmhouse-linked field · A: Farmhouse · G: shared grid snap · F: road-junction snap · conventional buildings require road frontage · 2–9/M/T: buildings · R: rotate · V: street view · Esc: inspect</div></footer>
+      </footer>
     `
     root.append(this.element)
+    this.syncBuildMenu()
+
     const signal = this.abort.signal
     this.element.addEventListener('click', e => {
-      const roster = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-roster]')
+      const target = e.target as HTMLElement
+      const roster = target.closest<HTMLButtonElement>('button[data-roster]')
       if (roster) { this.rosterPage = Math.max(0, this.rosterPage + Number(roster.dataset.roster)); return }
-      const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]')
+
+      const hudToggle = target.closest<HTMLButtonElement>('button[data-hud-toggle]')
+      if (hudToggle?.dataset.hudToggle === 'build-menu') {
+        this.buildMenuOpen = !this.buildMenuOpen
+        this.syncBuildMenu()
+        return
+      }
+
+      const buildTab = target.closest<HTMLButtonElement>('button[data-build-tab]')
+      if (buildTab?.dataset.buildTab) {
+        this.activeBuildTab = buildTab.dataset.buildTab
+        this.buildMenuOpen = true
+        this.syncBuildMenu()
+        return
+      }
+
+      const button = target.closest<HTMLButtonElement>('button[data-action]')
       if (button) action(button.dataset.action!, button.dataset.value)
     }, { signal })
+
     this.element.addEventListener('change', e => {
       const input = e.target as HTMLInputElement
       if (!input.dataset.action) return
@@ -143,6 +235,23 @@ export class Hud {
       }
       action(input.dataset.action, input.type === 'checkbox' ? String(input.checked) : input.value)
     }, { signal })
+  }
+
+  private syncBuildMenu(): void {
+    const catalog = this.element.querySelector<HTMLElement>('.build-catalog')
+    if (!catalog) return
+    catalog.classList.toggle('is-open', this.buildMenuOpen)
+    catalog.setAttribute('aria-hidden', String(!this.buildMenuOpen))
+
+    for (const button of this.element.querySelectorAll<HTMLButtonElement>('button[data-hud-toggle="build-menu"]')) {
+      button.setAttribute('aria-pressed', String(this.buildMenuOpen))
+    }
+    for (const tab of this.element.querySelectorAll<HTMLButtonElement>('button[data-build-tab]')) {
+      tab.setAttribute('aria-pressed', String(tab.dataset.buildTab === this.activeBuildTab))
+    }
+    for (const panel of this.element.querySelectorAll<HTMLElement>('[data-build-panel]')) {
+      panel.classList.toggle('is-active', panel.dataset.buildPanel === this.activeBuildTab)
+    }
   }
 
   private set(id: string, text: string): void {
@@ -196,9 +305,23 @@ export class Hud {
         return counts
       }, {} as Record<number, number>)
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <span>(${markets.food} market · ${agriculture.farmFood} farm)</span> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length} · ${beds} beds</b> <b>Households ${households.marketCovered}/${households.occupied} supplied</b> <b>Homes L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</b> <b>Gold ${s.trade.gold}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('settlement-summary',
+      '<span>Population ' + s.settlers.length + '/' + MAX_SETTLERS + '</span>'
+      + '<span>Laborers ' + laborers + '</span>'
+      + '<span>Housing ' + housed + '/' + s.settlers.length + '</span>'
+      + '<span>Approval ' + needSummary.happiness + '%</span>'
+    )
+    this.set('resources', `
+      <div class="resource-chip" title="Wood: ${wood}/${s.targets.wood}; ${held} reserved"><span class="ui-icon-slot" data-icon-slot="resource-wood" aria-hidden="true"></span><span class="resource-label">Wood</span><strong>${wood}</strong><small>/${s.targets.wood}</small></div>
+      <div class="resource-chip" title="Food: ${food}/${s.targets.food}; market ${markets.food}; farm ${agriculture.farmFood}"><span class="ui-icon-slot" data-icon-slot="resource-food" aria-hidden="true"></span><span class="resource-label">Food</span><strong>${food}</strong><small>/${s.targets.food}</small></div>
+      <div class="resource-chip" title="Ale"><span class="ui-icon-slot" data-icon-slot="resource-ale" aria-hidden="true"></span><span class="resource-label">Ale</span><strong>${ale}</strong></div>
+      <div class="resource-chip" title="Ore: ${ore}/${s.targets.ore}"><span class="ui-icon-slot" data-icon-slot="resource-ore" aria-hidden="true"></span><span class="resource-label">Ore</span><strong>${ore}</strong><small>/${s.targets.ore}</small></div>
+      <div class="resource-chip" title="Tools"><span class="ui-icon-slot" data-icon-slot="resource-tools" aria-hidden="true"></span><span class="resource-label">Tools</span><strong>${storedTools}</strong></div>
+      <div class="resource-chip" title="Treasury Gold"><span class="ui-icon-slot" data-icon-slot="resource-gold" aria-hidden="true"></span><span class="resource-label">Gold</span><strong>${s.trade.gold}</strong></div>
+    `)
+
     const minutes = Math.floor(s.timeOfDay * 1440)
-    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>${tradingPost ? (merchantHere ? 'Merchant caravan visiting today' : 'Next merchant Day ' + s.trade.nextMerchantDay) + ' · trade reputation ' + reputation + ' · interval ' + merchantIntervalDays(s) + ' Days' : 'Build a Trading Post to unlock Gold trade'}</small>`)
+    this.set('time-readout', `<div><span class="phase phase-${phase}">${phaseLabel(phase)}</span><strong>Day ${s.day}</strong><span>${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}</span>${ui.paused ? '<em>PAUSED</em>' : ''}</div><small>${tradingPost ? (merchantHere ? 'Merchant visiting' : 'Merchant Day ' + s.trade.nextMerchantDay) + ' · Rep ' + reputation : 'No Trading Post'}</small>`)
 
     const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
@@ -430,6 +553,11 @@ export class Hud {
     this.set('workers', '<h3>Settlers</h3>' + paging + s.settlers.slice(start, start + size).map(a => { const morale = happinessEffect(a); return `<div class="worker">${settlerLabel(s, a.id)} · ${professionLabel(s, a)} · ${morale.label} ${happinessOf(a)}% · Work ${Math.round(morale.workRate * toolSummary.workMultiplier * 100)}% · ${escape(a.status)}</div>` }).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
     }
 
+    const inspector = this.element.querySelector<HTMLElement>('.inspector')!
+    inspector.classList.toggle('is-active', ui.selectedId !== null || ui.buildType !== null || ui.planningTool !== null)
+    this.element.querySelector<HTMLElement>('.road-context')!.classList.toggle('is-active', ui.planningTool === 'road')
+    this.element.querySelector<HTMLElement>('#message')!.classList.toggle('is-visible', ui.message.trim().length > 0)
+
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'
     this.element.querySelector('[data-action="camera"]')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
     const cinematic = this.element.querySelector('[data-action="cinematic"]') as HTMLButtonElement
@@ -452,7 +580,8 @@ export class Hud {
     gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
     roadCurve.setAttribute('aria-pressed', String(ui.roadCurve > 0.05))
     roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
-    for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
+    for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'farmhouse', 'market', 'trading-post', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
+    this.element.querySelector('[data-action="field"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'field'))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
     if (document.activeElement !== hour) hour.value = String(Math.floor(s.timeOfDay * 24))
