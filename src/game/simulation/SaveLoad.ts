@@ -67,6 +67,9 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && number(b.productionProgress) && b.productionProgress <= 300
       && integer(b.distributionDay) && b.distributionDay <= s.day
       && integer(b.distributionServed) && b.distributionServed <= MAX_SETTLERS
+      && integer(b.houseLevel) && (b.type === 'house' ? b.houseLevel >= 1 && b.houseLevel <= 3 : b.houseLevel === 0)
+      && integer(b.houseQualifyingDays) && b.houseQualifyingDays <= 3
+      && integer(b.houseLastEvaluationDay) && b.houseLastEvaluationDay <= s.day
       && integer(b.rotation) && b.rotation <= 3
       && ['low', 'normal', 'high'].includes(b.haulPriority)
       && ['low', 'normal', 'high'].includes(b.stockpilePriority)
@@ -334,6 +337,9 @@ export function deserializeWorld(text: string): WorldState {
       if (building.productionProgress === undefined) building.productionProgress = 0
       if (building.distributionDay === undefined) building.distributionDay = 0
       if (building.distributionServed === undefined) building.distributionServed = 0
+      if (building.houseLevel === undefined) building.houseLevel = building.type === 'house' ? 1 : 0
+      if (building.houseQualifyingDays === undefined) building.houseQualifyingDays = 0
+      if (building.houseLastEvaluationDay === undefined) building.houseLastEvaluationDay = 0
       if (building.haulPriority === undefined) building.haulPriority = 'normal'
       if (building.stockpilePriority === undefined) building.stockpilePriority = 'normal'
       if (building.stockpileFilters === undefined) {

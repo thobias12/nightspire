@@ -1,5 +1,6 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
+import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
 import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
@@ -290,7 +291,7 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
 export function assignHousing(s: WorldState): void {
   const beds = s.buildings
     .filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].housing > 0)
-    .flatMap(b => Array<number>(BUILDINGS[b.type].housing).fill(b.id))
+    .flatMap(b => Array<number>(houseBedCapacity(b)).fill(b.id))
   s.settlers.forEach((settler, i) => { settler.homeId = beds[i] ?? null })
 }
 
