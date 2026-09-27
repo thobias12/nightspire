@@ -107,6 +107,7 @@ export class Hud {
         <div class="settlement-brand">
           <span class="ui-crest-slot" data-art-slot="settlement-crest" aria-hidden="true"></span>
           <div class="settlement-copy">
+            <span class="settlement-region">Oakridge</span>
             <b>NIGHTSPIRE</b>
             <div id="settlement-summary" class="settlement-summary"></div>
           </div>
@@ -248,30 +249,34 @@ export class Hud {
         <div class="status" role="status" id="message"></div>
 
         <div class="command-dock" aria-label="Primary controls">
-          <button class="dock-button primary" data-hud-toggle="build-menu" aria-pressed="false" title="Construction menu">
-            <span class="dock-icon-slot" data-icon-slot="command-build" aria-hidden="true"></span><span>Build</span>
-          </button>
-          <button class="dock-button" data-action="rotate-build" title="Rotate selected blueprint [R]">
-            <span class="dock-icon-slot" data-icon-slot="command-rotate" aria-hidden="true"></span><span>Rotate</span>
-          </button>
-          <button class="dock-button" data-action="cancel" title="Leave placement / inspect [Esc]">
-            <span class="dock-icon-slot" data-icon-slot="command-inspect" aria-hidden="true"></span><span>Inspect</span>
-          </button>
-          <button class="dock-button" data-action="camera" title="Toggle settlement/player camera">
-            <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span>Follow player</span>
-          </button>
-          <button class="dock-button" data-action="cinematic" title="Street view [V]">
-            <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span>Street view</span>
-          </button>
-          <button class="dock-button" data-action="center" title="Center settlement">
-            <span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Center</span>
-          </button>
-          <button class="dock-button" data-action="save" title="Save game">
-            <span class="dock-icon-slot" data-icon-slot="command-save" aria-hidden="true"></span><span>Save</span>
-          </button>
-          <button class="dock-button" data-action="load" title="Load game">
-            <span class="dock-icon-slot" data-icon-slot="command-load" aria-hidden="true"></span><span>Load</span>
-          </button>
+          <div class="dock-main-group">
+            <button class="dock-button primary" data-hud-toggle="build-menu" aria-pressed="false" title="Construction menu">
+              <span class="dock-icon-slot" data-icon-slot="command-build" aria-hidden="true"></span><span>Build</span><small></small>
+            </button>
+            <button class="dock-button" data-action="rotate-build" title="Rotate selected blueprint [R]">
+              <span class="dock-icon-slot" data-icon-slot="command-rotate" aria-hidden="true"></span><span>Rotate</span><small>R</small>
+            </button>
+            <button class="dock-button" data-action="cancel" title="Leave placement / inspect [Esc]">
+              <span class="dock-icon-slot" data-icon-slot="command-inspect" aria-hidden="true"></span><span>Inspect</span><small>Esc</small>
+            </button>
+            <button class="dock-button" data-action="camera" title="Toggle settlement/player camera">
+              <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span>Follow player</span><small></small>
+            </button>
+            <button class="dock-button" data-action="cinematic" title="Street view [V]">
+              <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span>Street view</span><small>V</small>
+            </button>
+            <button class="dock-button" data-action="center" title="Center settlement">
+              <span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Center</span><small></small>
+            </button>
+          </div>
+          <div class="dock-utility-group" aria-label="Game utilities">
+            <button class="dock-utility" data-action="save" title="Save game">
+              <span class="dock-icon-slot" data-icon-slot="command-save" aria-hidden="true"></span><span>Save</span>
+            </button>
+            <button class="dock-utility" data-action="load" title="Load game">
+              <span class="dock-icon-slot" data-icon-slot="command-load" aria-hidden="true"></span><span>Load</span>
+            </button>
+          </div>
         </div>
       </footer>
     `
@@ -504,8 +509,8 @@ export class Hud {
       + '<span>Approval ' + needSummary.happiness + '%</span>'
     )
     this.set('resources', `
-      <div class="resource-chip" title="Wood: ${wood}/${s.targets.wood}; ${held} reserved"><span class="ui-icon-slot" data-icon-slot="resource-wood" aria-hidden="true"></span><span class="resource-label">Wood</span><strong>${wood}</strong><small>/${s.targets.wood}</small></div>
-      <div class="resource-chip" title="Food: ${food}/${s.targets.food}; market ${markets.food}; farm ${agriculture.farmFood}"><span class="ui-icon-slot" data-icon-slot="resource-food" aria-hidden="true"></span><span class="resource-label">Food</span><strong>${food}</strong><small>/${s.targets.food}</small></div>
+      <div class="resource-chip ${wood < 10 ? 'is-critical' : ''}" title="Wood: ${wood}/${s.targets.wood}; ${held} reserved"><span class="ui-icon-slot" data-icon-slot="resource-wood" aria-hidden="true"></span><span class="resource-label">Wood</span><strong>${wood}</strong><small>/${s.targets.wood}</small></div>
+      <div class="resource-chip ${food < Math.max(s.settlers.length * 2, 8) ? 'is-critical' : ''}" title="Food: ${food}/${s.targets.food}; market ${markets.food}; farm ${agriculture.farmFood}"><span class="ui-icon-slot" data-icon-slot="resource-food" aria-hidden="true"></span><span class="resource-label">Food</span><strong>${food}</strong><small>/${s.targets.food}</small></div>
       <div class="resource-chip" title="Ale"><span class="ui-icon-slot" data-icon-slot="resource-ale" aria-hidden="true"></span><span class="resource-label">Ale</span><strong>${ale}</strong></div>
       <div class="resource-chip" title="Ore: ${ore}/${s.targets.ore}"><span class="ui-icon-slot" data-icon-slot="resource-ore" aria-hidden="true"></span><span class="resource-label">Ore</span><strong>${ore}</strong><small>/${s.targets.ore}</small></div>
       <div class="resource-chip" title="Tools"><span class="ui-icon-slot" data-icon-slot="resource-tools" aria-hidden="true"></span><span class="resource-label">Tools</span><strong>${storedTools}</strong></div>
@@ -1004,8 +1009,12 @@ export class Hud {
     if (damaged) taskItems.push({ tone: 'warning', icon: 'task-repair', title: damaged + ' damaged structure' + (damaged === 1 ? '' : 's'), detail: 'Repairs need free labor and Wood' })
     if (merchantHere) taskItems.push({ tone: 'info', icon: 'task-trade', title: 'Trade caravan has arrived', detail: s.trade.lastTransactionDay === s.day ? 'Today\'s trade completed' : 'A Trader can complete active policies' })
     if (arriving) taskItems.push({ tone: 'info', icon: 'task-arrival', title: arriving + ' new settler' + (arriving === 1 ? '' : 's') + ' arriving', detail: 'Immigrants are walking into Nightspire' })
-    const eventItems = s.events.slice(0, Math.max(0, 5 - taskItems.length)).map(message => ({ tone: 'event', icon: 'task-event', title: message, detail: 'Recent settlement event' }))
-    const visibleTasks = [...taskItems, ...eventItems].slice(0, 5)
+    const noisyEvent = /(deposited|picked up|gathered|carrying|hauling|delivered|reserved|working at|walking to|collected)\b/i
+    const meaningfulEvents = s.events
+      .filter(message => !noisyEvent.test(message))
+      .slice(0, Math.max(0, 4 - taskItems.length))
+      .map(message => ({ tone: 'event', icon: 'task-event', title: message, detail: 'Recent settlement event' }))
+    const visibleTasks = [...taskItems, ...meaningfulEvents].slice(0, 4)
     this.set('task-count', String(visibleTasks.length))
     this.set('tasks', visibleTasks.length
       ? visibleTasks.map(item => '<div class="task-item task-' + item.tone + '"><span class="ui-icon-slot compact" data-ui-asset="notification:' + item.icon + '" aria-hidden="true"></span><div><strong>' + escape(item.title) + '</strong><small>' + escape(item.detail) + '</small></div></div>').join('')
