@@ -8,7 +8,6 @@ import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processA
 import { constructionStageLabel, constructionWorkLimit } from './Construction'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
-  RAIDER_ATTACK_COOLDOWN, RAIDER_ATTACK_RANGE, RAIDER_DAMAGE, RAIDER_STRUCTURE_DAMAGE,
   damageBuilding, damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
   playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
 } from './Combat'
@@ -23,7 +22,9 @@ import { updateProduction } from './Production'
 import { serviceAssignments, updateServices, type ServiceAssignment } from './Services'
 import { toolCoverage } from './Tools'
 import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
-import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
+import {
+  enemyTarget, enemyTargetBuilding, raidPlanForWave, raiderProfile, retreatRaid, spawnNightRaid,
+} from './Raid'
 import { nightTarget } from './Schedule'
 import { activeWorkplace } from './Workforce'
 import {
@@ -150,7 +151,14 @@ export class Simulation {
 
   private beginRaid(): void {
     const count = spawnNightRaid(this.state)
-    if (count > 0) recordEvent(this.state, 'Raid wave ' + this.state.raid.wave + ': ' + count + ' raiders enter from the wilds.')
+    if (count <= 0) return
+    const plan = raidPlanForWave(this.state.raid.wave)
+    recordEvent(
+      this.state,
+      'Raid ' + plan.wave + ': ' + count + ' attackers across ' + plan.fronts + ' front'
+      + (plan.fronts === 1 ? '' : 's') + ' — '
+      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes.',
+    )
   }
 
   private transition(previous: DayPhase, next: DayPhase): void {
@@ -176,7 +184,12 @@ export class Simulation {
     }
 
     if (next === 'dusk') {
-      recordEvent(s, 'Dusk falls. Work stops; civilians seek shelter and guards report to posts.')
+      const warning = raidPlanForWave(s.raid.wave + 1)
+      recordEvent(
+        s,
+        'Dusk falls. Scouts report ' + warning.size + ' attackers gathering across '
+        + warning.fronts + ' approach' + (warning.fronts === 1 ? '' : 'es') + '.',
+      )
     } else if (next === 'night') {
       this.beginRaid()
       recordEvent(s, 'Night has fallen. The settlement is on alert.')
@@ -347,29 +360,30 @@ export class Simulation {
 
   private updateEnemy(enemy: Enemy): void {
     const s = this.state
+    const profile = raiderProfile(enemy)
 
-    const guards = livingGuards(s)
-      .filter(guard => distance(enemy, guard) <= RAIDER_ATTACK_RANGE)
-      .sort((a, b) => distance(enemy, a) - distance(enemy, b))
-
-    if (guards[0]) {
-      enemy.path = []
-      enemy.pathRevision = -1
-      enemy.status = 'Attacking ' + settlerLabel(s, guards[0].id)
-      if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
-        damageSettler(s, guards[0], RAIDER_DAMAGE)
-      }
-      return
+    const defenders: Array<{ point: Point; label: string; settler: Settler | null }> = livingGuards(s)
+      .filter(guard => distance(enemy, guard) <= profile.defenderAggroRange)
+      .map(guard => ({ point: guard, label: settlerLabel(s, guard.id), settler: guard }))
+    if (s.player.health > 0 && distance(enemy, s.player) <= profile.defenderAggroRange) {
+      defenders.push({ point: s.player, label: 'player', settler: null })
     }
+    defenders.sort((a, b) => distance(enemy, a.point) - distance(enemy, b.point))
 
-    if (s.player.health > 0 && distance(enemy, s.player) <= RAIDER_ATTACK_RANGE) {
-      enemy.path = []
-      enemy.pathRevision = -1
-      enemy.status = 'Attacking player'
-      if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
-        damagePlayer(s, RAIDER_DAMAGE)
+    const defender = defenders[0]
+    if (defender) {
+      const defenderDistance = distance(enemy, defender.point)
+      if (defenderDistance <= profile.attackRange) {
+        enemy.path = []
+        enemy.pathRevision = -1
+        enemy.status = profile.label + ' attacking ' + defender.label
+        if (enemy.attackCooldown <= 0) {
+          enemy.attackCooldown = profile.attackCooldown
+          if (defender.settler) damageSettler(s, defender.settler, profile.damage)
+          else damagePlayer(s, profile.damage)
+        }
+      } else {
+        this.move(enemy, defender.point, profile.label + ' engaging ' + defender.label, profile.walkSpeed)
       }
       return
     }
@@ -388,8 +402,8 @@ export class Simulation {
       enemy.status = 'Attacking ' + BUILDINGS[targetBuilding.type].label
 
       if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
-        const destroyed = damageBuilding(s, targetBuilding, RAIDER_STRUCTURE_DAMAGE)
+        enemy.attackCooldown = profile.attackCooldown
+        const destroyed = damageBuilding(s, targetBuilding, profile.structureDamage)
         if (destroyed) {
           enemy.path = []
           enemy.pathRevision = -1
@@ -399,7 +413,7 @@ export class Simulation {
       return
     }
 
-    this.move(enemy, target, 'Advancing on ' + BUILDINGS[targetBuilding.type].label, ENEMY_WALK_SPEED)
+    this.move(enemy, target, profile.label + ' advancing on ' + BUILDINGS[targetBuilding.type].label, profile.walkSpeed)
   }
 
   private move(agent: MovingAgent, target: Point, status: string, speed: number): void {
@@ -542,6 +556,11 @@ export class Simulation {
       if (wasDestroyed !== building.destroyed) s.topology++
       recordEvent(s, BUILDINGS[building.type].label + ' repaired +' + heal + ' HP.')
       assignHousing(s)
+      finishJob(s, settler, job)
+      return
+    }
+
+    if (building.complete) {
       finishJob(s, settler, job)
       return
     }

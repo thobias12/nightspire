@@ -3,6 +3,7 @@ import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/bui
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { pointInPolygon } from '../simulation/FieldPlanning'
 import { MAP_SIZE } from '../simulation/Navigation'
+import { raiderArchetype } from '../simulation/Raid'
 import { plotCorners, residentialPlotWidth, type ResidentialPlotPreview } from '../simulation/TownPlanning'
 import type { Building, FieldPlot, Point, ResidentialPlot, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
@@ -2573,10 +2574,26 @@ export class SceneRenderer {
     }
 
     for (const e of state.enemies) {
+      const archetype = raiderArchetype(e)
       const hit = this.recentlyHit(e.lastHitTick, state.tick)
-      const color = hit ? 0xff6558 : e.health <= e.maxHealth * 0.5 ? 0x8f3333 : undefined
-      this.instance('enemies', e.x, 0.56, e.z, 1, 1, 1, color)
-      this.healthBar(e.x, 1.3, e.z, e.health, e.maxHealth, 0.9)
+      const facing = e.path.length ? Math.atan2(e.path[0].x - e.x, e.path[0].z - e.z) : (e.id % 8) * Math.PI / 4
+      const scale = archetype === 'brute' ? 1.34 : archetype === 'skirmisher' ? 0.84 : 1
+      const baseColor = archetype === 'brute' ? 0x552b2d : archetype === 'skirmisher' ? 0x9b4d3d : 0x6f2525
+      const color = hit ? 0xff6558 : e.health <= e.maxHealth * 0.5 ? 0x8f3333 : baseColor
+      this.instance('enemies', e.x, 0.56 * scale, e.z, scale, scale, scale, color)
+
+      const hand = this.rotatedOffset(0.3 * scale, 0.08, facing)
+      if (archetype === 'brute') {
+        this.instance('timber', e.x + hand.x, 0.72 * scale, e.z + hand.z, 0.15, 0.95 * scale, 0.15, 0x4c3224, facing)
+      } else {
+        this.instance('metal', e.x + hand.x, 0.7 * scale, e.z + hand.z, 0.07, 0.58 * scale, 0.08, archetype === 'skirmisher' ? 0x8e969a : 0x73797d, facing)
+      }
+      if (archetype === 'raider') {
+        const shield = this.rotatedOffset(-0.27, 0.04, facing)
+        this.instance('props', e.x + shield.x, 0.72, e.z + shield.z, 0.42, 0.54, 0.1, 0x604434, facing)
+      }
+
+      this.healthBar(e.x, archetype === 'brute' ? 1.72 : archetype === 'skirmisher' ? 1.15 : 1.3, e.z, e.health, e.maxHealth, archetype === 'brute' ? 1.15 : 0.9)
     }
 
     const playerHit = this.recentlyHit(state.player.lastHitTick, state.tick)
