@@ -60,6 +60,57 @@ const BUILDING_DESCRIPTIONS: Record<BuildingId, string> = {
   'trading-post': 'A staffed regional trade hub that stores cargo, manages import/export policies and receives visiting merchants.',
   farmhouse: 'The center of local agriculture. Farmers sow nearby fields, harvest crops and return Food to the farm store.',
 }
+interface CatalogPreview {
+  title: string
+  category: string
+  description: string
+  detail: string
+  requirement: string
+  art: string
+  planned?: boolean
+}
+
+const PLANNING_CATALOG_PREVIEWS: Record<string, CatalogPreview> = {
+  road: {
+    title: 'Road',
+    category: 'Planning',
+    description: 'Draw an organic road point by point. Roads define frontage, connect the settlement and guide future construction.',
+    detail: 'Point-drawn · curved or straight · shared planning grid',
+    requirement: 'Place freely. Existing roads can be joined and extended.',
+    art: 'build-road',
+  },
+  'residential-plot': {
+    title: 'Residential Plot',
+    category: 'Planning',
+    description: 'Designate a road-fronted household parcel. The planned house and extension footprint remain visible before construction.',
+    detail: 'Road-fronted parcel · household progression',
+    requirement: 'Must connect to a road frontage.',
+    art: 'build-residential-plot',
+  },
+  field: {
+    title: 'Farm Field',
+    category: 'Planning',
+    description: 'Draw an irregular crop parcel for a nearby Farmhouse. Farmers sow, grow and harvest Food from assigned fields.',
+    detail: 'Irregular parcel · seasonal field work',
+    requirement: 'Must be within 18m of a complete Farmhouse.',
+    art: 'build-field',
+  },
+}
+
+const PLANNED_CATALOG_PREVIEWS: Record<string, CatalogPreview> = {
+  'build-granary': { title: 'Granary', category: 'Logistics', description: 'Dedicated food storage and distribution support for larger settlements.', detail: 'Food logistics · planned progression', requirement: 'Planned feature.', art: 'build-granary', planned: true },
+  'build-bakery': { title: 'Bakery', category: 'Industry', description: 'A later food-processing workplace intended to turn agricultural inputs into higher-value provisions.', detail: 'Processed food · planned production chain', requirement: 'Planned feature.', art: 'build-bakery', planned: true },
+  'build-quarry': { title: 'Quarry', category: 'Industry', description: 'Extract Stone for heavier civic and defensive construction in later settlement tiers.', detail: 'Stone extraction · planned resource chain', requirement: 'Planned feature.', art: 'build-quarry', planned: true },
+  'build-mine': { title: 'Mine', category: 'Industry', description: 'A permanent Ore extraction site for a deeper Tools and metalworking economy.', detail: 'Ore extraction · planned resource chain', requirement: 'Planned feature.', art: 'build-mine', planned: true },
+  'build-well': { title: 'Well', category: 'Services', description: 'A neighborhood water service intended to support household quality and future settlement needs.', detail: 'Water service · planned household need', requirement: 'Planned feature.', art: 'build-well', planned: true },
+  'build-chapel': { title: 'Chapel', category: 'Services', description: 'A faith and community service building for later settlement progression.', detail: 'Faith service · planned progression', requirement: 'Planned feature.', art: 'build-chapel', planned: true },
+  'build-bathhouse': { title: 'Bathhouse', category: 'Services', description: 'A higher-tier hygiene and luxury service for prosperous neighborhoods.', detail: 'Hygiene · luxury · planned service', requirement: 'Planned feature.', art: 'build-bathhouse', planned: true },
+  'build-pleasure-house': { title: 'Pleasure House', category: 'Services', description: 'A mature entertainment and luxury venue intended for later settlement prosperity and visitor income.', detail: 'Recreation · luxury · visitors · planned service', requirement: 'Planned feature.', art: 'build-pleasure-house', planned: true },
+  'build-manor': { title: 'Manor', category: 'Services', description: 'A civic centerpiece for higher settlement status, administration and future progression.', detail: 'Civic progression · planned landmark', requirement: 'Planned feature.', art: 'build-manor', planned: true },
+  'build-watchtower': { title: 'Watchtower', category: 'Defense', description: 'A later defensive structure intended to extend warning and ranged protection around the settlement.', detail: 'Ranged defense · planned fortification', requirement: 'Planned feature.', art: 'build-watchtower', planned: true },
+  'build-barracks': { title: 'Barracks', category: 'Defense', description: 'A dedicated military building for organizing and supporting a larger permanent defense force.', detail: 'Military staffing · planned defense', requirement: 'Planned feature.', art: 'build-barracks', planned: true },
+}
+
 const portraitAsset = (settler: Settler): string => 'portrait:settler-' + ((settler.id % 8) + 1)
 const personCard = (state: WorldState, settler: Settler, role: string, action = ''): string =>
   '<div class="person-card" title="' + escape(settler.status) + '">'
@@ -192,6 +243,8 @@ export class Hud {
             <span class="catalog-tool-note">Planning tools use the same 1m grid as roads and fields.</span>
           </div>
 
+          <div id="build-preview" class="build-preview" aria-hidden="true"></div>
+
           <div class="build-panel is-active" data-build-panel="planning">
             <button class="build-card" data-action="road" title="Hotkey 0 · point-drawn curved road"><span class="build-art-slot" data-art-slot="build-road" aria-hidden="true"></span><span class="build-name">Road</span><small>[0] Draw point by point</small></button>
             <button class="build-card" data-action="residential-plot" title="Hotkey 1 · requires road frontage"><span class="build-art-slot" data-art-slot="build-residential-plot" aria-hidden="true"></span><span class="build-name">Residential Plot</span><small>[1] Road-fronted parcel</small></button>
@@ -202,7 +255,7 @@ export class Hud {
             <button class="build-card" data-action="stockpile" data-building-type="stockpile" title="Hotkey 2"><span class="build-art-slot" data-art-slot="build-stockpile" aria-hidden="true"></span><span class="build-name">Stockpile</span><small>10 wood · 400 storage</small></button>
             <button class="build-card" data-action="trading-post" data-building-type="trading-post" title="Hotkey T"><span class="build-art-slot" data-art-slot="build-trading-post" aria-hidden="true"></span><span class="build-name">Trading Post</span><small>50 wood · 2 Traders</small></button>
             <div class="planned-divider"><span>Planned</span></div>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-granary" aria-hidden="true"></span><span class="build-name">Granary</span><small>Planned · food logistics</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-granary" aria-hidden="true"></span><span class="build-name">Granary</span><small>Planned · food logistics</small></button>
           </div>
 
           <div class="build-panel" data-build-panel="industry">
@@ -210,9 +263,9 @@ export class Hud {
             <button class="build-card" data-action="brewery" data-building-type="brewery" title="Hotkey 4"><span class="build-art-slot" data-art-slot="build-brewery" aria-hidden="true"></span><span class="build-name">Brewery</span><small>35 wood · Food → Ale</small></button>
             <button class="build-card" data-action="blacksmith" data-building-type="blacksmith" title="Hotkey 9"><span class="build-art-slot" data-art-slot="build-blacksmith" aria-hidden="true"></span><span class="build-name">Blacksmith</span><small>45 wood · Ore → Tools</small></button>
             <div class="planned-divider"><span>Planned</span></div>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-bakery" aria-hidden="true"></span><span class="build-name">Bakery</span><small>Planned · processed food</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-quarry" aria-hidden="true"></span><span class="build-name">Quarry</span><small>Planned · stone</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-mine" aria-hidden="true"></span><span class="build-name">Mine</span><small>Planned · ore extraction</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-bakery" aria-hidden="true"></span><span class="build-name">Bakery</span><small>Planned · processed food</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-quarry" aria-hidden="true"></span><span class="build-name">Quarry</span><small>Planned · stone</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-mine" aria-hidden="true"></span><span class="build-name">Mine</span><small>Planned · ore extraction</small></button>
           </div>
 
           <div class="build-panel" data-build-panel="services">
@@ -220,11 +273,11 @@ export class Hud {
             <button class="build-card" data-action="tavern" data-building-type="tavern" title="Hotkey 5"><span class="build-art-slot" data-art-slot="build-tavern" aria-hidden="true"></span><span class="build-name">Tavern</span><small>40 wood · Ale service</small></button>
             <button class="build-card" data-action="market" data-building-type="market" title="Hotkey M"><span class="build-art-slot" data-art-slot="build-market" aria-hidden="true"></span><span class="build-name">Market</span><small>30 wood · Food stalls</small></button>
             <div class="planned-divider"><span>Planned</span></div>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-well" aria-hidden="true"></span><span class="build-name">Well</span><small>Planned · water service</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-chapel" aria-hidden="true"></span><span class="build-name">Chapel</span><small>Planned · faith service</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-bathhouse" aria-hidden="true"></span><span class="build-name">Bathhouse</span><small>Planned · hygiene & luxury</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-pleasure-house" aria-hidden="true"></span><span class="build-name">Pleasure House</span><small>Planned · mature service</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-manor" aria-hidden="true"></span><span class="build-name">Manor</span><small>Planned · civic progression</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-well" aria-hidden="true"></span><span class="build-name">Well</span><small>Planned · water service</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-chapel" aria-hidden="true"></span><span class="build-name">Chapel</span><small>Planned · faith service</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-bathhouse" aria-hidden="true"></span><span class="build-name">Bathhouse</span><small>Planned · hygiene & luxury</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-pleasure-house" aria-hidden="true"></span><span class="build-name">Pleasure House</span><small>Planned · mature service</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-manor" aria-hidden="true"></span><span class="build-name">Manor</span><small>Planned · civic progression</small></button>
           </div>
 
           <div class="build-panel" data-build-panel="defense">
@@ -232,8 +285,8 @@ export class Hud {
             <button class="build-card" data-action="wood-wall" data-building-type="wood-wall" title="Hotkey 7"><span class="build-art-slot" data-art-slot="build-wood-wall" aria-hidden="true"></span><span class="build-name">Wood Wall</span><small>[7] Drag placement</small></button>
             <button class="build-card" data-action="wood-gate" data-building-type="wood-gate" title="Hotkey 8"><span class="build-art-slot" data-art-slot="build-wood-gate" aria-hidden="true"></span><span class="build-name">Wood Gate</span><small>[8] Wall opening</small></button>
             <div class="planned-divider"><span>Planned</span></div>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-watchtower" aria-hidden="true"></span><span class="build-name">Watchtower</span><small>Planned · ranged defense</small></button>
-            <button class="build-card is-planned" disabled title="Planned feature"><span class="build-art-slot" data-art-slot="build-barracks" aria-hidden="true"></span><span class="build-name">Barracks</span><small>Planned · military</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-watchtower" aria-hidden="true"></span><span class="build-name">Watchtower</span><small>Planned · ranged defense</small></button>
+            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-barracks" aria-hidden="true"></span><span class="build-name">Barracks</span><small>Planned · military</small></button>
           </div>
 
           <div class="catalog-help">Hotkeys remain active while this menu is closed. Building artwork and icons intentionally use empty <code>data-art-slot</code> / <code>data-icon-slot</code> hooks.</div>
@@ -312,8 +365,41 @@ export class Hud {
         return
       }
 
+      const plannedCard = target.closest<HTMLButtonElement>('.build-card.is-planned[aria-disabled="true"]')
+      if (plannedCard) {
+        e.preventDefault()
+        this.showBuildPreview(plannedCard)
+        return
+      }
+
       const button = target.closest<HTMLButtonElement>('button[data-action]')
       if (button) action(button.dataset.action!, button.dataset.value)
+    }, { signal })
+
+    this.element.addEventListener('pointerover', e => {
+      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
+      if (card) this.showBuildPreview(card)
+    }, { signal })
+
+    this.element.addEventListener('pointerout', e => {
+      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
+      if (!card) return
+      const next = e.relatedTarget as Node | null
+      if (next && card.contains(next)) return
+      this.hideBuildPreview()
+    }, { signal })
+
+    this.element.addEventListener('focusin', e => {
+      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
+      if (card) this.showBuildPreview(card)
+    }, { signal })
+
+    this.element.addEventListener('focusout', e => {
+      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
+      if (!card) return
+      const next = e.relatedTarget as Node | null
+      if (next && card.contains(next)) return
+      this.hideBuildPreview()
     }, { signal })
 
     this.element.addEventListener('change', e => {
@@ -426,11 +512,90 @@ export class Hud {
     this.inspectorAutoPositioned = true
   }
 
+  private catalogPreviewFor(card: HTMLButtonElement): CatalogPreview | null {
+    const buildingType = card.dataset.buildingType as BuildingId | undefined
+    if (buildingType) {
+      const def = BUILDINGS[buildingType]
+      const detailParts = [def.buildCost.wood + ' Wood', def.footprint + 'm footprint']
+      if ((def.workerSlots ?? 0) > 0) detailParts.push((def.workerSlots ?? 0) + ' ' + (def.profession ?? 'Worker') + ((def.workerSlots ?? 0) === 1 ? '' : 's'))
+      if (def.guardSlots > 0) detailParts.push(def.guardSlots + ' Guard slots')
+      if (def.storage > 0) detailParts.push(def.storage + ' storage')
+      if (def.tradeStorageCapacity) detailParts.push(def.tradeStorageCapacity + ' trade storage')
+      if (def.agricultureStorageCapacity) detailParts.push(def.agricultureStorageCapacity + ' Food storage')
+      if (def.production) {
+        detailParts.push(RESOURCES[def.production.inputResource].label + ' → ' + RESOURCES[def.production.outputResource].label)
+      } else if (def.service) {
+        detailParts.push(def.service.slots + ' visitor slots')
+      } else if (def.foodDistribution) {
+        detailParts.push(def.foodDistribution.mealsPerWorkerPerDay + ' meals / Vendor / Day')
+      }
+
+      let requirement = def.fortification ? 'Free defensive placement.' : 'Requires road frontage.'
+      if (buildingType === 'farmhouse') requirement += ' Fields must be within 18m of the Farmhouse.'
+
+      return {
+        title: def.label,
+        category: def.fortification ? 'Defense' : def.production ? 'Industry' : def.service || def.foodDistribution ? 'Services' : buildingType === 'stockpile' || buildingType === 'trading-post' ? 'Logistics' : 'Construction',
+        description: BUILDING_DESCRIPTIONS[buildingType],
+        detail: detailParts.join(' · '),
+        requirement,
+        art: card.querySelector<HTMLElement>('[data-art-slot]')?.dataset.artSlot ?? 'build-' + buildingType,
+      }
+    }
+
+    const action = card.dataset.action
+    if (action && PLANNING_CATALOG_PREVIEWS[action]) return PLANNING_CATALOG_PREVIEWS[action]
+
+    const art = card.querySelector<HTMLElement>('[data-art-slot]')?.dataset.artSlot
+    if (art && PLANNED_CATALOG_PREVIEWS[art]) return PLANNED_CATALOG_PREVIEWS[art]
+    return null
+  }
+
+  private showBuildPreview(card: HTMLButtonElement): void {
+    const preview = this.element.querySelector<HTMLElement>('#build-preview')
+    const catalog = this.element.querySelector<HTMLElement>('.build-catalog')
+    if (!preview || !catalog || !this.buildMenuOpen) return
+    const data = this.catalogPreviewFor(card)
+    if (!data) return
+
+    const availability = data.planned
+      ? '<span class="preview-state planned">Planned</span>'
+      : card.classList.contains('is-unaffordable')
+        ? '<span class="preview-state warning">Low resources</span>'
+        : '<span class="preview-state available">Available</span>'
+
+    preview.innerHTML =
+      '<div class="build-preview-art" data-art-slot="' + escape(data.art) + '"><span>Artwork slot</span></div>'
+      + '<div class="build-preview-copy">'
+      + '<div class="build-preview-heading"><span><small>' + escape(data.category) + '</small><b>' + escape(data.title) + '</b></span>' + availability + '</div>'
+      + '<p>' + escape(data.description) + '</p>'
+      + '<div class="build-preview-meta">' + escape(data.detail) + '</div>'
+      + '<div class="build-preview-requirement">' + escape(data.requirement) + '</div>'
+      + '</div>'
+
+    preview.classList.add('is-visible')
+    preview.setAttribute('aria-hidden', 'false')
+
+    const catalogRect = catalog.getBoundingClientRect()
+    const cardRect = card.getBoundingClientRect()
+    const width = preview.offsetWidth || 360
+    const desired = cardRect.left - catalogRect.left + cardRect.width / 2 - width / 2
+    preview.style.left = Math.max(0, Math.min(Math.max(0, catalogRect.width - width), desired)) + 'px'
+  }
+
+  private hideBuildPreview(): void {
+    const preview = this.element.querySelector<HTMLElement>('#build-preview')
+    if (!preview) return
+    preview.classList.remove('is-visible')
+    preview.setAttribute('aria-hidden', 'true')
+  }
+
   private syncBuildMenu(): void {
     const catalog = this.element.querySelector<HTMLElement>('.build-catalog')
     if (!catalog) return
     catalog.classList.toggle('is-open', this.buildMenuOpen)
     catalog.setAttribute('aria-hidden', String(!this.buildMenuOpen))
+    if (!this.buildMenuOpen) this.hideBuildPreview()
 
     for (const button of this.element.querySelectorAll<HTMLButtonElement>('button[data-hud-toggle="build-menu"]')) {
       button.setAttribute('aria-pressed', String(this.buildMenuOpen))

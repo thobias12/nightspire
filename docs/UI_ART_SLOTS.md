@@ -238,3 +238,16 @@ Tasks & Messages deliberately suppresses routine hauling/deposit chatter. It sho
 The optional Settlement Overview is now a draggable transient panel. Its collapsed header shows an actionable issue count, while the expanded checklist is deliberately compact and scroll-limited.
 
 The construction catalog no longer reserves the maximum width for every category. It sizes to the active category up to the existing 940px maximum, which keeps Planning/Logistics compact while still allowing Industry/Services to browse horizontally.
+
+
+## Construction hover information
+
+Construction cards now expose a separate Manor-Lords-style information card on hover and keyboard focus. This keeps the bottom shelf compact while still showing:
+
+- building/tool description
+- Wood cost and footprint
+- workers, guard slots, storage or production/service role
+- road/frontage/Farmhouse placement requirements
+- current Available / Low resources / Planned state
+
+The preview has its own large `data-art-slot` area and reuses the same building-card artwork key, so Astra artwork can populate both surfaces consistently.
