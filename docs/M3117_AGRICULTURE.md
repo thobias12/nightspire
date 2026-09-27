@@ -20,12 +20,15 @@ Use **P** to enter the Field tool.
 - 3–8 corners are supported
 - Enter or double-click closes the polygon
 - RMB or Backspace removes the latest corner
-- **G** toggles 1m Grid Snap
-- freeform placement works with Grid Snap off
+- **G** toggles the same shared 1m Grid Snap used by roads and residential dimensions
+- Grid Snap is ON by default; turn it off when you deliberately want a freeform parcel
+- a field must lie within 18m of an existing Farmhouse and is bound to that Farmhouse when placed
 
 The resulting field is a true irregular polygon. It is not converted into a fixed building footprint.
 
 A field must stay inside the settlement boundary and have 12–180m² of area. Self-crossing polygons are rejected.
+
+Farm access is hierarchical: conventional buildings such as the Farmhouse must front a player road, and every new field must be within 18m of a Farmhouse. Walls and gates remain exempt because they are linear fortifications; Houses get road frontage through the Residential Plot system.
 
 Fields cannot overlap:
 

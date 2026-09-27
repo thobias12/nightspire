@@ -468,7 +468,10 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 - [x] Farmhouse with three dedicated Farmer slots and 60 Food harvest storage
 - [x] Manor Lords-inspired field interaction: click 3–8 freeform polygon corners and close with Enter/double-click
-- [x] optional 1m Grid Snap for field corners
+- [x] fields share the same global 1m Grid Snap toggle as roads and residential dimensions
+- [x] conventional live building placement requires road frontage and auto-aligns to the street
+- [x] walls/gates stay exempt; Houses inherit road frontage from Residential Plots
+- [x] every new field must be within 18m of a Farmhouse and is bound to that Farmhouse
 - [x] RMB / Backspace removes the latest field corner while planning
 - [x] irregular field polygons validate self-intersection, size and settlement bounds
 - [x] fields cannot overlap other fields, buildings, residential plots, live resources or existing roads

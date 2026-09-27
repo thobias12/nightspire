@@ -920,3 +920,24 @@ Recommended live test:
 8. Keep an accepting Food Stockpile available and confirm Laborers haul the harvested Food out of the Farmhouse.
 9. Fill the Farmhouse to capacity and confirm a ready crop waits rather than losing its yield.
 10. Save/reload mid-growth and confirm the irregular field shape and crop stage persist.
+
+
+### M3.11.7 placement hierarchy follow-up
+
+Verified on 2026-09-27:
+
+- **172/172 tests passed**
+- strict TypeScript and production build passed
+- conventional live building placement is invalid without road frontage
+- Farmhouses therefore snap/face toward nearby roads like other conventional buildings
+- Walls and Gates remain manual fortification placement; Houses remain road-fronted through Residential Plots
+- Fields share the global **G** 1m Grid Snap setting used by roads/plots
+- new Fields require a Farmhouse within **18m** and store that Farmhouse id immediately
+- agricultural reassignment will not silently bind a field to a Farmhouse outside the 18m service radius
+
+Live check:
+1. Try placing a Farmhouse away from every road: placement should be invalid.
+2. Move it beside a road: it should magnetically align/facing toward the street.
+3. Place a Field more than 18m from every Farmhouse: it should be rejected.
+4. Place the same Field near the Farmhouse: it should report that Farmhouse in its inspector.
+5. Toggle **G** while drawing roads/fields and confirm the same shared grid state is used.
