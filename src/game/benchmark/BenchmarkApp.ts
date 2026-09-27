@@ -133,7 +133,7 @@ export class BenchmarkApp {
       this.hud.update(this.sim.state, { paused: false, selectedId: null, buildType: null,
         planningTool: null, gridSnap: false, roadSnap: true, roadWidth: 1.7, roadCurve: 0.72,
         roadAngleSnap: false, roadPointCount: 0, fieldPointCount: 0, buildRotation: 0, dragCount: 0, cinematic: false,
-        camera: 'settlement', message: 'BENCHMARK: synthetic workload, saves disabled.', metrics: this.metrics })
+        camera: 'settlement', selectionAnchor: null, message: 'BENCHMARK: synthetic workload, saves disabled.', metrics: this.metrics })
       if (capture) this.samples.add('hudUpdateMs', performance.now() - hudStart)
       this.status(this.current.population + ' settlers · ' + this.current.workload + ' · tick ' + this.sim.state.tick + '/' + TOTAL_TICKS + ' · ' + this.pending.length + ' cases remaining')
       this.hudClock = 0
