@@ -260,10 +260,10 @@ export class Hud {
               <span class="dock-icon-slot" data-icon-slot="command-inspect" aria-hidden="true"></span><span>Inspect</span><small>Esc</small>
             </button>
             <button class="dock-button" data-action="camera" title="Toggle settlement/player camera">
-              <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span>Follow player</span><small></small>
+              <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span class="dock-label">Follow player</span><small></small>
             </button>
             <button class="dock-button" data-action="cinematic" title="Street view [V]">
-              <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span>Street view</span><small>V</small>
+              <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span class="dock-label">Street view</span><small>V</small>
             </button>
             <button class="dock-button" data-action="center" title="Center settlement">
               <span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Center</span><small></small>
@@ -1036,9 +1036,9 @@ export class Hud {
     const pauseButton = this.element.querySelector<HTMLButtonElement>('[data-action="pause"]')!
     pauseButton.querySelector('span:last-child')!.textContent = ui.paused ? 'Resume' : 'Pause'
     const cameraButton = this.element.querySelector<HTMLButtonElement>('[data-action="camera"]')!
-    cameraButton.querySelector('span:last-child')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
+    cameraButton.querySelector<HTMLElement>('.dock-label')!.textContent = ui.camera === 'settlement' ? 'Follow player' : 'Settlement camera'
     const cinematic = this.element.querySelector<HTMLButtonElement>('[data-action="cinematic"]')!
-    cinematic.querySelector('span:last-child')!.textContent = ui.cinematic ? 'Overview' : 'Street view'
+    cinematic.querySelector<HTMLElement>('.dock-label')!.textContent = ui.cinematic ? 'Overview' : 'Street view'
     cinematic.setAttribute('aria-pressed', String(ui.cinematic))
     ;(this.element.querySelector('[data-action="spawn"]') as HTMLButtonElement).disabled = s.settlers.length >= MAX_SETTLERS
     ;(this.element.querySelector('[data-action="rotate-build"]') as HTMLButtonElement).disabled = ui.buildType === null
