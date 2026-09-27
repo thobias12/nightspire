@@ -390,6 +390,16 @@ export class Game {
         this.action('trading-post')
         return
       }
+      if (e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        this.action('farmhouse')
+        return
+      }
+      if (e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        this.action('field')
+        return
+      }
       if (this.planningTool === 'road' && e.key === 'Shift') {
         if (!this.roadAngleSnap) {
           this.roadAngleSnap = true
@@ -1163,6 +1173,7 @@ export class Game {
       roadCurve: this.roadCurve,
       roadAngleSnap: this.roadAngleSnap,
       roadPointCount: this.roadControlPoints.length,
+      fieldPointCount: this.fieldControlPoints.length,
       buildRotation: this.buildRotation,
       dragCount: this.dragPoints.length,
       message: this.message,
