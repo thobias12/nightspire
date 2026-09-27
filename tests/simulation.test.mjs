@@ -2630,6 +2630,52 @@ test('M3.11.4 empty or unstaffed Markets do not count as household Food access',
 })
 
 
+test('M3.12 housed residents form persistent named family records', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  const agents=s.settlers.length
+
+  synchronizeFamilies(s)
+  assert.equal(s.families.length,1)
+  const family=s.families[0]
+  assert.equal(family.adultIds.length,2)
+  assert.equal(family.homeId,house.id)
+  assert.equal(s.settlers.length,agents)
+  const [a,b]=s.settlers
+  assert.equal(a.partnerId,b.id)
+  assert.equal(b.partnerId,a.id)
+  assert.equal(a.familyId,family.id)
+  assert.equal(b.familyId,family.id)
+  assert.equal(a.familyName,family.surname)
+  assert.equal(b.familyName,family.surname)
+  assert.ok(a.givenName.length>0 && b.givenName.length>0)
+  validateWorld(s)
+})
+
+test('M3.12 family identities and dependents survive save load', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families[0]
+  if(family.children.length===0) family.children.push({givenName:'Mira',ageYears:8,ageDays:2})
+
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.deepEqual(loaded.families,s.families)
+  assert.deepEqual(
+    loaded.settlers.map(a=>[a.givenName,a.familyName,a.ageYears,a.familyId,a.partnerId]),
+    s.settlers.map(a=>[a.givenName,a.familyName,a.ageYears,a.familyId,a.partnerId]),
+  )
+  assert.equal(familySummary(loaded).families,1)
+  assert.ok(familySummary(loaded).children>=1)
+  validateWorld(loaded)
+})
+
 test('M3.11.5 sustained household services promote Cottage to Established and Prosperous homes', () => {
   const s=createInitialWorldState()
   const house=createBuilding(s.nextId++,'house',7,0,true)
