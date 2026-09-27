@@ -193,6 +193,8 @@ export class SceneRenderer {
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
+    this.addBasicBatch('planningGuide', this.geometry, 0xe8dfc4, 1800, 0.72)
+    this.addBasicBatch('planningMarker', new THREE.RingGeometry(0.18, 0.28, 14).rotateX(-Math.PI / 2), 0xe8dfc4, 480, 0.82)
     this.addBasicBatch('fieldFurrow', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x6b573f, 4200, 0.34)
     this.addBatch('fieldCrop', new THREE.ConeGeometry(0.13, 0.4, 5), 0x70804b, 7200)
     this.addBatch('fieldEdgeGrass', new THREE.BoxGeometry(1, 0.04, 0.18), 0x748356, 2200)
@@ -377,7 +379,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'planningGuide', 'planningMarker', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -409,6 +411,133 @@ export class SceneRenderer {
       x: x * Math.cos(rotation) + z * Math.sin(rotation),
       z: -x * Math.sin(rotation) + z * Math.cos(rotation),
     }
+  }
+
+  private renderPlanSegment(a: Point, b: Point, width = 0.07, color = 0xe8dfc4, y = 0.09): void {
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const length = Math.max(0.02, Math.hypot(dx, dz))
+    this.instance(
+      'planningGuide',
+      (a.x + b.x) / 2,
+      y,
+      (a.z + b.z) / 2,
+      width,
+      0.035,
+      length,
+      color,
+      Math.atan2(dx, dz),
+    )
+  }
+
+  private renderDashedPlanSegment(
+    a: Point,
+    b: Point,
+    color = 0xe8dfc4,
+    dash = 0.62,
+    gap = 0.34,
+    width = 0.07,
+    y = 0.09,
+  ): void {
+    const dx = b.x - a.x
+    const dz = b.z - a.z
+    const length = Math.hypot(dx, dz)
+    if (length < 0.04) return
+    const ux = dx / length
+    const uz = dz / length
+    for (let offset = 0; offset < length; offset += dash + gap) {
+      const end = Math.min(length, offset + dash)
+      this.renderPlanSegment(
+        { x: a.x + ux * offset, z: a.z + uz * offset },
+        { x: a.x + ux * end, z: a.z + uz * end },
+        width,
+        color,
+        y,
+      )
+    }
+  }
+
+  private renderPlanHouseIcon(center: Point, rotation: number, scale = 1, color = 0xf4e7bd, y = 0.115): void {
+    const local = (x: number, z: number): Point => {
+      const offset = this.rotatedOffset(x * scale, z * scale, rotation)
+      return { x: center.x + offset.x, z: center.z + offset.z }
+    }
+    const half = 0.42
+    const front = 0.38
+    const rear = -0.3
+    this.renderPlanSegment(local(-half, rear), local(-half, front), 0.08, color, y)
+    this.renderPlanSegment(local(half, rear), local(half, front), 0.08, color, y)
+    this.renderPlanSegment(local(-half, rear), local(half, rear), 0.08, color, y)
+    this.renderPlanSegment(local(-half, front), local(0, front + 0.34), 0.08, color, y)
+    this.renderPlanSegment(local(0, front + 0.34), local(half, front), 0.08, color, y)
+    this.renderPlanSegment(local(-0.12, rear), local(-0.12, rear + 0.3), 0.07, color, y)
+    this.renderPlanSegment(local(0.12, rear), local(0.12, rear + 0.3), 0.07, color, y)
+  }
+
+  private renderPlanExtensionIcon(center: Point, rotation: number, scale = 1, color = 0xd7c99c, y = 0.112): void {
+    const local = (x: number, z: number): Point => {
+      const offset = this.rotatedOffset(x * scale, z * scale, rotation)
+      return { x: center.x + offset.x, z: center.z + offset.z }
+    }
+    const half = 0.3
+    this.renderPlanSegment(local(-half, -half), local(half, -half), 0.065, color, y)
+    this.renderPlanSegment(local(half, -half), local(half, half), 0.065, color, y)
+    this.renderPlanSegment(local(half, half), local(-half, half), 0.065, color, y)
+    this.renderPlanSegment(local(-half, half), local(-half, -half), 0.065, color, y)
+    this.renderPlanSegment(local(-0.18, 0), local(0.18, 0), 0.06, color, y)
+    this.renderPlanSegment(local(0, -0.18), local(0, 0.18), 0.06, color, y)
+  }
+
+  private renderResidentialPlanningOverlay(
+    plot: Pick<ResidentialPlot, 'frontageA' | 'frontageB' | 'depth' | 'side' | 'angle'>,
+    housePoint: Point,
+    markerSeed = 0,
+  ): void {
+    const corners = plotCorners(plot)
+    const [frontA, frontB, rearB, rearA] = corners
+    for (const [a, b] of [[frontA, frontB], [frontB, rearB], [rearB, rearA], [rearA, frontA]] as const) {
+      this.renderDashedPlanSegment(a, b, 0xe7dec1, 0.58, 0.34, 0.075, 0.095)
+    }
+    for (const corner of corners) {
+      this.instance('planningMarker', corner.x, 0.102, corner.z, 1, 1, 1, 0xf2e7c4, markerSeed * 0.07)
+    }
+
+    const frontageLength = Math.max(0.001, Math.hypot(frontB.x - frontA.x, frontB.z - frontA.z))
+    const tangent = { x: (frontB.x - frontA.x) / frontageLength, z: (frontB.z - frontA.z) / frontageLength }
+    const rear = { x: -tangent.z * plot.side, z: tangent.x * plot.side }
+    const frontMid = { x: (frontA.x + frontB.x) / 2, z: (frontA.z + frontB.z) / 2 }
+    const houseBack = Math.min(plot.depth - 1.4, Math.max(3.0, plot.depth * 0.48))
+    const dividerA = { x: frontA.x + rear.x * houseBack, z: frontA.z + rear.z * houseBack }
+    const dividerB = { x: frontB.x + rear.x * houseBack, z: frontB.z + rear.z * houseBack }
+    this.renderDashedPlanSegment(dividerA, dividerB, 0xd5c69a, 0.46, 0.32, 0.055, 0.092)
+
+    this.renderPlanHouseIcon(housePoint, plot.angle, 0.95)
+
+    const rearMid = {
+      x: frontMid.x + rear.x * Math.max(houseBack + 1.0, plot.depth * 0.77),
+      z: frontMid.z + rear.z * Math.max(houseBack + 1.0, plot.depth * 0.77),
+    }
+    this.renderPlanExtensionIcon(rearMid, plot.angle, 0.9)
+  }
+
+  private renderBuildingPlanningOverlay(b: Building, rotation: number): void {
+    const half = BUILDINGS[b.type].footprint / 2
+    const corner = (x: number, z: number): Point => {
+      const offset = this.rotatedOffset(x, z, rotation)
+      return { x: b.x + offset.x, z: b.z + offset.z }
+    }
+    const corners = [
+      corner(-half, -half),
+      corner(half, -half),
+      corner(half, half),
+      corner(-half, half),
+    ]
+    for (let i = 0; i < corners.length; i++) {
+      this.renderDashedPlanSegment(corners[i], corners[(i + 1) % corners.length], 0xe6dcc0, 0.52, 0.3, 0.065, 0.095)
+      this.instance('planningMarker', corners[i].x, 0.102, corners[i].z, 0.82, 1, 0.82, 0xf0e3bf)
+    }
+    if (b.type === 'farmhouse') this.renderPlanHouseIcon(b, rotation, 0.9)
+    else this.renderPlanExtensionIcon(b, rotation, 1.1, 0xf1e2b7)
   }
 
   private recentlyHit(lastHitTick: number, tick: number): boolean {
@@ -1125,6 +1254,7 @@ export class SceneRenderer {
 
     const corners = plotCorners(plot)
     const [frontA, frontB, rearB, rearA] = corners
+    if (!b.complete && !b.destroyed) this.renderResidentialPlanningOverlay(plot, b, plot.id)
     const neighborA = this.sharedSideNeighbor(plot, plot.frontageA, plots)
     const neighborB = this.sharedSideNeighbor(plot, plot.frontageB, plots)
 
@@ -2438,6 +2568,9 @@ export class SceneRenderer {
       const baseColor = hit ? 0xff705e : this.readableNightColor(intactColor, night)
 
       if (plot) this.renderResidentialPlot(plot, b, night, state.residentialPlots)
+      if (!b.complete && !b.destroyed && !plot && !def.fortification) {
+        this.renderBuildingPlanningOverlay(b, rotation)
+      }
 
       if ((b.complete || b.work > 0) && !plot) {
         this.instance(
@@ -2674,6 +2807,74 @@ export class SceneRenderer {
         def.fortification ? 0.82 : def.footprint * 0.92,
       )
       ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+
+      if (!def.fortification) {
+        const outlineColor = new THREE.Color(valid ? 0xeadfbd : 0xef756b)
+        const iconColor = new THREE.Color(valid ? 0xf6e8bb : 0xffa59d)
+        let count = 0
+        const setSegment = (a: Point, b: Point, width = 0.065, lineColor = outlineColor, y = 0.09): void => {
+          if (count >= 120) return
+          const dx = b.x - a.x
+          const dz = b.z - a.z
+          const length = Math.max(0.02, Math.hypot(dx, dz))
+          this.matrix.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2)
+          this.matrix.scale.set(width, 0.04, length)
+          this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+          this.matrix.updateMatrix()
+          this.ghostLine.setMatrixAt(count, this.matrix.matrix)
+          this.ghostLine.setColorAt(count, lineColor)
+          count++
+        }
+        const dashed = (a: Point, b: Point): void => {
+          const dx = b.x - a.x
+          const dz = b.z - a.z
+          const length = Math.hypot(dx, dz)
+          if (length < 0.04) return
+          const ux = dx / length
+          const uz = dz / length
+          for (let offset = 0; offset < length && count < 120; offset += 0.52 + 0.3) {
+            const finish = Math.min(length, offset + 0.52)
+            setSegment(
+              { x: a.x + ux * offset, z: a.z + uz * offset },
+              { x: a.x + ux * finish, z: a.z + uz * finish },
+            )
+          }
+        }
+        const corner = (x: number, z: number): Point => {
+          const offset = this.rotatedOffset(x, z, rotation)
+          return { x: p.x + offset.x, z: p.z + offset.z }
+        }
+        const half = def.footprint / 2
+        const corners = [
+          corner(-half, -half),
+          corner(half, -half),
+          corner(half, half),
+          corner(-half, half),
+        ]
+        for (let i = 0; i < corners.length; i++) dashed(corners[i], corners[(i + 1) % corners.length])
+
+        const iconHalf = Math.min(0.38, def.footprint * 0.14)
+        const iconScale = type === 'farmhouse' ? 1 : 0.9
+        if (type === 'farmhouse') {
+          setSegment(corner(-iconHalf, -iconHalf), corner(-iconHalf, iconHalf), 0.07, iconColor, 0.115)
+          setSegment(corner(iconHalf, -iconHalf), corner(iconHalf, iconHalf), 0.07, iconColor, 0.115)
+          setSegment(corner(-iconHalf, -iconHalf), corner(iconHalf, -iconHalf), 0.07, iconColor, 0.115)
+          setSegment(corner(-iconHalf, iconHalf), corner(0, iconHalf + 0.3 * iconScale), 0.07, iconColor, 0.115)
+          setSegment(corner(0, iconHalf + 0.3 * iconScale), corner(iconHalf, iconHalf), 0.07, iconColor, 0.115)
+        } else {
+          setSegment(corner(-iconHalf, -iconHalf), corner(iconHalf, -iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(iconHalf, -iconHalf), corner(iconHalf, iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(iconHalf, iconHalf), corner(-iconHalf, iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(-iconHalf, iconHalf), corner(-iconHalf, -iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(-iconHalf * 0.55, 0), corner(iconHalf * 0.55, 0), 0.055, iconColor, 0.115)
+          setSegment(corner(0, -iconHalf * 0.55), corner(0, iconHalf * 0.55), 0.055, iconColor, 0.115)
+        }
+
+        this.ghostLine.visible = count > 0
+        this.ghostLine.count = count
+        this.ghostLine.instanceMatrix.needsUpdate = true
+        if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+      }
     }
 
     if (!def.fortification && type !== 'campfire' && type !== 'stockpile') {
@@ -2803,44 +3004,119 @@ export class SceneRenderer {
     this.grid.visible = showGrid
     if (!preview) return
 
-    const color = new THREE.Color(valid ? 0x9bc07b : 0xef6d65)
-    const markerColor = new THREE.Color(preview.adjacentSnapped && valid ? 0xf1c86f : (valid ? 0xd7e8a7 : 0xef6d65))
-    this.ghost.visible = true
-    this.ghost.position.set(preview.center.x, 0.045, preview.center.z)
-    this.ghost.rotation.set(0, preview.angle, 0)
-    this.ghost.scale.set(Math.max(0.1, preview.width), 0.07, Math.max(0.1, preview.depth))
-    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+    const outlineColor = new THREE.Color(valid ? 0xeadfbd : 0xef756b)
+    const iconColor = new THREE.Color(valid ? 0xf6e8bb : 0xffa59d)
+    const secondaryColor = new THREE.Color(valid ? 0xd4c59a : 0xe98a83)
+    const corners = plotCorners(preview)
 
-    const frontMid = {
-      x: (preview.frontageA.x + preview.frontageB.x) / 2,
-      z: (preview.frontageA.z + preview.frontageB.z) / 2,
+    const shape = new THREE.Shape()
+    corners.forEach((point, index) => {
+      if (index === 0) shape.moveTo(point.x, -point.z)
+      else shape.lineTo(point.x, -point.z)
+    })
+    shape.closePath()
+    this.fieldGhostFill.geometry.dispose()
+    const fillGeometry = new THREE.ShapeGeometry(shape)
+    fillGeometry.rotateX(-Math.PI / 2)
+    this.fieldGhostFill.geometry = fillGeometry
+    this.fieldGhostFill.position.y = 0.052
+    this.fieldGhostFill.material.color.set(valid ? 0xb8b481 : 0xc96961)
+    this.fieldGhostFill.material.opacity = valid ? 0.09 : 0.14
+    this.fieldGhostFill.visible = true
+
+    let count = 0
+    const setSegment = (a: Point, b: Point, width = 0.07, color = outlineColor, y = 0.09): void => {
+      if (count >= 120) return
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const length = Math.max(0.02, Math.hypot(dx, dz))
+      this.matrix.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2)
+      this.matrix.scale.set(width, 0.04, length)
+      this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+      this.matrix.updateMatrix()
+      this.ghostLine.setMatrixAt(count, this.matrix.matrix)
+      this.ghostLine.setColorAt(count, color)
+      count++
     }
-    this.facing.visible = true
-    this.facing.position.set(frontMid.x, 0.09, frontMid.z)
-    this.facing.rotation.set(0, preview.angle, 0)
-    this.facing.scale.set(Math.min(1.1, Math.max(0.72, preview.width * 0.18)), 0.09, 0.2)
+    const dashed = (a: Point, b: Point, dash = 0.58, gap = 0.34, width = 0.07, color = outlineColor): void => {
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const length = Math.hypot(dx, dz)
+      if (length < 0.04) return
+      const ux = dx / length
+      const uz = dz / length
+      for (let offset = 0; offset < length && count < 120; offset += dash + gap) {
+        const finish = Math.min(length, offset + dash)
+        setSegment(
+          { x: a.x + ux * offset, z: a.z + uz * offset },
+          { x: a.x + ux * finish, z: a.z + uz * finish },
+          width,
+          color,
+        )
+      }
+    }
+
+    for (let i = 0; i < corners.length; i++) dashed(corners[i], corners[(i + 1) % corners.length])
 
     const dx = preview.frontageB.x - preview.frontageA.x
     const dz = preview.frontageB.z - preview.frontageA.z
     const frontageLength = Math.max(0.001, Math.hypot(dx, dz))
     const tx = dx / frontageLength
     const tz = dz / frontageLength
-    const markerCount = Math.min(12, Math.max(2, Math.floor(preview.width) + 1))
-    this.ghostLine.visible = true
-    this.ghostLine.count = markerCount
-    for (let i = 0; i < markerCount; i++) {
-      const t = markerCount === 1 ? 0 : i / (markerCount - 1)
-      const x = preview.frontageA.x + tx * frontageLength * t
-      const z = preview.frontageA.z + tz * frontageLength * t
-      this.matrix.position.set(x, 0.075, z)
-      this.matrix.scale.set(0.055, 0.075, i === 0 || i === markerCount - 1 ? 0.62 : 0.4)
-      this.matrix.rotation.set(0, preview.angle, 0)
-      this.matrix.updateMatrix()
-      this.ghostLine.setMatrixAt(i, this.matrix.matrix)
-      this.ghostLine.setColorAt(i, markerColor)
+    const rear = { x: -tz * preview.side, z: tx * preview.side }
+    const houseBack = Math.min(preview.depth - 1.4, Math.max(3.0, preview.depth * 0.48))
+    const dividerA = {
+      x: preview.frontageA.x + rear.x * houseBack,
+      z: preview.frontageA.z + rear.z * houseBack,
     }
+    const dividerB = {
+      x: preview.frontageB.x + rear.x * houseBack,
+      z: preview.frontageB.z + rear.z * houseBack,
+    }
+    dashed(dividerA, dividerB, 0.44, 0.3, 0.055, secondaryColor)
+
+    const local = (center: Point, x: number, z: number, scale = 1): Point => {
+      const offset = this.rotatedOffset(x * scale, z * scale, preview.angle)
+      return { x: center.x + offset.x, z: center.z + offset.z }
+    }
+
+    const house = preview.housePoint
+    const h = 0.42
+    const houseScale = 0.95
+    setSegment(local(house, -h, -0.3, houseScale), local(house, -h, 0.38, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, h, -0.3, houseScale), local(house, h, 0.38, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, -h, -0.3, houseScale), local(house, h, -0.3, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, -h, 0.38, houseScale), local(house, 0, 0.72, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, 0, 0.72, houseScale), local(house, h, 0.38, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, -0.12, -0.3, houseScale), local(house, -0.12, 0.0, houseScale), 0.06, iconColor, 0.115)
+    setSegment(local(house, 0.12, -0.3, houseScale), local(house, 0.12, 0.0, houseScale), 0.06, iconColor, 0.115)
+
+    const frontMid = {
+      x: (preview.frontageA.x + preview.frontageB.x) / 2,
+      z: (preview.frontageA.z + preview.frontageB.z) / 2,
+    }
+    const rearIcon = {
+      x: frontMid.x + rear.x * Math.max(houseBack + 1.0, preview.depth * 0.77),
+      z: frontMid.z + rear.z * Math.max(houseBack + 1.0, preview.depth * 0.77),
+    }
+    const e = 0.3
+    setSegment(local(rearIcon, -e, -e, 0.9), local(rearIcon, e, -e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, e, -e, 0.9), local(rearIcon, e, e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, e, e, 0.9), local(rearIcon, -e, e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, -e, e, 0.9), local(rearIcon, -e, -e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, -0.18, 0, 0.9), local(rearIcon, 0.18, 0, 0.9), 0.052, iconColor, 0.112)
+    setSegment(local(rearIcon, 0, -0.18, 0.9), local(rearIcon, 0, 0.18, 0.9), 0.052, iconColor, 0.112)
+
+    this.ghostLine.visible = count > 0
+    this.ghostLine.count = count
     this.ghostLine.instanceMatrix.needsUpdate = true
     if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+
+    this.facing.visible = true
+    this.facing.position.set(frontMid.x, 0.105, frontMid.z)
+    this.facing.rotation.set(0, preview.angle, 0)
+    this.facing.scale.set(Math.min(1.0, Math.max(0.68, preview.width * 0.16)), 0.065, 0.18)
+    ;(this.facing.material as THREE.MeshBasicMaterial).color.copy(iconColor)
   }
 
   worldPointPrecise(clientX: number, clientY: number): Point | null {
