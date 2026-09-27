@@ -4,6 +4,7 @@ import { RESOURCE_IDS, RESOURCES, type ResourceId } from '../data/resources'
 import { available, freeStorage, needsRepair, readyToBuild, supplyFree, stockpiles } from './Buildings'
 import { essentialJob, happinessEffect } from './Happiness'
 import { JobReservations } from './JobReservations'
+import { marketFoodNeed } from './Markets'
 import { distance, entrance } from './Navigation'
 import { activeWorkplace } from './Workforce'
 import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
@@ -24,6 +25,7 @@ const repairWoodNeed = (state: WorldState, index: JobReservations): number => {
 function supplyNeed(state: WorldState, building: Building, resource: ResourceId, index: JobReservations): number {
   const production = BUILDINGS[building.type].production
   if (production?.inputResource === resource) return workplaceInputNeed(state, building, resource, index)
+  if (BUILDINGS[building.type].foodDistribution?.resource === resource) return marketFoodNeed(state, building, index)
   return supplyFree(state, building, resource, index)
 }
 
@@ -123,9 +125,12 @@ export function assignJobs(state: WorldState): void {
         if (!source) continue
 
         const production = BUILDINGS[building.type].production
+        const distribution = BUILDINGS[building.type].foodDistribution
         const score = production?.inputResource === resource
           ? workplaceHaulScore(building, building.inventory[resource] < production.inputAmount)
-          : JOBS.supply.priority * 100
+          : distribution?.resource === resource
+            ? 370
+            : JOBS.supply.priority * 100
         offer({
           kind: 'supply',
           sourceId: source.id,
