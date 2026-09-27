@@ -27,7 +27,7 @@ const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation
 const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
 const {
   backyardForPlot, buildingPlacementPreview, insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
-  residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError,
+  residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError, sampleRoadCurve,
   snapPointToGrid, snapRoadControlPoint,
 } = require('../.test-build/game/simulation/TownPlanning.js')
 const advance = (sim, seconds) => {
@@ -199,6 +199,22 @@ test('Road Snap never overrides walls, gates or Campfire placement', () => {
   }
 })
 
+test('curved road sampling preserves endpoints and bends smoothly through control points', () => {
+  const controls=[{x:0,z:0},{x:4,z:0},{x:7,z:4}]
+  const points=sampleRoadCurve(controls,0.72,0.5)
+  assert.deepEqual(points[0],controls[0])
+  assert.deepEqual(points.at(-1),controls.at(-1))
+  assert.ok(points.length>controls.length)
+  assert.ok(points.some(p=>p.x>4 && p.x<7 && p.z>0 && p.z<4))
+  assert.ok(roadLength(points)>Math.hypot(7,4))
+  assert.equal(roadPlacementError(points),null)
+})
+
+test('straight road sampling keeps clicked control points as an aligned polyline', () => {
+  const controls=[{x:0,z:0},{x:4,z:0},{x:4,z:5}]
+  assert.deepEqual(sampleRoadCurve(controls,0),controls)
+})
+
 test('player road strokes normalize deterministically and require meaningful length', () => {
   const points=normalizeRoadPoints([
     {x:0,z:0},{x:0.1,z:0.1},{x:1,z:0.2},{x:2,z:0.5},{x:3,z:1},
@@ -240,9 +256,9 @@ test('residential plots reject overlap, buildings and uncleared resources', () =
 
 test('player roads and residential plots survive save/load with their modular backyard identity', () => {
   const s=createInitialWorldState()
-  const road={id:s.nextId++,width:1.7,points:[{x:4,z:0},{x:10,z:0}]}
+  const road={id:s.nextId++,width:2.4,points:sampleRoadCurve([{x:4,z:0},{x:7,z:1.2},{x:10,z:0}],0.72,0.5)}
   s.roads.push(road)
-  const preview=residentialPlotPreview(s.roads,{x:4,z:0},{x:9,z:7})
+  const preview=residentialPlotPreview(s.roads,{x:7,z:1.2},{x:11,z:9})
   assert.ok(preview)
   const house=createBuilding(s.nextId++,'house',preview.housePoint.x,preview.housePoint.z,true,preview.houseRotation)
   s.buildings.push(house); s.topology++

@@ -620,3 +620,39 @@ M3.10.0 is presentation-only. It changes road/terrain/resource-node rendering bu
 ### Architectural boundary
 
 M3.10.0 changes renderer/HUD/docs only. It does **not** modify `Game.ts`, `TownPlanning.ts`, `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. Road irregularity is strictly presentation-layer geometry; persisted road points and all navigation semantics remain untouched.
+
+
+## M3.10.1 verification target
+
+M3.10.1 changes road placement UX and persisted road point density without changing the `RoadPath` schema. Automated coverage rises to **109 tests**. Existing roads remain valid, while new freeform roads persist sampled smooth centerlines.
+
+### Browser workflow
+
+1. Start fresh and press **0 / Road**.
+2. With Grid Snap ON:
+   - click a start point,
+   - click 2–3 additional points,
+   - verify each segment resolves to a clean 0°/45°/90° direction,
+   - double-click or press Enter to finish.
+3. Confirm the placed road remains in Road mode so another route can immediately be started.
+4. Start another draft, add three points, then RMB once. Only the most recent point should disappear; RMB repeatedly can clear the draft.
+5. Turn **Grid Snap OFF** and draw a 3–5 point S-shaped road. The preview and final road should bend smoothly through the points instead of forming sharp polyline corners.
+6. Press **C** through Straight → Smooth → Curved and compare the same control-point shape. Grid Snap ON should still force straight aligned segments regardless of freeform curve mode.
+7. Use **[ / ]** or the road-width button to test:
+   - Path ≈ 1.2m
+   - Lane ≈ 1.7m
+   - Main road ≈ 2.4m
+   The ghost and final dirt surface should visibly reflect the selected width.
+8. Start a new road near an existing endpoint; verify the start magnetically locks to it.
+9. End a branch on the middle of an existing curved road. The endpoint should snap to the sampled centerline and insert a persisted junction point in the host road.
+10. Inspect the rendered curve closely. Dirt should read as one continuous route with rounded joins; no repeating rectangular tile seams should be obvious. Ruts/mud/edge grass should remain intermittent.
+11. Place a Residential Plot on a curved section. Its frontage and House-facing direction should follow the **local tangent** of the curve.
+12. Place a Tavern/Blacksmith with Building Road Snap ON beside a curved section. The building should position/facing-align from the same local tangent.
+13. Save → reload → Load. Curved road shape, width, branch junctions and plot frontage must survive exactly.
+14. Load an older M3.10.0 save and confirm old straight/polyline roads still validate/render.
+15. Enable navigation paths: movement behavior must remain unchanged because roads are still presentation/planning data only.
+16. Stress several long curved roads and compare Draws / triangles / Render submission CPU with M3.10.0.
+
+### Architectural boundary
+
+M3.10.1 changes `Game.ts`, `TownPlanning.ts`, renderer/HUD, tests and docs. It intentionally does **not** change `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. The existing `RoadPath { id, points, width }` shape is preserved. New freeform routes store their sampled centerline in the existing `points` array; no migration is required.

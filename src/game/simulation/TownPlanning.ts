@@ -150,6 +150,61 @@ export function normalizeRoadPoints(points: Point[], minSpacing = 0.55): Point[]
   return normalized
 }
 
+export function sampleRoadCurve(
+  controlPoints: Point[],
+  curvature = 0.72,
+  sampleSpacing = 0.75,
+): Point[] {
+  if (controlPoints.length < 2) return controlPoints.map(point => ({ ...point }))
+  const controls = normalizeRoadPoints(controlPoints, 0.08)
+  if (controls.length < 2) return controls
+  if (curvature <= 0.001) return normalizeRoadPoints(controls)
+
+  const strength = Math.max(0, Math.min(1, curvature)) * 0.5
+  const approximateLength = roadLength(controls)
+  const effectiveSpacing = Math.max(0.35, sampleSpacing, approximateLength / 90)
+  const sampled: Point[] = [{ ...controls[0] }]
+
+  for (let segment = 0; segment < controls.length - 1; segment++) {
+    const p0 = controls[Math.max(0, segment - 1)]
+    const p1 = controls[segment]
+    const p2 = controls[segment + 1]
+    const p3 = controls[Math.min(controls.length - 1, segment + 2)]
+    const segmentLength = Math.hypot(p2.x - p1.x, p2.z - p1.z)
+    const steps = Math.max(1, Math.ceil(segmentLength / effectiveSpacing))
+
+    const m1 = {
+      x: (p2.x - p0.x) * strength,
+      z: (p2.z - p0.z) * strength,
+    }
+    const m2 = {
+      x: (p3.x - p1.x) * strength,
+      z: (p3.z - p1.z) * strength,
+    }
+
+    for (let step = 1; step <= steps; step++) {
+      const t = step / steps
+      const t2 = t * t
+      const t3 = t2 * t
+      const h00 = 2 * t3 - 3 * t2 + 1
+      const h10 = t3 - 2 * t2 + t
+      const h01 = -2 * t3 + 3 * t2
+      const h11 = t3 - t2
+      sampled.push({
+        x: p1.x * h00 + m1.x * h10 + p2.x * h01 + m2.x * h11,
+        z: p1.z * h00 + m1.z * h10 + p2.z * h01 + m2.z * h11,
+      })
+      if (sampled.length >= 120) {
+        sampled[sampled.length - 1] = { ...controls[controls.length - 1] }
+        return normalizeRoadPoints(sampled, 0.32)
+      }
+    }
+  }
+
+  sampled[sampled.length - 1] = { ...controls[controls.length - 1] }
+  return normalizeRoadPoints(sampled, 0.32)
+}
+
 export function roadLength(points: Point[]): number {
   let total = 0
   for (let i = 1; i < points.length; i++) total += Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z)
@@ -157,7 +212,7 @@ export function roadLength(points: Point[]): number {
 }
 
 export function roadPlacementError(points: Point[]): string | null {
-  if (points.length < 2 || roadLength(points) < 2) return 'Drag at least 2m to place a road.'
+  if (points.length < 2 || roadLength(points) < 2) return 'Road needs at least 2m between its first and final points.'
   if (points.length > 120) return 'Road is too long for one stroke. Place it in another segment.'
   if (points.some(point => !inBounds(point))) return 'Keep the road inside the settlement boundary.'
   return null
