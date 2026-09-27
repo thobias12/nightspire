@@ -755,6 +755,10 @@ export class Game {
             : 'OFF · road control points stay where placed. Building frontage remains mandatory.')
           this.refreshRoadDraft()
           break
+        case 'close-selection':
+          this.selectedId = null
+          this.message = ''
+          break
         case 'cancel':
           this.buildType = null
           this.planningTool = null
@@ -1235,7 +1239,19 @@ export class Game {
     this.animationFrame = requestAnimationFrame(this.tick)
   }
   private updateHud(): void {
-    this.hud.update(this.simulation.state, {
+    const state = this.simulation.state
+    const selectedBuilding = state.buildings.find(candidate => candidate.id === this.selectedId)
+    const selectedWorldObject = selectedBuilding
+      ?? state.settlers.find(candidate => candidate.id === this.selectedId)
+      ?? state.enemies.find(candidate => candidate.id === this.selectedId)
+      ?? state.nodes.find(candidate => candidate.id === this.selectedId)
+      ?? state.fields.find(candidate => candidate.id === this.selectedId)
+      ?? null
+    const selectionAnchor = selectedWorldObject
+      ? this.renderer.screenPoint(selectedWorldObject, selectedBuilding ? Math.max(1.6, BUILDINGS[selectedBuilding.type].fortification ? 1.35 : 2.0) : 1.15)
+      : null
+
+    this.hud.update(state, {
       paused: this.paused,
       selectedId: this.selectedId,
       buildType: this.buildType,
@@ -1252,6 +1268,7 @@ export class Game {
       message: this.message,
       camera: this.renderer.mode,
       cinematic: this.renderer.cinematic,
+      selectionAnchor,
       metrics: this.metrics,
     })
   }

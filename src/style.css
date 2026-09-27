@@ -898,3 +898,57 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
 @media (max-width: 1100px) {
   .people-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+/* Contextual floating windows */
+.floating-panel [data-drag-handle] {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.floating-panel.is-dragging {
+  z-index: 80;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, .5);
+}
+.floating-panel.is-dragging [data-drag-handle] { cursor: grabbing; }
+.inspector.is-world-anchored { z-index: 34; }
+.inspector.is-user-positioned { z-index: 36; }
+
+.panel-kicker[data-drag-handle] {
+  min-height: 24px;
+}
+.panel-close {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0 !important;
+  border-radius: 50%;
+  font-size: 14px !important;
+  line-height: 1;
+}
+.building-panel-title[data-drag-handle],
+.catalog-header[data-drag-handle] {
+  cursor: grab;
+}
+.building-panel-title[data-drag-handle]:active,
+.catalog-header[data-drag-handle]:active {
+  cursor: grabbing;
+}
+.context-close,
+.catalog-close,
+.panel-close {
+  cursor: pointer !important;
+  touch-action: manipulation;
+}
+.road-context .context-title[data-drag-handle] {
+  padding: 6px 9px 6px 3px;
+  cursor: grab;
+}
+
+/* Once a transient bottom panel is dragged, fixed positioning must win over
+   the dock's centering layout. */
+.build-catalog.is-user-positioned,
+.road-context.is-user-positioned {
+  margin: 0;
+}
