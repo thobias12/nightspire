@@ -39,6 +39,9 @@ const {
   householdStatus, householdSummary, RECREATION_COVERAGE_RADIUS,
 } = require('../.test-build/game/simulation/Households.js')
 const {
+  houseBedCapacity, houseProgressionStatus, processHouseholdProgression,
+} = require('../.test-build/game/simulation/HouseProgression.js')
+const {
   serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices, SERVICE_COVERAGE_RADIUS,
 } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
@@ -2449,4 +2452,146 @@ test('M3.11.4 empty or unstaffed Markets do not count as household Food access',
   market.inventory.food=0
   assert.equal(householdStatus(s,house).foodAccess,false)
   validateWorld(s)
+})
+
+
+test('M3.11.5 sustained household services promote Cottage to Established and Prosperous homes', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  const market=createBuilding(s.nextId++,'market',7,-7,true)
+  const fire=createBuilding(s.nextId++,'campfire',7,7,true)
+  market.inventory.food=20
+  s.buildings.push(house,market,fire); s.topology++
+  assignHousing(s)
+  staffWorkplace(s,market,2)
+  for(const settler of s.settlers) settler.needs={food:100,housing:100,safety:100,recreation:100}
+
+  assert.equal(house.houseLevel,1)
+  assert.equal(houseBedCapacity(house),4)
+  assert.equal(houseProgressionStatus(s,house).qualifiesToday,true)
+
+  assert.equal(processHouseholdProgression(s),0)
+  assert.equal(house.houseQualifyingDays,1)
+  assert.equal(processHouseholdProgression(s),0)
+  assert.equal(house.houseQualifyingDays,1)
+
+  s.day=2
+  assert.equal(processHouseholdProgression(s),1)
+  assert.equal(house.houseLevel,2)
+  assert.equal(houseBedCapacity(house),5)
+  assignHousing(s)
+  assert.equal(s.settlers.filter(a=>a.homeId===house.id).length,5)
+
+  for(const day of [3,4]) {
+    s.day=day
+    assert.equal(processHouseholdProgression(s),0)
+  }
+  assert.equal(house.houseQualifyingDays,2)
+  s.day=5
+  assert.equal(processHouseholdProgression(s),1)
+  assert.equal(house.houseLevel,3)
+  assert.equal(houseBedCapacity(house),6)
+  assignHousing(s)
+  assert.equal(s.settlers.filter(a=>a.homeId===house.id).length,6)
+  assert.equal(houseProgressionStatus(s,house).next,null)
+  validateWorld(s)
+})
+
+test('M3.11.5 losing a household requirement resets the current prosperity streak', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  const market=createBuilding(s.nextId++,'market',7,-7,true)
+  const fire=createBuilding(s.nextId++,'campfire',7,7,true)
+  market.inventory.food=20
+  s.buildings.push(house,market,fire); s.topology++
+  assignHousing(s)
+  staffWorkplace(s,market,1)
+  for(const settler of s.settlers) settler.needs={food:100,housing:100,safety:100,recreation:100}
+
+  processHouseholdProgression(s)
+  assert.equal(house.houseQualifyingDays,1)
+
+  s.day=2
+  market.inventory.food=0
+  assert.equal(processHouseholdProgression(s),0)
+  assert.equal(house.houseQualifyingDays,0)
+  assert.ok(houseProgressionStatus(s,house).blockers.includes('No Market Food access'))
+
+  s.day=3
+  market.inventory.food=10
+  assert.equal(processHouseholdProgression(s),0)
+  assert.equal(house.houseQualifyingDays,1)
+  assert.equal(house.houseLevel,1)
+  validateWorld(s)
+})
+
+test('M3.11.5 housing reassignment keeps established households stable as capacity grows', () => {
+  const s=createInitialWorldState()
+  const first=createBuilding(s.nextId++,'house',-7,0,true)
+  const second=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(first,second); s.topology++
+  assignHousing(s)
+
+  const secondResidents=s.settlers.filter(a=>a.homeId===second.id).map(a=>a.id)
+  assert.equal(secondResidents.length,2)
+  first.houseLevel=2
+  assignHousing(s)
+
+  assert.deepEqual(s.settlers.filter(a=>a.homeId===second.id).map(a=>a.id),secondResidents)
+  assert.equal(s.settlers.filter(a=>a.homeId===first.id).length,4)
+  assert.equal(houseBedCapacity(first),5)
+
+  const newcomer=spawnSettler(s)
+  assert.equal(newcomer,true)
+  assignHousing(s)
+  assert.equal(s.settlers.at(-1).homeId,first.id)
+  validateWorld(s)
+})
+
+test('M3.11.5 upgraded bed capacity contributes to population attraction', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,4)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  house.houseLevel=2
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  s.buildings[0].inventory.food=100
+  for(const settler of s.settlers) settler.needs={food:100,housing:100,safety:100,recreation:100}
+
+  const attraction=populationAttraction(s)
+  assert.equal(houseBedCapacity(house),5)
+  assert.equal(attraction.spareBeds,1)
+  assert.equal(attraction.eligible,true)
+  validateWorld(s)
+})
+
+test('M3.11.5 house prosperity state persists and older saves migrate to Cottage', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  house.houseLevel=2
+  house.houseQualifyingDays=2
+  house.houseLastEvaluationDay=s.day
+  s.buildings.push(house); s.topology++
+
+  const loaded=deserializeWorld(serializeWorld(s))
+  const restored=loaded.buildings.find(b=>b.id===house.id)
+  assert.equal(restored.houseLevel,2)
+  assert.equal(restored.houseQualifyingDays,2)
+  assert.equal(restored.houseLastEvaluationDay,s.day)
+
+  const legacy=JSON.parse(serializeWorld(createInitialWorldState()))
+  for(const building of legacy.buildings) {
+    delete building.houseLevel
+    delete building.houseQualifyingDays
+    delete building.houseLastEvaluationDay
+  }
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(migrated.buildings.filter(b=>b.type==='house').every(b=>b.houseLevel===1))
+  assert.ok(migrated.buildings.filter(b=>b.type!=='house').every(b=>b.houseLevel===0))
+  assert.ok(migrated.buildings.every(b=>b.houseQualifyingDays===0 && b.houseLastEvaluationDay===0))
+
+  const invalid=JSON.parse(serializeWorld(s))
+  invalid.buildings.find(b=>b.id===house.id).houseLevel=4
+  assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/building state/)
+  validateWorld(loaded)
 })
