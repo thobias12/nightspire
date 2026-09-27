@@ -64,7 +64,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'main-b2c46d4-roads')
+        entryUrl.searchParams.set('runtime', 'ui-manor-shell-063203a')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {
