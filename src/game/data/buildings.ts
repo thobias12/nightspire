@@ -19,6 +19,8 @@ export interface ProductionDefinition {
   outputResource: ResourceId
   outputAmount: number
   outputCapacity: number
+  inputBufferTarget: number
+  outputHaulThreshold: number
   cycleSeconds: number
   activePhases: ServicePhase[]
 }
@@ -107,6 +109,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
     production: {
       inputResource: 'food', inputAmount: 2, inputCapacity: 20,
       outputResource: 'ale', outputAmount: 4, outputCapacity: 24,
+      inputBufferTarget: 8, outputHaulThreshold: 8,
       cycleSeconds: 12, activePhases: ['day'],
     },
     maxHealth: 210, fortification: false, friendlyPassable: false, color: 0x8b6848,
@@ -119,6 +122,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
     production: {
       inputResource: 'ore', inputAmount: 3, inputCapacity: 18,
       outputResource: 'tools', outputAmount: 1, outputCapacity: 6,
+      inputBufferTarget: 9, outputHaulThreshold: 2,
       cycleSeconds: 18, activePhases: ['day'],
     },
     maxHealth: 240, fortification: false, friendlyPassable: false, color: 0x75685e,
