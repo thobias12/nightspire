@@ -615,3 +615,16 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [x] existing shared hostile path budget remains unchanged
 
 **Design constraint:** siege additions reuse the existing Enemy collection, combat cooldowns and Navigation queue rather than adding per-unit controllers or a second pathfinder.
+
+
+## M2.7 — Battlefield aftermath (stacked gameplay branch)
+
+- [x] defeated attackers leave persistent world remains rather than disappearing instantly
+- [x] heavy attackers and destroyed Battering Rams leave larger timber/wheel wreckage
+- [x] battlefield remains survive save/load
+- [x] daytime Laborers receive cleanup jobs through the normal scheduler
+- [x] cleanup requires physical travel and work at the battlefield location
+- [x] remains are reserved so multiple workers cannot claim the same wreck
+- [x] aftermath reuses existing renderer batches and the shared pathfinding budget
+
+**Design constraint:** battlefield cleanup is a normal data-driven job, not another AI loop.
