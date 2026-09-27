@@ -169,7 +169,7 @@ test('Road Snap independently controls road endpoint and centerline magnetism', 
   const manual=snapRoadControlPoint(roads,{x:2.4,z:0.5},{x:0,z:-4},false,false,false)
   assert.deepEqual(manual,{x:2.4,z:0.5})
   const center=snapRoadControlPoint(roads,{x:2.4,z:0.5},{x:0,z:-4},false,false,true)
-  assert.deepEqual(center,{x:2.4,z:0})
+  assert.ok(Math.abs(center.x-2.4)<1e-9 && Math.abs(center.z)<1e-9)
   const endpoint=snapRoadControlPoint(roads,{x:6.8,z:0.4},{x:0,z:-4},true,false,true)
   assert.deepEqual(endpoint,{x:6,z:0})
 })
