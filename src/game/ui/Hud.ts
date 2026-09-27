@@ -69,6 +69,23 @@ const personCard = (state: WorldState, settler: Settler, role: string, action = 
   + '</div>'
 const emptyPersonCard = (label: string): string =>
   '<div class="person-card is-empty"><span class="portrait-slot" data-ui-asset="portrait:worker-empty" aria-hidden="true">+</span><span class="person-copy"><b>Empty</b><small>' + escape(label) + '</small></span></div>'
+const needMeter = (label: string, value: number, asset: string): string =>
+  '<div class="need-meter"><div class="need-meter-label"><span data-ui-asset="' + asset + '"></span><b>' + escape(label) + '</b><em>' + Math.round(value) + '%</em></div><div class="need-meter-track"><i style="width:' + percentage(value, 100) + '%"></i></div></div>'
+const contextualPanel = (
+  eyebrow: string,
+  title: string,
+  asset: string,
+  body: string,
+  tone: 'neutral' | 'danger' = 'neutral',
+): string =>
+  '<div class="object-panel object-panel-' + tone + '">'
+  + '<div class="object-panel-title" data-drag-handle>'
+  + '<span class="object-panel-icon" data-ui-asset="' + asset + '" aria-hidden="true"></span>'
+  + '<div><span class="eyebrow">' + escape(eyebrow) + '</span><h2>' + escape(title) + '</h2></div>'
+  + '<button class="context-close" data-action="close-inspector" title="Close">×</button>'
+  + '</div>'
+  + '<div class="object-panel-body">' + body + '</div>'
+  + '</div>'
 
 export class Hud {
   readonly element = document.createElement('div')
@@ -123,7 +140,7 @@ export class Hud {
       </aside>
 
       <section class="inspector panel floating-panel" data-draggable-panel data-panel-id="inspector">
-        <div class="panel-kicker" data-drag-handle><span class="ui-icon-slot" data-icon-slot="selection" aria-hidden="true"></span><span>Selection</span><button class="panel-close" data-action="close-selection" title="Close selection">×</button></div>
+        <div class="panel-kicker" data-drag-handle><span class="ui-icon-slot" data-icon-slot="selection" aria-hidden="true"></span><span>Selection</span><button class="panel-close" data-action="close-inspector" title="Close">×</button></div>
         <div id="inspection">Select something in the world.</div>
       </section>
 
@@ -157,11 +174,11 @@ export class Hud {
             <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
           </div>
           <div class="build-tabs" role="tablist" aria-label="Construction categories">
-            <button data-build-tab="planning" aria-pressed="true">Planning</button>
-            <button data-build-tab="logistics" aria-pressed="false">Logistics</button>
-            <button data-build-tab="industry" aria-pressed="false">Industry</button>
-            <button data-build-tab="services" aria-pressed="false">Services</button>
-            <button data-build-tab="defense" aria-pressed="false">Defense</button>
+            <button data-build-tab="planning" aria-pressed="true"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
+            <button data-build-tab="logistics" aria-pressed="false"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
+            <button data-build-tab="industry" aria-pressed="false"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
+            <button data-build-tab="services" aria-pressed="false"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
+            <button data-build-tab="defense" aria-pressed="false"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
           </div>
 
           <div class="build-panel is-active" data-build-panel="planning">
@@ -380,9 +397,9 @@ export class Hud {
     if (left + rect.width > window.innerWidth - margin) left = anchor.x - rect.width - gap
     if (left < margin) left = margin
 
-    // Place the panel beside the selected object, biased upward so the object
-    // remains visible instead of being hidden under the panel.
-    const top = anchor.y - Math.min(rect.height * 0.34, 180)
+    // Keep a stable vertical offset so live numbers or tab content do not make
+    // the window visibly jump while it tracks the selected world object.
+    const top = anchor.y - 72
     this.placeFloatingPanel(panel, left, top)
     panel.classList.add('is-world-anchored')
   }
@@ -510,31 +527,82 @@ export class Hud {
       const morale = happinessEffect(a)
       const modifier = Math.round((morale.workRate - 1) * 100)
       const effectiveRate = morale.workRate * toolSummary.workMultiplier
-      const serviceText = service ? service.label + ' · +' + service.gainPerSecond + ' recreation/s' : (phase === 'dusk' || phase === 'dawn' ? 'No available service slot' : 'Off hours only')
-      const moraleText = morale.label + ' · morale ' + (modifier >= 0 ? '+' : '') + modifier + '% · tools +' + Math.round((toolSummary.workMultiplier - 1) * 100) + '% · effective ' + Math.round(effectiveRate * 100) + '%' + (morale.refusesNonessential ? ' · <b>ESSENTIALS ONLY</b>' + (morale.reason ? ' (' + morale.reason + ')' : '') : '')
+      const serviceText = service ? service.label + ' · +' + service.gainPerSecond + '/s' : (phase === 'dusk' || phase === 'dawn' ? 'No available service slot' : 'Off hours')
       const profession = professionLabel(s, a)
       const workplace = assignedWorkplace(s, a)
-      const workplaceText = workplace ? BUILDINGS[workplace.type].label + ' ' + workplace.id : 'General labor pool'
-      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${profession}</b> · ${escape(a.status)}</p><p><b>Happiness ${happinessOf(a)}% · ${moraleText}</b><br>Food ${Math.round(a.needs.food)}% · Housing ${Math.round(a.needs.housing)}%<br>Safety ${Math.round(a.needs.safety)}% · Recreation ${Math.round(a.needs.recreation)}%</p><p>${a.arrivalTarget ? '<b>Immigrant:</b> walking into the settlement<br>' : ''}Recreation service: ${serviceText}<br>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food, ${a.cargo.ale} ale, ${a.cargo.ore} ore, ${a.cargo.tools} tools<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Workplace: ${workplaceText}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Last meal: Day ${a.lastMealDay}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p>${a.arrivalTarget ? '' : (a.workplaceId !== null ? '<button data-action="unassign-workplace" data-value="' + a.id + '">Return to labor pool</button>' : '') + '<button data-action="toggle-role">' + (a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard') + '</button>'}`)
+      const cargo = RESOURCE_IDS.filter(resource => a.cargo[resource] > 0)
+        .map(resource => '<span class="cargo-chip"><i data-ui-asset="resource:' + resource + '"></i>' + a.cargo[resource] + ' ' + RESOURCES[resource].label + '</span>')
+        .join('')
+      const links = [
+        a.homeId !== null ? '<button data-action="select-object" data-value="' + a.homeId + '">Open Home</button>' : '',
+        workplace ? '<button data-action="select-object" data-value="' + workplace.id + '">Open Workplace</button>' : '',
+        guardAssignment ? '<button data-action="select-object" data-value="' + guardAssignment.buildingId + '">Open Guard Post</button>' : '',
+      ].filter(Boolean).join('')
+      const actions = a.arrivalTarget
+        ? ''
+        : (a.workplaceId !== null ? '<button data-action="unassign-workplace" data-value="' + a.id + '">Return to labor pool</button>' : '')
+          + '<button data-action="toggle-role">' + (a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard') + '</button>'
+      const body =
+        '<div class="person-hero">'
+        + '<span class="large-portrait" data-ui-asset="' + portraitAsset(a) + '" aria-hidden="true"></span>'
+        + '<div><b>' + escape(a.status) + '</b><small>' + escape(morale.label) + ' · work rate ' + Math.round(effectiveRate * 100) + '%'
+        + (modifier === 0 ? '' : ' · morale ' + (modifier > 0 ? '+' : '') + modifier + '%') + '</small>'
+        + '<div class="health-line"><span>Health</span><div><i style="width:' + percentage(a.health, a.maxHealth) + '%"></i></div><em>' + a.health + '/' + a.maxHealth + '</em></div>'
+        + '</div></div>'
+        + '<div class="need-grid">'
+        + needMeter('Food', a.needs.food, 'service:food')
+        + needMeter('Housing', a.needs.housing, 'service:housing')
+        + needMeter('Safety', a.needs.safety, 'service:safety')
+        + needMeter('Recreation', a.needs.recreation, 'service:recreation')
+        + '</div>'
+        + '<div class="object-info-grid">'
+        + '<div><span>Home</span><b>' + (a.homeId === null ? 'Unhoused' : 'House #' + a.homeId) + '</b></div>'
+        + '<div><span>Work</span><b>' + escape(workplace ? BUILDINGS[workplace.type].label : 'General labor') + '</b></div>'
+        + '<div><span>Night</span><b>' + escape(a.role === 'guard' ? (guardAssignment ? 'Guard Post #' + guardAssignment.buildingId : 'No guard slot') : 'Civilian shelter') + '</b></div>'
+        + '<div><span>Recreation</span><b>' + escape(serviceText) + '</b></div>'
+        + '</div>'
+        + (cargo ? '<div class="cargo-row">' + cargo + '</div>' : '<p class="context-note">Not carrying any resources.</p>')
+        + '<div class="context-actions">' + links + '</div>'
+        + '<div class="context-actions secondary-actions">' + actions + '</div>'
+      this.set('inspection', contextualPanel(profession, settlerLabel(s, a.id), portraitAsset(a), body))
     } else if (e) {
       const target = s.buildings.find(b => b.id === e.targetId)
-      this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
+      const body =
+        '<div class="danger-summary"><b>' + escape(e.status) + '</b><strong>Wave ' + s.raid.wave + '</strong></div>'
+        + '<div class="health-line danger-health"><span>Health</span><div><i style="width:' + percentage(e.health, e.maxHealth) + '%"></i></div><em>' + e.health + '/' + e.maxHealth + '</em></div>'
+        + '<div class="object-info-grid">'
+        + '<div><span>Target</span><b>' + escape(target ? BUILDINGS[target.type].label + ' #' + target.id : 'Settlement') + '</b></div>'
+        + '<div><span>Position</span><b>' + e.x.toFixed(1) + ', ' + e.z.toFixed(1) + '</b></div>'
+        + '</div>'
+        + (target ? '<div class="context-actions"><button data-action="select-object" data-value="' + target.id + '">Open Target</button></div>' : '')
+        + '<p class="context-note warning-note">Move the player within melee range and press Space, or let guards intercept.</p>'
+      this.set('inspection', contextualPanel('Hostile', enemyLabel(s, e.id), 'portrait:raider', body, 'danger'))
     } else if (field) {
       const farmhouse = field.farmhouseId === null ? null : s.buildings.find(building => building.id === field.farmhouseId)
       const cropPhase = field.phase[0].toUpperCase() + field.phase.slice(1)
       const workTarget = field.phase === 'fallow' ? fieldSowWork(field) : field.phase === 'ready' ? fieldHarvestWork(field) : 0
-      const workText = workTarget > 0
-        ? '<br>Work: ' + field.work.toFixed(1) + '/' + workTarget.toFixed(1)
-        : ''
-      this.set('inspection', '<h2>Farm Field ' + field.id + '</h2><p><b>' + cropPhase + '</b>'
-        + '<br>Area: ' + field.area.toFixed(1) + 'm²'
-        + '<br>Expected harvest: ' + field.yield + ' Food'
-        + '<br>Growth: ' + field.growthDays + '/2 Days'
-        + workText
-        + '<br>Farmhouse: ' + (farmhouse ? 'Farmhouse ' + farmhouse.id : 'Unassigned — build/repair a Farmhouse')
-        + '<br>Corners: ' + field.points.length
-        + '</p><p class="muted">Ready fields are harvested before fallow fields are sown. Harvest waits if the Farmhouse Food store cannot fit the full crop.</p>'
-        + '<button class="danger" data-action="remove-field">Remove field</button>')
+      const progress = workTarget > 0
+        ? percentage(field.work, workTarget)
+        : field.phase === 'growing'
+          ? percentage(field.growthDays, 2)
+          : field.phase === 'sown'
+            ? 25
+            : field.phase === 'harvested'
+              ? 100
+              : 0
+      const body =
+        '<div class="field-phase-card"><span class="field-big-icon" data-ui-asset="service:agriculture"></span><div><b>' + cropPhase + '</b><small>' + field.area.toFixed(1) + 'm² · ' + field.points.length + ' corners</small></div><strong>' + progress + '%</strong></div>'
+        + '<div class="production-progress field-progress"><i style="width:' + progress + '%"></i></div>'
+        + '<div class="object-info-grid">'
+        + '<div><span>Expected harvest</span><b>' + field.yield + ' Food</b></div>'
+        + '<div><span>Growth</span><b>' + field.growthDays + ' / 2 Days</b></div>'
+        + '<div><span>Farmhouse</span><b>' + escape(farmhouse ? 'Farmhouse #' + farmhouse.id : 'Unassigned') + '</b></div>'
+        + '<div><span>Field work</span><b>' + (workTarget > 0 ? field.work.toFixed(1) + ' / ' + workTarget.toFixed(1) : 'No active work') + '</b></div>'
+        + '</div>'
+        + (farmhouse ? '<div class="context-actions"><button data-action="select-object" data-value="' + farmhouse.id + '">Open Farmhouse</button></div>' : '<p class="context-note warning-note">Build or repair a Farmhouse within range to work this field.</p>')
+        + '<p class="context-note">Ready fields are harvested before fallow fields are sown. Harvest waits if the Farmhouse Food store cannot fit the full crop.</p>'
+        + '<div class="context-actions secondary-actions"><button class="danger" data-action="remove-field">Remove field</button></div>'
+      this.set('inspection', contextualPanel('Agriculture', 'Farm Field #' + field.id, 'service:agriculture', body))
     } else if (b) {
       const def = BUILDINGS[b.type]
       const distribution = def.foodDistribution
@@ -857,13 +925,25 @@ export class Hud {
       ).join('')
       this.set('inspection',
         '<div class="building-panel">'
-        + '<div class="building-panel-title" data-drag-handle><span class="ui-icon-slot" data-ui-asset="building-icon:' + b.type + '" aria-hidden="true"></span><div><span class="eyebrow">' + (def.profession ?? (def.housing ? 'Residential' : def.fortification ? 'Defense' : 'Settlement building')) + '</span><h2>' + def.label + ' <small>#' + b.id + '</small></h2></div><button class="context-close" data-action="close-selection" title="Close selection">×</button></div>'
+        + '<div class="building-panel-title" data-drag-handle><span class="ui-icon-slot" data-ui-asset="building-icon:' + b.type + '" aria-hidden="true"></span><div><span class="eyebrow">' + (def.profession ?? (def.housing ? 'Residential' : def.fortification ? 'Defense' : 'Settlement building')) + '</span><h2>' + def.label + ' <small>#' + b.id + '</small></h2></div><button class="context-close" data-action="close-inspector" title="Close">×</button></div>'
         + '<div class="building-hero" data-ui-asset="building-header:' + b.type + '"><span>Artwork slot · ' + def.label + '</span></div>'
         + '<div class="context-tabs" role="tablist">' + contextTabsHtml + '</div>'
         + '<div class="context-content">' + contextPanelsHtml + '</div>'
         + '</div>')
     } else if (n) {
-      this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
+      const sourceJob = s.jobs.find(job => job.sourceId === n.id)
+      const label = n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food Bush' : RESOURCES[n.resource].label + ' Deposit'
+      const worker = sourceJob?.settlerId ? s.settlers.find(settler => settler.id === sourceJob.settlerId) : null
+      const body =
+        '<div class="resource-focus"><span class="resource-focus-icon" data-ui-asset="resource:' + n.resource + '"></span><div><b>' + n.remaining + ' ' + RESOURCES[n.resource].label + '</b><small>' + (sourceJob ? 'Currently claimed for gathering' : 'Available for gathering') + '</small></div></div>'
+        + '<div class="object-info-grid">'
+        + '<div><span>Resource</span><b>' + RESOURCES[n.resource].label + '</b></div>'
+        + '<div><span>Gatherer</span><b>' + escape(worker ? settlerLabel(s, worker.id) : 'Unassigned') + '</b></div>'
+        + '<div><span>Position</span><b>' + n.x.toFixed(1) + ', ' + n.z.toFixed(1) + '</b></div>'
+        + '<div><span>Node ID</span><b>#' + n.id + '</b></div>'
+        + '</div>'
+        + (worker ? '<div class="context-actions"><button data-action="select-object" data-value="' + worker.id + '">Open Gatherer</button></div>' : '')
+      this.set('inspection', contextualPanel('Resource', label + ' #' + n.id, 'resource:' + n.resource, body))
     } else {
       const facing = ['South', 'East', 'North', 'West'][ui.buildRotation]
       const curveLabel = ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
@@ -922,6 +1002,7 @@ export class Hud {
     }
     inspector.classList.toggle('is-active', ui.selectedId !== null || ui.buildType !== null || ui.planningTool !== null)
     inspector.classList.toggle('is-building', Boolean(b))
+    inspector.classList.toggle('is-contextual', Boolean(a || b || field || n || e))
     inspector.classList.toggle('is-world-anchored', ui.selectedId !== null && !this.inspectorManuallyPositioned)
     if (ui.selectedId !== null) this.positionInspector(ui.selectionAnchor)
     this.element.querySelector<HTMLElement>('.road-context')!.classList.toggle('is-active', ui.planningTool === 'road')
