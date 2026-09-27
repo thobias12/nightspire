@@ -2435,3 +2435,85 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   border-color: transparent;
   background-color: transparent;
 }
+
+
+/* Context artwork pass: people, needs, resources, task messages and title icons */
+[data-ui-asset^="portrait:"] {
+  background-image: url("../assets/ui/portrait/people.svg");
+  background-size: 1000% 100%;
+  background-repeat: no-repeat;
+  background-color: #28261f;
+}
+[data-ui-asset="portrait:settler-1"] { background-position: 0% center; }
+[data-ui-asset="portrait:settler-2"] { background-position: 11.1111% center; }
+[data-ui-asset="portrait:settler-3"] { background-position: 22.2222% center; }
+[data-ui-asset="portrait:settler-4"] { background-position: 33.3333% center; }
+[data-ui-asset="portrait:settler-5"] { background-position: 44.4444% center; }
+[data-ui-asset="portrait:settler-6"] { background-position: 55.5556% center; }
+[data-ui-asset="portrait:settler-7"] { background-position: 66.6667% center; }
+[data-ui-asset="portrait:settler-8"] { background-position: 77.7778% center; }
+[data-ui-asset="portrait:worker-empty"] { background-position: 88.8889% center; color: transparent; }
+[data-ui-asset="portrait:raider"] { background-position: 100% center; }
+
+[data-ui-asset^="service:"] {
+  background-image: url("../assets/ui/service/services.svg");
+  background-size: 500% 100%;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  border-color: transparent;
+}
+[data-ui-asset="service:food"] { background-position: 0% center; }
+[data-ui-asset="service:housing"] { background-position: 25% center; }
+[data-ui-asset="service:safety"] { background-position: 50% center; }
+[data-ui-asset="service:recreation"] { background-position: 75% center; }
+[data-ui-asset="service:agriculture"] { background-position: 100% center; }
+
+[data-ui-asset^="notification:"] {
+  background-image: url("../assets/ui/notification/tasks.svg");
+  background-size: 800% 100%;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  border-color: transparent;
+}
+[data-ui-asset="notification:task-raid"] { background-position: 0% center; }
+[data-ui-asset="notification:task-housing"] { background-position: 14.2857% center; }
+[data-ui-asset="notification:task-food"] { background-position: 28.5714% center; }
+[data-ui-asset="notification:task-storage"] { background-position: 42.8571% center; }
+[data-ui-asset="notification:task-repair"] { background-position: 57.1429% center; }
+[data-ui-asset="notification:task-trade"] { background-position: 71.4286% center; }
+[data-ui-asset="notification:task-arrival"] { background-position: 85.7143% center; }
+[data-ui-asset="notification:task-event"] { background-position: 100% center; }
+
+[data-ui-asset="resource:wood"] { background-image: url("../assets/ui/resource/wood.webp"); }
+[data-ui-asset="resource:food"] { background-image: url("../assets/ui/resource/food.webp"); }
+[data-ui-asset="resource:ale"] { background-image: url("../assets/ui/resource/ale.webp"); }
+[data-ui-asset="resource:ore"] { background-image: url("../assets/ui/resource/ore.webp"); }
+[data-ui-asset="resource:tools"] { background-image: url("../assets/ui/resource/tools.webp"); }
+[data-ui-asset="resource:gold"] { background-image: url("../assets/ui/resource/gold.webp"); }
+[data-ui-asset^="resource:"] {
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: transparent;
+  border-color: transparent;
+}
+
+[data-ui-asset="building-icon:house"] { background-image: url("../assets/ui/building-card/house.svg"); }
+[data-ui-asset="building-icon:stockpile"] { background-image: url("../assets/ui/building-card/stockpile.webp"); }
+[data-ui-asset="building-icon:guard-post"] { background-image: url("../assets/ui/building-card/guard-post.webp"); }
+[data-ui-asset="building-icon:wood-wall"] { background-image: url("../assets/ui/building-card/wood-wall.svg"); }
+[data-ui-asset="building-icon:wood-gate"] { background-image: url("../assets/ui/building-card/wood-gate.svg"); }
+[data-ui-asset="building-icon:campfire"] { background-image: url("../assets/ui/building-card/campfire.svg"); }
+[data-ui-asset="building-icon:tavern"] { background-image: url("../assets/ui/building-card/tavern.webp"); }
+[data-ui-asset="building-icon:brewery"] { background-image: url("../assets/ui/building-card/brewery.webp"); }
+[data-ui-asset="building-icon:blacksmith"] { background-image: url("../assets/ui/building-card/blacksmith.webp"); }
+[data-ui-asset="building-icon:market"] { background-image: url("../assets/ui/building-card/market.webp"); }
+[data-ui-asset="building-icon:trading-post"] { background-image: url("../assets/ui/building-card/trading-post.webp"); }
+[data-ui-asset="building-icon:farmhouse"] { background-image: url("../assets/ui/building-card/farmhouse.webp"); }
+[data-ui-asset^="building-icon:"] {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: rgba(193,159,99,.45);
+  box-shadow: inset 0 0 0 1px rgba(20,16,12,.35);
+}
