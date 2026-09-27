@@ -17,7 +17,7 @@ import { distance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
 import { processImmigrationDay } from './Population'
 import { updateProduction } from './Production'
-import { updateServices } from './Services'
+import { serviceAssignments, updateServices, type ServiceAssignment } from './Services'
 import { toolCoverage } from './Tools'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
@@ -28,8 +28,12 @@ import {
 type MovingAgent = Settler | Enemy
 
 export class Simulation {
+  /** Optional QA instrumentation; no timing calls in ordinary gameplay. */
+  profile = false
+  readonly timings = { decisions: 0, agents: 0, needsServices: 0, navigation: 0, other: 0 }
   readonly navigation = new Navigation()
   private lastPhase: DayPhase
+  private servicePlan: Map<number, ServiceAssignment> | undefined
 
   constructor(public state: WorldState) {
     this.lastPhase = phaseForTime(state.timeOfDay)
@@ -57,8 +61,10 @@ export class Simulation {
   }
 
   step(): void {
+    let mark = this.profile ? performance.now() : 0
     const s = this.state
     s.tick++
+    this.servicePlan = undefined
     s.elapsedSeconds += FIXED_STEP
     tickCombatCooldowns(s, FIXED_STEP)
 
@@ -75,11 +81,15 @@ export class Simulation {
     this.navigation.sync(s)
     updateProduction(s, FIXED_STEP, phase)
 
+    if (this.profile) { this.timings.other = performance.now() - mark; mark = performance.now() }
+
     if (isWorkPhase(phase) && s.tick % DECISION_TICKS === 1) {
       serveDailyMeal(s)
       assignJobs(s)
       assignHousing(s)
     }
+
+    if (this.profile) { this.timings.decisions = performance.now() - mark; mark = performance.now() }
 
     for (const settler of s.settlers) {
       if (settler.health <= 0) {
@@ -95,7 +105,11 @@ export class Simulation {
       }
 
       const job = s.jobs.find(j => j.id === settler.jobId)
-      if (job) this.updateJob(settler, job, toolWorkMultiplier)
+      if (job) {
+        this.updateJob(settler, job, toolWorkMultiplier)
+        // A carried delivery or completed repair can change service availability this tick.
+        this.servicePlan = undefined
+      }
       else if (!isWorkPhase(phase)) {
         if (phase === 'night' && settler.role === 'guard' && s.enemies.length > 0) this.updateGuardCombat(settler)
         else this.updateNightSchedule(settler)
@@ -116,9 +130,12 @@ export class Simulation {
       }
     }
 
+    if (this.profile) { this.timings.agents = performance.now() - mark; mark = performance.now() }
     updateNeeds(s, FIXED_STEP, phase)
     updateServices(s, FIXED_STEP, phase)
+    if (this.profile) { this.timings.needsServices = performance.now() - mark; mark = performance.now() }
     this.navigation.process(s)
+    if (this.profile) this.timings.navigation = performance.now() - mark
   }
 
   private beginRaid(): void {
@@ -243,7 +260,11 @@ export class Simulation {
   }
 
   private updateNightSchedule(settler: Settler): void {
-    const { target, status } = nightTarget(this.state, settler, this.phase)
+    const phase = this.phase
+    if (settler.role !== 'guard' && (phase === 'dusk' || phase === 'dawn')) {
+      this.servicePlan ??= serviceAssignments(this.state, phase)
+    }
+    const { target, status } = nightTarget(this.state, settler, phase, this.servicePlan)
 
     if (distance(settler, target) < 0.01) {
       settler.path = []
