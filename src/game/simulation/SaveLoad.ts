@@ -2,6 +2,7 @@ import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
+import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
 import { residentialPlotsOverlap } from './TownPlanning'
 import { DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
@@ -233,7 +234,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const b of s.buildings) {
     const def = BUILDINGS[b.type]
-    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : def.housing), 'housing capacity')
+    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : houseBedCapacity(b)), 'housing capacity')
     if (b.complete) {
       for (const resource of RESOURCE_IDS) {
         const capacity = supplyCapacity(b, resource)
