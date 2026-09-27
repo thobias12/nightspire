@@ -30,9 +30,13 @@ import {
   residentialPlotPreview,
   residentialPlotResourceError,
   roadPlacementError,
+  snapPointToGrid,
   snapRoadControlPoint,
   type ResidentialPlotPreview,
 } from '../simulation/TownPlanning'
+import {
+  createField, fieldArea, fieldPlacementError, pointInField, residentialPlotFieldError,
+} from '../simulation/FieldPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
 import { nextStockpilePriority, stockpilePriorityLabel } from '../simulation/StockpileLogistics'
@@ -51,7 +55,7 @@ export class Game {
   private selectedId: number | null = null
   private buildType: BuildingId | null = null
   private buildRotation = 0
-  private planningTool: 'road' | 'residential-plot' | null = null
+  private planningTool: 'road' | 'residential-plot' | 'field' | null = null
   private planningStart: Point | null = null
   private roadControlPoints: Point[] = []
   private roadDraft: Point[] = []
@@ -59,6 +63,8 @@ export class Game {
   private roadCurve = 0.72
   private roadAngleSnap = false
   private plotDraft: ResidentialPlotPreview | null = null
+  private fieldControlPoints: Point[] = []
+  private fieldDraft: Point[] = []
   private pointer: Point | null = null
   private rawPointer: Point | null = null
   private gridSnap = true
@@ -105,6 +111,11 @@ export class Game {
           this.gridSnap,
           this.simulation.state.residentialPlots,
         )
+      } else if (this.planningTool === 'field' && precise) {
+        const previewPoint = this.gridSnap ? snapPointToGrid(precise) : precise
+        this.fieldDraft = [...this.fieldControlPoints]
+        const last = this.fieldControlPoints.at(-1)
+        if (!last || Math.hypot(previewPoint.x - last.x, previewPoint.z - last.z) >= 0.15) this.fieldDraft.push(previewPoint)
       } else if (this.dragStart && point && this.buildType === 'wood-wall') {
         this.dragPoints = wallLinePoints(this.dragStart, point)
       }
@@ -152,6 +163,29 @@ export class Game {
           return
         }
 
+        if (this.planningTool === 'field') {
+          const point = this.gridSnap ? snapPointToGrid(raw) : raw
+          const anchor = this.fieldControlPoints.at(-1)
+          if (!anchor || Math.hypot(point.x - anchor.x, point.z - anchor.z) >= 0.75) {
+            if (this.fieldControlPoints.length >= 8) {
+              this.message = 'Field already has 8 corners. Finish with Enter/double-click or remove a corner.'
+            } else {
+              this.fieldControlPoints.push(point)
+              this.planningStart = this.fieldControlPoints[0] ?? null
+              this.message = this.fieldControlPoints.length < 3
+                ? 'Field corner ' + this.fieldControlPoints.length + ' placed. Add at least ' + (3 - this.fieldControlPoints.length) + ' more.'
+                : 'Field corner ' + this.fieldControlPoints.length + ' placed. Continue shaping, or double-click / Enter to close.'
+            }
+          }
+          this.rawPointer = raw
+          this.pointer = point
+          this.fieldDraft = [...this.fieldControlPoints]
+          this.updateGhost()
+          this.updateHud()
+          e.preventDefault()
+          return
+        }
+
         this.planningStart = raw
         this.pointer = raw
         this.rawPointer = raw
@@ -186,6 +220,7 @@ export class Game {
           let error = residentialPlotError(preview, s.residentialPlots)
           if (!error) error = residentialPlotBuildingError(preview, s.buildings)
           if (!error) error = residentialPlotResourceError(preview, s.nodes)
+          if (!error) error = residentialPlotFieldError(preview, s.fields)
           if (!error && preview) error = placementError(s, 'house', preview.housePoint)
 
           if (error || !preview) {
@@ -247,13 +282,27 @@ export class Game {
       e.preventDefault()
     }, { signal })
     this.renderer.canvas.addEventListener('dblclick', e => {
-      if (this.planningTool !== 'road') return
+      if (this.planningTool !== 'road' && this.planningTool !== 'field') return
       e.preventDefault()
-      this.finalizeRoadDraft()
+      if (this.planningTool === 'road') this.finalizeRoadDraft()
+      else this.finalizeFieldDraft()
     }, { signal })
     this.renderer.canvas.addEventListener('contextmenu', e => {
-      if (this.planningTool !== 'road') return
+      if (this.planningTool !== 'road' && this.planningTool !== 'field') return
       e.preventDefault()
+      if (this.planningTool === 'field') {
+        if (this.fieldControlPoints.length > 0) {
+          this.fieldControlPoints.pop()
+          this.planningStart = this.fieldControlPoints[0] ?? null
+          this.fieldDraft = [...this.fieldControlPoints]
+          this.message = this.fieldControlPoints.length ? 'Removed last field corner.' : 'Field draft cleared.'
+          this.updateGhost()
+          this.updateHud()
+        } else {
+          this.action('cancel')
+        }
+        return
+      }
       if (this.roadControlPoints.length > 0) {
         this.planningStart = null
         this.roadControlPoints = []
@@ -299,7 +348,8 @@ export class Game {
         }
       } else {
         const nearby = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes.filter(n => n.remaining > 0)].filter(e => distance(e, p) < 1.8).sort((a, b) => distance(a, p) - distance(b, p))
-        this.selectedId = nearby[0]?.id ?? null
+        const field = s.fields.find(candidate => pointInField(precise, candidate))
+        this.selectedId = nearby[0]?.id ?? field?.id ?? null
       }
       this.updateGhost(); this.updateHud()
     }, { signal })
@@ -341,6 +391,16 @@ export class Game {
         this.action('trading-post')
         return
       }
+      if (e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        this.action('farmhouse')
+        return
+      }
+      if (e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        this.action('field')
+        return
+      }
       if (this.planningTool === 'road' && e.key === 'Shift') {
         if (!this.roadAngleSnap) {
           this.roadAngleSnap = true
@@ -355,9 +415,25 @@ export class Game {
         this.undoRoadControlPoint()
         return
       }
+      if (this.planningTool === 'field' && e.key === 'Backspace') {
+        e.preventDefault()
+        if (this.fieldControlPoints.length > 0) {
+          this.fieldControlPoints.pop()
+          this.planningStart = this.fieldControlPoints[0] ?? null
+          this.fieldDraft = [...this.fieldControlPoints]
+          this.message = this.fieldControlPoints.length ? 'Removed last field corner.' : 'Field draft cleared.'
+          this.updateGhost(); this.updateHud()
+        }
+        return
+      }
       if (this.planningTool === 'road' && e.key === 'Enter') {
         e.preventDefault()
         this.finalizeRoadDraft()
+        return
+      }
+      if (this.planningTool === 'field' && e.key === 'Enter') {
+        e.preventDefault()
+        this.finalizeFieldDraft()
         return
       }
       if (this.planningTool === 'road' && e.key === '[') {
@@ -421,7 +497,7 @@ export class Game {
   }
   private replaceWorld(text: string): void {
     this.simulation.replace(deserializeWorld(text))
-    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControlPoints = []; this.roadDraft = []; this.roadAngleSnap = false; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+    this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControlPoints = []; this.roadDraft = []; this.fieldControlPoints = []; this.fieldDraft = []; this.roadAngleSnap = false; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
   }
   private roadCurveLabel(): string {
     if (this.roadCurve <= 0.05) return 'Straight'
@@ -477,7 +553,7 @@ export class Game {
   private finalizeRoadDraft(): void {
     if (this.planningTool !== 'road') return
     const points = sampleRoadCurve(this.roadControlPoints, this.roadCurve)
-    const error = roadPlacementError(points)
+    const error = roadPlacementError(points, this.simulation.state.fields)
     if (error) {
       this.message = error
       this.updateGhost()
@@ -493,6 +569,30 @@ export class Game {
     this.planningStart = null
     this.roadControlPoints = []
     this.roadDraft = []
+    this.rawPointer = null
+    this.pointer = null
+    this.updateGhost()
+    this.updateHud()
+  }
+
+  private finalizeFieldDraft(): void {
+    if (this.planningTool !== 'field') return
+    const s = this.simulation.state
+    const points = this.fieldControlPoints.map(point => ({ ...point }))
+    const error = fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads)
+    if (error) {
+      this.message = error
+      this.updateGhost()
+      this.updateHud()
+      return
+    }
+    const field = createField(s.nextId++, points)
+    s.fields.push(field)
+    this.selectedId = field.id
+    this.message = 'Field planned · ' + field.area.toFixed(1) + 'm² · expected harvest ' + field.yield + ' Food. Click to start another field.'
+    this.planningStart = null
+    this.fieldControlPoints = []
+    this.fieldDraft = []
     this.rawPointer = null
     this.pointer = null
     this.updateGhost()
@@ -516,6 +616,8 @@ export class Game {
           this.planningStart = null
           this.roadControlPoints = []
           this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
@@ -532,6 +634,20 @@ export class Game {
           this.roadWidth = this.roadWidth <= 1.25 ? 1.7 : this.roadWidth < 2.35 ? 2.4 : 1.2
           this.message = 'Road width · ' + (this.roadWidth <= 1.25 ? 'Path' : this.roadWidth >= 2.35 ? 'Main road' : 'Lane') + ' · ' + this.roadWidth.toFixed(1) + 'm.'
           break
+        case 'field':
+          this.buildType = null
+          this.planningTool = 'field'
+          this.planningStart = null
+          this.roadControlPoints = []
+          this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
+          this.plotDraft = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.renderer.mode = 'settlement'
+          this.message = 'Field tool · point-drawn like Manor Lords · LMB adds corners · double-click/Enter closes · RMB/Backspace removes the last corner · 3–8 corners · G toggles grid snap.'
+          break
         case 'residential-plot':
           if (s.roads.length === 0) {
             this.message = 'Draw a road first. Residential plots need road frontage.'
@@ -542,18 +658,22 @@ export class Game {
           this.planningStart = null
           this.roadControlPoints = []
           this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
           this.message = 'Residential Plot: start close to a road, then drag frontage + backyard depth. ' + (this.gridSnap ? 'Grid Snap rounds width/depth to 1m.' : 'Freeform dimensions enabled.')
           break
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market': case 'trading-post':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market': case 'trading-post': case 'farmhouse':
           this.buildType = action
           this.planningTool = null
           this.planningStart = null
           this.roadControlPoints = []
           this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
           this.plotDraft = null
           this.buildRotation = 0
           this.dragStart = null
@@ -591,12 +711,23 @@ export class Game {
           this.planningStart = null
           this.roadControlPoints = []
           this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
           this.roadAngleSnap = false
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.message = 'Inspect mode. Click a settler, raider, resource or building.'
           break
+        case 'remove-field': {
+          if (this.selectedId === null) { this.message = 'Select a farm field first.'; break }
+          const index = s.fields.findIndex(field => field.id === this.selectedId)
+          if (index < 0) { this.message = 'Select a farm field first.'; break }
+          const [field] = s.fields.splice(index, 1)
+          this.selectedId = null
+          this.message = 'Farm Field ' + field.id + ' removed. Fields have no construction refund.'
+          break
+        }
         case 'cancel-blueprint': {
           if (this.selectedId === null) { this.message = 'Select an unfinished blueprint first.'; break }
           const error = cancelBuilding(s, this.selectedId)
@@ -922,7 +1053,7 @@ export class Game {
           const imported = deserializeWorld(value)
           const serialized = serializeWorld(imported)
           this.storePrimary(serialized)
-          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControlPoints = []; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControlPoints = []; this.roadDraft = []; this.fieldControlPoints = []; this.fieldDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
           this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
           break
         }
@@ -933,9 +1064,27 @@ export class Game {
     this.updateGhost(); this.updateHud()
   }
   private updateGhost(): void {
+    if (this.planningTool === 'field') {
+      const points = this.fieldControlPoints.length ? this.fieldDraft : []
+      const s = this.simulation.state
+      const error = points.length >= 3
+        ? fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads)
+        : null
+      this.renderer.showFieldGhost(points, !error, this.gridSnap)
+      if (this.fieldControlPoints.length > 0) {
+        const area = points.length >= 3 ? fieldArea(points) : 0
+        this.message = error ?? (
+          'Field preview · ' + (area > 0 ? area.toFixed(1) + 'm² · ' : '')
+          + this.fieldControlPoints.length + ' fixed corner' + (this.fieldControlPoints.length === 1 ? '' : 's')
+          + ' · double-click / Enter to close.'
+        )
+      }
+      return
+    }
+
     if (this.planningTool === 'road') {
       const points = this.roadControlPoints.length ? this.roadDraft : []
-      const error = points.length >= 2 ? roadPlacementError(points) : null
+      const error = points.length >= 2 ? roadPlacementError(points, this.simulation.state.fields) : null
       this.renderer.showRoadGhost(points, !error, this.gridSnap, this.roadWidth)
       if (this.roadControlPoints.length > 0 && this.rawPointer) {
         this.message = error ?? (
@@ -955,6 +1104,7 @@ export class Game {
       let error = residentialPlotError(preview, this.simulation.state.residentialPlots)
       if (!error) error = residentialPlotBuildingError(preview, this.simulation.state.buildings)
       if (!error) error = residentialPlotResourceError(preview, this.simulation.state.nodes)
+      if (!error) error = residentialPlotFieldError(preview, this.simulation.state.fields)
       if (!error && preview) error = placementError(this.simulation.state, 'house', preview.housePoint)
       this.renderer.showResidentialPlotGhost(preview, !error, this.gridSnap)
       if (this.planningStart) {
@@ -1033,6 +1183,7 @@ export class Game {
       roadCurve: this.roadCurve,
       roadAngleSnap: this.roadAngleSnap,
       roadPointCount: this.roadControlPoints.length,
+      fieldPointCount: this.fieldControlPoints.length,
       buildRotation: this.buildRotation,
       dragCount: this.dragPoints.length,
       message: this.message,

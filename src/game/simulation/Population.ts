@@ -48,7 +48,10 @@ function totalBeds(state: WorldState): number {
 function storedFood(state: WorldState): number {
   const central = stockpiles(state).reduce((sum, building) => sum + Math.max(0, available(state, building, 'food')), 0)
   const distributed = completedMarkets(state).reduce((sum, market) => sum + market.inventory.food, 0)
-  return central + distributed
+  const harvested = state.buildings
+    .filter(building => building.type === 'farmhouse' && building.complete && !building.destroyed)
+    .reduce((sum, farmhouse) => sum + farmhouse.inventory.food, 0)
+  return central + distributed + harvested
 }
 
 function raidReady(state: WorldState): boolean {

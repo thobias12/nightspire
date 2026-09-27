@@ -49,7 +49,13 @@ export function workplaceStaffing(state: WorldState, building: Building): Workpl
         settler.health > 0
         && settler.arrivalTarget === null
         && settler.jobId === null
-        && distance(settler, target) < 0.2
+        && (
+          distance(settler, target) < 0.2
+          || (building.type === 'farmhouse' && (
+            settler.status.includes('field')
+            || settler.status === 'Farmhouse Food store full'
+          ))
+        )
       ).length
     : 0
   return {

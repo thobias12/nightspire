@@ -1,5 +1,6 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
+import { pointInField } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
@@ -39,7 +40,8 @@ export function resourceCapacity(b: Building, resource: ResourceId): number {
   const supply = supplyCapacity(b, resource)
   const output = def.production?.outputResource === resource ? def.production.outputCapacity : 0
   const trade = def.tradeStorageCapacity ?? 0
-  return Math.max(supply, output, trade)
+  const agriculture = resource === 'food' ? (def.agricultureStorageCapacity ?? 0) : 0
+  return Math.max(supply, output, trade, agriculture)
 }
 
 export function supplyFree(state: WorldState, b: Building, resource: ResourceId, index?: JobReservations): number {
@@ -77,6 +79,7 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
   if (cells.some(c => occupied.has(cellKey(c)))) return 'Overlaps a building or ruin.'
 
   const proposed = new Set(cells.map(cellKey))
+  if (s.fields.some(field => cells.some(cell => pointInField(cell, field)))) return 'Building overlaps a farm field.'
   if (s.nodes.some(n => n.remaining > 0 && proposed.has(cellKey(n)))) return 'Clear the resources first.'
   if ([s.player, ...s.settlers, ...s.enemies].some(a => cells.some(c => distance(a, c) < 1.05))) return 'Someone is standing here.'
 

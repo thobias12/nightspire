@@ -1,6 +1,7 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
+import { pointInPolygon, segmentsIntersect } from './FieldPlanning'
 import { inBounds } from './Navigation'
-import type { Building, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
+import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
 
 export type BackyardKind = ResidentialPlot['backyard']
 
@@ -232,10 +233,20 @@ export function roadLength(points: Point[]): number {
   return total
 }
 
-export function roadPlacementError(points: Point[]): string | null {
+export function roadPlacementError(points: Point[], fields: FieldPlot[] = []): string | null {
   if (points.length < 2 || roadLength(points) < 2) return 'Road needs at least 2m between its first and final points.'
   if (points.length > 120) return 'Road is too long for one stroke. Place it in another segment.'
   if (points.some(point => !inBounds(point))) return 'Keep the road inside the settlement boundary.'
+  for (const field of fields) {
+    if (points.some(point => pointInPolygon(point, field.points))) return 'Road cannot run through a farm field.'
+    for (let i = 1; i < points.length; i++) {
+      for (let j = 0; j < field.points.length; j++) {
+        if (segmentsIntersect(points[i - 1], points[i], field.points[j], field.points[(j + 1) % field.points.length])) {
+          return 'Road cannot cross a farm field boundary.'
+        }
+      }
+    }
+  }
   return null
 }
 

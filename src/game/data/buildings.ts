@@ -33,7 +33,7 @@ export interface ProductionDefinition {
 
 export type BuildingId =
   | 'house' | 'stockpile' | 'guard-post' | 'wood-wall' | 'wood-gate'
-  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith' | 'market' | 'trading-post'
+  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith' | 'market' | 'trading-post' | 'farmhouse'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -50,6 +50,7 @@ export interface BuildingDefinition {
   production: ProductionDefinition | null
   foodDistribution?: FoodDistributionDefinition
   tradeStorageCapacity?: number
+  agricultureStorageCapacity?: number
   maxHealth: number
   fortification: boolean
   friendlyPassable: boolean
@@ -152,5 +153,13 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
     service: null, production: null,
     tradeStorageCapacity: 60,
     maxHealth: 220, fortification: false, friendlyPassable: false, color: 0x9a7a54,
+  },
+  farmhouse: {
+    id: 'farmhouse', label: 'Farmhouse', footprint: 3, buildCost: cost(45),
+    constructionWork: 16, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 3, profession: 'Farmer',
+    service: null, production: null,
+    agricultureStorageCapacity: 60,
+    maxHealth: 200, fortification: false, friendlyPassable: false, color: 0x8a7656,
   },
 }
