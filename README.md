@@ -2,7 +2,7 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
-**Current playable milestone: M3.11.3 — Market & Food Distribution.** The settlement now transitions from simple camp rations to a staffed Market economy. Before a completed Market exists, settlers still take one daily Food ration directly from Stockpiles. Once the first Market is completed, daily meals must come from Market inventory instead: Food is hauled from Stockpiles into local Market stalls, Vendors physically report for work, and each active Vendor can distribute five meals per Day. A two-Vendor Market therefore serves the current 10-settler cap and buffers up to 20 Food. Market Food counts toward immigration reserves, while Stockpile specialization continues to control where Food is staged before distribution. M3.11.2 storage rules, M3.11.1 workplace logistics, M3.10.2 roads and M4 scale architecture remain intact. See [the Market note](docs/M3113_MARKET_FOOD_DISTRIBUTION.md), [the stockpile specialization note](docs/M3112_STOCKPILE_SPECIALIZATION.md) and [the workplace logistics note](docs/M3111_WORKPLACE_LOGISTICS.md).
+**Current playable milestone: M3.11.4 — Households & Local Service Coverage.** Houses now behave as readable households instead of only providing beds. Once formal Markets exist, each occupied House needs a stocked, staffed Market within **18m** for Food access; meals no longer jump across the settlement to uncovered neighborhoods. Recreation services use the same 18m household catchment. Inspecting a House shows its residents, serving Market and distance, recreation access, Safety and household satisfaction. Immigration now checks occupied-household Market coverage as well as total Food, Happiness and Safety. Pre-Market settlements still use the original camp-ration fallback. M3.11.3 Market throughput, M3.11.2 Stockpile specialization, M3.10.2 roads and M4 scale architecture remain intact. See [the household coverage note](docs/M3114_HOUSEHOLD_COVERAGE.md), [the Market note](docs/M3113_MARKET_FOOD_DISTRIBUTION.md) and [the stockpile specialization note](docs/M3112_STOCKPILE_SPECIALIZATION.md).
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -74,7 +74,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **145 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **151 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 

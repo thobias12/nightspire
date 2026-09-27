@@ -410,8 +410,25 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] no renderer/road changes; Market uses generic building presentation in this systems slice
 - [ ] live acceptance for one- and two-Vendor meal throughput
 
+### M3.11.4 — Households & local service coverage
+
+- [x] completed Houses expose their assigned residents as a household
+- [x] Market Food access uses an 18m household catchment
+- [x] empty Markets do not count as household Food access
+- [x] unstaffed Markets do not count as household Food access
+- [x] daily Market meals cannot serve a House outside catchment
+- [x] recreation services use an 18m home/current-position catchment
+- [x] House inspector shows residents, Market, distance, recreation, Safety and satisfaction
+- [x] HUD shows occupied-household Market and recreation coverage
+- [x] immigration requires full occupied-household Market coverage once formal Markets exist
+- [x] pre-Market settlements retain camp-ration coverage
+- [x] household state is derived; no new save payload required
+- [x] no renderer/road changes
+- [ ] live neighborhood-layout acceptance with intentionally covered/uncovered Houses
+
 ### Later M3.11 slices
 
+- [ ] house upgrades/progression
 - [ ] broader market/trade foundation
 - [ ] household-side production
 - [ ] transport-distance pressure
