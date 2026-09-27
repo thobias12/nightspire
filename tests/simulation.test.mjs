@@ -258,7 +258,7 @@ test('player roads and residential plots survive save/load with their modular ba
   const s=createInitialWorldState()
   const road={id:s.nextId++,width:2.4,points:sampleRoadCurve([{x:4,z:0},{x:7,z:1.2},{x:10,z:0}],0.72,0.5)}
   s.roads.push(road)
-  const preview=residentialPlotPreview(s.roads,{x:4,z:0},{x:9,z:7})
+  const preview=residentialPlotPreview(s.roads,{x:7,z:1.2},{x:11,z:9})
   assert.ok(preview)
   const house=createBuilding(s.nextId++,'house',preview.housePoint.x,preview.housePoint.z,true,preview.houseRotation)
   s.buildings.push(house); s.topology++
