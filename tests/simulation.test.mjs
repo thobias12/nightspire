@@ -28,6 +28,9 @@ const {
   nextHaulPriority, workplaceHaulScore, workplaceInputNeed, workplaceInputTarget,
   workplaceOutputReady, workplaceOutputThreshold,
 } = require('../.test-build/game/simulation/WorkplaceLogistics.js')
+const {
+  compareStockpileDestinations, nextStockpilePriority, stockpileAccepts,
+} = require('../.test-build/game/simulation/StockpileLogistics.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
@@ -2071,4 +2074,114 @@ test('M3.11.1 hauling priority persists and older saves migrate to Normal', () =
   const invalid=JSON.parse(serializeWorld(s))
   invalid.buildings.find(b=>b.id===brewery.id).haulPriority='critical'
   assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/building state/)
+})
+
+
+test('M3.11.2 stockpiles default to all resources at Normal priority and persist specialization', () => {
+  const s=createInitialWorldState()
+  const starter=s.buildings[0]
+  assert.equal(starter.stockpilePriority,'normal')
+  assert.deepEqual(starter.stockpileFilters,{wood:true,food:true,ale:true,ore:true,tools:true})
+  assert.equal(nextStockpilePriority('normal'),'high')
+
+  starter.stockpilePriority='high'
+  starter.stockpileFilters.food=false
+  starter.stockpileFilters.ale=false
+  const loaded=deserializeWorld(serializeWorld(s))
+  const restored=loaded.buildings[0]
+  assert.equal(restored.stockpilePriority,'high')
+  assert.equal(restored.stockpileFilters.food,false)
+  assert.equal(restored.stockpileFilters.ale,false)
+  assert.equal(stockpileAccepts(restored,'wood'),true)
+  assert.equal(stockpileAccepts(restored,'food'),false)
+
+  const legacy=JSON.parse(serializeWorld(createInitialWorldState()))
+  for(const building of legacy.buildings) {
+    delete building.stockpilePriority
+    delete building.stockpileFilters
+  }
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(migrated.buildings.every(b=>b.stockpilePriority==='normal'))
+  assert.ok(migrated.buildings.every(b=>Object.values(b.stockpileFilters).every(Boolean)))
+
+  const invalid=JSON.parse(serializeWorld(s))
+  invalid.buildings[0].stockpilePriority='urgent'
+  assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/building state/)
+})
+
+test('M3.11.2 gather deliveries respect stockpile resource filters', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  const worker=s.settlers[0]
+  worker.lastMealDay=s.day
+  worker.needs={food:100,housing:100,safety:100,recreation:100}
+  s.targets={wood:50,food:0,ale:0,ore:0,tools:0}
+
+  const starter=s.buildings[0]
+  starter.stockpileFilters.wood=false
+  const timberYard=createBuilding(s.nextId++,'stockpile',10,0,true)
+  timberYard.stockpileFilters.food=false
+  timberYard.stockpileFilters.ale=false
+  timberYard.stockpileFilters.ore=false
+  timberYard.stockpileFilters.tools=false
+  s.buildings.push(timberYard); s.topology++
+
+  assignJobs(s)
+  const job=s.jobs.find(j=>j.settlerId===worker.id)
+  assert.equal(job.kind,'gather')
+  assert.equal(job.resource,'wood')
+  assert.equal(job.targetId,timberYard.id)
+  validateWorld(s)
+})
+
+test('M3.11.2 receiving priority is chosen before distance within valid stockpiles', () => {
+  const s=createInitialWorldState()
+  const starter=s.buildings[0]
+  const far=createBuilding(s.nextId++,'stockpile',18,0,true)
+  starter.stockpilePriority='normal'
+  far.stockpilePriority='high'
+  s.buildings.push(far); s.topology++
+
+  const origin={x:0,z:0}
+  assert.ok(compareStockpileDestinations(far,starter,origin)<0)
+
+  s.settlers=s.settlers.slice(0,1)
+  const worker=s.settlers[0]
+  worker.lastMealDay=s.day
+  worker.needs={food:100,housing:100,safety:100,recreation:100}
+  s.targets={wood:50,food:0,ale:0,ore:0,tools:0}
+  assignJobs(s)
+  const job=s.jobs.find(j=>j.settlerId===worker.id)
+  assert.equal(job.kind,'gather')
+  assert.equal(job.targetId,far.id)
+})
+
+test('M3.11.2 manufactured output uses only accepting stockpiles while existing rejected stock stays usable', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  const starter=s.buildings[0]
+  starter.inventory.wood=40
+  starter.stockpileFilters.ale=false
+  starter.stockpileFilters.wood=false
+
+  const aleStore=createBuilding(s.nextId++,'stockpile',10,0,true)
+  aleStore.stockpileFilters.wood=false
+  aleStore.stockpileFilters.food=false
+  aleStore.stockpileFilters.ore=false
+  aleStore.stockpileFilters.tools=false
+  aleStore.stockpilePriority='high'
+
+  const brewery=createBuilding(s.nextId++,'brewery',-7,0,true)
+  brewery.inventory.ale=8
+  const house=createBuilding(s.nextId++,'house',-10,0,false)
+  s.buildings.push(aleStore,brewery,house); s.topology++
+
+  assignJobs(s)
+  assert.ok(s.jobs.some(j=>j.kind==='supply' && j.sourceId===brewery.id && j.targetId===aleStore.id && j.resource==='ale'))
+  assert.equal(s.jobs.some(j=>j.kind==='supply' && j.sourceId===brewery.id && j.targetId===starter.id && j.resource==='ale'),false)
+  assert.ok(s.jobs.some(j=>j.kind==='deliver' && j.sourceId===starter.id && j.targetId===house.id && j.resource==='wood'))
+  validateWorld(s)
 })
