@@ -49,6 +49,10 @@ const {
   houseBedCapacity, houseProgressionStatus, processHouseholdProgression,
 } = require('../.test-build/game/simulation/HouseProgression.js')
 const {
+  CHILD_DAYS_PER_YEAR, FAMILY_CHILD_INTERVAL_DAYS, familySummary,
+  processFamiliesDay, synchronizeFamilies,
+} = require('../.test-build/game/simulation/Family.js')
+const {
   MERCHANT_UNIT_LIMIT, TRADE_PRICES, adjustTradeReserve, merchantIntervalDays, merchantPresent,
   processMerchantTrade, scheduleMerchantVisit, tradeExportStagingNeed, tradeFreeStorage,
   tradeReputation,
