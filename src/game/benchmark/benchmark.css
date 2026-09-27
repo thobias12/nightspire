@@ -1,0 +1,10 @@
+.benchmark-panel { position: absolute; top: 12px; left: 12px; width: 470px; max-width: calc(100% - 310px); max-height: calc(100% - 24px); overflow: auto; z-index: 5; font-size: 11px; }
+.benchmark-panel h1 { font: 600 18px system-ui; margin: 0 0 8px; }
+.benchmark-panel button, .benchmark-panel select { font-size: 11px; margin: 3px; padding: 6px; }
+.benchmark-panel a { display: block; color: #d5c18e; margin: 8px 0; }
+.benchmark-panel textarea { width: 100%; height: 170px; font: 10px monospace; }
+.benchmark-panel pre { white-space: pre-wrap; font-size: 10px; }
+.benchmark-shell .topbar, .benchmark-shell .guide, .benchmark-shell .inspector, .benchmark-shell .bottom { display: none; }
+.benchmark-shell .qa { top: 12px; max-height: calc(100% - 24px); }
+.benchmark-shell .qa-body > :not(#metrics):not(#workers) { display: none; }
+.benchmark-shell .qa { pointer-events: auto; }

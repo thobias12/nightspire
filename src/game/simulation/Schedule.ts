@@ -1,7 +1,7 @@
 import { BUILDINGS } from '../data/buildings'
 import type { DayPhase } from './DayNight'
 import { entrance } from './Navigation'
-import { serviceAssignment } from './Services'
+import { serviceAssignment, type ServiceAssignment } from './Services'
 import type { Point, Settler, WorldState } from './WorldState'
 
 export type SettlerRole = 'worker' | 'guard'
@@ -35,7 +35,10 @@ function homeTarget(state: WorldState, settler: Settler): Point {
   return starter ? entrance(starter) : { x: 0, z: 2 }
 }
 
-export function nightTarget(state: WorldState, settler: Settler, phase: DayPhase): { target: Point; status: string } {
+export function nightTarget(
+  state: WorldState, settler: Settler, phase: DayPhase,
+  services?: ReadonlyMap<number, ServiceAssignment>,
+): { target: Point; status: string } {
   if (settler.role === 'guard') {
     const target = guardTarget(state, settler)
     if (target) return { target, status: 'Guarding the settlement' }
@@ -43,7 +46,7 @@ export function nightTarget(state: WorldState, settler: Settler, phase: DayPhase
   }
 
   if (phase === 'dusk' || phase === 'dawn') {
-    const service = serviceAssignment(state, settler, phase)
+    const service = services ? services.get(settler.id) : serviceAssignment(state, settler, phase)
     if (service) return { target: service.target, status: 'Visiting ' + service.label }
   }
 

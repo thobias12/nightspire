@@ -73,6 +73,7 @@ function createRadialGlowTexture(size = 64): THREE.DataTexture {
 }
 
 export class SceneRenderer {
+  overflowInstances = 0
   readonly canvas = document.createElement('canvas')
   readonly scene = new THREE.Scene()
   readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 180)
@@ -130,7 +131,7 @@ export class SceneRenderer {
   private readonly instanceColor = new THREE.Color()
   private readonly scratchColor = new THREE.Color()
 
-  constructor() {
+  constructor(agentCapacity = 10) {
     this.canvas.className = 'game-canvas'
     this.canvas.tabIndex = 0
     this.canvas.setAttribute('aria-label', 'Settlement world. Click to inspect or place a building.')
@@ -178,7 +179,7 @@ export class SceneRenderer {
     this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 1300)
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
-    this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
+    this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, Math.max(360, agentCapacity))
     this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 1200, 0.12)
     this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 1800)
     this.addBasicBatch('roadBlend', new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2), 0x967b59, 1800)
@@ -192,7 +193,7 @@ export class SceneRenderer {
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
     this.addBatch('stone', this.geometry, TOWN_PALETTE.stone, 1200)
     this.addBatch('plaster', this.geometry, TOWN_PALETTE.plasterWarm, 700)
-    this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600)
+    this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600 + 2 * Math.max(0, agentCapacity - 10))
     this.addBatch('metal', this.geometry, TOWN_PALETTE.iron, 520)
     this.addBatch('cloth', this.geometry, TOWN_PALETTE.clothWine, 420)
     this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 620)
@@ -211,20 +212,20 @@ export class SceneRenderer {
     this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
-    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, 100)
-    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, 100)
-    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, 120)
-    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, 120)
-    this.addBatch('adultHairLong', new THREE.CapsuleGeometry(0.16, 0.38, 3, 6), 0x4a3528, 80)
-    this.addBatch('adultArm', new THREE.CapsuleGeometry(0.055, 0.34, 2, 5), 0xd6ad8b, 220)
-    this.addBatch('adultLeg', new THREE.CapsuleGeometry(0.075, 0.35, 2, 5), 0x463a32, 160)
-    this.addBatch('adultBodice', new THREE.CapsuleGeometry(0.19, 0.22, 3, 6), TOWN_PALETTE.clothWine, 80)
-    this.addBatch('guardCoat', new THREE.CapsuleGeometry(0.23, 0.38, 3, 6), 0x6a5149, 30)
+    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, agentCapacity + 90)
+    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, agentCapacity + 90)
+    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, agentCapacity + 110)
+    this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, agentCapacity + 110)
+    this.addBatch('adultHairLong', new THREE.CapsuleGeometry(0.16, 0.38, 3, 6), 0x4a3528, agentCapacity + 70)
+    this.addBatch('adultArm', new THREE.CapsuleGeometry(0.055, 0.34, 2, 5), 0xd6ad8b, 2 * agentCapacity + 200)
+    this.addBatch('adultLeg', new THREE.CapsuleGeometry(0.075, 0.35, 2, 5), 0x463a32, 2 * agentCapacity + 140)
+    this.addBatch('adultBodice', new THREE.CapsuleGeometry(0.19, 0.22, 3, 6), TOWN_PALETTE.clothWine, agentCapacity + 70)
+    this.addBatch('guardCoat', new THREE.CapsuleGeometry(0.23, 0.38, 3, 6), 0x6a5149, agentCapacity + 20)
     this.addBatch('entertainer', new THREE.ConeGeometry(0.34, 0.78, 10), TOWN_PALETTE.clothWine, 40)
-    this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, 10)
-    this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, 10)
+    this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, agentCapacity)
+    this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, agentCapacity)
     this.addBatch('enemies', new THREE.CapsuleGeometry(0.26, 0.5, 3, 5), 0x6f2525, 64)
-    this.addBatch('cargo', this.geometry, 0xffffff, 10)
+    this.addBatch('cargo', this.geometry, 0xffffff, agentCapacity)
     this.addBatch('buildings', this.geometry, 0xffffff, 240)
     this.addBatch('fortifications', this.geometry, 0xffffff, 720)
     this.addBatch('campfireFire', new THREE.ConeGeometry(0.28, 0.65, 6), 0xf0a14a, 120)
@@ -250,8 +251,8 @@ export class SceneRenderer {
     ;(this.batches.campfireCore.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
     ;(this.batches.treeMoon.material as THREE.MeshBasicMaterial).blending = THREE.AdditiveBlending
     this.addBatch('player', new THREE.CapsuleGeometry(0.3, 0.65, 4, 6), 0x73d9dd, 1)
-    this.addBatch('healthBack', this.geometry, 0x2b211f, 256)
-    this.addBatch('healthFill', this.geometry, 0x76b56e, 256)
+    this.addBatch('healthBack', this.geometry, 0x2b211f, agentCapacity + 246)
+    this.addBatch('healthFill', this.geometry, 0x76b56e, agentCapacity + 246)
 
     this.ghost = new THREE.Mesh(
       this.geometry,
@@ -352,7 +353,9 @@ export class SceneRenderer {
     sx = 1, sy = 1, sz = 1, color?: number, rotation = 0,
   ): void {
     const mesh = this.batches[name]
-    const i = mesh.count++
+    const i = mesh.count
+    if (i >= mesh.instanceMatrix.count) { this.overflowInstances++; return }
+    mesh.count++
     this.matrix.position.set(x, y, z)
     this.matrix.scale.set(sx, sy, sz)
     this.matrix.rotation.set(0, rotation, 0)
@@ -1958,6 +1961,7 @@ export class SceneRenderer {
   }
 
   sync(state: WorldState, selectedId: number | null): void {
+    this.overflowInstances = 0
     for (const mesh of Object.values(this.batches)) mesh.count = 0
 
     const atmosphere = atmosphereForTime(state.timeOfDay)
