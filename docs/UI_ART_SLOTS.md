@@ -67,3 +67,54 @@ Recommended output from Astra:
 - keep icon silhouettes distinct without relying only on color
 
 The layout is intentionally neutral right now: dashed boxes are placeholders, not final UI art.
+
+
+## Contextual building panels
+
+The live HUD now reserves stable asset hooks using `data-ui-asset`.
+
+Building header illustrations:
+
+- `building-header:house`
+- `building-header:stockpile`
+- `building-header:guard-post`
+- `building-header:wood-wall`
+- `building-header:wood-gate`
+- `building-header:campfire`
+- `building-header:tavern`
+- `building-header:brewery`
+- `building-header:blacksmith`
+- `building-header:market`
+- `building-header:trading-post`
+- `building-header:farmhouse`
+
+Matching small building icons use `building-icon:<building-id>`.
+
+Recommended header composition: roughly 3:1 landscape, medieval manuscript / painted-codex scene, no baked UI chrome and no text.
+
+## Tasks & Messages
+
+Notification art keys:
+
+- `notification:task-raid`
+- `notification:task-housing`
+- `notification:task-food`
+- `notification:task-storage`
+- `notification:task-repair`
+- `notification:task-trade`
+- `notification:task-arrival`
+- `notification:task-event`
+
+## Portraits and services
+
+Reserve the following path families for the next art pass:
+
+- `portrait:settler-*`
+- `portrait:worker-empty`
+- `service:recreation`
+- `service:food`
+- `service:safety`
+- `service:trade`
+- `service:agriculture`
+
+The implementation contract is centralized in `src/game/ui/UiAssets.ts`. Final files should live beneath `assets/ui/<kind>/` and can be wired without changing simulation or HUD structure.

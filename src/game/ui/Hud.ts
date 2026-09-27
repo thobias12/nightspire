@@ -51,6 +51,8 @@ export class Hud {
   private rosterPage = 0
   private buildMenuOpen = false
   private activeBuildTab = 'planning'
+  private activeContextTab = 'general'
+  private lastContextId: number | null = null
 
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
@@ -83,6 +85,15 @@ export class Hud {
         </div>
       </details>
 
+      <aside class="tasks-panel panel" aria-label="Tasks and messages">
+        <div class="tasks-header">
+          <span class="ui-icon-slot compact" data-icon-slot="tasks-messages" aria-hidden="true"></span>
+          <strong>Tasks & Messages</strong>
+          <span id="task-count" class="task-count">0</span>
+        </div>
+        <div id="tasks" class="tasks-list"></div>
+      </aside>
+
       <section class="inspector panel">
         <div class="panel-kicker"><span class="ui-icon-slot" data-icon-slot="selection" aria-hidden="true"></span><span>Selection</span></div>
         <div id="inspection">Select something in the world.</div>
@@ -110,6 +121,12 @@ export class Hud {
           <div id="metrics"></div><div id="workers"></div>
         </div>
       </details>
+
+      <aside class="minimap-shell panel" aria-label="Settlement minimap">
+        <div class="minimap-header"><span>Oakridge</span><small>Settlement map</small></div>
+        <div id="minimap-map" class="minimap-map"></div>
+        <div class="minimap-legend"><span><i class="legend-building"></i>Buildings</span><span><i class="legend-field"></i>Fields</span><span><i class="legend-hostile"></i>Raiders</span></div>
+      </aside>
 
       <footer class="bottom">
         <div class="build-catalog panel" aria-hidden="true">
@@ -219,6 +236,13 @@ export class Hud {
         return
       }
 
+      const contextTab = target.closest<HTMLButtonElement>('button[data-context-tab]')
+      if (contextTab?.dataset.contextTab) {
+        this.activeContextTab = contextTab.dataset.contextTab
+        this.syncContextTabs()
+        return
+      }
+
       const button = target.closest<HTMLButtonElement>('button[data-action]')
       if (button) action(button.dataset.action!, button.dataset.value)
     }, { signal })
@@ -251,6 +275,15 @@ export class Hud {
     }
     for (const panel of this.element.querySelectorAll<HTMLElement>('[data-build-panel]')) {
       panel.classList.toggle('is-active', panel.dataset.buildPanel === this.activeBuildTab)
+    }
+  }
+
+  private syncContextTabs(): void {
+    for (const tab of this.element.querySelectorAll<HTMLButtonElement>('button[data-context-tab]')) {
+      tab.setAttribute('aria-pressed', String(tab.dataset.contextTab === this.activeContextTab))
+    }
+    for (const pane of this.element.querySelectorAll<HTMLElement>('[data-context-panel]')) {
+      pane.classList.toggle('is-active', pane.dataset.contextPanel === this.activeContextTab)
     }
   }
 
@@ -343,6 +376,7 @@ export class Hud {
     const field = s.fields.find(field => field.id === ui.selectedId)
     const n = s.nodes.find(n => n.id === ui.selectedId)
     const e = s.enemies.find(e => e.id === ui.selectedId)
+    if (!b) this.lastContextId = null
 
     if (a) {
       const guardAssignment = assignedGuardPost(s, a)
@@ -400,6 +434,7 @@ export class Hud {
           })()
         : ''
       let details = ''
+      let operations = ''
       if (b.complete) {
         const repairJob = s.jobs.find(j => j.kind === 'repair' && j.targetId === b.id)
         const supplyJob = s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id).reduce((sum, j) => sum + j.amount, 0)
@@ -466,7 +501,8 @@ export class Hud {
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'
           : def.fortification ? 'Blocks friendly and hostile movement until destroyed.'
           : ''
-        details = `<b>${b.destroyed ? 'DESTROYED RUIN' : 'HP ' + b.health + '/' + b.maxHealth}</b><br><progress value="${b.health}" max="${b.maxHealth}"></progress><br>${functionText}${repairJob ? '<br>Repair job active · ' + repairJob.amount + ' wood' : ''}`
+        details = `<b>${b.destroyed ? 'DESTROYED RUIN' : 'HP ' + b.health + '/' + b.maxHealth}</b><br><progress value="${b.health}" max="${b.maxHealth}"></progress>`
+        operations = functionText + (repairJob ? '<br>Repair job active · ' + repairJob.amount + ' wood' : '')
       } else {
         details = `Delivered: ${b.delivered.wood}/${def.buildCost.wood} wood<br>Assigned deliveries: ${s.jobs.filter(j => j.kind === 'deliver' && j.targetId === b.id).reduce((sum, j) => sum + j.amount, 0)} wood<br>Work: ${Math.round(b.work / def.constructionWork * 100)}%<br><progress value="${b.work}" max="${def.constructionWork}"></progress>${cancel}`
       }
@@ -515,7 +551,39 @@ export class Hud {
               + '<p class="muted">Export surplus stages only stock above the reserve. Import buys toward the reserve when a merchant visits and Gold is available.</p>'
           })()
         : ''
-      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${stockpileControls}${tradeControls}${demolish}`)
+      if (this.lastContextId !== b.id) {
+        this.lastContextId = b.id
+        this.activeContextTab = 'general'
+      }
+      const buildingStatus = b.complete ? (b.destroyed ? 'Ruined' : 'Fully operational') : 'Under construction'
+      const peopleBody = workplaceControls
+        || (b.type === 'house' && operations ? operations : '')
+        || (def.guardSlots ? operations : '')
+        || '<p class="context-empty">No dedicated workforce assigned to this building.</p>'
+      const operationBody = b.type === 'house' || def.guardSlots
+        ? '<p class="context-empty">Household and staffing information is shown under People.</p>'
+        : (operations || '<p class="context-empty">No active production or service cycle.</p>')
+      const advancedBody = stockpileControls + tradeControls
+        || '<p class="context-empty">No advanced policies are available for this building yet.</p>'
+      const contextTabs = [
+        { id: 'general', label: 'General', body: '<p><b>' + buildingStatus + '</b> · Facing ' + facing + compoundText + '</p><div class="context-status">' + details + '</div>' + demolish },
+        { id: 'people', label: 'People', body: peopleBody },
+        { id: 'operations', label: def.production ? 'Production' : def.service ? 'Services' : def.storage || def.tradeStorageCapacity || def.agricultureStorageCapacity ? 'Storage' : 'Operations', body: operationBody },
+        { id: 'advanced', label: 'Advanced', body: advancedBody },
+      ]
+      const contextTabsHtml = contextTabs.map(tab =>
+        '<button data-context-tab="' + tab.id + '" aria-pressed="' + (this.activeContextTab === tab.id) + '">' + tab.label + '</button>'
+      ).join('')
+      const contextPanelsHtml = contextTabs.map(tab =>
+        '<div class="context-pane ' + (this.activeContextTab === tab.id ? 'is-active' : '') + '" data-context-panel="' + tab.id + '">' + tab.body + '</div>'
+      ).join('')
+      this.set('inspection',
+        '<div class="building-panel">'
+        + '<div class="building-panel-title"><span class="ui-icon-slot" data-ui-asset="building-icon:' + b.type + '" aria-hidden="true"></span><div><span class="eyebrow">' + (def.profession ?? (def.housing ? 'Residential' : def.fortification ? 'Defense' : 'Settlement building')) + '</span><h2>' + def.label + ' <small>#' + b.id + '</small></h2></div><button class="context-close" data-action="cancel" title="Close selection">×</button></div>'
+        + '<div class="building-hero" data-ui-asset="building-header:' + b.type + '"><span>Artwork slot · ' + def.label + '</span></div>'
+        + '<div class="context-tabs" role="tablist">' + contextTabsHtml + '</div>'
+        + '<div class="context-content">' + contextPanelsHtml + '</div>'
+        + '</div>')
     } else if (n) {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
@@ -553,8 +621,34 @@ export class Hud {
     this.set('workers', '<h3>Settlers</h3>' + paging + s.settlers.slice(start, start + size).map(a => { const morale = happinessEffect(a); return `<div class="worker">${settlerLabel(s, a.id)} · ${professionLabel(s, a)} · ${morale.label} ${happinessOf(a)}% · Work ${Math.round(morale.workRate * toolSummary.workMultiplier * 100)}% · ${escape(a.status)}</div>` }).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
     }
 
+    const taskItems: { tone: string; icon: string; title: string; detail: string }[] = []
+    if (s.enemies.length > 0) taskItems.push({ tone: 'danger', icon: 'task-raid', title: 'Raiders inside the region', detail: s.enemies.length + ' hostile' + (s.enemies.length === 1 ? '' : 's') + ' remain' })
+    if (!shelterReady) taskItems.push({ tone: 'warning', icon: 'task-housing', title: (s.settlers.length - beds) + ' settler' + (s.settlers.length - beds === 1 ? '' : 's') + ' awaiting housing', detail: beds + '/' + s.settlers.length + ' beds available' })
+    if (food < Math.max(s.settlers.length * 2, 8)) taskItems.push({ tone: 'warning', icon: 'task-food', title: 'Food reserves are low', detail: food + ' Food across settlement storage' })
+    const fullStores = stores.filter(store => freeStorage(s, store) <= 0)
+    if (fullStores.length) taskItems.push({ tone: 'warning', icon: 'task-storage', title: fullStores.length + ' stockpile' + (fullStores.length === 1 ? '' : 's') + ' full', detail: 'Expand or change accepted resources' })
+    if (damaged) taskItems.push({ tone: 'warning', icon: 'task-repair', title: damaged + ' damaged structure' + (damaged === 1 ? '' : 's'), detail: 'Repairs need free labor and Wood' })
+    if (merchantHere) taskItems.push({ tone: 'info', icon: 'task-trade', title: 'Trade caravan has arrived', detail: s.trade.lastTransactionDay === s.day ? 'Today\'s trade completed' : 'A Trader can complete active policies' })
+    if (arriving) taskItems.push({ tone: 'info', icon: 'task-arrival', title: arriving + ' new settler' + (arriving === 1 ? '' : 's') + ' arriving', detail: 'Immigrants are walking into Nightspire' })
+    const eventItems = s.events.slice(0, Math.max(0, 5 - taskItems.length)).map(message => ({ tone: 'event', icon: 'task-event', title: message, detail: 'Recent settlement event' }))
+    const visibleTasks = [...taskItems, ...eventItems].slice(0, 5)
+    this.set('task-count', String(visibleTasks.length))
+    this.set('tasks', visibleTasks.length
+      ? visibleTasks.map(item => '<div class="task-item task-' + item.tone + '"><span class="ui-icon-slot compact" data-ui-asset="notification:' + item.icon + '" aria-hidden="true"></span><div><strong>' + escape(item.title) + '</strong><small>' + escape(item.detail) + '</small></div></div>').join('')
+      : '<div class="task-empty">No urgent settlement matters.</div>')
+
+    const miniRoads = s.roads.map(road => '<polyline class="mini-road" points="' + road.points.map(point => point.x.toFixed(2) + ',' + point.z.toFixed(2)).join(' ') + '"/>').join('')
+    const miniFields = s.fields.map(field => '<polygon class="mini-field" points="' + field.points.map(point => point.x.toFixed(2) + ',' + point.z.toFixed(2)).join(' ') + '"/>').join('')
+    const miniBuildings = s.buildings.filter(building => !building.destroyed).map(building =>
+      '<rect class="mini-building' + (building.id === ui.selectedId ? ' is-selected' : '') + '" x="' + (building.x - 0.7).toFixed(2) + '" y="' + (building.z - 0.7).toFixed(2) + '" width="1.4" height="1.4"/>'
+    ).join('')
+    const miniSettlers = s.settlers.map(settler => '<circle class="mini-settler" cx="' + settler.x.toFixed(2) + '" cy="' + settler.z.toFixed(2) + '" r=".33"/>').join('')
+    const miniEnemies = s.enemies.map(enemy => '<circle class="mini-enemy" cx="' + enemy.x.toFixed(2) + '" cy="' + enemy.z.toFixed(2) + '" r=".48"/>').join('')
+    this.set('minimap-map', '<svg viewBox="-28 -28 56 56" role="img" aria-label="Settlement overview"><g transform="scale(1,-1)">' + miniFields + miniRoads + miniBuildings + miniSettlers + miniEnemies + '</g></svg>')
+
     const inspector = this.element.querySelector<HTMLElement>('.inspector')!
     inspector.classList.toggle('is-active', ui.selectedId !== null || ui.buildType !== null || ui.planningTool !== null)
+    inspector.classList.toggle('is-building', Boolean(b))
     this.element.querySelector<HTMLElement>('.road-context')!.classList.toggle('is-active', ui.planningTool === 'road')
     this.element.querySelector<HTMLElement>('#message')!.classList.toggle('is-visible', ui.message.trim().length > 0)
 
