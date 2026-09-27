@@ -12,6 +12,9 @@ import { raidSizeForWave } from '../simulation/Raid'
 import { assignedGuardPost } from '../simulation/Schedule'
 import { serviceAssignment, serviceAvailable, serviceSummary } from '../simulation/Services'
 import { toolCoverage } from '../simulation/Tools'
+import {
+  merchantIntervalDays, merchantPresent, primaryTradingPost, tradeModeLabel, tradeReputation, tradeStorageUsed, TRADE_PRICES,
+} from '../simulation/Trading'
 import { enemyLabel, MAX_SETTLERS, settlerLabel, type WorldState } from '../simulation/WorldState'
 import { residentialFrontage, residentialPresentationProfile } from '../render/ResidentialPresentation'
 import { assignedWorkplace, professionLabel, workplaceStaffing } from '../simulation/Workforce'
@@ -48,9 +51,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.5 · HOUSEHOLD PROSPERITY</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">TURN COVERAGE INTO PROSPERITY</span><h1>Well-served households now mature from Cottages into larger, more valuable homes.</h1>
-        <p>Occupied Houses build a daily prosperity streak when Food access, recreation, Safety and satisfaction stay healthy. Two qualifying Days promote a Cottage to an Established Home with 5 beds; three stronger qualifying Days promote it again to a Prosperous Home with 6 beds. Losing the required conditions resets the current streak.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.6 · GOLD TRADE ECONOMY</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">TURN SURPLUS INTO GOLD</span><h1>A staffed Trading Post now connects Nightspire to periodic merchant caravans.</h1>
+        <p>Set each resource to Keep, Export surplus, or Import to reserve. Laborers stage exports before the caravan arrives and unload imports afterward; assigned Traders must physically report before a visiting merchant will settle the deal. Prosperous homes improve trade reputation and can shorten the caravan interval.</p>
         <div id="objective"></div>
         <div id="workforce"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
@@ -95,6 +98,7 @@ export class Hud {
           <button data-action="tavern" title="Hotkey 5">[5] Tavern <small>40 wood · 12 Ale-fed slots</small></button>
           <button data-action="blacksmith" title="Hotkey 9">[9] Blacksmith <small>45 wood · Ore → Tools · 2 Smiths</small></button>
           <button data-action="market" title="Hotkey M">[M] Market <small>30 wood · 20 Food · 2 Vendors</small></button>
+          <button data-action="trading-post" title="Hotkey T">[T] Trading Post <small>50 wood · 60 cargo · 2 Traders</small></button>
         </div>
         <div class="build-group"><span>Defense</span>
           <button data-action="guard-post" title="Hotkey 6">[6] Guard Post <small>25 wood · 2 guards</small></button>
@@ -174,6 +178,9 @@ export class Hud {
     const arriving = s.settlers.filter(settler => settler.arrivalTarget !== null).length
     const fedToday = s.settlers.filter(settler => settler.lastMealDay === s.day).length
     const households = householdSummary(s)
+    const tradingPost = primaryTradingPost(s)
+    const merchantHere = merchantPresent(s)
+    const reputation = tradeReputation(s)
     const houseTiers = s.buildings
       .filter(building => building.type === 'house' && building.complete && !building.destroyed)
       .reduce((counts, house) => {
@@ -182,9 +189,9 @@ export class Hud {
         return counts
       }, {} as Record<number, number>)
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <span>(${markets.food} market)</span> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length} · ${beds} beds</b> <b>Households ${households.marketCovered}/${households.occupied} supplied</b> <b>Homes L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <span>(${markets.food} market)</span> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length} · ${beds} beds</b> <b>Households ${households.marketCovered}/${households.occupied} supplied</b> <b>Homes L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</b> <b>Gold ${s.trade.gold}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
-    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Ore → Blacksmith → Tools · stockpiled Tools add up to +10% hands-on work on top of Happiness</small>`)
+    this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>${tradingPost ? (merchantHere ? 'Merchant caravan visiting today' : 'Next merchant Day ' + s.trade.nextMerchantDay) + ' · trade reputation ' + reputation + ' · interval ' + merchantIntervalDays(s) + ' Days' : 'Build a Trading Post to unlock Gold trade'}</small>`)
 
     const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
@@ -256,6 +263,7 @@ export class Hud {
           : ''
         const staffing = (def.workerSlots ?? 0) > 0 ? workplaceStaffing(s, b) : null
         const distribution = def.foodDistribution
+        const tradeStorage = def.tradeStorageCapacity
         const inboundProduction = production
           ? s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === production.inputResource).reduce((sum, j) => sum + j.amount, 0)
           : 0
@@ -300,6 +308,8 @@ export class Hud {
           : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Ale ${b.inventory.ale}<br>Ore ${b.inventory.ore}<br>Tools ${b.inventory.tools}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}<br>Receiving priority: ${stockpilePriorityLabel(b.stockpilePriority)}`
           : distribution
             ? `Food stalls: ${b.inventory.food}/${distribution.capacity}<br>Meals served today: ${b.distributionDay === s.day ? b.distributionServed : 0}<br>Each active Vendor distributes ${distribution.mealsPerWorkerPerDay} meals/Day<br>Assigned Vendors buffer up to ${distribution.reserveDays} Days of their capacity.`
+          : tradeStorage
+            ? `Trade cargo: ${tradeStorageUsed(b)}/${tradeStorage}<br>Wood ${b.inventory.wood} · Food ${b.inventory.food} · Ale ${b.inventory.ale} · Ore ${b.inventory.ore} · Tools ${b.inventory.tools}<br>Gold: ${s.trade.gold}<br>${merchantPresent(s) ? (s.trade.lastTransactionDay === s.day ? 'Merchant deal completed today' : 'Merchant waiting for an active Trader') : 'Next merchant: Day ' + s.trade.nextMerchantDay}<br>Trade reputation: ${tradeReputation(s)} · caravan every ${merchantIntervalDays(s)} Days`
           : production ? productionText
           : service ? serviceText
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'
@@ -338,7 +348,23 @@ export class Hud {
               + '<p class="muted">Priority is chosen before distance. Disabled resources already stored here remain usable; deliveries already in flight may still finish.</p>'
           })()
         : ''
-      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${stockpileControls}${demolish}`)
+      const tradeControls = b.complete && !b.destroyed && b.type === 'trading-post'
+        ? (() => {
+            const rows = RESOURCE_IDS.map(resource => {
+              const policy = s.trade.policies[resource]
+              const prices = TRADE_PRICES[resource]
+              return '<div class="worker"><b>' + RESOURCES[resource].label + '</b> · '
+                + '<button data-action="trade-policy" data-value="' + resource + '">' + tradeModeLabel(policy.mode) + '</button>'
+                + ' · reserve ' + policy.reserve
+                + ' <button data-action="trade-reserve-down" data-value="' + resource + '">−5</button>'
+                + ' <button data-action="trade-reserve-up" data-value="' + resource + '">+5</button>'
+                + ' · buy ' + prices.buy + 'G / sell ' + prices.sell + 'G</div>'
+            }).join('')
+            return '<p><b>Trade policies</b></p>' + rows
+              + '<p class="muted">Export surplus stages only stock above the reserve. Import buys toward the reserve when a merchant visits and Gold is available.</p>'
+          })()
+        : ''
+      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${stockpileControls}${tradeControls}${demolish}`)
     } else if (n) {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
@@ -362,7 +388,7 @@ export class Hud {
 
     this.set('message', escape(ui.message))
     const m = ui.metrics
-    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Work productivity</dt><dd>${Math.round(effectiveWorkRate * 100)}% · morale ${Math.round(moraleSummary.averageWorkRate * 100)}% · tools +${Math.round((toolSummary.workMultiplier - 1) * 100)}%</dd><dt>Tools / coverage</dt><dd>${toolSummary.stored}/${toolSummary.required} · ${Math.round(toolSummary.coverage * 100)}%</dd><dt>Attraction / blocker</dt><dd>${attraction.score} / ${attraction.eligible ? 'Eligible' : escape(attraction.blockers[0] ?? 'Score too low')}</dd><dt>Qualification streak</dt><dd>${s.immigration.eligibleDays}/${IMMIGRATION_REQUIRED_DAYS}</dd><dt>Immigrants / arriving</dt><dd>${s.immigration.totalArrivals} / ${arriving}</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Fed today</dt><dd>${fedToday}/${s.settlers.length}</dd><dt>Household Market coverage</dt><dd>${households.marketCovered}/${households.occupied}</dd><dt>Household recreation coverage</dt><dd>${households.recreationCovered}/${households.occupied}</dd><dt>Fully supported households</dt><dd>${households.fullySupported}/${households.occupied}</dd><dt>Home prosperity tiers</dt><dd>L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</dd><dt>Total beds</dt><dd>${beds}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Service providers</dt><dd>${services.suppliedProviders}/${services.providers} supplied</dd><dt>Service slots / visitors</dt><dd>${services.slots} / ${services.activeVisitors}</dd><dt>Food → production</dt><dd>${s.totals.productionConsumed.food}</dd><dt>Ale produced / used</dt><dd>${s.totals.produced.ale} / ${s.totals.serviceConsumed.ale}</dd><dt>Ore → production</dt><dd>${s.totals.productionConsumed.ore}</dd><dt>Tools produced / stored</dt><dd>${s.totals.produced.tools} / ${storedTools}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Roads / residential plots</dt><dd>${s.roads.length} / ${s.residentialPlots.length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
+    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Work productivity</dt><dd>${Math.round(effectiveWorkRate * 100)}% · morale ${Math.round(moraleSummary.averageWorkRate * 100)}% · tools +${Math.round((toolSummary.workMultiplier - 1) * 100)}%</dd><dt>Tools / coverage</dt><dd>${toolSummary.stored}/${toolSummary.required} · ${Math.round(toolSummary.coverage * 100)}%</dd><dt>Attraction / blocker</dt><dd>${attraction.score} / ${attraction.eligible ? 'Eligible' : escape(attraction.blockers[0] ?? 'Score too low')}</dd><dt>Qualification streak</dt><dd>${s.immigration.eligibleDays}/${IMMIGRATION_REQUIRED_DAYS}</dd><dt>Immigrants / arriving</dt><dd>${s.immigration.totalArrivals} / ${arriving}</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Fed today</dt><dd>${fedToday}/${s.settlers.length}</dd><dt>Household Market coverage</dt><dd>${households.marketCovered}/${households.occupied}</dd><dt>Household recreation coverage</dt><dd>${households.recreationCovered}/${households.occupied}</dd><dt>Fully supported households</dt><dd>${households.fullySupported}/${households.occupied}</dd><dt>Home prosperity tiers</dt><dd>L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</dd><dt>Total beds</dt><dd>${beds}</dd><dt>Gold</dt><dd>${s.trade.gold} · earned ${s.trade.goldEarned} · spent ${s.trade.goldSpent}</dd><dt>Merchant visits</dt><dd>${s.trade.visits} · next Day ${s.trade.nextMerchantDay}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Service providers</dt><dd>${services.suppliedProviders}/${services.providers} supplied</dd><dt>Service slots / visitors</dt><dd>${services.slots} / ${services.activeVisitors}</dd><dt>Food → production</dt><dd>${s.totals.productionConsumed.food}</dd><dt>Ale produced / used</dt><dd>${s.totals.produced.ale} / ${s.totals.serviceConsumed.ale}</dd><dt>Ore → production</dt><dd>${s.totals.productionConsumed.ore}</dd><dt>Tools produced / stored</dt><dd>${s.totals.produced.tools} / ${storedTools}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Roads / residential plots</dt><dd>${s.roads.length} / ${s.residentialPlots.length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
     if (this.element.querySelector<HTMLDetailsElement>('.qa')!.open) {
       const size = 25
       const pages = Math.max(1, Math.ceil(s.settlers.length / size))
