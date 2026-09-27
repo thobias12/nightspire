@@ -4,7 +4,7 @@ import {
 } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
 import { assignHousing } from './Buildings'
-import { agricultureActionLabel, farmerFieldAssignment, processAgricultureDay, workField } from './Agriculture'
+import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processAgricultureDay, workField } from './Agriculture'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
   RAIDER_ATTACK_COOLDOWN, RAIDER_ATTACK_RANGE, RAIDER_DAMAGE, RAIDER_STRUCTURE_DAMAGE,
@@ -260,7 +260,7 @@ export class Simulation {
     if (building.type === 'farmhouse') {
       const field = farmerFieldAssignment(this.state, building, settler)
       if (field) {
-        const target = { x: field.x, z: field.z }
+        const target = fieldWorkPoint(field)
         if (distance(settler, target) < 0.15) {
           settler.path = []
           settler.pathRevision = -1
