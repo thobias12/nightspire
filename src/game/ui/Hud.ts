@@ -97,6 +97,7 @@ export class Hud {
   private lastContextId: number | null = null
   private lastFloatingSelectionId: number | null = null
   private inspectorManuallyPositioned = false
+  private inspectorAutoPositioned = false
   private draggedPanel: { panel: HTMLElement; pointerId: number; offsetX: number; offsetY: number } | null = null
 
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
@@ -379,16 +380,17 @@ export class Hud {
   private resetInspectorPosition(): void {
     const panel = this.element.querySelector<HTMLElement>('.inspector')
     if (!panel) return
-    panel.classList.remove('is-user-positioned', 'is-dragging')
+    panel.classList.remove('is-user-positioned', 'is-dragging', 'is-world-anchored')
     for (const property of ['position', 'left', 'top', 'right', 'bottom', 'margin', 'transform']) {
       panel.style.removeProperty(property)
     }
     this.inspectorManuallyPositioned = false
+    this.inspectorAutoPositioned = false
   }
 
   private positionInspector(anchor: { x: number; y: number } | null): void {
     const panel = this.element.querySelector<HTMLElement>('.inspector')
-    if (!panel || !panel.classList.contains('is-active') || this.inspectorManuallyPositioned || !anchor) return
+    if (!panel || !panel.classList.contains('is-active') || this.inspectorManuallyPositioned || this.inspectorAutoPositioned || !anchor) return
 
     const rect = panel.getBoundingClientRect()
     const gap = 20
@@ -397,11 +399,13 @@ export class Hud {
     if (left + rect.width > window.innerWidth - margin) left = anchor.x - rect.width - gap
     if (left < margin) left = margin
 
-    // Keep a stable vertical offset so live numbers or tab content do not make
-    // the window visibly jump while it tracks the selected world object.
+    // The world position is only used when the window first opens. After that
+    // the panel stays fixed in screen space so moving settlers, camera motion
+    // and zoom do not make the UI chase the selected object.
     const top = anchor.y - 72
     this.placeFloatingPanel(panel, left, top)
     panel.classList.add('is-world-anchored')
+    this.inspectorAutoPositioned = true
   }
 
   private syncBuildMenu(): void {
