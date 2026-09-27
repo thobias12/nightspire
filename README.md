@@ -2,7 +2,7 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
-**Current playable milestone: M3.11.1 — Local Workplace Logistics.** Brewery and Blacksmith production still requires explicitly assigned staff, but workplaces now also maintain their own visible input/output buffers. Unstaffed production buildings no longer pull raw materials. Staffed workplaces request a bounded local reserve, finished goods remain on-site until a pickup threshold is reached, and each workplace exposes **Low / Normal / High** hauling priority. Low keeps one input batch and delays output pickup, Normal maintains a practical working reserve, and High fills local input storage and clears finished goods aggressively. This creates a real tradeoff between specialist staffing and keeping enough Laborers free to haul. M3.10.2 roads, M4 scale architecture and the 10-settler gameplay cap remain unchanged. See [the workplace logistics note](docs/M3111_WORKPLACE_LOGISTICS.md), [the workforce note](docs/M311_WORKFORCE.md) and [the M4 integration note](docs/M4_INTEGRATION.md).
+**Current playable milestone: M3.11.2 — Stockpile Specialization.** Stockpiles now have per-resource acceptance filters for Wood, Food, Ale, Ore and Tools plus a persistent **Low / Normal / High receiving priority**. New gathered resources and manufactured workplace outputs only target stockpiles that accept that resource. Priority is considered before distance, while the nearest valid stockpile wins inside the same priority tier. Existing inventory remains withdrawable even if a filter is disabled later, so specializing a store never traps materials already there. This lets you build a timber yard beside construction, a Food/Ale depot beside the Brewery/Tavern, or an Ore/Tools yard beside the Blacksmith. M3.11.1 workplace buffers, M3.10.2 roads, M4 scale architecture and the 10-settler gameplay cap remain unchanged. See [the stockpile specialization note](docs/M3112_STOCKPILE_SPECIALIZATION.md), [the workplace logistics note](docs/M3111_WORKPLACE_LOGISTICS.md) and [the workforce note](docs/M311_WORKFORCE.md).
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -74,7 +74,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **135 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **139 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 

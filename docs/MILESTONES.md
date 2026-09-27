@@ -376,6 +376,23 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] no renderer/road changes
 - [ ] live pacing acceptance with competing Brewery / Blacksmith / construction demand
 
+### M3.11.2 — Stockpile specialization & receiving priority
+
+- [x] every Stockpile persists Wood / Food / Ale / Ore / Tools acceptance filters
+- [x] starter Stockpile defaults to accepting all resources
+- [x] every Stockpile persists Low / Normal / High receiving priority
+- [x] new gather jobs only target stockpiles accepting that resource
+- [x] manufactured Brewery / Blacksmith output only targets accepting stockpiles
+- [x] priority is chosen before travel distance; distance breaks ties within the same tier
+- [x] disabled filters affect new inbound storage without trapping existing inventory
+- [x] already-carried/in-flight deliveries may finish safely after a filter is disabled
+- [x] construction, services and workplaces can still withdraw existing resources from a now-disabled Stockpile
+- [x] demolition/cancel refunds respect stockpile filters and priority
+- [x] Stockpile inspector exposes all filters and receiving priority
+- [x] old saves migrate to all resources accepted + Normal priority
+- [x] no renderer/road changes
+- [ ] live town-layout/logistics acceptance with multiple specialized Stockpiles
+
 ### Later M3.11 slices
 
 - [ ] market/trade foundation
