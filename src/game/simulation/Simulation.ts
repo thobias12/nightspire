@@ -540,6 +540,16 @@ export class Simulation {
     const workDelta = FIXED_STEP * workRate
     job.progress += workDelta
 
+    if (job.kind === 'cleanup') {
+      settler.status = 'Clearing battlefield'
+      if (job.progress + 1e-8 < 1.5) return
+      const index = s.remains.findIndex(remains => remains.id === job.targetId)
+      if (index >= 0) s.remains.splice(index, 1)
+      recordEvent(s, settlerLabel(s, settler.id) + ' cleared battlefield remains.')
+      finishJob(s, settler, job)
+      return
+    }
+
     if (job.kind === 'gather') {
       settler.status = 'Gathering ' + job.resource
       if (job.progress + 1e-8 < RESOURCES[job.resource].workSeconds) return
