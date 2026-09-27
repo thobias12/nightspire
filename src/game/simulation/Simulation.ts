@@ -20,6 +20,7 @@ import { processImmigrationDay } from './Population'
 import { updateProduction } from './Production'
 import { serviceAssignments, updateServices, type ServiceAssignment } from './Services'
 import { toolCoverage } from './Tools'
+import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
 import { activeWorkplace } from './Workforce'
@@ -135,6 +136,8 @@ export class Simulation {
       }
     }
 
+    processMerchantTrade(s)
+
     if (this.profile) { this.timings.agents = performance.now() - mark; mark = performance.now() }
     updateNeeds(s, FIXED_STEP, phase)
     updateServices(s, FIXED_STEP, phase)
@@ -181,6 +184,7 @@ export class Simulation {
       const upgrades = processHouseholdProgression(s)
       assignHousing(s)
       if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
+      scheduleMerchantVisit(s)
       const immigration = processImmigrationDay(s)
       if (immigration.arrived) assignHousing(s)
       serveDailyMeal(s, true)

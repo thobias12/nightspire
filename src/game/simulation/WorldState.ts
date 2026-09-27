@@ -28,6 +28,21 @@ export interface ResidentialPlot {
 export type HaulPriority = 'low' | 'normal' | 'high'
 export type StockpilePriority = 'low' | 'normal' | 'high'
 export type StockpileFilters = Record<ResourceId, boolean>
+export type TradeMode = 'keep' | 'export' | 'import'
+export interface TradePolicy { mode: TradeMode; reserve: number }
+export type TradePolicies = Record<ResourceId, TradePolicy>
+export interface TradeState {
+  gold: number
+  policies: TradePolicies
+  nextMerchantDay: number
+  merchantDay: number
+  lastTransactionDay: number
+  visits: number
+  goldEarned: number
+  goldSpent: number
+  imported: Inventory
+  exported: Inventory
+}
 export interface Building extends Point {
   id: number; type: BuildingId; rotation: number; facingAngle?: number; complete: boolean; work: number; haulPriority: HaulPriority
   stockpilePriority: StockpilePriority; stockpileFilters: StockpileFilters
@@ -71,7 +86,7 @@ export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
   roads: RoadPath[]; residentialPlots: ResidentialPlot[]
-  targets: Inventory; raid: RaidState; immigration: ImmigrationState
+  targets: Inventory; raid: RaidState; immigration: ImmigrationState; trade: TradeState
   totals: {
     gathered: Inventory; deposited: Inventory; delivered: Inventory; constructed: number
     repairedHealth: number; repairWoodUsed: number; structureDamage: number
@@ -85,6 +100,24 @@ export const MAX_ENEMIES = 64
 export const DEFAULT_TARGETS: Inventory = { wood: 150, food: 100, ale: 0, ore: 0, tools: 0 }
 export const DEFAULT_RAID: RaidState = { lastSpawnDay: 0, wave: 0, totalSpawned: 0, totalDefeated: 0, lastClearedWave: 0 }
 export const DEFAULT_IMMIGRATION: ImmigrationState = { eligibleDays: 0, lastEvaluationDay: 0, lastArrivalDay: 0, totalArrivals: 0 }
+export const defaultTradeState = (): TradeState => ({
+  gold: 60,
+  policies: {
+    wood: { mode: 'keep', reserve: 100 },
+    food: { mode: 'keep', reserve: 50 },
+    ale: { mode: 'keep', reserve: 12 },
+    ore: { mode: 'keep', reserve: 20 },
+    tools: { mode: 'keep', reserve: 4 },
+  },
+  nextMerchantDay: 3,
+  merchantDay: 0,
+  lastTransactionDay: 0,
+  visits: 0,
+  goldEarned: 0,
+  goldSpent: 0,
+  imported: emptyInventory(),
+  exported: emptyInventory(),
+})
 export const NEED_IDS: NeedId[] = ['food', 'housing', 'safety', 'recreation']
 export const DEFAULT_NEEDS: NeedLevels = { food: 90, housing: 70, safety: 65, recreation: 65 }
 
@@ -150,7 +183,7 @@ export function createInitialWorldState(): WorldState {
     version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
     player: { x: 0, z: 5, health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0 },
     settlers: [], enemies: [], nodes: [], buildings: [], jobs: [], roads: [], residentialPlots: [],
-    targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID }, immigration: { ...DEFAULT_IMMIGRATION },
+    targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID }, immigration: { ...DEFAULT_IMMIGRATION }, trade: defaultTradeState(),
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),
       constructed: 0, repairedHealth: 0, repairWoodUsed: 0, structureDamage: 0,

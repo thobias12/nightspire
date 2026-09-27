@@ -5,7 +5,10 @@ import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, sup
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
 import { residentialPlotsOverlap } from './TownPlanning'
-import { DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
+import {
+  DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS,
+  defaultTradeState, type WorldState,
+} from './WorldState'
 
 export const SAVE_KEY = 'nightspire.m1.save.v1'
 export const BACKUP_KEY = 'nightspire.m1.backup.v1'
@@ -38,6 +41,24 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
   check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
   check(Array.isArray(s.residentialPlots) && s.residentialPlots.length <= 80, 'residential plots')
+  check(
+    s.trade
+    && integer(s.trade.gold)
+    && s.trade.policies
+    && RESOURCE_IDS.every(resource => {
+      const policy = s.trade.policies[resource]
+      return policy && ['keep', 'export', 'import'].includes(policy.mode) && integer(policy.reserve) && policy.reserve <= 500
+    })
+    && integer(s.trade.nextMerchantDay) && s.trade.nextMerchantDay >= 1
+    && integer(s.trade.merchantDay) && s.trade.merchantDay <= s.day
+    && integer(s.trade.lastTransactionDay) && s.trade.lastTransactionDay <= s.day
+    && integer(s.trade.visits)
+    && integer(s.trade.goldEarned)
+    && integer(s.trade.goldSpent)
+    && inventory(s.trade.imported)
+    && inventory(s.trade.exported),
+    'trade state',
+  )
   check(
     s.raid
     && integer(s.raid.lastSpawnDay) && s.raid.lastSpawnDay <= s.day
@@ -86,6 +107,12 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       check(RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0) <= def.storage, 'storage capacity')
     } else {
       check(RESOURCE_IDS.every(resource => b.inventory[resource] <= resourceCapacity(b, resource)), 'building resource capacity')
+      if ((def.tradeStorageCapacity ?? 0) > 0) {
+        check(
+          RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0) <= def.tradeStorageCapacity!,
+          'trade storage capacity',
+        )
+      }
     }
     check(b.work === 0 || readyToBuild(b), 'work before materials')
 
@@ -187,11 +214,16 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       const sourceCanProvide = !!source && (
         BUILDINGS[source.type].storage > 0
         || productionSource?.outputResource === j.resource
+        || (BUILDINGS[source.type].tradeStorageCapacity ?? 0) > 0
       )
       check(
         source && source.complete && !source.destroyed && sourceCanProvide
         && target.complete && !target.destroyed
-        && (BUILDINGS[target.type].storage > 0 || supplyCapacity(target, j.resource) > 0)
+        && (
+          BUILDINGS[target.type].storage > 0
+          || supplyCapacity(target, j.resource) > 0
+          || (BUILDINGS[target.type].tradeStorageCapacity ?? 0) > 0
+        )
         && j.stage !== 'work' && j.amount > 0,
         'supply references',
       )
@@ -297,6 +329,25 @@ export function deserializeWorld(text: string): WorldState {
 
   if (candidate && candidate.version === 1 && candidate.targets === undefined) candidate.targets = { ...DEFAULT_TARGETS }
   migrateInventory(candidate?.targets)
+  if (candidate && candidate.version === 1 && candidate.trade === undefined) candidate.trade = defaultTradeState()
+  if (candidate && candidate.version === 1 && candidate.trade) {
+    const defaults = defaultTradeState()
+    if (candidate.trade.gold === undefined) candidate.trade.gold = defaults.gold
+    if (candidate.trade.policies === undefined) candidate.trade.policies = defaults.policies
+    for (const resource of RESOURCE_IDS) {
+      if (candidate.trade.policies[resource] === undefined) candidate.trade.policies[resource] = defaults.policies[resource]
+    }
+    if (candidate.trade.nextMerchantDay === undefined) candidate.trade.nextMerchantDay = defaults.nextMerchantDay
+    if (candidate.trade.merchantDay === undefined) candidate.trade.merchantDay = 0
+    if (candidate.trade.lastTransactionDay === undefined) candidate.trade.lastTransactionDay = 0
+    if (candidate.trade.visits === undefined) candidate.trade.visits = 0
+    if (candidate.trade.goldEarned === undefined) candidate.trade.goldEarned = 0
+    if (candidate.trade.goldSpent === undefined) candidate.trade.goldSpent = 0
+    if (candidate.trade.imported === undefined) candidate.trade.imported = defaults.imported
+    if (candidate.trade.exported === undefined) candidate.trade.exported = defaults.exported
+    migrateInventory(candidate.trade.imported)
+    migrateInventory(candidate.trade.exported)
+  }
   if (candidate && candidate.version === 1 && candidate.roads === undefined) candidate.roads = []
   if (candidate && candidate.version === 1 && candidate.residentialPlots === undefined) candidate.residentialPlots = []
 

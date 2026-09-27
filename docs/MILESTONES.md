@@ -444,9 +444,29 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] no renderer/road changes
 - [ ] live acceptance for multi-Day prosperity progression
 
+### M3.11.6 — Gold trade & merchant economy
+
+- [x] Trading Post building with two Trader workplace slots
+- [x] settlement currency is Gold, starting at 60
+- [x] Wood / Food / Ale / Ore / Tools each support Keep / Export surplus / Import to reserve
+- [x] player reserve thresholds control both export floors and import targets
+- [x] Laborers physically stage export cargo from Stockpiles to the Trading Post
+- [x] imported cargo arrives at the Trading Post and is hauled back into accepting Stockpiles
+- [x] merchant caravans arrive on a deterministic Day cadence
+- [x] at least one Trader must be physically active before the caravan settles trade
+- [x] one merchant transaction per visit/Day
+- [x] deterministic Gold buy/sell prices with a 20-unit per-resource visit cap
+- [x] Established / Prosperous homes contribute trade reputation
+- [x] sufficient reputation shortens merchant interval from 3 Days to 2
+- [x] HUD and inspector expose Gold, merchant timing, cargo, policies, reserves and prices
+- [x] save/load persists policies, Gold, cadence and import/export ledgers
+- [x] old saves migrate to 60 Gold and Keep policies
+- [x] no renderer/road changes
+- [ ] live trade pacing acceptance
+
 ### Later M3.11 slices
 
-- [ ] broader market/trade foundation
+- [ ] broader merchant/trade depth: dynamic pricing, caravan visuals, contracts and rare goods
 - [ ] household-side production
 - [ ] transport-distance pressure
 - [ ] specialization/upgrades
