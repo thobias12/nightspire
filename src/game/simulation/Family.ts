@@ -27,6 +27,31 @@ function childName(family: FamilyState, index: number): string {
   return CHILD_NAMES[(family.id + index * 5) % CHILD_NAMES.length]
 }
 
+export function dependentCount(state: WorldState): number {
+  return state.families.reduce((sum, family) => sum + family.children.length, 0)
+}
+
+export function dependentCountAtHome(state: WorldState, homeId: number): number {
+  return state.families
+    .filter(family => family.homeId === homeId)
+    .reduce((sum, family) => sum + family.children.length, 0)
+}
+
+export function settlementPopulation(state: WorldState): number {
+  return state.settlers.length + dependentCount(state)
+}
+
+function homeCapacity(state: WorldState, homeId: number | null): number {
+  if (homeId === null) return 0
+  const home = state.buildings.find(building => building.id === homeId && building.type === 'house' && building.complete && !building.destroyed)
+  if (!home) return 0
+  return Math.max(4, Math.min(6, 3 + Math.round(home.houseLevel)))
+}
+
+function homeOccupancy(state: WorldState, homeId: number): number {
+  return state.settlers.filter(settler => settler.homeId === homeId).length + dependentCountAtHome(state, homeId)
+}
+
 function createFamily(state: WorldState, first: Settler, second: Settler): FamilyState {
   const id = state.nextId++
   const surname = first.familyName
@@ -48,7 +73,11 @@ function createFamily(state: WorldState, first: Settler, second: Settler): Famil
 
   // Some newly-formed households begin with an existing dependent child so the
   // family layer is visible immediately instead of requiring many simulated Days.
-  if (family.homeId !== null && id % 2 === 0) {
+  if (
+    family.homeId !== null
+    && id % 2 === 0
+    && homeOccupancy(state, family.homeId) < homeCapacity(state, family.homeId)
+  ) {
     family.children.push({
       givenName: childName(family, 0),
       ageYears: 5 + (id % 8),
@@ -155,6 +184,7 @@ export function processFamiliesDay(state: WorldState): FamilyDayResult {
     const canGrow = family.homeId !== null
       && coupledAdults.length >= 2
       && family.children.length < MAX_DEPENDENT_CHILDREN
+      && homeOccupancy(state, family.homeId) < homeCapacity(state, family.homeId)
       && state.day - family.lastChildDay >= FAMILY_CHILD_INTERVAL_DAYS
 
     if (canGrow) {

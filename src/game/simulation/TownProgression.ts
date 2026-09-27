@@ -1,4 +1,5 @@
 import type { BuildingId } from '../data/buildings'
+import { settlementPopulation } from './Family'
 import { distance } from './Navigation'
 import type { WorldState } from './WorldState'
 
@@ -52,7 +53,7 @@ export function settlementMetrics(state: WorldState): SettlementMetrics {
   }, 0)
 
   return {
-    population: state.settlers.length,
+    population: settlementPopulation(state),
     houses: homes.length,
     establishedHomes: homes.filter(home => home.houseLevel >= 2).length,
     prosperousHomes: homes.filter(home => home.houseLevel >= 3).length,

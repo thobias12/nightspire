@@ -51,8 +51,8 @@ const {
   houseBedCapacity, houseProgressionStatus, processHouseholdProgression,
 } = require('../.test-build/game/simulation/HouseProgression.js')
 const {
-  CHILD_DAYS_PER_YEAR, FAMILY_CHILD_INTERVAL_DAYS, familySummary,
-  processFamiliesDay, synchronizeFamilies,
+  CHILD_DAYS_PER_YEAR, FAMILY_CHILD_INTERVAL_DAYS, dependentCount, dependentCountAtHome, familySummary,
+  processFamiliesDay, settlementPopulation, synchronizeFamilies,
 } = require('../.test-build/game/simulation/Family.js')
 const {
   MERCHANT_UNIT_LIMIT, TRADE_PRICES, adjustTradeReserve, merchantIntervalDays, merchantPresent,
@@ -2770,6 +2770,57 @@ test('M3.12 family identities and dependents survive save load', () => {
   assert.equal(familySummary(loaded).families,1)
   assert.ok(familySummary(loaded).children>=1)
   validateWorld(loaded)
+})
+
+test('M3.12 dependents consume housing headroom and prevent household overfill', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families[0]
+  family.children=[
+    {givenName:'Mira',ageYears:5,ageDays:0},
+    {givenName:'Edric',ageYears:8,ageDays:0},
+  ]
+
+  assert.equal(dependentCount(s),2)
+  assert.equal(dependentCountAtHome(s,house.id),2)
+  assert.equal(settlementPopulation(s),4)
+  assert.equal(populationAttraction(s).spareBeds,0)
+
+  family.lastChildDay=s.day-FAMILY_CHILD_INTERVAL_DAYS
+  s.day++
+  const result=processFamiliesDay(s)
+  assert.equal(result.births,0)
+  assert.equal(family.children.length,2)
+  validateWorld(s)
+})
+
+test('M3.12 a dependent reaching working age replaces household dependency with a worker', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families[0]
+  family.children=[{givenName:'Edric',ageYears:15,ageDays:CHILD_DAYS_PER_YEAR-1}]
+  const beforePopulation=settlementPopulation(s)
+  const beforeWorkers=s.settlers.length
+
+  s.day++
+  const result=processFamiliesDay(s)
+  assert.equal(result.matured,1)
+  assert.equal(s.settlers.length,beforeWorkers+1)
+  assert.equal(settlementPopulation(s),beforePopulation)
+  const adult=s.settlers.find(settler=>settler.givenName==='Edric')
+  assert.ok(adult)
+  assert.equal(adult.ageYears,16)
+  assert.equal(adult.familyId,family.id)
+  assert.equal(adult.homeId,house.id)
+  validateWorld(s)
 })
 
 test('M3.11.5 sustained household services promote Cottage to Established and Prosperous homes', () => {
