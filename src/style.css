@@ -1920,3 +1920,184 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
 .build-preview-art[data-art-slot="build-tavern"] > span {
   display: none;
 }
+
+
+/* Integrated artwork presentation polish */
+.ui-crest-slot,
+[data-art-slot="settlement-crest"] {
+  width: 44px;
+  height: 44px;
+  background-size: 112% auto;
+}
+.settlement-brand { gap: 8px; }
+
+.resource-chip {
+  grid-template-columns: 28px auto auto;
+  column-gap: 6px;
+}
+.resource-chip .ui-icon-slot,
+[data-icon-slot^="resource-"] {
+  width: 28px;
+  height: 28px;
+  background-size: 118% auto;
+  filter: saturate(.96) contrast(1.03);
+}
+.resource-chip.is-critical [data-icon-slot^="resource-"] {
+  filter: saturate(.8) contrast(1.04);
+}
+
+.build-tabs .category-icon,
+[data-ui-asset^="category:"] {
+  width: 19px;
+  height: 19px;
+  background-size: 122% auto;
+}
+.build-tabs button {
+  gap: 7px;
+  min-height: 33px;
+}
+
+.dock-button .dock-icon-slot,
+[data-icon-slot^="command-"] {
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  background-size: 145% auto;
+  background-position: center;
+}
+.dock-button {
+  width: 60px;
+  min-height: 61px;
+}
+.dock-button:hover .dock-icon-slot,
+.dock-button[aria-pressed="true"] .dock-icon-slot {
+  background-size: 151% auto;
+}
+
+.build-card {
+  flex-basis: 136px;
+  width: 136px;
+  min-width: 136px;
+  min-height: 134px;
+  grid-template-rows: 88px auto auto auto;
+  padding: 3px;
+}
+.build-art-slot {
+  height: 86px;
+  margin: 0 0 2px;
+}
+[data-art-slot="build-farmhouse"],
+[data-art-slot="build-brewery"],
+[data-art-slot="build-tavern"] {
+  background-size: cover;
+  background-position: center 48%;
+  box-shadow: inset 0 0 0 1px rgba(80,58,35,.18);
+}
+.build-name {
+  padding: 4px 3px 1px;
+  font-size: 11px;
+}
+.build-card small {
+  padding: 1px 3px 3px;
+  font-size: 7px;
+}
+.build-card.is-unaffordable:not(.is-planned) {
+  filter: saturate(.78) brightness(.9);
+  border-color: rgba(141,78,57,.68);
+  box-shadow: inset 0 -2px rgba(136,67,49,.28);
+}
+.build-card.is-unaffordable:not(.is-planned)::before {
+  content: 'Low resources';
+  position: static;
+  grid-row: 4;
+  justify-self: center;
+  align-self: end;
+  margin: 1px 2px 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8a493a;
+  font: 700 6px/1.2 Inter, sans-serif;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.build-card.is-unaffordable:not(.is-planned) .build-art-slot {
+  opacity: .88;
+}
+
+.build-preview {
+  width: 390px;
+  min-height: 154px;
+  grid-template-columns: 142px 1fr;
+  border-color: rgba(76,54,33,.95);
+  background:
+    linear-gradient(180deg, rgba(205,187,143,.99), rgba(181,157,111,.99));
+  box-shadow: 0 15px 36px rgba(0,0,0,.46), inset 0 0 0 2px rgba(76,54,33,.16);
+}
+.build-preview-art {
+  min-height: 154px;
+  border-right-color: rgba(79,56,33,.44);
+  background:
+    linear-gradient(145deg, rgba(99,75,46,.18), rgba(226,208,166,.12)),
+    repeating-linear-gradient(-35deg, rgba(72,53,32,.06) 0 1px, transparent 1px 8px);
+}
+.build-preview-art[data-art-slot="build-farmhouse"],
+.build-preview-art[data-art-slot="build-brewery"],
+.build-preview-art[data-art-slot="build-tavern"] {
+  background-size: cover;
+  background-position: center 48%;
+}
+.build-preview-copy {
+  padding: 11px 12px 10px;
+}
+.build-preview-heading {
+  padding-bottom: 7px;
+  border-bottom-color: rgba(78,55,33,.32);
+}
+.build-preview-heading small {
+  color: #6e5d46;
+  font-size: 7px;
+}
+.build-preview-heading b {
+  color: #2f261c;
+  font-size: 17px;
+}
+.build-preview-copy p {
+  margin: 8px 0 9px;
+  color: #4e4031;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.build-preview-meta {
+  padding: 6px 0;
+  color: #403428;
+  border-color: rgba(78,56,35,.26);
+  font-size: 8px;
+  line-height: 1.4;
+}
+.build-preview-requirement {
+  margin-top: 7px;
+  color: #604f3b;
+  font-size: 8px;
+  line-height: 1.4;
+}
+.preview-state {
+  padding: 4px 6px;
+  border-color: rgba(70,51,33,.34);
+  font-size: 6px;
+}
+.preview-state.available { color: #405b32; background: rgba(79,111,55,.1); }
+.preview-state.warning { color: #7e4033; background: rgba(124,65,48,.12); }
+
+@media (max-width: 1050px) {
+  .resource-chip { grid-template-columns: 23px auto auto; }
+  .resource-chip .ui-icon-slot,
+  [data-icon-slot^="resource-"] { width: 23px; height: 23px; }
+}
+@media (max-width: 620px) {
+  .build-preview {
+    width: min(360px, calc(100vw - 20px));
+    grid-template-columns: 122px 1fr;
+  }
+  .build-preview-art { min-height: 148px; }
+}
