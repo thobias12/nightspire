@@ -34,6 +34,7 @@ import {
 } from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
+import { haulPriorityLabel, nextHaulPriority } from '../simulation/WorkplaceLogistics'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
 
@@ -614,6 +615,14 @@ export class Game {
           if (!Number.isSafeInteger(settlerId)) { this.message = 'Select an assigned worker first.'; break }
           const result = unassignWorkerFromWorkplace(s, settlerId)
           this.message = result.message
+          break
+        }
+        case 'workplace-haul-priority': {
+          const building = s.buildings.find(candidate => candidate.id === this.selectedId && candidate.complete && !candidate.destroyed)
+          if (!building || !BUILDINGS[building.type].production) { this.message = 'Select a completed production workplace first.'; break }
+          building.haulPriority = nextHaulPriority(building.haulPriority)
+          this.message = BUILDINGS[building.type].label + ' hauling priority set to ' + haulPriorityLabel(building.haulPriority)
+            + '. This changes its local input reserve and finished-goods pickup threshold.'
           break
         }
         case 'toggle-role': {
