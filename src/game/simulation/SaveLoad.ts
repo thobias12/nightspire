@@ -3,6 +3,7 @@ import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
 import { canAdvanceConstruction, constructionCrewCapacity, constructionWorkLimit } from './Construction'
+import { dependentCountAtHome } from './Family'
 import { fieldArea, fieldCentroid, polygonsOverlap, simpleFieldPolygon } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
@@ -330,7 +331,11 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const b of s.buildings) {
     const def = BUILDINGS[b.type]
-    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : houseBedCapacity(b)), 'housing capacity')
+    check(
+      s.settlers.filter(a => a.homeId === b.id).length + dependentCountAtHome(s, b.id)
+      <= (b.destroyed ? 0 : houseBedCapacity(b)),
+      'housing capacity',
+    )
     if (b.complete) {
       for (const resource of RESOURCE_IDS) {
         const capacity = supplyCapacity(b, resource)
