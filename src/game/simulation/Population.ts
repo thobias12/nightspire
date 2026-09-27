@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { assignHousing, available, stockpiles } from './Buildings'
+import { houseBedCapacity } from './HouseProgression'
 import { householdSummary } from './Households'
 import { completedMarkets } from './Markets'
 import { entrance, MAP_MAX, MAP_MIN } from './Navigation'
@@ -41,7 +42,7 @@ const clamp = (value: number, min: number, max: number): number => Math.max(min,
 function totalBeds(state: WorldState): number {
   return state.buildings
     .filter(building => building.complete && !building.destroyed)
-    .reduce((sum, building) => sum + BUILDINGS[building.type].housing, 0)
+    .reduce((sum, building) => sum + houseBedCapacity(building), 0)
 }
 
 function storedFood(state: WorldState): number {

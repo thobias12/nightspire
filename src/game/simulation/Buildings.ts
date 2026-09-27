@@ -1,5 +1,6 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
+import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
 import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
@@ -288,10 +289,33 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
 }
 
 export function assignHousing(s: WorldState): void {
-  const beds = s.buildings
+  const houses = s.buildings
     .filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].housing > 0)
-    .flatMap(b => Array<number>(BUILDINGS[b.type].housing).fill(b.id))
-  s.settlers.forEach((settler, i) => { settler.homeId = beds[i] ?? null })
+    .sort((a, b) => a.id - b.id)
+  const capacity = new Map(houses.map(house => [house.id, houseBedCapacity(house)]))
+  const used = new Map<number, number>()
+
+  // Keep valid households stable when capacity changes; only displaced/unhoused settlers move.
+  for (const settler of s.settlers) {
+    if (settler.homeId === null || !capacity.has(settler.homeId)) {
+      settler.homeId = null
+      continue
+    }
+    const count = used.get(settler.homeId) ?? 0
+    if (count >= capacity.get(settler.homeId)!) {
+      settler.homeId = null
+      continue
+    }
+    used.set(settler.homeId, count + 1)
+  }
+
+  for (const settler of s.settlers) {
+    if (settler.homeId !== null) continue
+    const house = houses.find(candidate => (used.get(candidate.id) ?? 0) < capacity.get(candidate.id)!)
+    if (!house) break
+    settler.homeId = house.id
+    used.set(house.id, (used.get(house.id) ?? 0) + 1)
+  }
 }
 
 export const readyToBuild = (b: Building): boolean =>
