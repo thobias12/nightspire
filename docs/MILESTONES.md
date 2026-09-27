@@ -360,9 +360,24 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] normal gameplay population cap remains ten
 - [ ] live pacing/UX acceptance with Brewery + Blacksmith competing for a six-to-ten-settler workforce
 
+### M3.11.1 — Local workplace logistics & hauling priorities
+
+- [x] production workplaces maintain explicit local input reserves
+- [x] unstaffed production workplaces do not request raw inputs
+- [x] manufactured output accumulates locally until a pickup threshold is reached
+- [x] Low / Normal / High hauling priority persists per building
+- [x] Low priority keeps one input batch and delays output pickup
+- [x] Normal priority keeps a tuned working reserve
+- [x] High priority fills local input capacity and clears finished goods quickly
+- [x] workplace hauling priority participates in job selection relative to construction
+- [x] triggered output collection drains the current local batch instead of stranding the remainder below threshold
+- [x] inspector shows local input target, maximum capacity, inbound cargo, output threshold and outbound cargo
+- [x] old saves migrate buildings to Normal priority
+- [x] no renderer/road changes
+- [ ] live pacing acceptance with competing Brewery / Blacksmith / construction demand
+
 ### Later M3.11 slices
 
-- [ ] local workplace input/output storage rules and hauling priorities
 - [ ] market/trade foundation
 - [ ] household-side production
 - [ ] transport-distance pressure
