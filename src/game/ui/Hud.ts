@@ -4,6 +4,7 @@ import { available, freeStorage, reserved, stockpiles } from '../simulation/Buil
 import { phaseForTime, phaseLabel } from '../simulation/DayNight'
 import { happinessEffect, settlementHappinessEffect } from '../simulation/Happiness'
 import { happinessOf, settlementNeeds } from '../simulation/Needs'
+import { marketSummary } from '../simulation/Markets'
 import { IMMIGRATION_REQUIRED_DAYS, populationAttraction } from '../simulation/Population'
 import { raidSizeForWave } from '../simulation/Raid'
 import { assignedGuardPost } from '../simulation/Schedule'
@@ -45,9 +46,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.2 · STOCKPILE SPECIALIZATION</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">SPECIALIZE STORAGE, SHORTEN THE HAUL</span><h1>Stockpiles now decide what enters them and how strongly Laborers prefer them.</h1>
-        <p>Inspect a Stockpile to enable or disable Wood, Food, Ale, Ore and Tools, then set Low / Normal / High receiving priority. Laborers choose priority first and the nearest valid Stockpile within that tier, letting you create food depots, smithing yards and construction timber stores.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.3 · MARKET & FOOD DISTRIBUTION</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">FEED THE TOWN THROUGH A REAL MARKET</span><h1>Once a Market is complete, daily meals depend on stocked stalls and active Vendors.</h1>
+        <p>Before a Market exists, the camp still hands out basic rations directly from Stockpiles. Once you complete one, Food must be hauled into Market storage and Vendors must physically report for duty. Each active Vendor can distribute five meals per Day, so a full two-Vendor Market can feed the current ten-settler cap.</p>
         <div id="objective"></div>
         <div id="workforce"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
@@ -91,6 +92,7 @@ export class Hud {
           <button data-action="brewery" title="Hotkey 4">[4] Brewery <small>35 wood · Food → Ale · 2 Brewers</small></button>
           <button data-action="tavern" title="Hotkey 5">[5] Tavern <small>40 wood · 12 Ale-fed slots</small></button>
           <button data-action="blacksmith" title="Hotkey 9">[9] Blacksmith <small>45 wood · Ore → Tools · 2 Smiths</small></button>
+          <button data-action="market" title="Hotkey M">[M] Market <small>30 wood · 20 Food · 2 Vendors</small></button>
         </div>
         <div class="build-group"><span>Defense</span>
           <button data-action="guard-post" title="Hotkey 6">[6] Guard Post <small>25 wood · 2 guards</small></button>
@@ -139,7 +141,9 @@ export class Hud {
   update(s: WorldState, ui: HudState): void {
     const stores = stockpiles(s)
     const wood = stores.reduce((n, b) => n + b.inventory.wood, 0)
-    const food = stores.reduce((n, b) => n + b.inventory.food, 0)
+    const markets = marketSummary(s)
+    const foodInStockpiles = stores.reduce((n, b) => n + b.inventory.food, 0)
+    const food = foodInStockpiles + markets.food
     const ale = stores.reduce((n, b) => n + b.inventory.ale, 0)
     const ore = stores.reduce((n, b) => n + b.inventory.ore, 0)
     const storedTools = stores.reduce((n, b) => n + b.inventory.tools, 0)
@@ -168,7 +172,7 @@ export class Hud {
     const arriving = s.settlers.filter(settler => settler.arrivalTarget !== null).length
     const fedToday = s.settlers.filter(settler => settler.lastMealDay === s.day).length
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <span>(${markets.food} market)</span> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
     this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Ore → Blacksmith → Tools · stockpiled Tools add up to +10% hands-on work on top of Happiness</small>`)
 
@@ -182,7 +186,9 @@ export class Hud {
     })
     this.set('workforce', '<p><b>Workforce</b> · Laborers ' + laborers
       + (workforceParts.length ? ' · ' + workforceParts.join(' · ') : ' · no staffed workplaces yet')
-      + ' · Guards ' + guards + '/' + guardSlots + '</p>')
+      + ' · Guards ' + guards + '/' + guardSlots
+      + (markets.markets ? ' · Markets ' + markets.active + '/' + markets.markets + ' active · Meals ' + markets.mealsServed + '/' + markets.mealCapacity : '')
+      + '</p>')
 
     const a = s.settlers.find(a => a.id === ui.selectedId)
     const b = s.buildings.find(b => b.id === ui.selectedId)
@@ -237,6 +243,7 @@ export class Hud {
             + (service.supplyResource ? '<br>Pantry: ' + b.inventory[service.supplyResource] + '/' + service.supplyCapacity + ' ' + service.supplyResource + ' · inbound ' + supplyJob : '<br>No operating supplies required')
           : ''
         const staffing = (def.workerSlots ?? 0) > 0 ? workplaceStaffing(s, b) : null
+        const distribution = def.foodDistribution
         const inboundProduction = production
           ? s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === production.inputResource).reduce((sum, j) => sum + j.amount, 0)
           : 0
@@ -253,6 +260,8 @@ export class Hud {
         const functionText = def.housing ? def.housing + ' beds'
           : def.guardSlots ? def.guardSlots + ' guard slots'
           : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Ale ${b.inventory.ale}<br>Ore ${b.inventory.ore}<br>Tools ${b.inventory.tools}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}<br>Receiving priority: ${stockpilePriorityLabel(b.stockpilePriority)}`
+          : distribution
+            ? `Food stalls: ${b.inventory.food}/${distribution.capacity}<br>Meals served today: ${b.distributionDay === s.day ? b.distributionServed : 0}<br>Each active Vendor distributes ${distribution.mealsPerWorkerPerDay} meals/Day<br>Assigned Vendors buffer up to ${distribution.reserveDays} Days of their capacity.`
           : production ? productionText
           : service ? serviceText
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'

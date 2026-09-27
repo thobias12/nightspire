@@ -65,6 +65,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && integer(b.lastHitTick) && b.lastHitTick <= s.tick
       && number(b.serviceProgress) && b.serviceProgress <= 300
       && number(b.productionProgress) && b.productionProgress <= 300
+      && integer(b.distributionDay) && b.distributionDay <= s.day
+      && integer(b.distributionServed) && b.distributionServed <= MAX_SETTLERS
       && integer(b.rotation) && b.rotation <= 3
       && ['low', 'normal', 'high'].includes(b.haulPriority)
       && ['low', 'normal', 'high'].includes(b.stockpilePriority)
@@ -330,6 +332,8 @@ export function deserializeWorld(text: string): WorldState {
       if (building.lastHitTick === undefined) building.lastHitTick = 0
       if (building.serviceProgress === undefined) building.serviceProgress = 0
       if (building.productionProgress === undefined) building.productionProgress = 0
+      if (building.distributionDay === undefined) building.distributionDay = 0
+      if (building.distributionServed === undefined) building.distributionServed = 0
       if (building.haulPriority === undefined) building.haulPriority = 'normal'
       if (building.stockpilePriority === undefined) building.stockpilePriority = 'normal'
       if (building.stockpileFilters === undefined) {

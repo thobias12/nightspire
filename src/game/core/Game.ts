@@ -330,6 +330,11 @@ export class Game {
         this.action(hotkey)
         return
       }
+      if (e.key.toLowerCase() === 'm') {
+        e.preventDefault()
+        this.action('market')
+        return
+      }
       if (this.planningTool === 'road' && e.key === 'Shift') {
         if (!this.roadAngleSnap) {
           this.roadAngleSnap = true
@@ -537,7 +542,7 @@ export class Game {
           this.renderer.mode = 'settlement'
           this.message = 'Residential Plot: start close to a road, then drag frontage + backyard depth. ' + (this.gridSnap ? 'Grid Snap rounds width/depth to 1m.' : 'Freeform dimensions enabled.')
           break
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market':
           this.buildType = action
           this.planningTool = null
           this.planningStart = null
