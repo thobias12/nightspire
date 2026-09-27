@@ -10,7 +10,7 @@ const {
 } = require('../.test-build/game/simulation/Buildings.js')
 const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
-const { blockedCells, cellKey } = require('../.test-build/game/simulation/Navigation.js')
+const { blockedCells, cellKey, entrance } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
 const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
@@ -21,6 +21,9 @@ const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } 
 const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.test-build/game/simulation/Tools.js')
 const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
+const {
+  assignWorkerToWorkplace, professionLabel, workplaceStaffing,
+} = require('../.test-build/game/simulation/Workforce.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
@@ -58,6 +61,18 @@ const makeAttractive = s => {
   for(const settler of s.settlers) settler.needs={food:100,housing:100,safety:100,recreation:100}
   assignHousing(s)
   return s
+}
+const staffWorkplace = (s, building, count=2) => {
+  const target=entrance(building)
+  const workers=s.settlers.filter(a=>a.role==='worker' && a.workplaceId===null).slice(0,count)
+  assert.equal(workers.length,count)
+  for(const worker of workers) {
+    worker.workplaceId=building.id
+    worker.x=target.x; worker.z=target.z
+    worker.path=[]; worker.pathRevision=-1
+    worker.status='At workplace'
+  }
+  return workers
 }
 test('residential presentation keeps a 4x11 lot as a long burgage cottage instead of depth-upgrading it', () => {
   const plot={id:106,buildingId:107,roadId:1,frontageA:{x:0,z:0},frontageB:{x:4,z:0},depth:11,side:1,angle:0,backyard:'workyard'}
@@ -1322,6 +1337,7 @@ test('day workers route Brewery Ale through stockpile storage before supplying t
   const brewery=createBuilding(s.nextId++,'brewery',-7,0,true)
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
   s.buildings.push(brewery,tavern); s.topology++
+  staffWorkplace(s,brewery)
   const initialFood=accountedTotal(s,'food')
   const sim=new Simulation(s)
   let sawFoodSupply=false
@@ -1464,6 +1480,7 @@ test('Brewery converts 2 Food into 4 Ale per completed Day batch only', () => {
   const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
   brewery.inventory.food=4
   s.buildings.push(brewery); s.topology++
+  staffWorkplace(s,brewery)
   updateProduction(s,11,'day')
   assert.equal(brewery.inventory.food,4)
   assert.equal(brewery.inventory.ale,0)
@@ -1484,6 +1501,7 @@ test('Brewery stops at Ale output capacity and resumes after Ale is removed', ()
   brewery.inventory.food=20
   brewery.inventory.ale=24
   s.buildings.push(brewery); s.topology++
+  staffWorkplace(s,brewery)
   updateProduction(s,60,'day')
   assert.equal(brewery.inventory.food,20)
   assert.equal(brewery.inventory.ale,24)
@@ -1501,6 +1519,7 @@ test('mid-batch Brewery progress survives save load', () => {
   const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
   brewery.inventory.food=4
   s.buildings.push(brewery); s.topology++
+  staffWorkplace(s,brewery)
   updateProduction(s,7,'day')
   assert.equal(brewery.productionProgress,7)
   const loaded=deserializeWorld(serializeWorld(s))
@@ -1519,6 +1538,7 @@ test('Ale production and Tavern consumption preserve the production ledger', () 
   const tavern=createBuilding(s.nextId++,'tavern',7,0,true)
   brewery.inventory.food=10
   s.buildings.push(brewery,tavern); s.topology++
+  staffWorkplace(s,brewery)
   updateProduction(s,60,'day')
   assert.equal(s.totals.produced.ale,20)
   const transfer=Math.min(12,brewery.inventory.ale)
@@ -1559,6 +1579,7 @@ test('Blacksmith converts 3 Ore into 1 Tool per completed Day batch and respects
   const smith=createBuilding(s.nextId++,'blacksmith',7,0,true)
   smith.inventory.ore=18
   s.buildings.push(smith); s.topology++
+  staffWorkplace(s,smith)
   updateProduction(s,17,'day')
   assert.equal(smith.inventory.ore,18)
   assert.equal(smith.inventory.tools,0)
@@ -1587,6 +1608,7 @@ test('workers route Ore into Blacksmith and Tools back through stockpile storage
   stockpile.inventory.ore=18
   const smith=createBuilding(s.nextId++,'blacksmith',7,0,true)
   s.buildings.push(smith); s.topology++
+  staffWorkplace(s,smith)
   const initialOre=accountedTotal(s,'ore')
   const sim=new Simulation(s)
   let sawOreSupply=false
@@ -1660,6 +1682,7 @@ test('Blacksmith Ore, Tools and mid-batch progress survive current save load', (
   smith.inventory.ore=6
   smith.inventory.tools=2
   s.buildings.push(smith); s.topology++
+  staffWorkplace(s,smith)
   updateProduction(s,7,'day')
   assert.equal(smith.productionProgress,7)
   const loaded=deserializeWorld(serializeWorld(s))
@@ -1835,4 +1858,85 @@ test('invalid and incompatible saves are rejected without touching current state
   }
   assert.throws(()=>deserializeWorld('{bad json'))
   assert.equal(serializeWorld(s),original)
+})
+
+
+test('M3.11 workplaces enforce slots and expose persistent professions', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+  const first=assignWorkerToWorkplace(s,brewery.id)
+  const second=assignWorkerToWorkplace(s,brewery.id)
+  const third=assignWorkerToWorkplace(s,brewery.id)
+  assert.equal(first.ok,true)
+  assert.equal(second.ok,true)
+  assert.equal(third.ok,false)
+  assert.equal(workplaceStaffing(s,brewery).assigned,2)
+  assert.equal(professionLabel(s,s.settlers.find(a=>a.id===first.settlerId)),'Brewer')
+  validateWorld(s)
+})
+
+test('M3.11 production pauses unstaffed and scales with workers physically present', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  brewery.inventory.food=4
+  s.buildings.push(brewery); s.topology++
+
+  updateProduction(s,12,'day')
+  assert.equal(brewery.productionProgress,0)
+  assert.equal(brewery.inventory.ale,0)
+
+  staffWorkplace(s,brewery,1)
+  updateProduction(s,12,'day')
+  assert.equal(brewery.productionProgress,6)
+  assert.equal(brewery.inventory.ale,0)
+
+  staffWorkplace(s,brewery,1)
+  updateProduction(s,6,'day')
+  assert.equal(brewery.productionProgress,0)
+  assert.equal(brewery.inventory.food,2)
+  assert.equal(brewery.inventory.ale,4)
+  validateWorld(s)
+})
+
+test('M3.11 dedicated workplace staff stop taking new general jobs', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+  const worker=s.settlers[0]
+  worker.workplaceId=brewery.id
+  assignJobs(s)
+  assert.equal(worker.jobId,null)
+  assert.ok(s.settlers.slice(1).some(a=>a.jobId!==null))
+  validateWorld(s)
+})
+
+test('M3.11 workplace assignment survives save load and old saves migrate to laborers', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+  assert.equal(assignWorkerToWorkplace(s,brewery.id).ok,true)
+  const assigned=s.settlers.find(a=>a.workplaceId===brewery.id)
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.equal(loaded.settlers.find(a=>a.id===assigned.id).workplaceId,brewery.id)
+
+  const legacy=JSON.parse(serializeWorld(createInitialWorldState()))
+  for(const settler of legacy.settlers) delete settler.workplaceId
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(migrated.settlers.every(a=>a.workplaceId===null))
+  validateWorld(loaded)
+  validateWorld(migrated)
+})
+
+test('M3.11 demolishing a workplace releases its staff to the labor pool', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+  const result=assignWorkerToWorkplace(s,brewery.id)
+  assert.equal(result.ok,true)
+  const worker=s.settlers.find(a=>a.id===result.settlerId)
+  assert.equal(demolishBuilding(s,brewery.id),null)
+  assert.equal(worker.workplaceId,null)
+  assert.equal(professionLabel(s,worker),'Laborer')
+  validateWorld(s)
 })

@@ -1,9 +1,9 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { assignHousing } from '../simulation/Buildings'
-import { blockedCells, cellKey, flood, MAP_MIN, MAP_MAX } from '../simulation/Navigation'
+import { blockedCells, cellKey, entrance, flood, MAP_MIN, MAP_MAX } from '../simulation/Navigation'
 import { createBuilding, createInitialWorldState, type WorldState } from '../simulation/WorldState'
 
-export const BENCHMARK_VERSION = 2
+export const BENCHMARK_VERSION = 3
 export const POPULATIONS = [10, 100, 250, 500, 1000] as const
 export type Workload = 'logistics' | 'services' | 'idle'
 export const WORKLOADS: Workload[] = ['logistics', 'services', 'idle']
@@ -69,6 +69,25 @@ export function createBenchmarkWorld(population: number, workload: Workload): Wo
   for (let i = 0; i < population; i++) {
     s.settlers.push({ ...structuredClone(template), id: s.nextId++, ...shuffled[(i * 7) % shuffled.length], lastMealDay: s.day })
   }
+
+  // M3.11 benchmarks retain a large labor pool while staffing enough production slots
+  // to exercise the current workplace economy. Assigned workers begin at the door so
+  // setup travel does not dominate the short synthetic sample.
+  if (workload !== 'idle') {
+    let assignable = Math.max(0, population - Math.max(4, Math.ceil(population * 0.7)))
+    let workerIndex = 0
+    for (const building of s.buildings.filter(b => (BUILDINGS[b.type].workerSlots ?? 0) > 0)) {
+      const slots = BUILDINGS[building.type].workerSlots ?? 0
+      for (let slot = 0; slot < slots && assignable > 0 && workerIndex < s.settlers.length; slot++) {
+        const worker = s.settlers[workerIndex++]
+        worker.workplaceId = building.id
+        Object.assign(worker, entrance(building))
+        worker.status = 'Working as ' + (BUILDINGS[building.type].profession ?? 'Worker') + ' at ' + BUILDINGS[building.type].label
+        assignable--
+      }
+    }
+  }
+
   s.targets = workload === 'idle' ? { wood: 0, food: 0, ale: 0, ore: 0, tools: 0 } : { wood: 10_000, food: 10_000, ore: 10_000, ale: 0, tools: 0 }
   if (workload === 'idle') {
     for (const b of s.buildings) {
