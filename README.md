@@ -6,7 +6,7 @@ A grounded medieval dark-fantasy settlement builder. The long-term direction is 
 
 The image below is the current **north-star UI / presentation concept** for Nightspire. The exact artwork is not final, but the **layout hierarchy and product direction are intentional**: compact settlement information at the top, contextual building/character panels on the left, tasks/messages on the right, a large illustrated construction catalog at the bottom, and the world kept visible in the center.
 
-![Nightspire UI and feature direction](docs/images/nightspire-ui-feature-concept.jpg)
+![Nightspire UI and feature direction](docs/images/nightspire-ui-concept-v1.jpg)
 
 The playable game already has roads, residential plots, agriculture, physical hauling, Markets, Brewery → Ale → Tavern, Ore → Tools, Gold trade, households, Happiness, immigration, guards, wooden fortifications, raids, day/night and save/load. The roadmap now grows outward from that foundation rather than replacing it.
 

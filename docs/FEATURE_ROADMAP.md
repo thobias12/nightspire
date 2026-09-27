@@ -2,7 +2,7 @@
 
 This roadmap is the working product-direction document for the current Nightspire prototype. It complements the milestone log: milestones describe what has shipped; this document describes what the game is growing toward.
 
-![Nightspire UI and feature direction](images/nightspire-ui-feature-concept.jpg)
+![Nightspire UI and feature direction](images/nightspire-ui-concept-v1.jpg)
 
 ## North star
 
