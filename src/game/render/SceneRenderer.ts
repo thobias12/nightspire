@@ -2658,6 +2658,18 @@ export class SceneRenderer {
       }
     }
 
+    for (const remains of state.remains) {
+      if (remains.heavy) {
+        this.instance('logs', remains.x, 0.24, remains.z, 1.7, 0.68, 0.68, 0x4a3528, Math.PI / 2 + remains.id * 0.11)
+        this.instance('cartWheel', remains.x - 0.48, 0.18, remains.z + 0.32, 0.56, 0.56, 0.56, 0x342820, remains.id * 0.17)
+        this.instance('cartWheel', remains.x + 0.48, 0.18, remains.z - 0.28, 0.56, 0.56, 0.56, 0x342820, remains.id * 0.21)
+        this.instance('debris', remains.x + 0.18, 0.12, remains.z + 0.18, 0.72, 0.18, 0.38, 0x40362e, remains.id * 0.31)
+      } else {
+        this.instance('debris', remains.x, 0.08, remains.z, 0.78, 0.12, 0.34, 0x40332f, remains.id * 0.23)
+        this.instance('cloth', remains.x + 0.12, 0.09, remains.z - 0.1, 0.52, 0.06, 0.26, 0x5b2d34, remains.id * 0.19)
+      }
+    }
+
     for (const e of state.enemies) {
       const archetype = raiderArchetype(e)
       const hit = this.recentlyHit(e.lastHitTick, state.tick)
