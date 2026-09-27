@@ -122,12 +122,6 @@ export class Hud {
         </div>
       </details>
 
-      <aside class="minimap-shell panel" aria-label="Settlement minimap">
-        <div class="minimap-header"><span>Oakridge</span><small>Settlement map</small></div>
-        <div id="minimap-map" class="minimap-map"></div>
-        <div class="minimap-legend"><span><i class="legend-building"></i>Buildings</span><span><i class="legend-field"></i>Fields</span><span><i class="legend-hostile"></i>Raiders</span></div>
-      </aside>
-
       <footer class="bottom">
         <div class="build-catalog panel" aria-hidden="true">
           <div class="catalog-header">
@@ -647,15 +641,6 @@ export class Hud {
     this.set('tasks', visibleTasks.length
       ? visibleTasks.map(item => '<div class="task-item task-' + item.tone + '"><span class="ui-icon-slot compact" data-ui-asset="notification:' + item.icon + '" aria-hidden="true"></span><div><strong>' + escape(item.title) + '</strong><small>' + escape(item.detail) + '</small></div></div>').join('')
       : '<div class="task-empty">No urgent settlement matters.</div>')
-
-    const miniRoads = s.roads.map(road => '<polyline class="mini-road" points="' + road.points.map(point => point.x.toFixed(2) + ',' + point.z.toFixed(2)).join(' ') + '"/>').join('')
-    const miniFields = s.fields.map(field => '<polygon class="mini-field" points="' + field.points.map(point => point.x.toFixed(2) + ',' + point.z.toFixed(2)).join(' ') + '"/>').join('')
-    const miniBuildings = s.buildings.filter(building => !building.destroyed).map(building =>
-      '<rect class="mini-building' + (building.id === ui.selectedId ? ' is-selected' : '') + '" x="' + (building.x - 0.7).toFixed(2) + '" y="' + (building.z - 0.7).toFixed(2) + '" width="1.4" height="1.4"/>'
-    ).join('')
-    const miniSettlers = s.settlers.map(settler => '<circle class="mini-settler" cx="' + settler.x.toFixed(2) + '" cy="' + settler.z.toFixed(2) + '" r=".33"/>').join('')
-    const miniEnemies = s.enemies.map(enemy => '<circle class="mini-enemy" cx="' + enemy.x.toFixed(2) + '" cy="' + enemy.z.toFixed(2) + '" r=".48"/>').join('')
-    this.set('minimap-map', '<svg viewBox="-28 -28 56 56" role="img" aria-label="Settlement overview"><g transform="scale(1,-1)">' + miniFields + miniRoads + miniBuildings + miniSettlers + miniEnemies + '</g></svg>')
 
     const inspector = this.element.querySelector<HTMLElement>('.inspector')!
     inspector.classList.toggle('is-active', ui.selectedId !== null || ui.buildType !== null || ui.planningTool !== null)
