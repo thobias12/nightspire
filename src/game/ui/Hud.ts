@@ -45,8 +45,8 @@ export class Hud {
     this.element.className = 'hud'
     this.element.innerHTML = `
       <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.1 · LOCAL WORKPLACE LOGISTICS</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">DRAW THE STREET, THEN BUILD FROM IT</span><h1>Roads are shaped point-by-point with independent snapping controls.</h1>
-        <p>Click road points to draw an organic route, move the mouse for a live curved preview, hold Shift only when you want 0°/45°/90° alignment, and use Grid Snap independently for 1m control points. Road Snap joins nearby endpoints/centerlines and keeps curved-road frontage compatible with Residential Plots and conventional buildings.</p>
+      <section class="guide panel"><span class="eyebrow">STAFF WORKPLACES, KEEP LOCAL BUFFERS FLOWING</span><h1>Your production economy now depends on both specialists and haulers.</h1>
+        <p>Assign Brewers and Blacksmiths from the building inspector, then keep enough general Laborers free to move inputs and finished goods. Each production workplace has local storage and a Low / Normal / High hauling priority: Low conserves hauling, Normal keeps a working reserve, and High fills inputs and clears output aggressively.</p>
         <div id="objective"></div>
         <div id="workforce"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
