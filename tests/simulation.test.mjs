@@ -2776,7 +2776,7 @@ test('M3.11.7 field placement rejects crossings, occupied land and later road/bu
   assert.match(placementError(s,'farmhouse',{x:12,z:11}),/farm field/i)
   assert.match(roadPlacementError([{x:5,z:11},{x:20,z:11}],s.fields),/farm field/i)
 
-  const selfCross=[{x:20,z:8},{x:28,z:14},{x:20,z:14},{x:28,z:8}]
+  const selfCross=[{x:-20,z:8},{x:-12,z:14},{x:-20,z:14},{x:-12,z:8}]
   assert.match(fieldPlacementError(selfCross,s.fields,s.buildings,s.residentialPlots,s.nodes,s.roads),/edges cannot cross/i)
   validateWorld(s)
 })
