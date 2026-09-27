@@ -376,7 +376,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -2581,6 +2581,8 @@ export class SceneRenderer {
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
+    this.fieldGhostFill.visible = false
+    this.fieldAnchor.visible = false
     this.grid.visible = !!type
     if (!type || !p) return
 
@@ -2639,6 +2641,8 @@ export class SceneRenderer {
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
+    this.fieldGhostFill.visible = false
+    this.fieldAnchor.visible = false
     this.grid.visible = showGrid
     if (points.length === 0) return
 
@@ -2734,12 +2738,6 @@ export class SceneRenderer {
       if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
     }
 
-    const first = points[0]
-    this.ghost.visible = true
-    this.ghost.position.set(first.x, 0.1, first.z)
-    this.ghost.rotation.set(0, 0, 0)
-    this.ghost.scale.set(0.32, 0.12, 0.32)
-    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(markerColor)
   }
 
   showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean, showGrid = false): void {
@@ -2747,6 +2745,8 @@ export class SceneRenderer {
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
+    this.fieldGhostFill.visible = false
+    this.fieldAnchor.visible = false
     this.grid.visible = showGrid
     if (!preview) return
 
