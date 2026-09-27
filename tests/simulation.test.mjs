@@ -42,6 +42,11 @@ const {
   houseBedCapacity, houseProgressionStatus, processHouseholdProgression,
 } = require('../.test-build/game/simulation/HouseProgression.js')
 const {
+  MERCHANT_UNIT_LIMIT, TRADE_PRICES, adjustTradeReserve, merchantIntervalDays, merchantPresent,
+  processMerchantTrade, scheduleMerchantVisit, tradeExportStagingNeed, tradeFreeStorage,
+  tradeReputation,
+} = require('../.test-build/game/simulation/Trading.js')
+const {
   serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices, SERVICE_COVERAGE_RADIUS,
 } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
@@ -2593,5 +2598,138 @@ test('M3.11.5 house prosperity state persists and older saves migrate to Cottage
   const invalid=JSON.parse(serializeWorld(s))
   invalid.buildings.find(b=>b.id===house.id).houseLevel=4
   assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/building state/)
+  validateWorld(loaded)
+})
+
+
+test('M3.11.6 new settlements use Gold and default every trade policy to Keep', () => {
+  const s=createInitialWorldState()
+  assert.equal(s.trade.gold,60)
+  assert.equal(s.trade.nextMerchantDay,3)
+  assert.equal(s.trade.merchantDay,0)
+  assert.equal(s.trade.visits,0)
+  for(const resource of ['wood','food','ale','ore','tools']) {
+    assert.equal(s.trade.policies[resource].mode,'keep')
+    assert.ok(s.trade.policies[resource].reserve>=0)
+  }
+  assert.equal(TRADE_PRICES.ale.sell,4)
+  assert.equal(TRADE_PRICES.tools.buy,12)
+  validateWorld(s)
+})
+
+test('M3.11.6 Laborers stage only export surplus above the reserve at a staffed Trading Post', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const store=s.buildings[0]
+  store.inventory.ale=30
+  const post=createBuilding(s.nextId++,'trading-post',7,0,true)
+  s.buildings.push(post); s.topology++
+  staffWorkplace(s,post,1)
+  s.trade.policies.ale={mode:'export',reserve:20}
+
+  assert.equal(tradeExportStagingNeed(s,post,'ale'),10)
+  assert.equal(tradeFreeStorage(s,post),60)
+  assignJobs(s)
+  const staged=s.jobs.filter(j=>j.kind==='supply' && j.sourceId===store.id && j.targetId===post.id && j.resource==='ale')
+  assert.ok(staged.length>0)
+  assert.ok(staged.reduce((sum,j)=>sum+j.amount,0)<=10)
+
+  s.trade.policies.ale.reserve=30
+  const withReservations=tradeExportStagingNeed(s,post,'ale')
+  assert.equal(withReservations,0)
+  validateWorld(s)
+})
+
+test('M3.11.6 merchant caravan sells staged exports for Gold exactly once per visit', () => {
+  const s=createInitialWorldState()
+  const post=createBuilding(s.nextId++,'trading-post',7,0,true)
+  post.inventory.ale=10
+  s.buildings.push(post); s.topology++
+  staffWorkplace(s,post,1)
+  s.trade.policies.ale={mode:'export',reserve:10}
+  s.day=3
+  s.trade.nextMerchantDay=3
+  const startGold=s.trade.gold
+
+  assert.equal(scheduleMerchantVisit(s),true)
+  assert.equal(merchantPresent(s),true)
+  assert.equal(processMerchantTrade(s),true)
+  assert.equal(post.inventory.ale,0)
+  assert.equal(s.trade.gold,startGold+10*TRADE_PRICES.ale.sell)
+  assert.equal(s.trade.exported.ale,10)
+  assert.equal(s.trade.goldEarned,40)
+  assert.equal(s.trade.lastTransactionDay,3)
+  assert.equal(processMerchantTrade(s),false)
+  validateWorld(s)
+})
+
+test('M3.11.6 imports spend Gold into Trading Post cargo and Laborers unload it to stockpiles', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const store=s.buildings[0]
+  store.inventory.food=0
+  const post=createBuilding(s.nextId++,'trading-post',7,0,true)
+  s.buildings.push(post); s.topology++
+  staffWorkplace(s,post,1)
+  s.trade.gold=60
+  s.trade.policies.food={mode:'import',reserve:20}
+  s.day=3
+  s.trade.nextMerchantDay=3
+
+  scheduleMerchantVisit(s)
+  assert.equal(processMerchantTrade(s),true)
+  assert.equal(post.inventory.food,20)
+  assert.equal(s.trade.gold,0)
+  assert.equal(s.trade.imported.food,20)
+  assert.equal(s.trade.goldSpent,60)
+
+  assignJobs(s)
+  assert.ok(s.jobs.some(j=>j.kind==='supply' && j.sourceId===post.id && j.targetId===store.id && j.resource==='food'))
+  validateWorld(s)
+})
+
+test('M3.11.6 prosperous homes improve trade reputation and shorten caravan interval', () => {
+  const s=createInitialWorldState()
+  const a=createBuilding(s.nextId++,'house',-7,0,true)
+  const b=createBuilding(s.nextId++,'house',7,0,true)
+  a.houseLevel=3
+  b.houseLevel=3
+  s.buildings.push(a,b); s.topology++
+  assert.equal(tradeReputation(s),4)
+  assert.equal(merchantIntervalDays(s),2)
+
+  a.houseLevel=2
+  b.houseLevel=1
+  assert.equal(tradeReputation(s),1)
+  assert.equal(merchantIntervalDays(s),3)
+  validateWorld(s)
+})
+
+test('M3.11.6 trade reserve controls clamp safely and old saves migrate to Gold defaults', () => {
+  const s=createInitialWorldState()
+  assert.equal(adjustTradeReserve(s,'tools',-999),0)
+  assert.equal(adjustTradeReserve(s,'tools',999),500)
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.equal(loaded.trade.gold,60)
+  assert.equal(loaded.trade.policies.tools.reserve,500)
+
+  const legacy=JSON.parse(serializeWorld(createInitialWorldState()))
+  delete legacy.trade
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.equal(migrated.trade.gold,60)
+  assert.equal(migrated.trade.nextMerchantDay,3)
+  assert.ok(Object.values(migrated.trade.policies).every(policy=>policy.mode==='keep'))
+
+  const invalid=JSON.parse(serializeWorld(s))
+  invalid.trade.policies.wood.mode='dump'
+  assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/trade state/)
   validateWorld(loaded)
 })
