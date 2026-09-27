@@ -84,7 +84,8 @@ export function createBenchmarkWorld(population: number, workload: Workload): Wo
   return s
 }
 export function stateDigest(state: WorldState): string {
-  const text = JSON.stringify(state)
+  // Neutral default workforce fields are omitted so historical M4 starting digests remain comparable.
+  const text = JSON.stringify(state, (key, value) => key === 'workplaceId' && value === null ? undefined : value)
   let hash = 2166136261
   for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619)
   return (hash >>> 0).toString(16).padStart(8, '0')

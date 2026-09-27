@@ -5,6 +5,7 @@ import { available, freeStorage, needsRepair, readyToBuild, supplyFree, stockpil
 import { essentialJob, happinessEffect } from './Happiness'
 import { JobReservations } from './JobReservations'
 import { distance, entrance } from './Navigation'
+import { activeWorkplace } from './Workforce'
 import type { Building, Job, ResourceNode, Settler, WorldState } from './WorldState'
 
 const repairSources = (state: WorldState): Building[] =>
@@ -43,6 +44,7 @@ export function assignJobs(state: WorldState): void {
 
   for (const settler of state.settlers) {
     if (settler.jobId !== null || settler.health <= 0 || settler.arrivalTarget !== null) continue
+    if (activeWorkplace(state, settler)) continue
 
     const options: Omit<Job, 'id' | 'settlerId'>[] = []
     const morale = happinessEffect(settler)

@@ -13,7 +13,7 @@ import {
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { essentialJob, happinessEffect } from './Happiness'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
-import { distance, Navigation } from './Navigation'
+import { distance, entrance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
 import { processImmigrationDay } from './Population'
 import { updateProduction } from './Production'
@@ -21,8 +21,9 @@ import { serviceAssignments, updateServices, type ServiceAssignment } from './Se
 import { toolCoverage } from './Tools'
 import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
 import { nightTarget } from './Schedule'
+import { activeWorkplace } from './Workforce'
 import {
-  recordEvent, settlerLabel, type Enemy, type Job, type Point, type Settler, type WorldState,
+  recordEvent, settlerLabel, type Building, type Enemy, type Job, type Point, type Settler, type WorldState,
 } from './WorldState'
 
 type MovingAgent = Settler | Enemy
@@ -109,18 +110,21 @@ export class Simulation {
         this.updateJob(settler, job, toolWorkMultiplier)
         // A carried delivery or completed repair can change service availability this tick.
         this.servicePlan = undefined
-      }
-      else if (!isWorkPhase(phase)) {
+      } else if (isWorkPhase(phase)) {
+        const workplace = activeWorkplace(s, settler)
+        if (workplace) this.updateWorkplace(settler, workplace)
+        else if (
+          settler.status !== 'Needs work'
+          && settler.status !== 'Stock targets met'
+          && !settler.status.startsWith('Storage')
+          && settler.status !== 'No resources left'
+          && !settler.status.startsWith('No usable')
+        ) {
+          settler.status = 'Needs work'
+        }
+      } else {
         if (phase === 'night' && settler.role === 'guard' && s.enemies.length > 0) this.updateGuardCombat(settler)
         else this.updateNightSchedule(settler)
-      } else if (
-        settler.status !== 'Needs work'
-        && settler.status !== 'Stock targets met'
-        && !settler.status.startsWith('Storage')
-        && settler.status !== 'No resources left'
-        && !settler.status.startsWith('No usable')
-      ) {
-        settler.status = 'Needs work'
       }
     }
 
@@ -241,6 +245,19 @@ export class Simulation {
           : 'Carrying ' + job.amount + ' ' + job.resource
       : 'Travel to ' + job.kind
     this.move(settler, target, status, WALK_SPEED)
+  }
+
+  private updateWorkplace(settler: Settler, building: Building): void {
+    const target = entrance(building)
+    const profession = BUILDINGS[building.type].profession ?? 'Worker'
+    const label = BUILDINGS[building.type].label
+    if (distance(settler, target) < 0.01) {
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = 'Working as ' + profession + ' at ' + label
+      return
+    }
+    this.move(settler, target, 'Reporting to ' + label, WALK_SPEED)
   }
 
   private updateImmigrantArrival(settler: Settler): void {
