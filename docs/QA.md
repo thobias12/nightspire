@@ -781,3 +781,35 @@ Recommended live test:
 6. Assign the second Vendor and confirm total daily capacity rises to ten.
 7. Watch Laborers haul Food into the Market. With two assigned Vendors the local reserve target is 20 Food.
 8. Save/reload after some meals have been served and confirm the same Day cannot exceed the recorded daily capacity.
+
+
+## M3.11.4 households & local service coverage
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **151/151 tests passed**
+- production Vite build passed
+- household coverage is derived from existing House assignments, Markets, services and needs; no save schema field was added
+- no `SceneRenderer.ts`, road-planning or navigation-policy changes
+
+Regression coverage verifies:
+
+- pre-Market households retain camp-ration Food access
+- staffed + stocked Markets only cover Houses inside the 18m catchment
+- a far formal Market blocks immigration through household Market coverage
+- a nearby stocked/staffed Market restores household coverage and attraction
+- daily meals do not jump to residents of uncovered Houses
+- recreation assignments respect the same local household catchment
+- empty and unstaffed Markets do not count as Food access
+
+Recommended live test:
+
+1. Build two Houses reasonably far apart.
+2. Build one Market close to only one neighborhood.
+3. Stock it and assign at least one Vendor.
+4. Inspect both Houses. The near House should show the Market and distance; the far House should report no stocked staffed Market within 18m.
+5. Advance to a new Day. Covered residents should eat through the Market while uncovered residents remain waiting.
+6. Add a second Market near the uncovered House, stock/staff it, and verify coverage becomes complete.
+7. Place a Campfire or Tavern near only one neighborhood and confirm recreation coverage differs between Houses.
+8. Check the immigration objective: once formal Markets exist, all occupied households must have Market coverage.
