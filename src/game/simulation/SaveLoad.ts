@@ -42,6 +42,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 120, 'buildings')
   check(Array.isArray(s.nodes) && s.nodes.length <= 1000 && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
+  check(Array.isArray(s.remains) && s.remains.length <= 256, 'battlefield remains')
   check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
   check(Array.isArray(s.residentialPlots) && s.residentialPlots.length <= 80, 'residential plots')
   check(Array.isArray(s.fields) && s.fields.length <= 40, 'farm fields')
@@ -74,7 +75,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     'raid state',
   )
 
-  const entities = [...s.settlers, ...s.families, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots, ...s.fields]
+  const entities = [...s.settlers, ...s.families, ...s.enemies, ...s.remains, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots, ...s.fields]
   check(entities.every(e => e && integer(e.id) && e.id > 0 && e.id < s.nextId), 'entity IDs')
   check(new Set(entities.map(e => e.id)).size === entities.length, 'duplicate IDs')
 
@@ -223,6 +224,10 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     check(integer(family.lastChildDay) && family.lastChildDay <= s.day, 'family child day')
   }
 
+  for (const remains of s.remains) {
+    check(point(remains) && typeof remains.heavy === 'boolean' && integer(remains.createdDay) && remains.createdDay <= s.day, 'battlefield remains')
+  }
+
   for (const enemy of s.enemies) {
     check(point(enemy) && combatant(enemy, s.tick) && enemy.kind === 'raider' && integer(enemy.targetId), 'enemy')
     check(Array.isArray(enemy.path) && enemy.path.length <= 3000 && enemy.path.every(gridPoint) && Number.isInteger(enemy.pathRevision), 'enemy route')
@@ -238,13 +243,20 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   for (const j of s.jobs) {
     const a = s.settlers.find(a => a.id === j.settlerId)
     const target = s.buildings.find(b => b.id === j.targetId)
-    check(a && a.jobId === j.id && !workers.has(a.id) && target, 'job references')
+    const cleanupTarget = s.remains.find(remains => remains.id === j.targetId)
+    check(a && a.jobId === j.id && !workers.has(a.id) && (j.kind === 'cleanup' ? cleanupTarget : target), 'job references')
     workers.add(a.id)
 
-    check(['gather', 'deliver', 'supply', 'construct', 'repair'].includes(j.kind) && ['source', 'work', 'target'].includes(j.stage), 'job kind/stage')
+    check(['gather', 'deliver', 'supply', 'construct', 'repair', 'cleanup'].includes(j.kind) && ['source', 'work', 'target'].includes(j.stage), 'job kind/stage')
     check(RESOURCE_IDS.includes(j.resource) && integer(j.amount) && j.amount <= CARRY_CAPACITY && number(j.progress), 'job amount/progress')
 
-    if (j.kind === 'gather') {
+    if (j.kind === 'cleanup') {
+      check(
+        cleanupTarget && j.sourceId === cleanupTarget.id && j.targetId === cleanupTarget.id
+        && j.amount === 0 && j.stage !== 'target',
+        'cleanup claim',
+      )
+    } else if (j.kind === 'gather') {
       const node = s.nodes.find(n => n.id === j.sourceId)
       check(node && node.resource === j.resource && !gatherers.has(node.id) && j.amount > 0, 'gather claim')
       check(j.stage === 'target' || node.remaining >= j.amount, 'exhausted claim')
@@ -297,7 +309,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       repairers.add(target.id)
     }
 
-    const ownsCargo = j.stage === 'target' || (j.kind === 'repair' && j.stage === 'work')
+    const ownsCargo = j.kind !== 'cleanup' && (j.stage === 'target' || (j.kind === 'repair' && j.stage === 'work'))
     check(
       RESOURCE_IDS.every(r => a.cargo[r] === (ownsCargo && r === j.resource ? j.amount : 0)),
       'cargo/job mismatch',
@@ -430,6 +442,7 @@ export function deserializeWorld(text: string): WorldState {
   if (candidate && candidate.version === 1 && candidate.player?.lastHitTick === undefined) candidate.player.lastHitTick = 0
 
   if (candidate && candidate.version === 1 && candidate.enemies === undefined) candidate.enemies = []
+  if (candidate && candidate.version === 1 && candidate.remains === undefined) candidate.remains = []
   if (candidate && candidate.version === 1 && Array.isArray(candidate.enemies)) {
     for (const enemy of candidate.enemies) {
       if (enemy.health === undefined) Object.assign(enemy, { health: 40, maxHealth: 40, attackCooldown: 0 })
