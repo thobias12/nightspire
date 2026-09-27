@@ -69,6 +69,7 @@ const {
 } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
+const { settlementMetrics, settlementTier, settlementTierStatus } = require('../.test-build/game/simulation/TownProgression.js')
 const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
 const {
   backyardForPlot, buildingPlacementPreview, buildingRequiresRoadFrontage, buildingRoadPlacementError,
@@ -2629,6 +2630,49 @@ test('M3.11.4 empty or unstaffed Markets do not count as household Food access',
   validateWorld(s)
 })
 
+
+test('M3.13 settlement progression derives Camp through Stronghold from real settlement state', () => {
+  const s=createInitialWorldState()
+  assert.equal(settlementTier(s).id,'camp')
+
+  const h1=createBuilding(s.nextId++,'house',-7,0,true)
+  s.buildings.push(h1)
+  assert.equal(settlementTier(s).id,'hamlet')
+
+  const h2=createBuilding(s.nextId++,'house',7,0,true)
+  const market=createBuilding(s.nextId++,'market',0,7,true)
+  s.buildings.push(h2,market)
+  s.roads.push({id:s.nextId++,points:[{x:-8,z:4},{x:8,z:4}],width:2})
+  assert.equal(settlementTier(s).id,'village')
+
+  h1.houseLevel=2
+  s.buildings.push(
+    createBuilding(s.nextId++,'blacksmith',-7,7,true),
+    createBuilding(s.nextId++,'trading-post',7,7,true),
+  )
+  assert.equal(settlementTier(s).id,'town')
+
+  h1.houseLevel=3
+  s.buildings.push(createBuilding(s.nextId++,'guard-post',0,-7,true))
+  for(let i=0;i<8;i++) s.buildings.push(createBuilding(s.nextId++,'wood-wall',-10+i,-10,true))
+  s.raid.wave=2
+  s.raid.lastClearedWave=2
+  assert.equal(settlementTier(s).id,'stronghold')
+
+  const metrics=settlementMetrics(s)
+  assert.equal(metrics.prosperousHomes,1)
+  assert.equal(metrics.fortifications,8)
+  assert.equal(metrics.guardPosts,1)
+  assert.ok(metrics.roadLength>=14)
+})
+
+test('M3.13 tier status explains the next concrete settlement requirements', () => {
+  const s=createInitialWorldState()
+  const status=settlementTierStatus(s)
+  assert.equal(status.id,'camp')
+  assert.equal(status.next.id,'hamlet')
+  assert.ok(status.blockers.some(blocker=>blocker.includes('House')))
+})
 
 test('M3.12 housed residents form persistent named family records', () => {
   const s=createInitialWorldState()

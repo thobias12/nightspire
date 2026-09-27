@@ -587,3 +587,16 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [x] older current-schema saves migrate identity/family fields safely
 
 **Design constraint:** dependent children remain lightweight household state rather than pathfinding entities, preserving the current simulation-scale budget while making households persistent and generational.
+
+
+## M3.13 — Settlement evolution (stacked gameplay branch)
+
+- [x] derived Camp → Hamlet → Village → Town → Stronghold progression
+- [x] tiers depend on actual houses, prosperity, civic buildings, roads, defenses and raid success
+- [x] Established and Prosperous homes visibly gain stonework, height, windows and richer roof treatment
+- [x] Town roads visibly transition toward laid cobble without changing navigation semantics
+- [x] Town/Stronghold guard posts gain civic banners
+- [x] Stronghold palisades gain raised fighting-platform dressing
+- [x] progression remains derived rather than adding another save-state ledger
+
+**Design constraint:** settlement evolution is renderer/simulation-derived and does not alter the road topology or job scheduler.
