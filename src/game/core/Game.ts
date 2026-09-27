@@ -37,6 +37,7 @@ import { createBuilding, createInitialWorldState, spawnSettler, type Point } fro
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
 import { nextStockpilePriority, stockpilePriorityLabel } from '../simulation/StockpileLogistics'
 import { haulPriorityLabel, nextHaulPriority } from '../simulation/WorkplaceLogistics'
+import { adjustTradeReserve, nextTradeMode, tradeModeLabel } from '../simulation/Trading'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
 
@@ -335,6 +336,11 @@ export class Game {
         this.action('market')
         return
       }
+      if (e.key.toLowerCase() === 't') {
+        e.preventDefault()
+        this.action('trading-post')
+        return
+      }
       if (this.planningTool === 'road' && e.key === 'Shift') {
         if (!this.roadAngleSnap) {
           this.roadAngleSnap = true
@@ -542,7 +548,7 @@ export class Game {
           this.renderer.mode = 'settlement'
           this.message = 'Residential Plot: start close to a road, then drag frontage + backyard depth. ' + (this.gridSnap ? 'Grid Snap rounds width/depth to 1m.' : 'Freeform dimensions enabled.')
           break
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market': case 'trading-post':
           this.buildType = action
           this.planningTool = null
           this.planningStart = null
@@ -650,6 +656,30 @@ export class Game {
           building.stockpileFilters[resource] = !building.stockpileFilters[resource]
           this.message = BUILDINGS[building.type].label + ' now ' + (building.stockpileFilters[resource] ? 'accepts ' : 'rejects ') + resource
             + '. Existing stock and already-carried deliveries are not discarded.'
+          break
+        }
+        case 'trade-policy': {
+          const building = s.buildings.find(candidate => candidate.id === this.selectedId && candidate.type === 'trading-post' && candidate.complete && !candidate.destroyed)
+          const resource = value as ResourceId | undefined
+          if (!building || !resource || !RESOURCE_IDS.includes(resource)) {
+            this.message = 'Select the completed Trading Post and a valid resource first.'
+            break
+          }
+          const policy = s.trade.policies[resource]
+          policy.mode = nextTradeMode(policy.mode)
+          this.message = resource + ' trade policy: ' + tradeModeLabel(policy.mode) + ' at reserve ' + policy.reserve + '.'
+          break
+        }
+        case 'trade-reserve-up':
+        case 'trade-reserve-down': {
+          const building = s.buildings.find(candidate => candidate.id === this.selectedId && candidate.type === 'trading-post' && candidate.complete && !candidate.destroyed)
+          const resource = value as ResourceId | undefined
+          if (!building || !resource || !RESOURCE_IDS.includes(resource)) {
+            this.message = 'Select the completed Trading Post and a valid resource first.'
+            break
+          }
+          const reserve = adjustTradeReserve(s, resource, action === 'trade-reserve-up' ? 5 : -5)
+          this.message = resource + ' trade reserve set to ' + reserve + '. Exports only use surplus above it; imports buy toward it.'
           break
         }
         case 'toggle-role': {

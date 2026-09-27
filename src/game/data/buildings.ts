@@ -33,7 +33,7 @@ export interface ProductionDefinition {
 
 export type BuildingId =
   | 'house' | 'stockpile' | 'guard-post' | 'wood-wall' | 'wood-gate'
-  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith' | 'market'
+  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith' | 'market' | 'trading-post'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -49,6 +49,7 @@ export interface BuildingDefinition {
   service: ServiceDefinition | null
   production: ProductionDefinition | null
   foodDistribution?: FoodDistributionDefinition
+  tradeStorageCapacity?: number
   maxHealth: number
   fortification: boolean
   friendlyPassable: boolean
@@ -143,5 +144,13 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
       resource: 'food', capacity: 20, mealsPerWorkerPerDay: 5, reserveDays: 2,
     },
     maxHealth: 180, fortification: false, friendlyPassable: false, color: 0xa5845f,
+  },
+  'trading-post': {
+    id: 'trading-post', label: 'Trading Post', footprint: 3, buildCost: cost(50),
+    constructionWork: 18, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 2, profession: 'Trader',
+    service: null, production: null,
+    tradeStorageCapacity: 60,
+    maxHealth: 220, fortification: false, friendlyPassable: false, color: 0x9a7a54,
   },
 }

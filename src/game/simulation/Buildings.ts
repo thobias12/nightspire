@@ -38,7 +38,8 @@ export function resourceCapacity(b: Building, resource: ResourceId): number {
   if (def.storage > 0) return def.storage
   const supply = supplyCapacity(b, resource)
   const output = def.production?.outputResource === resource ? def.production.outputCapacity : 0
-  return Math.max(supply, output)
+  const trade = def.tradeStorageCapacity ?? 0
+  return Math.max(supply, output, trade)
 }
 
 export function supplyFree(state: WorldState, b: Building, resource: ResourceId, index?: JobReservations): number {
@@ -61,6 +62,10 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
       if (s.jobs.some(job => job.sourceId === wall.id || job.targetId === wall.id)) return 'Wait for the current wall task to finish before inserting a gate.'
       return null
     }
+  }
+
+  if (type === 'trading-post' && s.buildings.some(building => building.type === 'trading-post')) {
+    return 'Nightspire currently supports one Trading Post. Repair, finish or demolish the existing one.'
   }
 
   if (s.buildings.length >= 120) return 'Building limit reached (120).'
