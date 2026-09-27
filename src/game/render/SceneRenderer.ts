@@ -2320,32 +2320,50 @@ export class SceneRenderer {
     }
   }
 
-  showRoadGhost(points: Point[], valid: boolean, showGrid = false): void {
+  showRoadGhost(points: Point[], valid: boolean, showGrid = false, width = 1.7): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
     this.facing.visible = false
     this.grid.visible = showGrid
-    if (points.length < 2) return
+    if (points.length === 0) return
 
     const color = new THREE.Color(valid ? 0xcaa56c : 0xef6d65)
-    this.ghostLine.visible = true
-    this.ghostLine.count = Math.min(points.length - 1, 120)
-    for (let i = 0; i < this.ghostLine.count; i++) {
-      const a = points[i]
-      const b = points[i + 1]
-      const dx = b.x - a.x
-      const dz = b.z - a.z
-      const length = Math.max(0.05, Math.hypot(dx, dz))
-      this.matrix.position.set((a.x + b.x) / 2, 0.055, (a.z + b.z) / 2)
-      this.matrix.scale.set(1.7, 0.07, length + 0.3)
-      this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
-      this.matrix.updateMatrix()
-      this.ghostLine.setMatrixAt(i, this.matrix.matrix)
-      this.ghostLine.setColorAt(i, color)
+    const markerColor = new THREE.Color(valid ? 0xf4dfb1 : 0xff9b91)
+
+    if (points.length >= 2) {
+      this.ghostLine.visible = true
+      this.ghostLine.count = Math.min(points.length - 1, 120)
+      for (let i = 0; i < this.ghostLine.count; i++) {
+        const a = points[i]
+        const b = points[i + 1]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const length = Math.max(0.05, Math.hypot(dx, dz))
+        this.matrix.position.set((a.x + b.x) / 2, 0.055, (a.z + b.z) / 2)
+        this.matrix.scale.set(width, 0.07, length + 0.18)
+        this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+        this.matrix.updateMatrix()
+        this.ghostLine.setMatrixAt(i, this.matrix.matrix)
+        this.ghostLine.setColorAt(i, color)
+      }
+      this.ghostLine.instanceMatrix.needsUpdate = true
+      if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
     }
-    this.ghostLine.instanceMatrix.needsUpdate = true
-    if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+
+    const first = points[0]
+    const last = points[points.length - 1]
+    this.ghost.visible = true
+    this.ghost.position.set(first.x, 0.09, first.z)
+    this.ghost.rotation.set(0, 0, 0)
+    this.ghost.scale.set(0.26, 0.1, 0.26)
+    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(markerColor)
+
+    this.facing.visible = true
+    this.facing.position.set(last.x, 0.095, last.z)
+    this.facing.rotation.set(0, 0, 0)
+    this.facing.scale.set(0.34, 0.1, 0.34)
+    ;(this.facing.material as THREE.MeshBasicMaterial).color.copy(markerColor)
   }
 
   showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean, showGrid = false): void {
