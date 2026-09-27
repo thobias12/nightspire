@@ -28,7 +28,8 @@ export function supplyCapacity(b: Building, resource: ResourceId): number {
   const def = BUILDINGS[b.type]
   const service = def.service?.supplyResource === resource ? def.service.supplyCapacity : 0
   const production = def.production?.inputResource === resource ? def.production.inputCapacity : 0
-  return Math.max(service, production)
+  const distribution = def.foodDistribution?.resource === resource ? def.foodDistribution.capacity : 0
+  return Math.max(service, production, distribution)
 }
 
 export function resourceCapacity(b: Building, resource: ResourceId): number {

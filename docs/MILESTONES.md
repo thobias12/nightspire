@@ -393,9 +393,26 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] no renderer/road changes
 - [ ] live town-layout/logistics acceptance with multiple specialized Stockpiles
 
+### M3.11.3 — Market & food distribution
+
+- [x] Market building with 20 Food local capacity
+- [x] two Vendor workplace slots
+- [x] each active Vendor distributes five meals per Day
+- [x] pre-Market settlements retain direct Stockpile camp rations
+- [x] completing the first Market transitions daily meals to Market-only distribution
+- [x] assigned Vendors create a two-Day Food reserve target, capped at 20
+- [x] Market Food is hauled from Stockpiles through the existing reservation system
+- [x] essential Food supply is prioritized above ordinary construction hauling
+- [x] nearest operational Market serves each household/settler
+- [x] Market Food counts toward population-attraction Food reserves
+- [x] daily distribution counters persist through save/load and migrate old saves
+- [x] HUD exposes Market Food, active Markets and daily meal throughput
+- [x] no renderer/road changes; Market uses generic building presentation in this systems slice
+- [ ] live acceptance for one- and two-Vendor meal throughput
+
 ### Later M3.11 slices
 
-- [ ] market/trade foundation
+- [ ] broader market/trade foundation
 - [ ] household-side production
 - [ ] transport-distance pressure
 - [ ] specialization/upgrades

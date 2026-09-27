@@ -42,7 +42,7 @@ export function happinessEffect(settler: Settler): HappinessEffect {
 }
 
 export function essentialJob(job: Pick<Job, 'kind' | 'resource'>): boolean {
-  return job.kind === 'repair' || (job.kind === 'gather' && job.resource === 'food')
+  return job.kind === 'repair' || ((job.kind === 'gather' || job.kind === 'supply') && job.resource === 'food')
 }
 
 export function canAcceptJob(settler: Settler, job: Pick<Job, 'kind' | 'resource'>): boolean {

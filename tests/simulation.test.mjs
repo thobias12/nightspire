@@ -31,6 +31,9 @@ const {
 const {
   compareStockpileDestinations, nextStockpilePriority, stockpileAccepts,
 } = require('../.test-build/game/simulation/StockpileLogistics.js')
+const {
+  completedMarkets, marketFoodNeed, marketFoodTarget, marketMealCapacity, marketMealsRemaining, marketSummary,
+} = require('../.test-build/game/simulation/Markets.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
@@ -2183,5 +2186,149 @@ test('M3.11.2 manufactured output uses only accepting stockpiles while existing 
   assert.ok(s.jobs.some(j=>j.kind==='supply' && j.sourceId===brewery.id && j.targetId===aleStore.id && j.resource==='ale'))
   assert.equal(s.jobs.some(j=>j.kind==='supply' && j.sourceId===brewery.id && j.targetId===starter.id && j.resource==='ale'),false)
   assert.ok(s.jobs.some(j=>j.kind==='deliver' && j.sourceId===starter.id && j.targetId===house.id && j.resource==='wood'))
+  validateWorld(s)
+})
+
+
+test('M3.11.3 camp rations remain stockpile-backed until the first Market is complete', () => {
+  const s=createInitialWorldState()
+  s.day=2
+  for(const settler of s.settlers) settler.lastMealDay=1
+  const stockpile=s.buildings[0]
+  stockpile.inventory.food=10
+
+  let result=serveDailyMeal(s)
+  assert.equal(result.served,s.settlers.length)
+  assert.equal(stockpile.inventory.food,10-s.settlers.length)
+
+  for(const settler of s.settlers) settler.lastMealDay=1
+  const blueprint=createBuilding(s.nextId++,'market',7,0,false)
+  s.buildings.push(blueprint); s.topology++
+  stockpile.inventory.food=10
+  result=serveDailyMeal(s)
+  assert.equal(result.served,s.settlers.length)
+  assert.equal(stockpile.inventory.food,10-s.settlers.length)
+  validateWorld(s)
+})
+
+test('M3.11.3 completed Market replaces direct stockpile meals and requires active Vendors', () => {
+  const s=createInitialWorldState()
+  s.day=2
+  for(const settler of s.settlers) settler.lastMealDay=1
+  const stockpile=s.buildings[0]
+  stockpile.inventory.food=20
+  const market=createBuilding(s.nextId++,'market',7,0,true)
+  market.inventory.food=20
+  s.buildings.push(market); s.topology++
+
+  let result=serveDailyMeal(s)
+  assert.deepEqual(result,{served:0,missed:s.settlers.length})
+  assert.equal(stockpile.inventory.food,20)
+  assert.equal(market.inventory.food,20)
+
+  staffWorkplace(s,market,1)
+  assert.equal(marketMealCapacity(s,market),5)
+  result=serveDailyMeal(s)
+  assert.equal(result.served,5)
+  assert.equal(result.missed,1)
+  assert.equal(market.inventory.food,15)
+  assert.equal(market.distributionServed,5)
+  assert.equal(marketMealsRemaining(s,market),0)
+
+  result=serveDailyMeal(s)
+  assert.deepEqual(result,{served:0,missed:1})
+
+  staffWorkplace(s,market,1)
+  assert.equal(marketMealCapacity(s,market),10)
+  assert.equal(marketMealsRemaining(s,market),5)
+  result=serveDailyMeal(s)
+  assert.deepEqual(result,{served:1,missed:0})
+  assert.ok(s.settlers.every(a=>a.lastMealDay===2))
+  assert.equal(market.distributionServed,6)
+  assert.equal(s.totals.foodConsumed,6)
+  validateWorld(s)
+})
+
+test('M3.11.3 assigned Vendors create a two-day Food reserve supplied from stockpiles', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  const stockpile=s.buildings[0]
+  stockpile.inventory.food=30
+  const market=createBuilding(s.nextId++,'market',7,0,true)
+  s.buildings.push(market); s.topology++
+  staffWorkplace(s,market,2)
+
+  assert.equal(marketFoodTarget(s,market),20)
+  assert.equal(marketFoodNeed(s,market),20)
+  assignJobs(s)
+  const inbound=s.jobs
+    .filter(j=>j.kind==='supply' && j.targetId===market.id && j.resource==='food')
+    .reduce((sum,j)=>sum+j.amount,0)
+  assert.equal(inbound,20)
+  assert.equal(marketFoodNeed(s,market),0)
+  assert.ok(s.jobs.filter(j=>j.targetId===market.id).every(j=>j.resource==='food'))
+  validateWorld(s)
+})
+
+test('M3.11.3 Market Food counts toward settlement attraction reserves', () => {
+  const s=makeAttractive(createInitialWorldState())
+  const stockpile=s.buildings[0]
+  const market=createBuilding(s.nextId++,'market',7,-7,true)
+  s.buildings.push(market); s.topology++
+  const required=s.settlers.length*2
+  stockpile.inventory.food=0
+  market.inventory.food=required
+
+  const attraction=populationAttraction(s)
+  assert.equal(attraction.food,required)
+  assert.equal(attraction.foodRequired,required)
+  assert.equal(attraction.eligible,true)
+  validateWorld(s)
+})
+
+test('M3.11.3 Market distribution counters persist and older saves migrate safely', () => {
+  const s=createInitialWorldState()
+  const market=createBuilding(s.nextId++,'market',7,0,true)
+  market.inventory.food=8
+  market.distributionDay=s.day
+  market.distributionServed=3
+  s.buildings.push(market); s.topology++
+
+  const loaded=deserializeWorld(serializeWorld(s))
+  const restored=loaded.buildings.find(b=>b.id===market.id)
+  assert.equal(restored.distributionDay,s.day)
+  assert.equal(restored.distributionServed,3)
+  assert.equal(restored.inventory.food,8)
+
+  const legacy=JSON.parse(serializeWorld(createInitialWorldState()))
+  for(const building of legacy.buildings) {
+    delete building.distributionDay
+    delete building.distributionServed
+  }
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(migrated.buildings.every(b=>b.distributionDay===0 && b.distributionServed===0))
+  validateWorld(migrated)
+})
+
+test('M3.11.3 Market summary exposes stocked and active distribution capacity', () => {
+  const s=createInitialWorldState()
+  const market=createBuilding(s.nextId++,'market',7,0,true)
+  market.inventory.food=12
+  s.buildings.push(market); s.topology++
+  staffWorkplace(s,market,2)
+
+  const summary=marketSummary(s)
+  assert.equal(completedMarkets(s).length,1)
+  assert.equal(summary.markets,1)
+  assert.equal(summary.staffed,1)
+  assert.equal(summary.active,1)
+  assert.equal(summary.food,12)
+  assert.equal(summary.capacity,20)
+  assert.equal(summary.mealCapacity,10)
+  assert.equal(summary.mealsServed,0)
+  assert.equal(professionLabel(s,s.settlers.find(a=>a.workplaceId===market.id)),'Vendor')
   validateWorld(s)
 })

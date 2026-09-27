@@ -745,3 +745,39 @@ Recommended live test:
 6. Disable that resource on the specialized Stockpile and confirm new deliveries stop going there.
 7. Confirm any resources already stored there can still be withdrawn for construction or workplace supply.
 8. Save/reload and confirm filters + priority survive.
+
+
+## M3.11.3 Market & food distribution
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **145/145 tests passed**
+- production Vite build passed
+- no `SceneRenderer.ts`, road-planning or navigation-policy changes
+- Market uses the existing generic building fallback for this systems-first slice
+
+Regression coverage verifies:
+
+- direct Stockpile camp rations remain active before a completed Market exists
+- an unfinished Market does not disable camp rations
+- a completed Market disables direct Stockpile meal consumption
+- unstaffed Markets distribute zero meals
+- one active Vendor distributes at most five meals per Day
+- two active Vendors provide ten meals of daily capacity
+- Market distribution capacity cannot be reset by repeated decision ticks in the same Day
+- two assigned Vendors request a 20-Food local reserve through normal supply jobs
+- Market Food counts toward population-attraction reserves
+- daily Market counters persist through save/load and older saves migrate to zeroed counters
+- Vendor profession and Market summary reporting remain consistent
+
+Recommended live test:
+
+1. Start or load a settlement without a Market and verify normal daily Stockpile rations still work.
+2. Build a Market with **M**.
+3. As soon as it completes, leave it unstaffed for a moment: settlers waiting for today's meal should no longer consume Food directly from Stockpiles.
+4. Assign one Vendor. Once physically present, the Market can distribute five meals that Day.
+5. With six settlers, confirm one still waits until a second Vendor reports.
+6. Assign the second Vendor and confirm total daily capacity rises to ten.
+7. Watch Laborers haul Food into the Market. With two assigned Vendors the local reserve target is 20 Food.
+8. Save/reload after some meals have been served and confirm the same Day cannot exceed the recorded daily capacity.
