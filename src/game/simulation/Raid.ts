@@ -10,7 +10,7 @@ export const RAID_GROWTH = 4
 export const RAID_MAX_SIZE = 40
 export const ENEMY_WALK_SPEED = 1.65
 
-export type RaiderArchetype = 'skirmisher' | 'raider' | 'brute'
+export type RaiderArchetype = 'skirmisher' | 'raider' | 'brute' | 'ram'
 
 export interface RaiderProfile {
   archetype: RaiderArchetype
@@ -58,6 +58,17 @@ export const RAIDER_PROFILES: Record<RaiderArchetype, RaiderProfile> = {
     attackCooldown: 1.2,
     defenderAggroRange: 4.5,
   },
+  ram: {
+    archetype: 'ram',
+    label: 'Battering Ram',
+    maxHealth: 110,
+    walkSpeed: 0.78,
+    damage: 4,
+    structureDamage: 38,
+    attackRange: 1.7,
+    attackCooldown: 1.45,
+    defenderAggroRange: 0,
+  },
 }
 
 export interface RaidPlan {
@@ -67,6 +78,7 @@ export interface RaidPlan {
   skirmishers: number
   raiders: number
   brutes: number
+  rams: number
 }
 
 export function raidSizeForWave(wave: number): number {
@@ -80,6 +92,7 @@ export function raidFrontCountForWave(wave: number): number {
 
 export function raidArchetypeForSpawn(wave: number, index: number): RaiderArchetype {
   const safeWave = Math.max(1, Math.floor(wave))
+  if (safeWave >= 3 && (index + safeWave) % 13 === 0) return 'ram'
   if (safeWave >= 2 && (index + safeWave * 2) % 9 === 0) return 'brute'
   if ((index + safeWave) % 4 === 0) return 'skirmisher'
   return 'raider'
@@ -88,14 +101,15 @@ export function raidArchetypeForSpawn(wave: number, index: number): RaiderArchet
 export function raidPlanForWave(wave: number): RaidPlan {
   const safeWave = Math.max(1, Math.floor(wave))
   const size = raidSizeForWave(safeWave)
-  let skirmishers = 0, raiders = 0, brutes = 0
+  let skirmishers = 0, raiders = 0, brutes = 0, rams = 0
   for (let index = 0; index < size; index++) {
     const archetype = raidArchetypeForSpawn(safeWave, index)
     if (archetype === 'skirmisher') skirmishers++
     else if (archetype === 'brute') brutes++
+    else if (archetype === 'ram') rams++
     else raiders++
   }
-  return { wave: safeWave, size, fronts: raidFrontCountForWave(safeWave), skirmishers, raiders, brutes }
+  return { wave: safeWave, size, fronts: raidFrontCountForWave(safeWave), skirmishers, raiders, brutes, rams }
 }
 
 /**
@@ -103,6 +117,7 @@ export function raidPlanForWave(wave: number): RaidPlan {
  * existing serialized Enemy shape. Old 40-HP raiders naturally remain raiders.
  */
 export function raiderArchetype(enemy: Pick<Enemy, 'maxHealth'>): RaiderArchetype {
+  if (enemy.maxHealth >= RAIDER_PROFILES.ram.maxHealth) return 'ram'
   if (enemy.maxHealth >= RAIDER_PROFILES.brute.maxHealth) return 'brute'
   if (enemy.maxHealth <= RAIDER_PROFILES.skirmisher.maxHealth) return 'skirmisher'
   return 'raider'
@@ -193,6 +208,11 @@ export function retreatRaid(state: WorldState): number {
 
 function targetBias(enemy: Enemy, building: Building): number {
   const archetype = raiderArchetype(enemy)
+  if (archetype === 'ram') {
+    if (building.type === 'wood-gate') return -22
+    if (BUILDINGS[building.type].fortification) return -16
+    return 8
+  }
   if (archetype === 'brute') {
     if (building.type === 'wood-gate') return -8
     if (BUILDINGS[building.type].fortification) return -6

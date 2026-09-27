@@ -17,12 +17,14 @@ const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-bu
 const { blockedCells, cellKey, entrance } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
-const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
+const { assignedGuardPost, guardPostTarget } = require('../.test-build/game/simulation/Schedule.js')
 const {
   RAID_SIZE, RAID_MAX_SIZE, RAID_GROWTH, RAIDER_PROFILES, enemyTarget, enemyTargetBuilding,
   raidArchetypeForSpawn, raidFrontCountForWave, raidPlanForWave, raidSizeForWave, raiderArchetype,
 } = require('../.test-build/game/simulation/Raid.js')
-const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
+const {
+  PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE, damageBuilding,
+} = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
 const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
 const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.test-build/game/simulation/Tools.js')
@@ -868,11 +870,12 @@ test('raid pressure scales from 20 to 40 and caps deterministically', () => {
 
 test('raid plans add deterministic skirmishers, brutes and a second attack front', () => {
   assert.deepEqual(raidPlanForWave(1),{
-    wave:1,size:20,fronts:1,skirmishers:5,raiders:15,brutes:0,
+    wave:1,size:20,fronts:1,skirmishers:5,raiders:15,brutes:0,rams:0,
   })
   assert.deepEqual(raidPlanForWave(2),{
-    wave:2,size:24,fronts:2,skirmishers:5,raiders:16,brutes:3,
+    wave:2,size:24,fronts:2,skirmishers:5,raiders:16,brutes:3,rams:0,
   })
+  assert.ok(raidPlanForWave(3).rams>=1)
   assert.equal(raidFrontCountForWave(1),1)
   assert.equal(raidFrontCountForWave(6),2)
   assert.equal(raidArchetypeForSpawn(1,3),'skirmisher')
@@ -2630,6 +2633,55 @@ test('M3.11.4 empty or unstaffed Markets do not count as household Food access',
   validateWorld(s)
 })
 
+
+test('M2.6 later raid waves include deterministic siege rams that prioritize fortifications', () => {
+  const plan=raidPlanForWave(3)
+  assert.ok(plan.rams>=1)
+  const index=Array.from({length:plan.size},(_,i)=>i).find(i=>raidArchetypeForSpawn(3,i)==='ram')
+  assert.ok(index!==undefined)
+
+  const s=createInitialWorldState()
+  const gate=createBuilding(s.nextId++,'wood-gate',0,8,true)
+  const house=createBuilding(s.nextId++,'house',0,5,true)
+  s.buildings.push(house,gate); s.topology++
+  const ram={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:RAIDER_PROFILES.ram.maxHealth,maxHealth:RAIDER_PROFILES.ram.maxHealth,
+    attackCooldown:0,lastHitTick:0,x:0,z:12,path:[],pathRevision:-1,status:'test',
+  }
+  assert.equal(raiderArchetype(ram),'ram')
+  assert.equal(enemyTargetBuilding(s,ram).id,gate.id)
+  assert.equal(RAIDER_PROFILES.ram.structureDamage,38)
+})
+
+test('M2.6 guards assigned to posts hold position and fire at range', () => {
+  const s=createInitialWorldState()
+  const post=createBuilding(s.nextId++,'guard-post',7,0,true)
+  s.buildings.push(post); s.topology++
+  const guard=s.settlers[0]
+  guard.role='guard'
+  const target=guardPostTarget(s,guard)
+  assert.ok(target)
+  guard.x=target.x; guard.z=target.z
+
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:post.x+Math.min(6,GUARD_RANGED_RANGE-1),z:post.z,path:[],pathRevision:-1,status:'test',
+  }
+  s.enemies.push(enemy)
+  s.raid.lastSpawnDay=s.day
+  s.raid.wave=1
+  s.raid.totalSpawned=1
+
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const before=enemy.health
+  advance(sim,2)
+  assert.ok(enemy.health<=before-GUARD_RANGED_DAMAGE)
+  assert.ok(Math.hypot(guard.x-target.x,guard.z-target.z)<0.1)
+  assert.match(guard.status,/Guard Post|raider/i)
+})
 
 test('M3.13 settlement progression derives Camp through Stronghold from real settlement state', () => {
   const s=createInitialWorldState()

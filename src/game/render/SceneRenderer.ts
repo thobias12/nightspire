@@ -2665,20 +2665,37 @@ export class SceneRenderer {
       const scale = archetype === 'brute' ? 1.34 : archetype === 'skirmisher' ? 0.84 : 1
       const baseColor = archetype === 'brute' ? 0x552b2d : archetype === 'skirmisher' ? 0x9b4d3d : 0x6f2525
       const color = hit ? 0xff6558 : e.health <= e.maxHealth * 0.5 ? 0x8f3333 : baseColor
-      this.instance('enemies', e.x, 0.56 * scale, e.z, scale, scale, scale, color)
 
-      const hand = this.rotatedOffset(0.3 * scale, 0.08, facing)
-      if (archetype === 'brute') {
-        this.instance('timber', e.x + hand.x, 0.72 * scale, e.z + hand.z, 0.15, 0.95 * scale, 0.15, 0x4c3224, facing)
+      if (archetype === 'ram') {
+        // A low, heavy wheeled timber frame reads very differently from foot raiders.
+        const forward = this.rotatedOffset(0, 0.2, facing)
+        this.instance('logs', e.x + forward.x, 0.66, e.z + forward.z, 2.35, 1.25, 1.25, hit ? 0xff6558 : 0x60432f, facing + Math.PI / 2)
+        for (const side of [-0.62, 0.62]) {
+          const leftWheel = this.rotatedOffset(side, -0.65, facing)
+          const rightWheel = this.rotatedOffset(side, 0.72, facing)
+          this.instance('cartWheel', e.x + leftWheel.x, 0.38, e.z + leftWheel.z, 0.72, 0.72, 0.72, 0x3d2b22, facing)
+          this.instance('cartWheel', e.x + rightWheel.x, 0.38, e.z + rightWheel.z, 0.72, 0.72, 0.72, 0x3d2b22, facing)
+        }
+        const roof = this.rotatedOffset(0, 0.05, facing)
+        this.instance('timber', e.x + roof.x, 1.2, e.z + roof.z, 1.65, 0.12, 2.35, 0x4b372a, facing)
       } else {
-        this.instance('metal', e.x + hand.x, 0.7 * scale, e.z + hand.z, 0.07, 0.58 * scale, 0.08, archetype === 'skirmisher' ? 0x8e969a : 0x73797d, facing)
-      }
-      if (archetype === 'raider') {
-        const shield = this.rotatedOffset(-0.27, 0.04, facing)
-        this.instance('props', e.x + shield.x, 0.72, e.z + shield.z, 0.42, 0.54, 0.1, 0x604434, facing)
+        this.instance('enemies', e.x, 0.56 * scale, e.z, scale, scale, scale, color)
+
+        const hand = this.rotatedOffset(0.3 * scale, 0.08, facing)
+        if (archetype === 'brute') {
+          this.instance('timber', e.x + hand.x, 0.72 * scale, e.z + hand.z, 0.15, 0.95 * scale, 0.15, 0x4c3224, facing)
+        } else {
+          this.instance('metal', e.x + hand.x, 0.7 * scale, e.z + hand.z, 0.07, 0.58 * scale, 0.08, archetype === 'skirmisher' ? 0x8e969a : 0x73797d, facing)
+        }
+        if (archetype === 'raider') {
+          const shield = this.rotatedOffset(-0.27, 0.04, facing)
+          this.instance('props', e.x + shield.x, 0.72, e.z + shield.z, 0.42, 0.54, 0.1, 0x604434, facing)
+        }
       }
 
-      this.healthBar(e.x, archetype === 'brute' ? 1.72 : archetype === 'skirmisher' ? 1.15 : 1.3, e.z, e.health, e.maxHealth, archetype === 'brute' ? 1.15 : 0.9)
+      const healthY = archetype === 'ram' ? 1.72 : archetype === 'brute' ? 1.72 : archetype === 'skirmisher' ? 1.15 : 1.3
+      const healthWidth = archetype === 'ram' ? 1.5 : archetype === 'brute' ? 1.15 : 0.9
+      this.healthBar(e.x, healthY, e.z, e.health, e.maxHealth, healthWidth)
     }
 
     const playerHit = this.recentlyHit(state.player.lastHitTick, state.tick)

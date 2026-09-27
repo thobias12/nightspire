@@ -8,6 +8,7 @@ import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processA
 import { constructionStageLabel, constructionWorkLimit } from './Construction'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
+  GUARD_RANGED_COOLDOWN, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE,
   damageBuilding, damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
   playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
 } from './Combat'
@@ -26,7 +27,7 @@ import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
 import {
   enemyTarget, enemyTargetBuilding, raidPlanForWave, raiderProfile, retreatRaid, spawnNightRaid,
 } from './Raid'
-import { nightTarget } from './Schedule'
+import { assignedGuardPost, guardPostTarget, nightTarget } from './Schedule'
 import { activeWorkplace } from './Workforce'
 import {
   recordEvent, settlerLabel, type Building, type Enemy, type Job, type Point, type Settler, type WorldState,
@@ -158,7 +159,8 @@ export class Simulation {
       this.state,
       'Raid ' + plan.wave + ': ' + count + ' attackers across ' + plan.fronts + ' front'
       + (plan.fronts === 1 ? '' : 's') + ' — '
-      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes.',
+      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes'
+      + (plan.rams > 0 ? ', ' + plan.rams + ' siege ram' + (plan.rams === 1 ? '' : 's') : '') + '.',
     )
   }
 
@@ -341,6 +343,33 @@ export class Simulation {
 
   private updateGuardCombat(guard: Settler): void {
     const s = this.state
+    const assignment = assignedGuardPost(s, guard)
+    const postTarget = assignment ? guardPostTarget(s, guard) : null
+    const post = assignment ? s.buildings.find(building => building.id === assignment.buildingId) : undefined
+
+    if (postTarget && post) {
+      if (distance(guard, postTarget) > 0.08) {
+        this.move(guard, postTarget, 'Manning Guard Post ' + post.id, WALK_SPEED)
+        return
+      }
+
+      const rangedEnemy = nearestEnemy(s, post, GUARD_RANGED_RANGE)
+      guard.path = []
+      guard.pathRevision = -1
+      if (!rangedEnemy) {
+        guard.status = 'Watching from Guard Post ' + post.id
+        return
+      }
+
+      guard.status = 'Firing from Guard Post ' + post.id
+      if (guard.attackCooldown <= 0) {
+        guard.attackCooldown = GUARD_RANGED_COOLDOWN
+        const killed = damageEnemy(s, rangedEnemy, GUARD_RANGED_DAMAGE, settlerLabel(s, guard.id))
+        if (killed) guard.status = 'Dropped raider from Guard Post ' + post.id
+      }
+      return
+    }
+
     const enemy = nearestEnemy(s, guard, GUARD_AGGRO_RANGE)
     if (!enemy) {
       this.updateNightSchedule(guard)

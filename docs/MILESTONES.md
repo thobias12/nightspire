@@ -600,3 +600,18 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [x] progression remains derived rather than adding another save-state ledger
 
 **Design constraint:** settlement evolution is renderer/simulation-derived and does not alter the road topology or job scheduler.
+
+
+## M2.6 — Siege warfare expansion (stacked gameplay branch)
+
+- [x] Guard Posts become true ranged defensive positions at night
+- [x] posted guards hold their assigned position instead of abandoning it to chase attackers
+- [x] posted guards fire on attackers inside a 9m defensive radius
+- [x] later raid waves include deterministic Battering Ram siege units
+- [x] Rams are slow, durable, ignore ordinary defender bait and heavily prioritize Gates/Walls
+- [x] Rams inflict substantially higher fortification damage and can create breaches quickly
+- [x] Rams have a distinct wheeled timber-frame world silhouette
+- [x] Stronghold palisades gain raised fighting-platform dressing
+- [x] existing shared hostile path budget remains unchanged
+
+**Design constraint:** siege additions reuse the existing Enemy collection, combat cooldowns and Navigation queue rather than adding per-unit controllers or a second pathfinder.
