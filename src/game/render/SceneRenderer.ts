@@ -520,6 +520,26 @@ export class SceneRenderer {
     this.renderPlanExtensionIcon(rearMid, plot.angle, 0.9)
   }
 
+  private renderBuildingPlanningOverlay(b: Building, rotation: number): void {
+    const half = BUILDINGS[b.type].footprint / 2
+    const corner = (x: number, z: number): Point => {
+      const offset = this.rotatedOffset(x, z, rotation)
+      return { x: b.x + offset.x, z: b.z + offset.z }
+    }
+    const corners = [
+      corner(-half, -half),
+      corner(half, -half),
+      corner(half, half),
+      corner(-half, half),
+    ]
+    for (let i = 0; i < corners.length; i++) {
+      this.renderDashedPlanSegment(corners[i], corners[(i + 1) % corners.length], 0xe6dcc0, 0.52, 0.3, 0.065, 0.095)
+      this.instance('planningMarker', corners[i].x, 0.102, corners[i].z, 0.82, 1, 0.82, 0xf0e3bf)
+    }
+    if (b.type === 'farmhouse') this.renderPlanHouseIcon(b, rotation, 0.9)
+    else this.renderPlanExtensionIcon(b, rotation, 1.1, 0xf1e2b7)
+  }
+
   private recentlyHit(lastHitTick: number, tick: number): boolean {
     return lastHitTick > 0 && tick - lastHitTick <= 4
   }
@@ -2548,6 +2568,9 @@ export class SceneRenderer {
       const baseColor = hit ? 0xff705e : this.readableNightColor(intactColor, night)
 
       if (plot) this.renderResidentialPlot(plot, b, night, state.residentialPlots)
+      if (!b.complete && !b.destroyed && !plot && !def.fortification) {
+        this.renderBuildingPlanningOverlay(b, rotation)
+      }
 
       if ((b.complete || b.work > 0) && !plot) {
         this.instance(
