@@ -2517,3 +2517,96 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   border-color: rgba(193,159,99,.45);
   box-shadow: inset 0 0 0 1px rgba(20,16,12,.35);
 }
+
+
+/* Roadmap construction artwork: visible but still locked/planned */
+[data-art-slot="build-granary"],
+[data-art-slot="build-bakery"],
+[data-art-slot="build-quarry"],
+[data-art-slot="build-mine"],
+[data-art-slot="build-well"],
+[data-art-slot="build-chapel"],
+[data-art-slot="build-bathhouse"],
+[data-art-slot="build-pleasure-house"],
+[data-art-slot="build-manor"],
+[data-art-slot="build-watchtower"],
+[data-art-slot="build-barracks"] {
+  background-image: url("../assets/ui/building-card/planned-buildings.svg");
+  background-size: 1100% 100%;
+  background-repeat: no-repeat;
+  border-style: solid;
+  border-color: rgba(88,65,39,.42);
+  box-shadow: inset 0 0 0 1px rgba(80,58,35,.16);
+}
+[data-art-slot="build-granary"] { background-position: 0% center; }
+[data-art-slot="build-bakery"] { background-position: 10% center; }
+[data-art-slot="build-quarry"] { background-position: 20% center; }
+[data-art-slot="build-mine"] { background-position: 30% center; }
+[data-art-slot="build-well"] { background-position: 40% center; }
+[data-art-slot="build-chapel"] { background-position: 50% center; }
+[data-art-slot="build-bathhouse"] { background-position: 60% center; }
+[data-art-slot="build-pleasure-house"] { background-position: 70% center; }
+[data-art-slot="build-manor"] { background-position: 80% center; }
+[data-art-slot="build-watchtower"] { background-position: 90% center; }
+[data-art-slot="build-barracks"] { background-position: 100% center; }
+
+.build-preview-art[data-art-slot="build-granary"],
+.build-preview-art[data-art-slot="build-bakery"],
+.build-preview-art[data-art-slot="build-quarry"],
+.build-preview-art[data-art-slot="build-mine"],
+.build-preview-art[data-art-slot="build-well"],
+.build-preview-art[data-art-slot="build-chapel"],
+.build-preview-art[data-art-slot="build-bathhouse"],
+.build-preview-art[data-art-slot="build-pleasure-house"],
+.build-preview-art[data-art-slot="build-manor"],
+.build-preview-art[data-art-slot="build-watchtower"],
+.build-preview-art[data-art-slot="build-barracks"] {
+  background-image: url("../assets/ui/building-card/planned-buildings.svg");
+  background-size: 1100% 100%;
+  background-repeat: no-repeat;
+  color: transparent;
+}
+.build-preview-art[data-art-slot="build-granary"] > span,
+.build-preview-art[data-art-slot="build-bakery"] > span,
+.build-preview-art[data-art-slot="build-quarry"] > span,
+.build-preview-art[data-art-slot="build-mine"] > span,
+.build-preview-art[data-art-slot="build-well"] > span,
+.build-preview-art[data-art-slot="build-chapel"] > span,
+.build-preview-art[data-art-slot="build-bathhouse"] > span,
+.build-preview-art[data-art-slot="build-pleasure-house"] > span,
+.build-preview-art[data-art-slot="build-manor"] > span,
+.build-preview-art[data-art-slot="build-watchtower"] > span,
+.build-preview-art[data-art-slot="build-barracks"] > span {
+  display: none;
+}
+.build-preview-art[data-art-slot="build-granary"]::after,
+.build-preview-art[data-art-slot="build-bakery"]::after,
+.build-preview-art[data-art-slot="build-quarry"]::after,
+.build-preview-art[data-art-slot="build-mine"]::after,
+.build-preview-art[data-art-slot="build-well"]::after,
+.build-preview-art[data-art-slot="build-chapel"]::after,
+.build-preview-art[data-art-slot="build-bathhouse"]::after,
+.build-preview-art[data-art-slot="build-pleasure-house"]::after,
+.build-preview-art[data-art-slot="build-manor"]::after,
+.build-preview-art[data-art-slot="build-watchtower"]::after,
+.build-preview-art[data-art-slot="build-barracks"]::after {
+  content: none;
+}
+
+[data-art-slot="tool-grid-snap"] {
+  background-image: url("../assets/ui/category/grid-snap.svg");
+  background-size: 120% auto;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+/* Planned art stays visually subordinate to playable construction. */
+.build-card.is-planned .build-art-slot {
+  filter: saturate(.58) brightness(.76) sepia(.12);
+}
+.build-card.is-planned:hover .build-art-slot,
+.build-card.is-planned:focus-visible .build-art-slot {
+  filter: saturate(.72) brightness(.88) sepia(.08);
+}

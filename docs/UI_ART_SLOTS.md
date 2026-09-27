@@ -330,3 +330,15 @@ The remaining live contextual placeholders now use original medieval UI sprites:
 - selected-building title icons reuse each building's integrated illustration
 
 The portrait and status artwork is packed into lightweight SVG sprite sheets so the UI gains visual identity without adding dozens of network requests.
+
+
+## Roadmap-card artwork completion
+
+All visible construction-card slots now have artwork, including the locked roadmap cards:
+
+- Granary, Bakery, Quarry and Mine
+- Well, Chapel, Bathhouse, Pleasure House and Manor
+- Watchtower and Barracks
+- Grid Snap planning utility
+
+The roadmap illustrations are deliberately muted compared with playable buildings and remain `aria-disabled`; this is presentation-only and does not enable any planned simulation system.
