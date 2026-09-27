@@ -1,5 +1,5 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
-import { RESOURCES } from '../data/resources'
+import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { available, freeStorage, reserved, stockpiles } from '../simulation/Buildings'
 import { phaseForTime, phaseLabel } from '../simulation/DayNight'
 import { happinessEffect, settlementHappinessEffect } from '../simulation/Happiness'
@@ -12,6 +12,7 @@ import { toolCoverage } from '../simulation/Tools'
 import { enemyLabel, MAX_SETTLERS, settlerLabel, type WorldState } from '../simulation/WorldState'
 import { residentialFrontage, residentialPresentationProfile } from '../render/ResidentialPresentation'
 import { assignedWorkplace, professionLabel, workplaceStaffing } from '../simulation/Workforce'
+import { stockpilePriorityLabel } from '../simulation/StockpileLogistics'
 import { haulPriorityLabel, workplaceInputTarget, workplaceOutputThreshold } from '../simulation/WorkplaceLogistics'
 
 export interface Metrics { frame: number; simulation: number; render: number; calls: number; triangles: number; paths: number; requests: number; queue: number; failures: number; dropped: number }
@@ -44,9 +45,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.1 · LOCAL WORKPLACE LOGISTICS</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">STAFF WORKPLACES, KEEP LOCAL BUFFERS FLOWING</span><h1>Your production economy now depends on both specialists and haulers.</h1>
-        <p>Assign Brewers and Blacksmiths from the building inspector, then keep enough general Laborers free to move inputs and finished goods. Each production workplace has local storage and a Low / Normal / High hauling priority: Low conserves hauling, Normal keeps a working reserve, and High fills inputs and clears output aggressively.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.2 · STOCKPILE SPECIALIZATION</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">SPECIALIZE STORAGE, SHORTEN THE HAUL</span><h1>Stockpiles now decide what enters them and how strongly Laborers prefer them.</h1>
+        <p>Inspect a Stockpile to enable or disable Wood, Food, Ale, Ore and Tools, then set Low / Normal / High receiving priority. Laborers choose priority first and the nearest valid Stockpile within that tier, letting you create food depots, smithing yards and construction timber stores.</p>
         <div id="objective"></div>
         <div id="workforce"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
@@ -251,7 +252,7 @@ export class Hud {
           : ''
         const functionText = def.housing ? def.housing + ' beds'
           : def.guardSlots ? def.guardSlots + ' guard slots'
-          : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Ale ${b.inventory.ale}<br>Ore ${b.inventory.ore}<br>Tools ${b.inventory.tools}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}`
+          : def.storage ? `Wood ${b.inventory.wood} (${available(s, b, 'wood')} available)<br>Food ${b.inventory.food}<br>Ale ${b.inventory.ale}<br>Ore ${b.inventory.ore}<br>Tools ${b.inventory.tools}<br>Unreserved capacity: ${Math.max(0, freeStorage(s, b))}<br>Receiving priority: ${stockpilePriorityLabel(b.stockpilePriority)}`
           : production ? productionText
           : service ? serviceText
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'
@@ -279,7 +280,18 @@ export class Hud {
             return '<p><b>Workforce ' + staffing.assigned + '/' + staffing.slots + '</b> · ' + staffing.active + ' physically at work</p>' + rows + assign + logistics
           })()
         : ''
-      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${demolish}`)
+      const stockpileControls = b.complete && !b.destroyed && def.storage > 0
+        ? (() => {
+            const filters = RESOURCE_IDS.map(resource =>
+              '<button data-action="stockpile-filter" data-value="' + resource + '" aria-pressed="' + b.stockpileFilters[resource] + '">'
+              + RESOURCES[resource].label + ' ' + (b.stockpileFilters[resource] ? '✓' : '✕') + '</button>'
+            ).join('')
+            return '<p><b>Accepted resources</b></p><div class="row">' + filters + '</div>'
+              + '<button data-action="stockpile-priority">Receiving: ' + stockpilePriorityLabel(b.stockpilePriority) + '</button>'
+              + '<p class="muted">Priority is chosen before distance. Disabled resources already stored here remain usable; deliveries already in flight may still finish.</p>'
+          })()
+        : ''
+      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${stockpileControls}${demolish}`)
     } else if (n) {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
