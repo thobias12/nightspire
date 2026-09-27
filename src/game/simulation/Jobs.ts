@@ -6,6 +6,7 @@ import { essentialJob, happinessEffect } from './Happiness'
 import { JobReservations } from './JobReservations'
 import { distance, entrance } from './Navigation'
 import { activeWorkplace } from './Workforce'
+import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
 import { workplaceHaulScore, workplaceInputNeed, workplaceOutputReady } from './WorkplaceLogistics'
 import type { Building, Job, ResourceNode, Settler, WorldState } from './WorldState'
 
@@ -95,8 +96,8 @@ export function assignJobs(state: WorldState): void {
       if (amountAvailable <= 0) continue
 
       const store = stores
-        .filter(candidate => freeStorage(state, candidate, index) > 0)
-        .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
+        .filter(candidate => stockpileAccepts(candidate, resource) && freeStorage(state, candidate, index) > 0)
+        .sort((a, b) => compareStockpileDestinations(a, b, source))[0]
       if (!store) continue
 
       offer({
@@ -187,8 +188,8 @@ export function assignJobs(state: WorldState): void {
       }
       if (node) {
         const store = stores
-          .filter(b => freeStorage(state, b, index) > 0)
-          .sort((a, b) => distance(node, a) - distance(node, b))[0]
+          .filter(b => stockpileAccepts(b, node.resource) && freeStorage(state, b, index) > 0)
+          .sort((a, b) => compareStockpileDestinations(a, b, node))[0]
         if (store) offer({
           kind: 'gather',
           sourceId: node.id,
