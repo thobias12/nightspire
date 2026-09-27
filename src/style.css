@@ -1825,3 +1825,98 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   }
   .build-preview-art { min-height: 138px; }
 }
+
+
+/* First integrated Nightspire illustration set */
+[data-art-slot="settlement-crest"] {
+  background-image: url("../assets/ui/crest/nightspire.webp");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 0;
+  background-color: transparent;
+}
+
+[data-icon-slot="resource-wood"] { background-image: url("../assets/ui/resource/wood.webp"); }
+[data-icon-slot="resource-food"] { background-image: url("../assets/ui/resource/food.webp"); }
+[data-icon-slot="resource-ale"] { background-image: url("../assets/ui/resource/ale.webp"); }
+[data-icon-slot="resource-ore"] { background-image: url("../assets/ui/resource/ore.webp"); }
+[data-icon-slot="resource-tools"] { background-image: url("../assets/ui/resource/tools.webp"); }
+[data-icon-slot="resource-gold"] { background-image: url("../assets/ui/resource/gold.webp"); }
+
+[data-ui-asset="category:planning"] { background-image: url("../assets/ui/category/planning.webp"); }
+[data-ui-asset="category:logistics"] { background-image: url("../assets/ui/category/logistics.webp"); }
+[data-ui-asset="category:industry"] { background-image: url("../assets/ui/category/industry.webp"); }
+[data-ui-asset="category:services"] { background-image: url("../assets/ui/category/services.webp"); }
+[data-ui-asset="category:defense"] { background-image: url("../assets/ui/category/defense.webp"); }
+
+[data-icon-slot="command-build"] { background-image: url("../assets/ui/command/build.webp"); }
+[data-icon-slot="command-rotate"] { background-image: url("../assets/ui/command/rotate.webp"); }
+[data-icon-slot="command-inspect"] { background-image: url("../assets/ui/command/inspect.webp"); }
+[data-icon-slot="command-camera"] { background-image: url("../assets/ui/command/camera.webp"); }
+[data-icon-slot="command-street-view"] { background-image: url("../assets/ui/command/street-view.webp"); }
+
+[data-icon-slot^="resource-"],
+[data-ui-asset^="category:"],
+[data-icon-slot^="command-"] {
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+[data-icon-slot^="resource-"],
+[data-ui-asset^="category:"] {
+  border: 0;
+  background-color: transparent;
+}
+[data-icon-slot^="command-"] {
+  background-size: cover;
+}
+
+[data-art-slot="build-farmhouse"],
+[data-ui-asset="building-header:farmhouse"] {
+  background-image: url("../assets/ui/building-card/farmhouse.webp");
+}
+[data-art-slot="build-brewery"],
+[data-ui-asset="building-header:brewery"] {
+  background-image: url("../assets/ui/building-card/brewery.webp");
+}
+[data-art-slot="build-tavern"],
+[data-ui-asset="building-header:tavern"] {
+  background-image: url("../assets/ui/building-card/tavern.webp");
+}
+
+[data-art-slot="build-farmhouse"],
+[data-art-slot="build-brewery"],
+[data-art-slot="build-tavern"] {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-style: solid;
+  border-color: rgba(88,65,39,.48);
+}
+
+[data-ui-asset="building-header:farmhouse"],
+[data-ui-asset="building-header:brewery"],
+[data-ui-asset="building-header:tavern"] {
+  background-size: cover;
+  background-position: center 48%;
+  background-repeat: no-repeat;
+}
+[data-ui-asset="building-header:farmhouse"] > span,
+[data-ui-asset="building-header:brewery"] > span,
+[data-ui-asset="building-header:tavern"] > span {
+  display: none;
+}
+
+.build-preview-art[data-art-slot="build-farmhouse"],
+.build-preview-art[data-art-slot="build-brewery"],
+.build-preview-art[data-art-slot="build-tavern"] {
+  background-size: cover;
+  background-position: center;
+  color: transparent;
+}
+.build-preview-art[data-art-slot="build-farmhouse"] > span,
+.build-preview-art[data-art-slot="build-brewery"] > span,
+.build-preview-art[data-art-slot="build-tavern"] > span {
+  display: none;
+}

@@ -251,3 +251,18 @@ Construction cards now expose a separate Manor-Lords-style information card on h
 - current Available / Low resources / Planned state
 
 The preview has its own large `data-art-slot` area and reuses the same building-card artwork key, so Astra artwork can populate both surfaces consistently.
+
+
+## Integrated proof art set
+
+The first generated artwork batch is now wired into the live HUD rather than remaining placeholders.
+
+Integrated assets:
+- Nightspire settlement crest
+- Wood, Food, Ale, Ore, Tools and Gold resource icons
+- Planning, Logistics, Industry, Services and Defense category icons
+- Build, Rotate, Inspect, Follow/Camera and Street View command medallions
+- Farmhouse, Brewery and Tavern construction-card illustrations
+- Farmhouse, Brewery and Tavern selected-building header illustrations, reusing the same source art for this proof pass
+
+All files are optimized WebP assets under `assets/ui/`. The original generated source PNGs are intentionally not committed at full resolution.

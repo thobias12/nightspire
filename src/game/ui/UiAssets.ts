@@ -1,6 +1,7 @@
 export const UI_ASSET_ROOT = 'assets/ui'
 
 export type UiAssetKind =
+  | 'crest'
   | 'resource'
   | 'command'
   | 'category'
@@ -28,6 +29,11 @@ export function uiAsset(kind: UiAssetKind, name: string, extension = 'webp'): Ui
 }
 
 export const CURRENT_UI_ASSETS = {
+  crest: ['nightspire'],
+  resources: ['wood', 'food', 'ale', 'ore', 'tools', 'gold'],
+  categories: ['planning', 'logistics', 'industry', 'services', 'defense'],
+  commands: ['build', 'rotate', 'inspect', 'camera', 'street-view'],
+  buildingCards: ['farmhouse', 'brewery', 'tavern'],
   buildingHeaders: ['house', 'stockpile', 'guard-post', 'wood-wall', 'wood-gate', 'campfire', 'tavern', 'brewery', 'blacksmith', 'market', 'trading-post', 'farmhouse'],
   notifications: ['task-raid', 'task-housing', 'task-food', 'task-storage', 'task-repair', 'task-trade', 'task-arrival', 'task-event'],
   minimap: ['building', 'field', 'settler', 'hostile', 'road'],
