@@ -65,9 +65,11 @@ export class Game {
   private plotDraft: ResidentialPlotPreview | null = null
   private fieldControlPoints: Point[] = []
   private fieldDraft: Point[] = []
+  private fieldCloseReady = false
   private pointer: Point | null = null
   private rawPointer: Point | null = null
   private gridSnap = true
+  private fieldGridSnap = false
   private roadSnap = true
   private dragStart: Point | null = null
   private dragPoints: Point[] = []
@@ -112,10 +114,18 @@ export class Game {
           this.simulation.state.residentialPlots,
         )
       } else if (this.planningTool === 'field' && precise) {
-        const previewPoint = this.gridSnap ? snapPointToGrid(precise) : precise
+        const rawFieldPoint = this.fieldGridSnap ? snapPointToGrid(precise) : precise
+        const first = this.fieldControlPoints[0]
+        this.fieldCloseReady = this.fieldControlPoints.length >= 3
+          && !!first
+          && Math.hypot(rawFieldPoint.x - first.x, rawFieldPoint.z - first.z) <= 0.9
+        const previewPoint = this.fieldCloseReady && first ? first : rawFieldPoint
+        this.pointer = previewPoint
         this.fieldDraft = [...this.fieldControlPoints]
         const last = this.fieldControlPoints.at(-1)
-        if (!last || Math.hypot(previewPoint.x - last.x, previewPoint.z - last.z) >= 0.15) this.fieldDraft.push(previewPoint)
+        if (!this.fieldCloseReady && (!last || Math.hypot(previewPoint.x - last.x, previewPoint.z - last.z) >= 0.15)) {
+          this.fieldDraft.push(previewPoint)
+        }
       } else if (this.dragStart && point && this.buildType === 'wood-wall') {
         this.dragPoints = wallLinePoints(this.dragStart, point)
       }
@@ -164,17 +174,30 @@ export class Game {
         }
 
         if (this.planningTool === 'field') {
-          const point = this.gridSnap ? snapPointToGrid(raw) : raw
+          const point = this.fieldGridSnap ? snapPointToGrid(raw) : raw
+          const first = this.fieldControlPoints[0]
+          if (
+            this.fieldControlPoints.length >= 3
+            && first
+            && Math.hypot(point.x - first.x, point.z - first.z) <= 0.9
+          ) {
+            this.fieldCloseReady = true
+            this.finalizeFieldDraft()
+            e.preventDefault()
+            return
+          }
+
           const anchor = this.fieldControlPoints.at(-1)
           if (!anchor || Math.hypot(point.x - anchor.x, point.z - anchor.z) >= 0.75) {
             if (this.fieldControlPoints.length >= 8) {
-              this.message = 'Field already has 8 corners. Finish with Enter/double-click or remove a corner.'
+              this.message = 'Field already has 8 corners. Click the first marker, press Enter, or double-click to finish.'
             } else {
               this.fieldControlPoints.push(point)
               this.planningStart = this.fieldControlPoints[0] ?? null
+              this.fieldCloseReady = false
               this.message = this.fieldControlPoints.length < 3
                 ? 'Field corner ' + this.fieldControlPoints.length + ' placed. Add at least ' + (3 - this.fieldControlPoints.length) + ' more.'
-                : 'Field corner ' + this.fieldControlPoints.length + ' placed. Continue shaping, or double-click / Enter to close.'
+                : 'Field corner ' + this.fieldControlPoints.length + ' placed. Click the first marker to close, or keep shaping.'
             }
           }
           this.rawPointer = raw
@@ -593,6 +616,7 @@ export class Game {
     this.planningStart = null
     this.fieldControlPoints = []
     this.fieldDraft = []
+    this.fieldCloseReady = false
     this.rawPointer = null
     this.pointer = null
     this.updateGhost()
@@ -642,11 +666,12 @@ export class Game {
           this.roadDraft = []
           this.fieldControlPoints = []
           this.fieldDraft = []
+          this.fieldCloseReady = false
           this.plotDraft = null
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
-          this.message = 'Field tool · point-drawn like Manor Lords · LMB adds corners · double-click/Enter closes · RMB/Backspace removes the last corner · 3–8 corners · G toggles grid snap.'
+          this.message = 'Field tool · freeform by default · click 3–8 corners · click the first marker to close · Enter/double-click also finishes · RMB/Backspace removes a corner · G toggles optional grid snap.'
           break
         case 'residential-plot':
           if (s.roads.length === 0) {
@@ -691,13 +716,21 @@ export class Game {
           this.message = BUILDINGS[this.buildType].label + ' rotated to ' + ['South', 'East', 'North', 'West'][this.buildRotation] + '.'
           break
         case 'grid-snap':
-          this.gridSnap = !this.gridSnap
-          this.message = 'Grid Snap ' + (this.gridSnap ? 'ON · road control points snap to 1m and plot dimensions snap to 1m. Hold Shift when you want 0°/45°/90° road segments.' : 'OFF · road points and plot dimensions are freeform. Hold Shift for angle-constrained road segments.')
-          if (this.planningTool === 'road') {
-            this.refreshRoadDraft()
-          } else if (this.planningStart && this.planningTool === 'residential-plot') {
-            this.planningStart = null
-            this.plotDraft = null
+          if (this.planningTool === 'field') {
+            this.fieldGridSnap = !this.fieldGridSnap
+            this.message = 'Field Grid Snap ' + (this.fieldGridSnap
+              ? 'ON · field corners snap to 1m. Press G again for freeform placement.'
+              : 'OFF · field corners follow the terrain freely. Press G if you want a straighter planned parcel.')
+            this.fieldDraft = [...this.fieldControlPoints]
+          } else {
+            this.gridSnap = !this.gridSnap
+            this.message = 'Grid Snap ' + (this.gridSnap ? 'ON · road control points snap to 1m and plot dimensions snap to 1m. Hold Shift when you want 0°/45°/90° road segments.' : 'OFF · road points and plot dimensions are freeform. Hold Shift for angle-constrained road segments.')
+            if (this.planningTool === 'road') {
+              this.refreshRoadDraft()
+            } else if (this.planningStart && this.planningTool === 'residential-plot') {
+              this.planningStart = null
+              this.plotDraft = null
+            }
           }
           break
         case 'road-snap':
@@ -713,6 +746,7 @@ export class Game {
           this.roadDraft = []
           this.fieldControlPoints = []
           this.fieldDraft = []
+          this.fieldCloseReady = false
           this.roadAngleSnap = false
           this.plotDraft = null
           this.dragStart = null
@@ -1073,10 +1107,13 @@ export class Game {
       this.renderer.showFieldGhost(points, !error, this.gridSnap)
       if (this.fieldControlPoints.length > 0) {
         const area = points.length >= 3 ? fieldArea(points) : 0
+        const projectedYield = area > 0 ? Math.max(8, Math.min(60, Math.round(area * 0.55))) : 0
         this.message = error ?? (
-          'Field preview · ' + (area > 0 ? area.toFixed(1) + 'm² · ' : '')
+          'Field preview · ' + (area > 0 ? area.toFixed(1) + 'm² · about ' + projectedYield + ' Food · ' : '')
           + this.fieldControlPoints.length + ' fixed corner' + (this.fieldControlPoints.length === 1 ? '' : 's')
-          + ' · double-click / Enter to close.'
+          + (this.fieldCloseReady
+            ? ' · click to close this parcel.'
+            : ' · continue shaping or return to the first marker to close.')
         )
       }
       return
@@ -1177,7 +1214,7 @@ export class Game {
       selectedId: this.selectedId,
       buildType: this.buildType,
       planningTool: this.planningTool,
-      gridSnap: this.gridSnap,
+      gridSnap: this.planningTool === 'field' ? this.fieldGridSnap : this.gridSnap,
       roadSnap: this.roadSnap,
       roadWidth: this.roadWidth,
       roadCurve: this.roadCurve,
