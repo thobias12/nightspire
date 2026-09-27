@@ -266,3 +266,16 @@ Integrated assets:
 - Farmhouse, Brewery and Tavern selected-building header illustrations, reusing the same source art for this proof pass
 
 All files are optimized WebP assets under `assets/ui/`. The original generated source PNGs are intentionally not committed at full resolution.
+
+
+## Integrated art presentation polish
+
+After the first in-game proof, the generated art remains unchanged but its presentation is tuned around the actual HUD:
+
+- crest and top-resource artwork render larger without increasing the top bar
+- category icons have more visual weight
+- command artwork is cropped/zoomed into the circular medallions
+- illustrated construction cards devote more of their surface to the artwork
+- low-resource state moved out of the artwork itself into a quieter card footer treatment
+- construction hover information uses a darker aged-parchment treatment with larger copy
+- Farmhouse, Brewery and Tavern card/preview crops are aligned consistently
