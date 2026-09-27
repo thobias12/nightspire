@@ -2,6 +2,7 @@ import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
 import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
+import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
 import type { JobReservations } from './JobReservations'
 
 export const stockpiles = (s: WorldState): Building[] =>
@@ -192,7 +193,10 @@ export function demolishBuilding(s: WorldState, id: number): string | null {
   const plan: Array<{ store: Building; resource: ResourceId; amount: number }> = []
   for (const resource of RESOURCE_IDS) {
     let remaining = refunds[resource]
-    for (const store of stores) {
+    const destinations = stores
+      .filter(store => stockpileAccepts(store, resource))
+      .sort((a, b) => compareStockpileDestinations(a, b, building))
+    for (const store of destinations) {
       if (remaining <= 0) break
       const room = capacity.get(store.id) ?? 0
       const amount = Math.min(room, remaining)
@@ -247,7 +251,10 @@ export function cancelBuilding(s: WorldState, id: number): string | null {
   const plan: Array<{ store: Building; resource: ResourceId; amount: number }> = []
   for (const resource of RESOURCE_IDS) {
     let remaining = refunds[resource]
-    for (const store of stores) {
+    const destinations = stores
+      .filter(store => stockpileAccepts(store, resource))
+      .sort((a, b) => compareStockpileDestinations(a, b, building))
+    for (const store of destinations) {
       if (remaining <= 0) break
       const room = capacity.get(store.id) ?? 0
       const amount = Math.min(room, remaining)
