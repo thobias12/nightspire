@@ -1,9 +1,10 @@
 import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
+import { pointInPolygon } from '../simulation/FieldPlanning'
 import { MAP_SIZE } from '../simulation/Navigation'
 import { plotCorners, residentialPlotWidth, type ResidentialPlotPreview } from '../simulation/TownPlanning'
-import type { Building, Point, ResidentialPlot, RoadPath, WorldState } from '../simulation/WorldState'
+import type { Building, FieldPlot, Point, ResidentialPlot, RoadPath, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
 import { residentialPresentationProfile, type ResidentialPresentationProfile } from './ResidentialPresentation'
 import { TOWN_PALETTE, visualRoadStrip } from './TownPresentation'
@@ -188,6 +189,8 @@ export class SceneRenderer {
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
+    this.addBasicBatch('fieldSoil', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x5d4932, 2800)
+    this.addBatch('fieldCrop', new THREE.BoxGeometry(1, 0.14, 0.16), 0x70804b, 2800)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
@@ -337,7 +340,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldSoil', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -572,6 +575,50 @@ export class SceneRenderer {
       if (!(material instanceof THREE.MeshStandardMaterial)) continue
       material.emissive.setHex(['wood', 'treeTrunk', 'underbrush', 'gardenRow', 'food'].includes(name) ? forest : cool)
       material.emissiveIntensity = night * strength
+    }
+  }
+
+  private renderFarmFields(fields: FieldPlot[]): void {
+    const cell = 1.35
+    for (const field of fields) {
+      const minX = Math.min(...field.points.map(point => point.x))
+      const maxX = Math.max(...field.points.map(point => point.x))
+      const minZ = Math.min(...field.points.map(point => point.z))
+      const maxZ = Math.max(...field.points.map(point => point.z))
+      const edge = field.points.length >= 2
+        ? Math.atan2(field.points[1].x - field.points[0].x, field.points[1].z - field.points[0].z)
+        : 0
+      const cropColor = field.phase === 'ready'
+        ? 0xb99a55
+        : field.phase === 'growing'
+          ? 0x70804b
+          : field.phase === 'sown'
+            ? 0x657044
+            : field.phase === 'harvested'
+              ? 0x897451
+              : 0x5d4932
+      const soilColor = field.phase === 'harvested' ? 0x6c5840 : field.phase === 'fallow' ? 0x59442f : 0x604b33
+      const cropScale = field.phase === 'ready' ? 0.9 : field.phase === 'growing' ? 0.7 : field.phase === 'sown' ? 0.35 : 0
+
+      for (let x = Math.floor(minX / cell) * cell + cell / 2; x <= maxX; x += cell) {
+        for (let z = Math.floor(minZ / cell) * cell + cell / 2; z <= maxZ; z += cell) {
+          if (!pointInPolygon({ x, z }, field.points)) continue
+          this.instance('fieldSoil', x, 0.023, z, cell * 0.95, 1, cell * 0.95, soilColor, edge)
+          if (cropScale > 0) {
+            this.instance(
+              'fieldCrop',
+              x,
+              0.06 + cropScale * 0.11,
+              z,
+              cell * 0.78,
+              cropScale,
+              0.9,
+              cropColor,
+              edge,
+            )
+          }
+        }
+      }
     }
   }
 
@@ -1989,6 +2036,7 @@ export class SceneRenderer {
     }
 
     this.renderVisualRoads(state.roads)
+    this.renderFarmFields(state.fields)
 
     // Decorative outer woodland extends beyond the playable navigation square so
     // lower cameras see a landscape/forest continuation instead of a board edge.
@@ -2196,12 +2244,13 @@ export class SceneRenderer {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     }
 
-    const selected = [...state.settlers, ...state.enemies, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
+    const selected = [...state.settlers, ...state.enemies, ...state.nodes, ...state.buildings, ...state.fields].find(e => e.id === selectedId)
     this.selection.visible = !!selected
     if (selected) {
       this.selection.position.set(selected.x, 0.045, selected.z)
       const building = state.buildings.find(b => b.id === selected.id)
-      const footprint = building ? BUILDINGS[building.type].footprint : 0.9
+      const field = state.fields.find(candidate => candidate.id === selected.id)
+      const footprint = building ? BUILDINGS[building.type].footprint : field ? Math.max(1.5, Math.sqrt(field.area)) : 0.9
       const pulse = 1 + Math.sin(time * 3.5) * 0.003
       this.selection.scale.set(footprint * 1.06 * pulse, footprint * 1.06 * pulse, 1)
     }
@@ -2377,6 +2426,45 @@ export class SceneRenderer {
     this.facing.rotation.set(0, 0, 0)
     this.facing.scale.set(0.34, 0.1, 0.34)
     ;(this.facing.material as THREE.MeshBasicMaterial).color.copy(markerColor)
+  }
+
+  showFieldGhost(points: Point[], valid: boolean, showGrid = false): void {
+    this.ghost.visible = false
+    this.ghostLine.visible = false
+    this.ghostLine.count = 0
+    this.facing.visible = false
+    this.grid.visible = showGrid
+    if (points.length === 0) return
+
+    const color = new THREE.Color(valid ? 0xc4a35d : 0xef6d65)
+    const markerColor = new THREE.Color(valid ? 0xf0d99a : 0xff9b91)
+    const segmentCount = points.length >= 3 ? points.length : Math.max(0, points.length - 1)
+    if (segmentCount > 0) {
+      this.ghostLine.visible = true
+      this.ghostLine.count = Math.min(segmentCount, 120)
+      for (let i = 0; i < this.ghostLine.count; i++) {
+        const a = points[i]
+        const b = points[(i + 1) % points.length]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const length = Math.max(0.05, Math.hypot(dx, dz))
+        this.matrix.position.set((a.x + b.x) / 2, 0.065, (a.z + b.z) / 2)
+        this.matrix.scale.set(0.11, 0.075, length)
+        this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+        this.matrix.updateMatrix()
+        this.ghostLine.setMatrixAt(i, this.matrix.matrix)
+        this.ghostLine.setColorAt(i, color)
+      }
+      this.ghostLine.instanceMatrix.needsUpdate = true
+      if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+    }
+
+    const first = points[0]
+    this.ghost.visible = true
+    this.ghost.position.set(first.x, 0.1, first.z)
+    this.ghost.rotation.set(0, 0, 0)
+    this.ghost.scale.set(0.32, 0.12, 0.32)
+    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(markerColor)
   }
 
   showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean, showGrid = false): void {
