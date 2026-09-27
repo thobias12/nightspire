@@ -220,6 +220,7 @@ export class Game {
           let error = residentialPlotError(preview, s.residentialPlots)
           if (!error) error = residentialPlotBuildingError(preview, s.buildings)
           if (!error) error = residentialPlotResourceError(preview, s.nodes)
+          if (!error) error = residentialPlotFieldError(preview, s.fields)
           if (!error && preview) error = placementError(s, 'house', preview.housePoint)
 
           if (error || !preview) {
@@ -552,7 +553,7 @@ export class Game {
   private finalizeRoadDraft(): void {
     if (this.planningTool !== 'road') return
     const points = sampleRoadCurve(this.roadControlPoints, this.roadCurve)
-    const error = roadPlacementError(points)
+    const error = roadPlacementError(points, this.simulation.state.fields)
     if (error) {
       this.message = error
       this.updateGhost()
@@ -718,6 +719,15 @@ export class Game {
           this.dragPoints = []
           this.message = 'Inspect mode. Click a settler, raider, resource or building.'
           break
+        case 'remove-field': {
+          if (this.selectedId === null) { this.message = 'Select a farm field first.'; break }
+          const index = s.fields.findIndex(field => field.id === this.selectedId)
+          if (index < 0) { this.message = 'Select a farm field first.'; break }
+          const [field] = s.fields.splice(index, 1)
+          this.selectedId = null
+          this.message = 'Farm Field ' + field.id + ' removed. Fields have no construction refund.'
+          break
+        }
         case 'cancel-blueprint': {
           if (this.selectedId === null) { this.message = 'Select an unfinished blueprint first.'; break }
           const error = cancelBuilding(s, this.selectedId)
@@ -1074,7 +1084,7 @@ export class Game {
 
     if (this.planningTool === 'road') {
       const points = this.roadControlPoints.length ? this.roadDraft : []
-      const error = points.length >= 2 ? roadPlacementError(points) : null
+      const error = points.length >= 2 ? roadPlacementError(points, this.simulation.state.fields) : null
       this.renderer.showRoadGhost(points, !error, this.gridSnap, this.roadWidth)
       if (this.roadControlPoints.length > 0 && this.rawPointer) {
         this.message = error ?? (
