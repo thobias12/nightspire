@@ -151,13 +151,27 @@ test('road-snapped service buildings sit closer to the street while preserving a
   assert.ok(Math.abs(preview.facingAngle)<1e-9)
 })
 
-test('Grid Snap aligns road drags to 0/45/90 degrees while freeform preserves pointer geometry', () => {
+test('Grid Snap rounds road controls independently while Shift angle constrain remains optional', () => {
   const roads=[]
   assert.deepEqual(snapPointToGrid({x:2.49,z:-3.51}),{x:2,z:-4})
-  assert.deepEqual(snapRoadControlPoint(roads,{x:5.2,z:2.2},{x:0,z:0},true),{x:5,z:0})
-  assert.deepEqual(snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},true),{x:4,z:4})
-  const free=snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},false)
+  assert.deepEqual(snapRoadControlPoint(roads,{x:5.2,z:2.2},{x:0,z:0},true,false,false),{x:5,z:2})
+  assert.deepEqual(snapRoadControlPoint(roads,{x:5.2,z:2.2},{x:0,z:0},true,true,false),{x:5,z:0})
+  assert.deepEqual(snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},true,true,false),{x:4,z:4})
+  const constrained=snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},false,true,false)
+  assert.ok(Math.abs(constrained.x-constrained.z)<1e-9)
+  assert.ok(Math.abs(Math.hypot(constrained.x,constrained.z)-Math.hypot(4.2,3.7))<1e-9)
+  const free=snapRoadControlPoint(roads,{x:4.2,z:3.7},{x:0,z:0},false,false,false)
   assert.ok(Math.abs(free.x-4.2)<1e-9 && Math.abs(free.z-3.7)<1e-9)
+})
+
+test('Road Snap independently controls road endpoint and centerline magnetism', () => {
+  const roads=[{id:31,width:1.7,points:[{x:-6,z:0},{x:6,z:0}]}]
+  const manual=snapRoadControlPoint(roads,{x:2.4,z:0.5},{x:0,z:-4},false,false,false)
+  assert.deepEqual(manual,{x:2.4,z:0.5})
+  const center=snapRoadControlPoint(roads,{x:2.4,z:0.5},{x:0,z:-4},false,false,true)
+  assert.ok(Math.abs(center.x-2.4)<1e-9 && Math.abs(center.z)<1e-9)
+  const endpoint=snapRoadControlPoint(roads,{x:6.8,z:0.4},{x:0,z:-4},true,false,true)
+  assert.deepEqual(endpoint,{x:6,z:0})
 })
 
 test('Grid Snap rounds residential frontage and depth while keeping the plot on the road edge', () => {
