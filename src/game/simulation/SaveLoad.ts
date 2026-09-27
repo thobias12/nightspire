@@ -117,6 +117,15 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   for (const a of s.settlers) {
     check(point(a) && combatant(a, s.tick) && inventory(a.cargo) && RESOURCE_IDS.reduce((sum, resource) => sum + a.cargo[resource], 0) <= CARRY_CAPACITY, 'settler/cargo')
     check(a.role === 'worker' || a.role === 'guard', 'settler role')
+    check(
+      a.workplaceId === null
+      || (
+        a.role === 'worker'
+        && integer(a.workplaceId)
+        && s.buildings.some(b => b.id === a.workplaceId && b.complete && (BUILDINGS[b.type].workerSlots ?? 0) > 0)
+      ),
+      'settler workplace',
+    )
     check(needs(a.needs) && integer(a.lastMealDay) && a.lastMealDay <= s.day, 'settler needs')
     check(Array.isArray(a.path) && a.path.length <= 3000 && a.path.every(gridPoint) && Number.isInteger(a.pathRevision), 'route')
     check(typeof a.status === 'string' && a.status.length <= 120, 'status')
@@ -202,6 +211,11 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     )
   }
 
+  for (const b of s.buildings) {
+    const slots = BUILDINGS[b.type].workerSlots ?? 0
+    if (slots > 0) check(s.settlers.filter(a => a.workplaceId === b.id).length <= slots, 'workplace capacity')
+  }
+
   for (const b of stockpiles(s)) {
     check(RESOURCE_IDS.every(r => available(s, b, r) >= 0) && freeStorage(s, b) >= 0, 'over-reserved storage')
   }
@@ -280,6 +294,7 @@ export function deserializeWorld(text: string): WorldState {
   if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers)) {
     for (const settler of candidate.settlers) {
       if (settler.role === undefined) settler.role = 'worker'
+      if (settler.workplaceId === undefined) settler.workplaceId = null
       if (settler.health === undefined) Object.assign(settler, { health: 100, maxHealth: 100, attackCooldown: 0 })
       if (settler.lastHitTick === undefined) settler.lastHitTick = 0
       if (settler.needs === undefined) settler.needs = { ...DEFAULT_NEEDS }
