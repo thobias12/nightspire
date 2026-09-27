@@ -34,6 +34,7 @@ export interface Building extends Point {
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
   inventory: Inventory; delivered: Inventory; serviceProgress: number; productionProgress: number
   distributionDay: number; distributionServed: number
+  houseLevel: number; houseQualifyingDays: number; houseLastEvaluationDay: number
 }
 export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
 export type NeedLevels = Record<NeedId, number>
@@ -139,6 +140,9 @@ export function createBuilding(
     productionProgress: 0,
     distributionDay: 0,
     distributionServed: 0,
+    houseLevel: type === 'house' ? 1 : 0,
+    houseQualifyingDays: 0,
+    houseLastEvaluationDay: 0,
   }
 }
 export function createInitialWorldState(): WorldState {
