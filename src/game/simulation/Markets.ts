@@ -4,6 +4,8 @@ import { distance } from './Navigation'
 import { workplaceStaffing } from './Workforce'
 import type { Building, Point, Settler, WorldState } from './WorldState'
 
+export const MARKET_COVERAGE_RADIUS = 18
+
 export interface MarketSummary {
   markets: number
   staffed: number
@@ -97,6 +99,14 @@ export function compareMarketsForSettler(
   const travel = distance(origin, a) - distance(origin, b)
   if (Math.abs(travel) > 1e-9) return travel
   return a.id - b.id
+}
+
+export function marketCoversPoint(market: Building, point: Point): boolean {
+  return distance(market, point) <= MARKET_COVERAGE_RADIUS
+}
+
+export function marketCoversSettler(state: WorldState, settler: Settler, market: Building): boolean {
+  return marketCoversPoint(market, marketOrigin(state, settler))
 }
 
 export function marketSummary(state: WorldState): MarketSummary {

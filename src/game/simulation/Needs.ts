@@ -1,7 +1,7 @@
 import { BUILDINGS } from '../data/buildings'
 import { available, stockpiles } from './Buildings'
 import type { DayPhase } from './DayNight'
-import { compareMarketsForSettler, completedMarkets, marketMealsRemaining } from './Markets'
+import { compareMarketsForSettler, completedMarkets, marketCoversSettler, marketMealsRemaining } from './Markets'
 import { NEED_IDS, recordEvent, type NeedId, type NeedLevels, type Settler, type WorldState } from './WorldState'
 
 const FOOD_DECAY_PER_SECOND = 22 / 360
@@ -68,7 +68,11 @@ export function serveDailyMeal(state: WorldState, announceShortage = false): { s
   for (const settler of due) {
     if (useMarkets) {
       const source = markets
-        .filter(market => market.inventory.food > 0 && marketMealsRemaining(state, market) > 0)
+        .filter(market =>
+          market.inventory.food > 0
+          && marketMealsRemaining(state, market) > 0
+          && marketCoversSettler(state, settler, market)
+        )
         .sort((a, b) => compareMarketsForSettler(state, settler, a, b))[0]
       if (source) {
         source.inventory.food--
