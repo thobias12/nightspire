@@ -106,7 +106,6 @@ export class SceneRenderer {
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
   private readonly ghost: THREE.Mesh
   private readonly ghostLine: THREE.InstancedMesh
-  private readonly ghostPoints: THREE.InstancedMesh
   private readonly facing: THREE.Mesh
   private readonly selection: THREE.LineSegments
   private readonly paths: THREE.LineSegments
@@ -181,8 +180,9 @@ export class SceneRenderer {
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, 360)
     this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 1200, 0.12)
-    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 1200)
-    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 1400)
+    this.addBasicBatch('roadBase', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x967b59, 1800)
+    this.addBasicBatch('roadBlend', new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2), 0x967b59, 1800)
+    this.addBasicBatch('roadWear', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x755c41, 1800)
     this.addBasicBatch('roadEdgePatch', new THREE.CircleGeometry(1, 10).rotateX(-Math.PI / 2), 0x8d7d5f, 1400, 0.32)
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
@@ -271,17 +271,6 @@ export class SceneRenderer {
     this.ghostLine.frustumCulled = false
     this.scene.add(this.ghostLine)
 
-    this.ghostPoints = new THREE.InstancedMesh(
-      new THREE.CircleGeometry(0.22, 18).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.94, depthWrite: false, vertexColors: true }),
-      64,
-    )
-    this.ghostPoints.count = 0
-    this.ghostPoints.visible = false
-    this.ghostPoints.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-    this.ghostPoints.frustumCulled = false
-    this.scene.add(this.ghostPoints)
-
     this.facing = new THREE.Mesh(
       this.geometry,
       new THREE.MeshBasicMaterial({ color: 0xf1c86f, transparent: true, opacity: 0.9, depthWrite: false }),
@@ -347,7 +336,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -585,8 +574,9 @@ export class SceneRenderer {
 
   private renderVisualRoads(roads: RoadPath[]): void {
     for (const road of roads) {
-      const roadBaseColor = road.width >= 2.1 ? 0x806a4e : road.width <= 1.35 ? 0x8e7658 : 0x887052
-      const shoulderColor = road.width >= 2.1 ? 0x948268 : 0x99866a
+      const roadSeed = road.id * 11.73
+      const baseColor = road.id % 3 === 0 ? 0x907454 : road.id % 3 === 1 ? 0x967a58 : 0x8d7253
+      const shoulderColor = road.id % 2 === 0 ? 0x95856a : 0x9a896c
 
       for (let i = 1; i < road.points.length; i++) {
         const a = road.points[i - 1]
@@ -598,84 +588,73 @@ export class SceneRenderer {
         const tangentZ = (b.z - a.z) / strip.length
         const normalX = Math.cos(strip.angle)
         const normalZ = -Math.sin(strip.angle)
-
-        // Old saves can contain long straight segments while new curved roads are
-        // already sampled densely. Subdivide only when necessary so both generations
-        // render through the same soft continuous dirt treatment.
-        const pieceCount = Math.max(1, Math.ceil(strip.length / 1.15))
+        // New curved roads are sampled densely, while legacy saves can still contain
+        // longer straight segments. Subdivide only when needed.
+        const pieceCount = Math.max(1, Math.ceil(strip.length / 1.35))
         const pieceLength = strip.length / pieceCount
 
         for (let piece = 0; piece < pieceCount; piece++) {
-          const t = (piece + 0.5) / pieceCount
-          const seed = road.id * 11.83 + i * 2.19 + piece * 0.91
-          const lateral = Math.sin(seed * 1.73) * Math.min(0.045, road.width * 0.018)
-          const widthScale = 0.965 + (Math.sin(seed * 0.79) * 0.5 + 0.5) * 0.055
+          const t0 = piece / pieceCount
+          const t1 = (piece + 1) / pieceCount
+          const t = (t0 + t1) / 2
+          const seed = roadSeed + i * 7.31 + piece * 3.73
+          const lateral = Math.sin(seed * 1.21) * Math.min(0.075, road.width * 0.035)
+          const widthScale = 0.955 + (Math.sin(seed * 0.77) * 0.5 + 0.5) * 0.07
           const width = road.width * widthScale
           const px = a.x + (b.x - a.x) * t + normalX * lateral
           const pz = a.z + (b.z - a.z) * t + normalZ * lateral
-          const length = pieceLength + Math.min(0.5, width * 0.26)
+          const length = pieceLength + 0.035
 
-          // Keep the central dirt tone coherent along the whole road. The earlier
-          // per-piece color swaps exposed every rectangle; shape/edge/rut variation
-          // now carries the organic look instead.
-          this.instance('roadShoulder', px, 0.020, pz, width * 1.34, 1, length + 0.22, shoulderColor, strip.angle)
-          this.instance('roadBase', px, 0.025, pz, width * 0.94, 1, length, roadBaseColor, strip.angle)
+          // One nearly uniform dirt tone plus round join caps removes the tiled-strip
+          // look. Variation now comes from wear/mud/edge breakup rather than rectangles.
+          this.instance('roadShoulder', px, 0.020, pz, width * 1.22, 1, length + 0.16, shoulderColor, strip.angle)
+          this.instance('roadBase', px, 0.025, pz, width, 1, length, baseColor, strip.angle)
 
-          // Soft round center patches cover angular joints between sampled segments
-          // and make bends read as one continuous dirt surface.
-          this.instance(
-            'roadEdgePatch',
-            px,
-            0.027,
-            pz,
-            width * 0.5,
-            1,
-            Math.max(width * 0.38, pieceLength * 0.72),
-            roadBaseColor,
-            strip.angle,
-          )
+          const joinX = a.x + (b.x - a.x) * t1
+          const joinZ = a.z + (b.z - a.z) * t1
+          this.instance('roadBlend', joinX, 0.026, joinZ, width * 0.51, 1, width * 0.51, baseColor, seed)
 
+          // Soil feathering, grass and stones live outside the opaque centerline.
           for (const side of [-1, 1] as const) {
-            const edgeSeed = seed + side * 5.17
-            const edgeOffset = width * (0.49 + Math.sin(edgeSeed) * 0.025)
-            const along = Math.sin(edgeSeed * 1.61) * Math.min(0.2, pieceLength * 0.28)
-            const edgeX = px + normalX * edgeOffset * side + tangentX * along
-            const edgeZ = pz + normalZ * edgeOffset * side + tangentZ * along
+            const edgeSeed = seed + side * 4.9
+            const edgeOffset = width * (0.5 + Math.sin(edgeSeed) * 0.025)
+            const edgeX = px + normalX * edgeOffset * side + tangentX * Math.sin(edgeSeed * 1.7) * 0.16
+            const edgeZ = pz + normalZ * edgeOffset * side + tangentZ * Math.sin(edgeSeed * 1.7) * 0.16
             this.instance(
               'roadEdgePatch',
               edgeX,
-              0.028,
+              0.027,
               edgeZ,
-              0.36 + (Math.cos(edgeSeed) * 0.5 + 0.5) * 0.22,
+              0.34 + (Math.cos(edgeSeed) * 0.5 + 0.5) * 0.25,
               1,
               0.24 + (Math.sin(edgeSeed * 0.83) * 0.5 + 0.5) * 0.24,
-              side > 0 ? 0x8c7c61 : 0x928268,
+              side > 0 ? 0x887a60 : 0x8f8064,
               edgeSeed,
             )
 
-            if ((road.id + i + piece + (side > 0 ? 1 : 0)) % 5 === 0) {
+            if ((road.id + i + piece + (side > 0 ? 1 : 0)) % 4 === 0) {
               this.instance(
                 'underbrush',
-                edgeX + normalX * side * 0.13,
-                0.105,
-                edgeZ + normalZ * side * 0.13,
-                0.18 + (piece % 3) * 0.045,
-                0.16,
-                0.18 + (piece % 2) * 0.045,
+                edgeX + normalX * side * 0.11,
+                0.11,
+                edgeZ + normalZ * side * 0.11,
+                0.2 + (piece % 3) * 0.045,
+                0.18,
+                0.2 + (piece % 2) * 0.045,
                 0x566849,
                 edgeSeed,
               )
             }
 
-            if ((road.id * 3 + i + piece + (side > 0 ? 2 : 0)) % 9 === 0) {
+            if ((road.id * 3 + i + piece + (side > 0 ? 2 : 0)) % 8 === 0) {
               this.instance(
                 'roadStone',
-                edgeX + normalX * side * 0.18,
-                0.06,
-                edgeZ + normalZ * side * 0.18,
-                0.66 + (piece % 3) * 0.12,
-                0.5 + (piece % 2) * 0.08,
-                0.72,
+                edgeX + normalX * side * 0.16,
+                0.065,
+                edgeZ + normalZ * side * 0.16,
+                0.68 + (piece % 3) * 0.12,
+                0.52 + (piece % 2) * 0.08,
+                0.76,
                 piece % 2 ? 0x70685d : 0x665f56,
                 edgeSeed * 0.4,
               )
@@ -683,46 +662,26 @@ export class SceneRenderer {
           }
 
           const rutOffset = width * 0.19
-          const rutWidth = Math.max(0.052, width * 0.045)
+          const rutWidth = Math.max(0.05, width * 0.047)
           if ((road.id + i + piece) % 5 !== 2) {
-            const rutLength = Math.max(0.28, pieceLength * (0.55 + ((piece + road.id) % 3) * 0.1))
-            const drift = Math.sin(seed * 2.1) * 0.09
-            this.instance(
-              'roadWear',
-              px + normalX * rutOffset + tangentX * drift,
-              0.031,
-              pz + normalZ * rutOffset + tangentZ * drift,
-              rutWidth,
-              1,
-              rutLength,
-              0x70563d,
-              strip.angle,
-            )
+            const rutLength = Math.max(0.34, length * (0.58 + ((piece + road.id) % 3) * 0.1))
+            const rutShift = Math.sin(seed * 2.1) * Math.min(0.12, pieceLength * 0.15)
+            this.instance('roadWear', px + normalX * rutOffset + tangentX * rutShift, 0.03, pz + normalZ * rutOffset + tangentZ * rutShift, rutWidth, 1, rutLength, 0x70563d, strip.angle)
             if ((road.id + piece) % 3 !== 1) {
-              this.instance(
-                'roadWear',
-                px - normalX * rutOffset - tangentX * drift,
-                0.032,
-                pz - normalZ * rutOffset - tangentZ * drift,
-                rutWidth * 0.9,
-                1,
-                rutLength * 0.84,
-                0x785e43,
-                strip.angle,
-              )
+              this.instance('roadWear', px - normalX * rutOffset - tangentX * rutShift, 0.031, pz - normalZ * rutOffset - tangentZ * rutShift, rutWidth * 0.9, 1, rutLength * 0.88, 0x785e43, strip.angle)
             }
           }
 
-          if ((road.id + i * 2 + piece) % 8 === 0) {
+          if ((road.id + i * 2 + piece) % 7 === 0) {
             this.instance(
               'roadMud',
-              px + normalX * Math.sin(seed) * width * 0.12,
-              0.033,
-              pz + normalZ * Math.sin(seed) * width * 0.12,
-              width * 0.17,
+              px + normalX * Math.sin(seed) * width * 0.14,
+              0.032,
+              pz + normalZ * Math.sin(seed) * width * 0.14,
+              width * (0.17 + (piece % 2) * 0.055),
               1,
-              Math.max(0.28, pieceLength * 0.36),
-              0x66513d,
+              Math.max(0.32, length * 0.34),
+              piece % 2 ? 0x65513d : 0x6d5841,
               strip.angle + Math.sin(seed) * 0.12,
             )
           }
@@ -2316,8 +2275,6 @@ export class SceneRenderer {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
-    this.ghostPoints.visible = false
-    this.ghostPoints.count = 0
     this.facing.visible = false
     this.grid.visible = !!type
     if (!type || !p) return
@@ -2372,23 +2329,17 @@ export class SceneRenderer {
     }
   }
 
-  showRoadGhost(
-    points: Point[],
-    valid: boolean,
-    showGrid = false,
-    width = 1.7,
-    controlPoints: Point[] = [],
-    hover: Point | null = null,
-  ): void {
+  showRoadGhost(points: Point[], valid: boolean, showGrid = false, width = 1.7): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
-    this.ghostPoints.visible = false
-    this.ghostPoints.count = 0
     this.facing.visible = false
     this.grid.visible = showGrid
+    if (points.length === 0) return
 
-    const color = new THREE.Color(valid ? 0xd6b67e : 0xef6d65)
+    const color = new THREE.Color(valid ? 0xcaa56c : 0xef6d65)
+    const markerColor = new THREE.Color(valid ? 0xf4dfb1 : 0xff9b91)
+
     if (points.length >= 2) {
       this.ghostLine.visible = true
       this.ghostLine.count = Math.min(points.length - 1, 120)
@@ -2399,7 +2350,7 @@ export class SceneRenderer {
         const dz = b.z - a.z
         const length = Math.max(0.05, Math.hypot(dx, dz))
         this.matrix.position.set((a.x + b.x) / 2, 0.055, (a.z + b.z) / 2)
-        this.matrix.scale.set(width, 0.055, length + Math.min(0.32, width * 0.16))
+        this.matrix.scale.set(width, 0.07, length + 0.18)
         this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
         this.matrix.updateMatrix()
         this.ghostLine.setMatrixAt(i, this.matrix.matrix)
@@ -2409,38 +2360,25 @@ export class SceneRenderer {
       if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
     }
 
-    const markers = [...controlPoints]
-    if (hover) {
-      const last = markers[markers.length - 1]
-      if (!last || Math.hypot(hover.x - last.x, hover.z - last.z) > 0.08) markers.push(hover)
-    }
-    if (markers.length) {
-      this.ghostPoints.visible = true
-      this.ghostPoints.count = Math.min(markers.length, 64)
-      for (let i = 0; i < this.ghostPoints.count; i++) {
-        const point = markers[i]
-        const isHover = hover !== null && i === markers.length - 1
-        this.matrix.position.set(point.x, 0.073, point.z)
-        this.matrix.rotation.set(0, 0, 0)
-        this.matrix.scale.setScalar(isHover ? 1.28 : 1)
-        this.matrix.updateMatrix()
-        this.ghostPoints.setMatrixAt(i, this.matrix.matrix)
-        this.ghostPoints.setColorAt(
-          i,
-          new THREE.Color(valid ? (isHover ? 0xffffff : 0xf2d49d) : 0xef6d65),
-        )
-      }
-      this.ghostPoints.instanceMatrix.needsUpdate = true
-      if (this.ghostPoints.instanceColor) this.ghostPoints.instanceColor.needsUpdate = true
-    }
+    const first = points[0]
+    const last = points[points.length - 1]
+    this.ghost.visible = true
+    this.ghost.position.set(first.x, 0.09, first.z)
+    this.ghost.rotation.set(0, 0, 0)
+    this.ghost.scale.set(0.26, 0.1, 0.26)
+    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(markerColor)
+
+    this.facing.visible = true
+    this.facing.position.set(last.x, 0.095, last.z)
+    this.facing.rotation.set(0, 0, 0)
+    this.facing.scale.set(0.34, 0.1, 0.34)
+    ;(this.facing.material as THREE.MeshBasicMaterial).color.copy(markerColor)
   }
 
   showResidentialPlotGhost(preview: ResidentialPlotPreview | null, valid: boolean, showGrid = false): void {
     this.ghost.visible = false
     this.ghostLine.visible = false
     this.ghostLine.count = 0
-    this.ghostPoints.visible = false
-    this.ghostPoints.count = 0
     this.facing.visible = false
     this.grid.visible = showGrid
     if (!preview) return

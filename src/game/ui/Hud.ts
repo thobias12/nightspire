@@ -20,10 +20,9 @@ export interface HudState {
   planningTool: 'road' | 'residential-plot' | null
   gridSnap: boolean
   roadSnap: boolean
-  roadJoinSnap: boolean
   roadWidth: number
-  roadCurvature: number
-  roadControlCount: number
+  roadCurve: number
+  roadPointCount: number
   buildRotation: number
   dragCount: number
   message: string
@@ -41,9 +40,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.10.1 · CURVED ROAD PLANNER</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">DRAW THE STREET, DON'T PLACE TILES</span><h1>Roads now follow points, curves and real junctions.</h1>
-        <p>Click road points to shape a smooth dirt street, snap starts/ends onto existing centerlines, adjust width and curvature, and finish with double-click or Enter. The saved road remains an ordinary sampled path, so plots/buildings can keep using road frontage while placement feels much closer to a freehand medieval road tool.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.10.1 · CURVED ROAD PLANNING</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">DRAW THE STREET, THEN BUILD FROM IT</span><h1>Roads are shaped point-by-point instead of dragged as strips.</h1>
+        <p>Click road control points to draw a route, use freeform curvature for organic medieval streets or Grid Snap for clean aligned segments, snap starts/ends into existing roads, choose Path/Lane/Main-road width, then finish with double-click or Enter. Existing Residential Plots and building Road Snap read the sampled curved centerline automatically.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -68,15 +67,14 @@ export class Hud {
       </div></details>
       <footer class="bottom"><div class="toolbar panel">
         <div class="build-group"><span>Town planning</span>
-          <button data-action="road" title="Hotkey 0 · click points, double-click/Enter to finish">[0] Road <small>Point-drawn curved dirt road</small></button>
+          <button data-action="road" title="Hotkey 0 · click control points; double-click/Enter to finish">[0] Road <small>Point-drawn curved or aligned road</small></button>
           <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Shape-driven frontage · lived-in compound</small></button>
         </div>
-        <div class="build-group"><span>Road shaping</span>
-          <button data-action="grid-snap" title="Hotkey G · snap road points and plot dimensions to the 1m grid">Grid Snap [G]</button>
-          <button data-action="road-join-snap" title="Hotkey J · snap road points to existing roads">Road Join [J]</button>
-          <button data-action="road-curvature" title="Hotkey C · cycle road curve strength">Curve [C]</button>
-          <button data-action="road-width-next" title="Hotkeys [ and ] · cycle path / road / main road width">Road Width [ ]</button>
-          <button data-action="road-snap" title="Hotkey F · affects conventional building placement">Building→Road [F]</button>
+        <div class="build-group"><span>Road controls</span>
+          <button data-action="grid-snap" title="Hotkey G · aligned road control points / plot dimensions">Grid Snap [G]</button>
+          <button data-action="road-curve" title="Hotkey C · cycles Straight / Smooth / Curved">Curve [C]</button>
+          <button data-action="road-width" title="Cycles Path / Lane / Main Road; [ and ] also adjust while drawing">Road width</button>
+          <button data-action="road-snap" title="Hotkey F · affects conventional building placement">Building Road Snap [F]</button>
         </div>
         <div class="build-group"><span>Infrastructure</span>
           <button data-action="stockpile" title="Hotkey 2">[2] Stockpile <small>10 wood · 400 storage</small></button>
@@ -102,7 +100,7 @@ export class Hud {
           <button data-action="load">Load</button>
         </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">0: road · LMB: road point · double-click/Enter: finish · RMB/Backspace: undo · J: road join · C: curve · [ ]: width · G: grid · 1: residential plot · F: building→road · 2–9: buildings · V: street view · Esc: inspect</div></footer>
+      <div class="controls">0: road · click: add road point · double-click/Enter: finish · RMB: undo road point · G: grid/aligned · C: road curve · [ ]: road width · 1: residential plot · F: building road snap · 2–9: buildings · R: rotate · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -237,11 +235,10 @@ export class Hud {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
       const facing = ['South', 'East', 'North', 'West'][ui.buildRotation]
+      const curveLabel = ui.gridSnap || ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
+      const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main road' : 'Lane'
       const placement = ui.planningTool === 'road'
-        ? 'Road tool · ' + ui.roadControlCount + ' committed point' + (ui.roadControlCount === 1 ? '' : 's')
-          + ' · ' + ui.roadWidth.toFixed(1) + 'm wide · curve ' + Math.round(ui.roadCurvature * 100) + '%'
-          + ' · ' + (ui.roadJoinSnap ? 'Road Join ON' : 'Road Join OFF')
-          + ' · LMB add · double-click/Enter finish · RMB/Backspace undo.'
+        ? 'Road tool · click control points · ' + curveLabel + ' · ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm · points ' + ui.roadPointCount + ' · double-click/Enter finishes.'
         : ui.planningTool === 'residential-plot'
           ? 'Residential Plot · road frontage is mandatory. ' + (ui.gridSnap ? 'Width/depth snap to whole metres.' : 'Freeform plot dimensions enabled.')
           : ui.buildType
@@ -268,18 +265,18 @@ export class Hud {
     this.element.querySelector('[data-action="road"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'road'))
     this.element.querySelector('[data-action="residential-plot"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'residential-plot'))
     const gridSnap = this.element.querySelector('[data-action="grid-snap"]') as HTMLButtonElement
+    const roadCurve = this.element.querySelector('[data-action="road-curve"]') as HTMLButtonElement
+    const roadWidth = this.element.querySelector('[data-action="road-width"]') as HTMLButtonElement
     const roadSnap = this.element.querySelector('[data-action="road-snap"]') as HTMLButtonElement
-    const roadJoinSnap = this.element.querySelector('[data-action="road-join-snap"]') as HTMLButtonElement
-    const roadCurve = this.element.querySelector('[data-action="road-curvature"]') as HTMLButtonElement
-    const roadWidth = this.element.querySelector('[data-action="road-width-next"]') as HTMLButtonElement
+    const curveLabel = ui.gridSnap || ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
+    const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main' : 'Lane'
     gridSnap.textContent = 'Grid Snap ' + (ui.gridSnap ? 'ON' : 'OFF') + ' [G]'
-    roadSnap.textContent = 'Building→Road ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
-    roadJoinSnap.textContent = 'Road Join ' + (ui.roadJoinSnap ? 'ON' : 'OFF') + ' [J]'
-    roadCurve.textContent = 'Curve ' + Math.round(ui.roadCurvature * 100) + '% [C]'
-    roadWidth.textContent = (ui.roadWidth < 1.45 ? 'Path ' : ui.roadWidth < 2.05 ? 'Road ' : 'Main road ') + ui.roadWidth.toFixed(1) + 'm [ ]'
+    roadCurve.textContent = 'Curve ' + curveLabel + ' [C]'
+    roadWidth.textContent = 'Width ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm'
+    roadSnap.textContent = 'Building Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
     gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
+    roadCurve.setAttribute('aria-pressed', String(!ui.gridSnap && ui.roadCurve > 0.05))
     roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
-    roadJoinSnap.setAttribute('aria-pressed', String(ui.roadJoinSnap))
     for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
 
     const hour = this.element.querySelector<HTMLInputElement>('[data-action="time"]')!
