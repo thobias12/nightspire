@@ -1,5 +1,6 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
+import { agricultureSummary, fieldHarvestWork, fieldSowWork, fieldsForFarmhouse } from '../simulation/Agriculture'
 import { available, freeStorage, reserved, stockpiles } from '../simulation/Buildings'
 import { phaseForTime, phaseLabel } from '../simulation/DayNight'
 import { happinessEffect, settlementHappinessEffect } from '../simulation/Happiness'
@@ -26,13 +27,14 @@ export interface HudState {
   paused: boolean
   selectedId: number | null
   buildType: BuildingId | null
-  planningTool: 'road' | 'residential-plot' | null
+  planningTool: 'road' | 'residential-plot' | 'field' | null
   gridSnap: boolean
   roadSnap: boolean
   roadWidth: number
   roadCurve: number
   roadAngleSnap: boolean
   roadPointCount: number
+  fieldPointCount: number
   buildRotation: number
   dragCount: number
   message: string
@@ -51,9 +53,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.6 · GOLD TRADE ECONOMY</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">TURN SURPLUS INTO GOLD</span><h1>A staffed Trading Post now connects Nightspire to periodic merchant caravans.</h1>
-        <p>Set each resource to Keep, Export surplus, or Import to reserve. Laborers stage exports before the caravan arrives and unload imports afterward; assigned Traders must physically report before a visiting merchant will settle the deal. Prosperous homes improve trade reputation and can shorten the caravan interval.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.7 · AGRICULTURE & FARMS</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">SHAPE THE LAND LIKE MANOR LORDS</span><h1>Farm fields are point-drawn polygons, not fixed building tiles.</h1>
+        <p>Place a Farmhouse, assign Farmers, then use the Field tool to click 3–8 corners around the land you want to cultivate. Farmers physically walk to fallow/ready fields to sow and harvest them; crops grow across Days, harvest into Farmhouse storage, then Laborers haul Food into your normal Stockpile and Market network.</p>
         <div id="objective"></div>
         <div id="workforce"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
@@ -93,6 +95,10 @@ export class Hud {
           <button data-action="stockpile" title="Hotkey 2">[2] Stockpile <small>10 wood · 400 storage</small></button>
           <button data-action="campfire" title="Hotkey 3">[3] Campfire <small>10 wood · 6 free slots</small></button>
         </div>
+        <div class="build-group"><span>Agriculture</span>
+          <button data-action="farmhouse" title="Hotkey A">[A] Farmhouse <small>45 wood · 3 Farmers · 60 Food</small></button>
+          <button data-action="field" title="Hotkey P · click polygon corners · Enter/double-click finish">[P] Field <small>Point-drawn irregular crop field</small></button>
+        </div>
         <div class="build-group"><span>Production & services</span>
           <button data-action="brewery" title="Hotkey 4">[4] Brewery <small>35 wood · Food → Ale · 2 Brewers</small></button>
           <button data-action="tavern" title="Hotkey 5">[5] Tavern <small>40 wood · 12 Ale-fed slots</small></button>
@@ -115,7 +121,7 @@ export class Hud {
           <button data-action="load">Load</button>
         </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">0: road · click: add road point · double-click/Enter: finish · RMB: undo road point · G: grid/aligned · C: road curve · [ ]: road width · 1: residential plot · F: building road snap · 2–9: buildings · R: rotate · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
+      <div class="controls">0: road · 1: residential plot · P: point-drawn field · A: farmhouse · M: market · T: trading post · G: grid snap · F: building road snap · 2–9: buildings · R: rotate · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -148,8 +154,9 @@ export class Hud {
     const stores = stockpiles(s)
     const wood = stores.reduce((n, b) => n + b.inventory.wood, 0)
     const markets = marketSummary(s)
+    const agriculture = agricultureSummary(s)
     const foodInStockpiles = stores.reduce((n, b) => n + b.inventory.food, 0)
-    const food = foodInStockpiles + markets.food
+    const food = foodInStockpiles + markets.food + agriculture.farmFood
     const ale = stores.reduce((n, b) => n + b.inventory.ale, 0)
     const ore = stores.reduce((n, b) => n + b.inventory.ore, 0)
     const storedTools = stores.reduce((n, b) => n + b.inventory.tools, 0)
@@ -189,7 +196,7 @@ export class Hud {
         return counts
       }, {} as Record<number, number>)
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <span>(${markets.food} market)</span> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length} · ${beds} beds</b> <b>Households ${households.marketCovered}/${households.occupied} supplied</b> <b>Homes L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</b> <b>Gold ${s.trade.gold}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <span>(${markets.food} market · ${agriculture.farmFood} farm)</span> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length} · ${beds} beds</b> <b>Households ${households.marketCovered}/${households.occupied} supplied</b> <b>Homes L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</b> <b>Gold ${s.trade.gold}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
     this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>${tradingPost ? (merchantHere ? 'Merchant caravan visiting today' : 'Next merchant Day ' + s.trade.nextMerchantDay) + ' · trade reputation ' + reputation + ' · interval ' + merchantIntervalDays(s) + ' Days' : 'Build a Trading Post to unlock Gold trade'}</small>`)
 
@@ -205,10 +212,12 @@ export class Hud {
       + (workforceParts.length ? ' · ' + workforceParts.join(' · ') : ' · no staffed workplaces yet')
       + ' · Guards ' + guards + '/' + guardSlots
       + (markets.markets ? ' · Markets ' + markets.active + '/' + markets.markets + ' active · Meals ' + markets.mealsServed + '/' + markets.mealCapacity : '')
+      + (agriculture.fields ? ' · Fields ' + agriculture.fields + ' · Ready ' + agriculture.phases.ready + ' · Expected ' + agriculture.expected + ' Food' : '')
       + '</p>')
 
     const a = s.settlers.find(a => a.id === ui.selectedId)
     const b = s.buildings.find(b => b.id === ui.selectedId)
+    const field = s.fields.find(field => field.id === ui.selectedId)
     const n = s.nodes.find(n => n.id === ui.selectedId)
     const e = s.enemies.find(e => e.id === ui.selectedId)
 
@@ -227,6 +236,21 @@ export class Hud {
     } else if (e) {
       const target = s.buildings.find(b => b.id === e.targetId)
       this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
+    } else if (field) {
+      const farmhouse = field.farmhouseId === null ? null : s.buildings.find(building => building.id === field.farmhouseId)
+      const cropPhase = field.phase[0].toUpperCase() + field.phase.slice(1)
+      const workTarget = field.phase === 'fallow' ? fieldSowWork(field) : field.phase === 'ready' ? fieldHarvestWork(field) : 0
+      const workText = workTarget > 0
+        ? '<br>Work: ' + field.work.toFixed(1) + '/' + workTarget.toFixed(1)
+        : ''
+      this.set('inspection', '<h2>Farm Field ' + field.id + '</h2><p><b>' + cropPhase + '</b>'
+        + '<br>Area: ' + field.area.toFixed(1) + 'm²'
+        + '<br>Expected harvest: ' + field.yield + ' Food'
+        + '<br>Growth: ' + field.growthDays + '/2 Days'
+        + workText
+        + '<br>Farmhouse: ' + (farmhouse ? 'Farmhouse ' + farmhouse.id : 'Unassigned — build/repair a Farmhouse')
+        + '<br>Corners: ' + field.points.length
+        + '</p><p class="muted">Ready fields are harvested before fallow fields are sown. Harvest waits if the Farmhouse Food store cannot fit the full crop.</p>')
     } else if (b) {
       const def = BUILDINGS[b.type]
       const starter = b.type === 'stockpile' && b.x === 0 && b.z === 0
@@ -264,6 +288,7 @@ export class Hud {
         const staffing = (def.workerSlots ?? 0) > 0 ? workplaceStaffing(s, b) : null
         const distribution = def.foodDistribution
         const tradeStorage = def.tradeStorageCapacity
+        const farmStorage = def.agricultureStorageCapacity
         const inboundProduction = production
           ? s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === production.inputResource).reduce((sum, j) => sum + j.amount, 0)
           : 0
@@ -310,6 +335,8 @@ export class Hud {
             ? `Food stalls: ${b.inventory.food}/${distribution.capacity}<br>Meals served today: ${b.distributionDay === s.day ? b.distributionServed : 0}<br>Each active Vendor distributes ${distribution.mealsPerWorkerPerDay} meals/Day<br>Assigned Vendors buffer up to ${distribution.reserveDays} Days of their capacity.`
           : tradeStorage
             ? `Trade cargo: ${tradeStorageUsed(b)}/${tradeStorage}<br>Wood ${b.inventory.wood} · Food ${b.inventory.food} · Ale ${b.inventory.ale} · Ore ${b.inventory.ore} · Tools ${b.inventory.tools}<br>Gold: ${s.trade.gold}<br>${merchantPresent(s) ? (s.trade.lastTransactionDay === s.day ? 'Merchant deal completed today' : 'Merchant waiting for an active Trader') : 'Next merchant: Day ' + s.trade.nextMerchantDay}<br>Trade reputation: ${tradeReputation(s)} · caravan every ${merchantIntervalDays(s)} Days`
+          : farmStorage
+            ? `Harvest store: ${b.inventory.food}/${farmStorage} Food<br>Assigned fields: ${fieldsForFarmhouse(s, b.id).length}<br>Farmers sow fallow fields and harvest ready crops before returning to the Farmhouse.`
           : production ? productionText
           : service ? serviceText
           : def.friendlyPassable ? 'Friendlies pass through; raiders treat it as closed.'
@@ -371,7 +398,9 @@ export class Hud {
       const facing = ['South', 'East', 'North', 'West'][ui.buildRotation]
       const curveLabel = ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
       const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main road' : 'Lane'
-      const placement = ui.planningTool === 'road'
+      const placement = ui.planningTool === 'field'
+        ? 'Field tool · Manor Lords-style polygon · click corners ' + ui.fieldPointCount + '/8 · Grid ' + (ui.gridSnap ? 'ON' : 'OFF') + ' · Enter/double-click closes · RMB/Backspace removes last corner.'
+        : ui.planningTool === 'road'
         ? 'Road tool · click control points · ' + curveLabel + ' · ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm · points ' + ui.roadPointCount
           + ' · Grid ' + (ui.gridSnap ? 'ON' : 'OFF') + ' · Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF')
           + (ui.roadAngleSnap ? ' · Shift angle constrain ON' : ' · hold Shift to constrain') + ' · double-click/Enter finishes.'
