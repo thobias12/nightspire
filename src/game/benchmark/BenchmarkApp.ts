@@ -7,6 +7,8 @@ import { createBenchmarkWorld, POPULATIONS, SAMPLE_TICKS, stateDigest, TOTAL_TIC
 import './benchmark.css'
 
 interface Case { population: number; workload: Workload }
+const BUILD_COMMIT = typeof __BUILD_COMMIT__ !== 'undefined' ? __BUILD_COMMIT__ : 'gh-pages-runtime'
+const BUILD_DIRTY = typeof __BUILD_DIRTY__ !== 'undefined' ? __BUILD_DIRTY__ : false
 export class BenchmarkApp {
   private renderer: SceneRenderer | null = null
   private sim: Simulation | null = null
@@ -58,7 +60,7 @@ export class BenchmarkApp {
     this.panel.querySelector('#bench-cancel')!.addEventListener('click', () => this.cancel('Cancelled. Partial runs are not reported as completed.'))
     this.panel.querySelector('#bench-export')!.addEventListener('click', () => {
       const url = URL.createObjectURL(new Blob([this.json()], { type: 'application/json' }))
-      const a = document.createElement('a'); a.href = url; a.download = 'nightspire-m4-' + __BUILD_COMMIT__.slice(0, 7) + '.json'; a.click()
+      const a = document.createElement('a'); a.href = url; a.download = 'nightspire-m4-' + BUILD_COMMIT.slice(0, 7) + '.json'; a.click()
       setTimeout(() => URL.revokeObjectURL(url), 0)
     })
     document.addEventListener('visibilitychange', this.visibility)
@@ -148,7 +150,7 @@ export class BenchmarkApp {
     const sim = this.sim!, s = sim.state, stats = this.samples.report()
     this.reports.push({
       presetVersion: 3, baselineHead: 'd662c1f',
-      build: __BUILD_COMMIT__, dirty: __BUILD_DIRTY__, ...this.current,
+      build: BUILD_COMMIT, dirty: BUILD_DIRTY, ...this.current,
       valid: this.dimensions() === this.startDimensions && stats.instanceOverflow.max === 0, viewport: this.startDimensions, userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(), fixedStep: FIXED_STEP, pathBudget: PATH_BUDGET,
       warmupTicks: WARMUP_TICKS, sampleTicks: SAMPLE_TICKS, endTick: s.tick, setupMs: this.setupMs,
