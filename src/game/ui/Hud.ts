@@ -1052,7 +1052,7 @@ export class Hud {
       const button = this.element.querySelector<HTMLButtonElement>('[data-action="' + type + '"]')!
       button.setAttribute('aria-pressed', String(ui.buildType === type))
       const definition = BUILDINGS[type as BuildingId]
-      const affordable = RESOURCE_IDS.every(resource => (definition.cost[resource] ?? 0) <= (resource === 'wood' ? wood : resource === 'food' ? food : resource === 'ale' ? ale : resource === 'ore' ? ore : resource === 'tools' ? storedTools : 0))
+      const affordable = definition.buildCost.wood <= wood
       button.classList.toggle('is-unaffordable', !affordable)
       button.setAttribute('data-affordable', String(affordable))
     }
