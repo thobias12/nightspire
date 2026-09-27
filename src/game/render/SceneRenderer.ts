@@ -2913,44 +2913,119 @@ export class SceneRenderer {
     this.grid.visible = showGrid
     if (!preview) return
 
-    const color = new THREE.Color(valid ? 0x9bc07b : 0xef6d65)
-    const markerColor = new THREE.Color(preview.adjacentSnapped && valid ? 0xf1c86f : (valid ? 0xd7e8a7 : 0xef6d65))
-    this.ghost.visible = true
-    this.ghost.position.set(preview.center.x, 0.045, preview.center.z)
-    this.ghost.rotation.set(0, preview.angle, 0)
-    this.ghost.scale.set(Math.max(0.1, preview.width), 0.07, Math.max(0.1, preview.depth))
-    ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+    const outlineColor = new THREE.Color(valid ? 0xeadfbd : 0xef756b)
+    const iconColor = new THREE.Color(valid ? 0xf6e8bb : 0xffa59d)
+    const secondaryColor = new THREE.Color(valid ? 0xd4c59a : 0xe98a83)
+    const corners = plotCorners(preview)
 
-    const frontMid = {
-      x: (preview.frontageA.x + preview.frontageB.x) / 2,
-      z: (preview.frontageA.z + preview.frontageB.z) / 2,
+    const shape = new THREE.Shape()
+    corners.forEach((point, index) => {
+      if (index === 0) shape.moveTo(point.x, -point.z)
+      else shape.lineTo(point.x, -point.z)
+    })
+    shape.closePath()
+    this.fieldGhostFill.geometry.dispose()
+    const fillGeometry = new THREE.ShapeGeometry(shape)
+    fillGeometry.rotateX(-Math.PI / 2)
+    this.fieldGhostFill.geometry = fillGeometry
+    this.fieldGhostFill.position.y = 0.052
+    this.fieldGhostFill.material.color.set(valid ? 0xb8b481 : 0xc96961)
+    this.fieldGhostFill.material.opacity = valid ? 0.09 : 0.14
+    this.fieldGhostFill.visible = true
+
+    let count = 0
+    const setSegment = (a: Point, b: Point, width = 0.07, color = outlineColor, y = 0.09): void => {
+      if (count >= 120) return
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const length = Math.max(0.02, Math.hypot(dx, dz))
+      this.matrix.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2)
+      this.matrix.scale.set(width, 0.04, length)
+      this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+      this.matrix.updateMatrix()
+      this.ghostLine.setMatrixAt(count, this.matrix.matrix)
+      this.ghostLine.setColorAt(count, color)
+      count++
     }
-    this.facing.visible = true
-    this.facing.position.set(frontMid.x, 0.09, frontMid.z)
-    this.facing.rotation.set(0, preview.angle, 0)
-    this.facing.scale.set(Math.min(1.1, Math.max(0.72, preview.width * 0.18)), 0.09, 0.2)
+    const dashed = (a: Point, b: Point, dash = 0.58, gap = 0.34, width = 0.07, color = outlineColor): void => {
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const length = Math.hypot(dx, dz)
+      if (length < 0.04) return
+      const ux = dx / length
+      const uz = dz / length
+      for (let offset = 0; offset < length && count < 120; offset += dash + gap) {
+        const finish = Math.min(length, offset + dash)
+        setSegment(
+          { x: a.x + ux * offset, z: a.z + uz * offset },
+          { x: a.x + ux * finish, z: a.z + uz * finish },
+          width,
+          color,
+        )
+      }
+    }
+
+    for (let i = 0; i < corners.length; i++) dashed(corners[i], corners[(i + 1) % corners.length])
 
     const dx = preview.frontageB.x - preview.frontageA.x
     const dz = preview.frontageB.z - preview.frontageA.z
     const frontageLength = Math.max(0.001, Math.hypot(dx, dz))
     const tx = dx / frontageLength
     const tz = dz / frontageLength
-    const markerCount = Math.min(12, Math.max(2, Math.floor(preview.width) + 1))
-    this.ghostLine.visible = true
-    this.ghostLine.count = markerCount
-    for (let i = 0; i < markerCount; i++) {
-      const t = markerCount === 1 ? 0 : i / (markerCount - 1)
-      const x = preview.frontageA.x + tx * frontageLength * t
-      const z = preview.frontageA.z + tz * frontageLength * t
-      this.matrix.position.set(x, 0.075, z)
-      this.matrix.scale.set(0.055, 0.075, i === 0 || i === markerCount - 1 ? 0.62 : 0.4)
-      this.matrix.rotation.set(0, preview.angle, 0)
-      this.matrix.updateMatrix()
-      this.ghostLine.setMatrixAt(i, this.matrix.matrix)
-      this.ghostLine.setColorAt(i, markerColor)
+    const rear = { x: -tz * preview.side, z: tx * preview.side }
+    const houseBack = Math.min(preview.depth - 1.4, Math.max(3.0, preview.depth * 0.48))
+    const dividerA = {
+      x: preview.frontageA.x + rear.x * houseBack,
+      z: preview.frontageA.z + rear.z * houseBack,
     }
+    const dividerB = {
+      x: preview.frontageB.x + rear.x * houseBack,
+      z: preview.frontageB.z + rear.z * houseBack,
+    }
+    dashed(dividerA, dividerB, 0.44, 0.3, 0.055, secondaryColor)
+
+    const local = (center: Point, x: number, z: number, scale = 1): Point => {
+      const offset = this.rotatedOffset(x * scale, z * scale, preview.angle)
+      return { x: center.x + offset.x, z: center.z + offset.z }
+    }
+
+    const house = preview.housePoint
+    const h = 0.42
+    const houseScale = 0.95
+    setSegment(local(house, -h, -0.3, houseScale), local(house, -h, 0.38, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, h, -0.3, houseScale), local(house, h, 0.38, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, -h, -0.3, houseScale), local(house, h, -0.3, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, -h, 0.38, houseScale), local(house, 0, 0.72, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, 0, 0.72, houseScale), local(house, h, 0.38, houseScale), 0.075, iconColor, 0.115)
+    setSegment(local(house, -0.12, -0.3, houseScale), local(house, -0.12, 0.0, houseScale), 0.06, iconColor, 0.115)
+    setSegment(local(house, 0.12, -0.3, houseScale), local(house, 0.12, 0.0, houseScale), 0.06, iconColor, 0.115)
+
+    const frontMid = {
+      x: (preview.frontageA.x + preview.frontageB.x) / 2,
+      z: (preview.frontageA.z + preview.frontageB.z) / 2,
+    }
+    const rearIcon = {
+      x: frontMid.x + rear.x * Math.max(houseBack + 1.0, preview.depth * 0.77),
+      z: frontMid.z + rear.z * Math.max(houseBack + 1.0, preview.depth * 0.77),
+    }
+    const e = 0.3
+    setSegment(local(rearIcon, -e, -e, 0.9), local(rearIcon, e, -e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, e, -e, 0.9), local(rearIcon, e, e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, e, e, 0.9), local(rearIcon, -e, e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, -e, e, 0.9), local(rearIcon, -e, -e, 0.9), 0.06, iconColor, 0.112)
+    setSegment(local(rearIcon, -0.18, 0, 0.9), local(rearIcon, 0.18, 0, 0.9), 0.052, iconColor, 0.112)
+    setSegment(local(rearIcon, 0, -0.18, 0.9), local(rearIcon, 0, 0.18, 0.9), 0.052, iconColor, 0.112)
+
+    this.ghostLine.visible = count > 0
+    this.ghostLine.count = count
     this.ghostLine.instanceMatrix.needsUpdate = true
     if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+
+    this.facing.visible = true
+    this.facing.position.set(frontMid.x, 0.105, frontMid.z)
+    this.facing.rotation.set(0, preview.angle, 0)
+    this.facing.scale.set(Math.min(1.0, Math.max(0.68, preview.width * 0.16)), 0.065, 0.18)
+    ;(this.facing.material as THREE.MeshBasicMaterial).color.copy(iconColor)
   }
 
   worldPointPrecise(clientX: number, clientY: number): Point | null {
