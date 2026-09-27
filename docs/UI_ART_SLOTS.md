@@ -180,7 +180,7 @@ Transient UI is intentionally movable:
 - construction catalog
 - road context controls
 
-The inspector initially anchors beside the selected world object using the renderer's world-to-screen projection. It follows that object/camera until the player drags the panel, after which it remains at the chosen screen position. Selecting a different world object resets it to contextual anchoring.
+The inspector initially opens beside the selected world object using the renderer's world-to-screen projection. That projection is used only once per selection: after opening, the panel remains fixed in screen space even if the object moves or the camera pans/zooms. Dragging still repositions it manually, and selecting a different world object gives the new selection a fresh initial placement.
 
 Permanent HUD elements such as the top resource bar, Tasks & Messages and command dock stay fixed.
 
