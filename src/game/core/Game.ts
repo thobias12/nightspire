@@ -449,7 +449,8 @@ export class Game {
           if (this.roadControlPoints.length >= 2) this.roadDraft = sampleRoadCurve(this.roadControlPoints, this.gridSnap ? 0 : this.roadCurve)
           break
         case 'road-width':
-          this.adjustRoadWidth(1)
+          this.roadWidth = this.roadWidth <= 1.25 ? 1.7 : this.roadWidth < 2.35 ? 2.4 : 1.2
+          this.message = 'Road width · ' + (this.roadWidth <= 1.25 ? 'Path' : this.roadWidth >= 2.35 ? 'Main road' : 'Lane') + ' · ' + this.roadWidth.toFixed(1) + 'm.'
           break
         case 'residential-plot':
           if (s.roads.length === 0) {
@@ -771,7 +772,7 @@ export class Game {
           const imported = deserializeWorld(value)
           const serialized = serializeWorld(imported)
           this.storePrimary(serialized)
-          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControlPoints = []; this.roadDraft = []; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
           this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
           break
         }
