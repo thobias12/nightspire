@@ -3,6 +3,7 @@ import { inBounds } from './Navigation'
 import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
 
 const EPSILON = 1e-7
+export const FIELD_FARMHOUSE_RADIUS = 18
 
 export function fieldArea(points: Point[]): number {
   if (points.length < 3) return 0
@@ -128,6 +129,20 @@ function roadCrossesPolygon(road: RoadPath, polygon: Point[]): boolean {
   return false
 }
 
+export function nearestFarmhouseForField(
+  points: Point[],
+  buildings: Building[],
+  maxDistance = FIELD_FARMHOUSE_RADIUS,
+): Building | null {
+  if (points.length < 3) return null
+  const center = fieldCentroid(points)
+  return buildings
+    .filter(building => building.type === 'farmhouse' && !building.destroyed)
+    .map(building => ({ building, distance: Math.hypot(building.x - center.x, building.z - center.z) }))
+    .filter(candidate => candidate.distance <= maxDistance)
+    .sort((a, b) => a.distance - b.distance || a.building.id - b.building.id)[0]?.building ?? null
+}
+
 export function fieldPlacementError(
   points: Point[],
   existingFields: FieldPlot[],
@@ -148,10 +163,13 @@ export function fieldPlacementError(
   if (residentialPlots.some(plot => polygonsOverlap(points, residentialCorners(plot)))) return 'Field overlaps a residential plot.'
   if (nodes.some(node => node.remaining > 0 && pointInPolygon(node, points))) return 'Clear trees, food bushes and ore deposits from the field first.'
   if (roads.some(road => roadCrossesPolygon(road, points))) return 'Field boundary cannot cross an existing road.'
+  if (!nearestFarmhouseForField(points, buildings)) {
+    return 'Field needs a Farmhouse within ' + FIELD_FARMHOUSE_RADIUS + 'm.'
+  }
   return null
 }
 
-export function createField(id: number, points: Point[]): FieldPlot {
+export function createField(id: number, points: Point[], farmhouseId: number | null = null): FieldPlot {
   const center = fieldCentroid(points)
   const area = fieldArea(points)
   return {
@@ -165,7 +183,7 @@ export function createField(id: number, points: Point[]): FieldPlot {
     work: 0,
     growthDays: 0,
     lastGrowthDay: 0,
-    farmhouseId: null,
+    farmhouseId,
   }
 }
 
