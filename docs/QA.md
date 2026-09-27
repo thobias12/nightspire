@@ -656,3 +656,28 @@ M3.10.1 changes road placement UX and persisted road point density without chang
 ### Architectural boundary
 
 M3.10.1 changes `Game.ts`, `TownPlanning.ts`, renderer/HUD, tests and docs. It intentionally does **not** change `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. The existing `RoadPath { id, points, width }` shape is preserved. New freeform routes store their sampled centerline in the existing `points` array; no migration is required.
+
+
+## M3.11.0 professions & workplace economy
+
+Automated integration verification on 2026-09-27:
+
+- strict TypeScript passed
+- **130/130 tests passed**
+- production Vite build passed
+- existing M3.10.2 road/planning behavior and M4 benchmark architecture remain in the same branch stack
+- no `SceneRenderer.ts` change is part of M3.11.0, keeping this slice isolated from the pending Astra road-art work
+
+New regressions cover workplace slot limits, profession identity, unstaffed/half/full production rates, dedicated-worker exclusion from new general jobs, current save/load persistence, legacy save migration and releasing staff when a workplace is demolished.
+
+Recommended live playtest:
+
+1. Build a Brewery and inspect it before staffing. Production should remain at 0% even after Food arrives.
+2. Assign one laborer. They should finish any current task, report to the Brewery, and the inspector should show 1/2 assigned, 1 present and 50% speed once they arrive.
+3. Assign a second laborer and confirm 100% speed.
+4. Build a Blacksmith and decide whether to pull laborers away from logistics to staff it; the top HUD should make the labor-pool tradeoff visible.
+5. Select assigned settlers and confirm profession/workplace labels and **Return to labor pool**.
+6. Save/reload with workers assigned and confirm assignments survive.
+7. Unassign a worker and verify they resume gathering/hauling/building on the next decision tick.
+
+The feature intentionally does not add a Woodcutter building, market, household jobs, worker skill levels or a higher population cap yet. General labor jobs expose contextual profession labels so those future systems can be added without pretending every activity already has a dedicated workplace.
