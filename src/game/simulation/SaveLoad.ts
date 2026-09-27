@@ -2,6 +2,7 @@ import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
+import { canAdvanceConstruction, constructionCrewCapacity, constructionWorkLimit } from './Construction'
 import { fieldArea, fieldCentroid, polygonsOverlap, simpleFieldPolygon } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
@@ -116,7 +117,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
         )
       }
     }
-    check(b.work === 0 || readyToBuild(b), 'work before materials')
+    check(b.work <= constructionWorkLimit(b) + 1e-6, 'construction exceeds delivered materials')
 
     for (const p of footprint(b)) {
       check(inBounds(p) && !occupied.has(cellKey(p)), 'overlapping footprint')
@@ -207,7 +208,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   const workers = new Set<number>()
   const gatherers = new Set<number>()
-  const builders = new Set<number>()
+  const builders = new Map<number, number>()
   const repairers = new Set<number>()
 
   for (const j of s.jobs) {
@@ -253,12 +254,14 @@ export function validateWorld(value: unknown): asserts value is WorldState {
         'supply references',
       )
     } else if (j.kind === 'construct') {
+      const crew = builders.get(target.id) ?? 0
       check(
-        j.sourceId === j.targetId && !target.complete && readyToBuild(target)
-        && j.stage !== 'target' && j.amount === 0 && !builders.has(target.id),
+        j.sourceId === j.targetId && !target.complete
+        && (canAdvanceConstruction(target) || j.stage === 'work')
+        && j.stage !== 'target' && j.amount === 0 && crew < constructionCrewCapacity(target),
         'construction claim',
       )
-      builders.add(target.id)
+      builders.set(target.id, crew + 1)
     } else {
       const source = s.buildings.find(b => b.id === j.sourceId)
       check(

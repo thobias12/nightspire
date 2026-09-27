@@ -3,8 +3,9 @@ import {
   DECISION_TICKS, FIXED_STEP, REPAIR_HP_PER_WOOD, REPAIR_WORK_SECONDS, WALK_SPEED,
 } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
-import { assignHousing } from './Buildings'
+import { assignHousing, readyToBuild } from './Buildings'
 import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processAgricultureDay, workField } from './Agriculture'
+import { constructionStageLabel, constructionWorkLimit } from './Construction'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
   RAIDER_ATTACK_COOLDOWN, RAIDER_ATTACK_RANGE, RAIDER_DAMAGE, RAIDER_STRUCTURE_DAMAGE,
@@ -545,8 +546,15 @@ export class Simulation {
       return
     }
 
-    settler.status = 'Constructing ' + BUILDINGS[building.type].label
-    building.work = Math.min(BUILDINGS[building.type].constructionWork, building.work + workDelta)
+    const workLimit = constructionWorkLimit(building)
+    if (building.work + 1e-8 >= workLimit && !readyToBuild(building)) {
+      finishJob(s, settler, job)
+      settler.status = 'Waiting for materials at ' + BUILDINGS[building.type].label
+      return
+    }
+
+    settler.status = constructionStageLabel(building) + ' — ' + BUILDINGS[building.type].label
+    building.work = Math.min(BUILDINGS[building.type].constructionWork, workLimit, building.work + workDelta)
     if (building.work + 1e-8 < BUILDINGS[building.type].constructionWork) return
 
     building.work = BUILDINGS[building.type].constructionWork

@@ -11,7 +11,7 @@ export class JobReservations {
   readonly gathered = emptyInventory()
   readonly gatherSources = new Set<number>()
   readonly repairTargets = new Set<number>()
-  readonly constructTargets = new Set<number>()
+  private readonly constructionCrews = new Map<number, number>()
   repairWood = 0
 
   constructor(jobs: readonly Job[]) { for (const job of jobs) this.add(job) }
@@ -20,6 +20,7 @@ export class JobReservations {
   delivered(id: number, resource: ResourceId): number { return this.deliveries.get(id)?.[resource] ?? 0 }
   supplied(id: number, resource: ResourceId): number { return this.supplies.get(id)?.[resource] ?? 0 }
   incoming(id: number): number { return this.storage.get(id) ?? 0 }
+  constructCount(id: number): number { return this.constructionCrews.get(id) ?? 0 }
 
   private increment(map: Map<number, Inventory>, id: number, resource: ResourceId, amount: number): void {
     let inventory = map.get(id)
@@ -41,6 +42,6 @@ export class JobReservations {
       this.gatherSources.add(job.sourceId)
     }
     if (job.kind === 'repair') { this.repairWood += job.amount; this.repairTargets.add(job.targetId) }
-    if (job.kind === 'construct') this.constructTargets.add(job.targetId)
+    if (job.kind === 'construct') this.constructionCrews.set(job.targetId, this.constructCount(job.targetId) + 1)
   }
 }

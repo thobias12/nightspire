@@ -677,30 +677,82 @@ export class SceneRenderer {
 
   private constructionVisual(b: Building, def: BuildingDefinition, rotation: number): void {
     const stage = constructionVisualStage(b.work, def.constructionWork, b.complete)
+    const cost = RESOURCE_IDS.reduce((sum, resource) => sum + def.buildCost[resource], 0)
+    const delivered = RESOURCE_IDS.reduce((sum, resource) => sum + b.delivered[resource], 0)
+    const materialRatio = Math.min(1, delivered / Math.max(1, cost))
+    const workRatio = Math.min(1, b.work / Math.max(0.01, def.constructionWork))
     const size = def.fortification ? 0.9 : Math.max(1, def.footprint * 0.86)
-    this.instance('foundation', b.x, 0.07, b.z, size, 0.14, size, 0x746b57, rotation)
+    const half = def.fortification ? 0.32 : Math.max(0.35, def.footprint * 0.34)
+
+    // Delivered material remains visibly staged beside the footprint until completion.
+    const pileCount = Math.min(5, Math.ceil(materialRatio * 5))
+    for (let i = 0; i < pileCount; i++) {
+      const lane = this.rotatedOffset(-half + i * Math.max(0.28, half * 0.36), half + 0.62, rotation)
+      this.instance('logs', b.x + lane.x, 0.18 + (i % 2) * 0.07, b.z + lane.z, 0.58, 0.48, 0.58, 0x6d4a31, rotation + (i % 2) * Math.PI / 2)
+    }
+
+    // Survey stakes make a fresh blueprint read as a real work site before the first hammer swing.
+    if (stage === 'site') {
+      for (const [lx, lz] of [[-half, -half], [half, -half], [-half, half], [half, half]] as const) {
+        const o = this.rotatedOffset(lx, lz, rotation)
+        this.instance('scaffold', b.x + o.x, 0.22, b.z + o.z, 0.07, 0.44, 0.07, 0x7d6043, rotation)
+      }
+      return
+    }
+
+    // Foundation grows first instead of appearing at full strength instantly.
+    const foundationScale = Math.max(0.2, Math.min(1, workRatio / 0.2))
+    this.instance('foundation', b.x, 0.07, b.z, size * foundationScale, 0.14, size, 0x746b57, rotation)
     if (stage === 'foundation') return
 
-    const half = def.fortification ? 0.32 : Math.max(0.35, def.footprint * 0.34)
-    const postHeight = stage === 'frame' ? 1.35 : 1.9
+    const frameProgress = Math.max(0, Math.min(1, (workRatio - 0.2) / 0.25))
+    const postHeight = 0.7 + frameProgress * 1.25
     for (const [lx, lz] of [[-half, -half], [half, -half], [-half, half], [half, half]] as const) {
       const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('scaffold', b.x + o.x, postHeight / 2, b.z + o.z, 0.12, postHeight, 0.12, 0x9b7750, rotation)
+      this.instance('scaffold', b.x + o.x, postHeight / 2, b.z + o.z, 0.12, postHeight, 0.12, 0x815d3e, rotation)
     }
-    this.instance('scaffold', b.x, postHeight, b.z, Math.max(0.7, half * 2.25), 0.12, 0.12, 0xa07a4f, rotation)
-    this.instance('scaffold', b.x, postHeight, b.z, 0.12, 0.12, Math.max(0.7, half * 2.25), 0xa07a4f, rotation)
+    this.instance('scaffold', b.x, postHeight, b.z, Math.max(0.7, half * 2.25), 0.12, 0.12, 0x8b6542, rotation)
+    this.instance('scaffold', b.x, postHeight, b.z, 0.12, 0.12, Math.max(0.7, half * 2.25), 0x8b6542, rotation)
+    if (stage === 'frame') return
 
-    if (stage === 'shell') {
-      const shellHeight = def.fortification ? 0.9 : 1.15
+    // Exterior scaffolding arrives only once the structural frame can support it.
+    const scaffoldHeight = def.fortification ? 1.15 : 2.15
+    for (const side of [-1, 1] as const) {
+      const a = this.rotatedOffset(side * (half + 0.36), 0, rotation)
+      this.instance('scaffold', b.x + a.x, scaffoldHeight / 2, b.z + a.z, 0.08, scaffoldHeight, 0.08, 0x9b7750, rotation)
+      const bSide = this.rotatedOffset(0, side * (half + 0.36), rotation)
+      this.instance('scaffold', b.x + bSide.x, scaffoldHeight / 2, b.z + bSide.z, 0.08, scaffoldHeight, 0.08, 0x9b7750, rotation)
+    }
+    this.instance('scaffold', b.x, 1.0, b.z, Math.max(0.8, half * 2.65), 0.08, 0.08, 0xa07a4f, rotation)
+    if (stage === 'scaffold') return
+
+    const shellProgress = Math.max(0.18, Math.min(1, (workRatio - 0.65) / 0.2))
+    const shellHeight = (def.fortification ? 1.15 : 1.7) * shellProgress
+    this.instance(
+      def.fortification ? 'fortifications' : 'buildings',
+      b.x,
+      shellHeight / 2,
+      b.z,
+      def.fortification ? 0.78 : Math.max(1, def.footprint * 0.68),
+      shellHeight,
+      def.fortification ? 0.66 : Math.max(1, def.footprint * 0.68),
+      0x7b7468,
+      rotation,
+    )
+    if (stage === 'shell') return
+
+    // Final work visibly closes the roof while scaffolds remain until completion.
+    if (!def.fortification) {
+      const roofProgress = Math.max(0.15, Math.min(1, (workRatio - 0.85) / 0.15))
       this.instance(
-        def.fortification ? 'fortifications' : 'buildings',
+        'gableRoofs',
         b.x,
-        shellHeight / 2,
+        1.58 + roofProgress * 0.25,
         b.z,
-        def.fortification ? 0.78 : Math.max(1, def.footprint * 0.68),
-        shellHeight,
-        def.fortification ? 0.66 : Math.max(1, def.footprint * 0.68),
-        0x7b7468,
+        Math.max(1.15, def.footprint * 0.74) * roofProgress,
+        0.72,
+        Math.max(1.15, def.footprint * 0.74),
+        0x5b4b40,
         rotation,
       )
     }
