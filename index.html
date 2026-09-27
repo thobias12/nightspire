@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111318" />
     <title>Nightspire — Playtest</title>
-    <link rel="stylesheet" href="./src/style.css?v=f9b65c63" />
+    <link rel="stylesheet" href="./src/style.css?v=e0c8c569" />
     <link rel="stylesheet" href="./src/game/benchmark/benchmark.css" />
   </head>
   <body>
@@ -64,7 +64,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'ui-resources-7a74503')
+        entryUrl.searchParams.set('runtime', 'ui-art2-4144aaa')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {

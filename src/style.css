@@ -2231,3 +2231,112 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
     font-size: 6px;
   }
 }
+
+
+/* Second integrated Nightspire illustration set */
+[data-art-slot="build-stockpile"],
+[data-ui-asset="building-header:stockpile"] {
+  background-image: url("../assets/ui/building-card/stockpile.webp");
+}
+[data-art-slot="build-market"],
+[data-ui-asset="building-header:market"] {
+  background-image: url("../assets/ui/building-card/market.webp");
+}
+[data-art-slot="build-blacksmith"],
+[data-ui-asset="building-header:blacksmith"] {
+  background-image: url("../assets/ui/building-card/blacksmith.webp");
+}
+[data-art-slot="build-trading-post"],
+[data-ui-asset="building-header:trading-post"] {
+  background-image: url("../assets/ui/building-card/trading-post.webp");
+}
+[data-art-slot="build-guard-post"],
+[data-ui-asset="building-header:guard-post"] {
+  background-image: url("../assets/ui/building-card/guard-post.webp");
+}
+[data-art-slot="build-road"] {
+  background-image: url("../assets/ui/building-card/road.webp");
+}
+[data-art-slot="build-residential-plot"] {
+  background-image: url("../assets/ui/building-card/residential-plot.webp");
+}
+[data-art-slot="build-field"] {
+  background-image: url("../assets/ui/building-card/field.webp");
+}
+
+[data-icon-slot="command-center"] {
+  background-image: url("../assets/ui/command/center.webp");
+}
+[data-icon-slot="command-save"],
+[data-icon-slot="command-load"] {
+  background-image: url("../assets/ui/command/ledger.webp");
+}
+
+[data-art-slot="build-stockpile"],
+[data-art-slot="build-market"],
+[data-art-slot="build-blacksmith"],
+[data-art-slot="build-trading-post"],
+[data-art-slot="build-guard-post"],
+[data-art-slot="build-road"],
+[data-art-slot="build-residential-plot"],
+[data-art-slot="build-field"] {
+  background-size: cover;
+  background-position: center 48%;
+  background-repeat: no-repeat;
+  border-style: solid;
+  border-color: rgba(88,65,39,.48);
+  box-shadow: inset 0 0 0 1px rgba(80,58,35,.18);
+}
+
+[data-ui-asset="building-header:stockpile"],
+[data-ui-asset="building-header:market"],
+[data-ui-asset="building-header:blacksmith"],
+[data-ui-asset="building-header:trading-post"],
+[data-ui-asset="building-header:guard-post"] {
+  background-size: cover;
+  background-position: center 48%;
+  background-repeat: no-repeat;
+}
+
+[data-ui-asset="building-header:stockpile"] > span,
+[data-ui-asset="building-header:market"] > span,
+[data-ui-asset="building-header:blacksmith"] > span,
+[data-ui-asset="building-header:trading-post"] > span,
+[data-ui-asset="building-header:guard-post"] > span {
+  display: none;
+}
+
+.build-preview-art[data-art-slot="build-stockpile"],
+.build-preview-art[data-art-slot="build-market"],
+.build-preview-art[data-art-slot="build-blacksmith"],
+.build-preview-art[data-art-slot="build-trading-post"],
+.build-preview-art[data-art-slot="build-guard-post"],
+.build-preview-art[data-art-slot="build-road"],
+.build-preview-art[data-art-slot="build-residential-plot"],
+.build-preview-art[data-art-slot="build-field"] {
+  background-size: cover;
+  background-position: center 48%;
+  color: transparent;
+}
+
+.build-preview-art[data-art-slot="build-stockpile"] > span,
+.build-preview-art[data-art-slot="build-market"] > span,
+.build-preview-art[data-art-slot="build-blacksmith"] > span,
+.build-preview-art[data-art-slot="build-trading-post"] > span,
+.build-preview-art[data-art-slot="build-guard-post"] > span,
+.build-preview-art[data-art-slot="build-road"] > span,
+.build-preview-art[data-art-slot="build-residential-plot"] > span,
+.build-preview-art[data-art-slot="build-field"] > span {
+  display: none;
+}
+
+[data-icon-slot="command-center"] {
+  background-size: 140% auto;
+  background-position: center;
+}
+[data-icon-slot="command-save"],
+[data-icon-slot="command-load"] {
+  background-size: 108% auto;
+  background-position: center;
+  border-radius: 4px;
+}
