@@ -33,6 +33,7 @@ import {
   type ResidentialPlotPreview,
 } from '../simulation/TownPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
+import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
 
@@ -602,12 +603,28 @@ export class Game {
           }
           break
         }
+        case 'assign-workplace': {
+          if (this.selectedId === null) { this.message = 'Select a completed workplace first.'; break }
+          const result = assignWorkerToWorkplace(s, this.selectedId)
+          this.message = result.message
+          break
+        }
+        case 'unassign-workplace': {
+          const settlerId = Number(value)
+          if (!Number.isSafeInteger(settlerId)) { this.message = 'Select an assigned worker first.'; break }
+          const result = unassignWorkerFromWorkplace(s, settlerId)
+          this.message = result.message
+          break
+        }
         case 'toggle-role': {
           const settler = s.settlers.find(a => a.id === this.selectedId)
           if (!settler) { this.message = 'Select a settler first.'; break }
+          if (settler.role !== 'guard' && settler.workplaceId !== null) settler.workplaceId = null
           settler.role = settler.role === 'guard' ? 'worker' : 'guard'
           settler.path = []; settler.pathRevision = -1
-          this.message = settler.role === 'guard' ? 'Assigned as guard. During dusk/night they will report to an available Guard Post.' : 'Returned to worker duty.'
+          this.message = settler.role === 'guard'
+            ? 'Assigned as guard. Any workplace assignment was cleared; during dusk/night they will report to an available Guard Post.'
+            : 'Returned to the general labor pool.'
           break
         }
         case 'attack': {
