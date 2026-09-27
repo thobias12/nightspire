@@ -2,15 +2,6 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
-**Current playable milestone: M3.11.7 — Agriculture & Point-Drawn Farm Fields.** Farming now uses irregular player-drawn land parcels rather than fixed farm tiles. Build a **Farmhouse**, assign up to three Farmers, then use the **Field** tool to click 3–8 corners around the exact land you want to cultivate, with optional grid snapping. Fields reject roads, buildings, residential plots, live resource nodes and other fields. Farmers physically walk to fields to sow and harvest; crops progress across Days through **Fallow → Sown → Growing → Ready → Harvested**, harvest into Farmhouse storage, and general Laborers move the Food onward into specialized Stockpiles and Markets. **Conventional buildings now require road frontage in live placement**, while fields must be linked to a Farmhouse within 18m. Fields share the same global **G** 1m Grid Snap setting as roads and residential dimensions. Field size controls yield and work, so town layout and available labor matter. M3.11.6 Gold trade, household prosperity, local Market coverage and the existing road system remain intact. See [the agriculture note](docs/M3117_AGRICULTURE.md), [the Gold trade note](docs/M3116_GOLD_TRADE.md) and [the household progression note](docs/M3115_HOUSEHOLD_PROGRESSION.md).
-
-**Road visual pass: M3.10.3 — Organic Medieval Roads.** Roads now resolve into one continuous terrain-integrated worn-earth surface with irregular shoulders, width-dependent wear and sparse grass/stone dressing, while preserving the current planner, frontage rules, navigation and save schema. See [the road visual note](docs/M3103_ROAD_VISUALS.md).
-
-**Browser playtest:** https://thobias12.github.io/nightspire/
-
-**Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
-
-
 ## Product vision & planned feature direction
 
 The image below is the current **north-star UI / presentation concept** for Nightspire. The exact artwork is not final, but the **layout hierarchy and product direction are intentional**: compact settlement information at the top, contextual building/character panels on the left, tasks/messages on the right, a large illustrated construction catalog at the bottom, and the world kept visible in the center.
@@ -30,6 +21,14 @@ The playable game already has roads, residential plots, agriculture, physical ha
 **Scale and character depth:** continue profiling toward larger populations, stronger navigation/job scaling, richer citizens and featured characters, equipment/visual progression, and more detailed household/social simulation.
 
 See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md) and [UI art-slot contract](docs/UI_ART_SLOTS.md). The concept image is a direction reference, not a promise that every pictured building or panel is already implemented.
+
+**Current playable milestone: M3.11.7 — Agriculture & Point-Drawn Farm Fields.** Farming now uses irregular player-drawn land parcels rather than fixed farm tiles. Build a **Farmhouse**, assign up to three Farmers, then use the **Field** tool to click 3–8 corners around the exact land you want to cultivate, with optional grid snapping. Fields reject roads, buildings, residential plots, live resource nodes and other fields. Farmers physically walk to fields to sow and harvest; crops progress across Days through **Fallow → Sown → Growing → Ready → Harvested**, harvest into Farmhouse storage, and general Laborers move the Food onward into specialized Stockpiles and Markets. **Conventional buildings now require road frontage in live placement**, while fields must be linked to a Farmhouse within 18m. Fields share the same global **G** 1m Grid Snap setting as roads and residential dimensions. Field size controls yield and work, so town layout and available labor matter. M3.11.6 Gold trade, household prosperity, local Market coverage and the existing road system remain intact. See [the agriculture note](docs/M3117_AGRICULTURE.md), [the Gold trade note](docs/M3116_GOLD_TRADE.md) and [the household progression note](docs/M3115_HOUSEHOLD_PROGRESSION.md).
+
+**Road visual pass: M3.10.3 — Organic Medieval Roads.** Roads now resolve into one continuous terrain-integrated worn-earth surface with irregular shoulders, width-dependent wear and sparse grass/stone dressing, while preserving the current planner, frontage rules, navigation and save schema. See [the road visual note](docs/M3103_ROAD_VISUALS.md).
+
+**Browser playtest:** https://thobias12.github.io/nightspire/
+
+**Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
 
 ## Play locally
 
