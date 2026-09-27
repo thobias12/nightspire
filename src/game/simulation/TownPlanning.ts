@@ -282,6 +282,28 @@ export function nearestRoadSegment(roads: RoadPath[], p: Point, maxDistance = In
 const rotationStepsForFacing = (angle: number): number =>
   ((Math.round(angle / (Math.PI / 2)) % 4) + 4) % 4
 
+export function buildingRequiresRoadFrontage(type: BuildingId): boolean {
+  const def = BUILDINGS[type]
+  // Houses get their road frontage from Residential Plots; walls/gates are linear fortifications.
+  return !def.fortification && type !== 'house'
+}
+
+export function buildingRoadPlacementError(
+  roads: RoadPath[],
+  point: Point,
+  type: BuildingId,
+  frontageSlack = 0.9,
+): string | null {
+  if (!buildingRequiresRoadFrontage(type)) return null
+  if (roads.length === 0) return BUILDINGS[type].label + ' needs road frontage. Build a road first.'
+  const hit = nearestRoadSegment(roads, point)
+  if (!hit) return BUILDINGS[type].label + ' needs road frontage.'
+  const maxDistance = hit.roadWidth / 2 + BUILDINGS[type].footprint / 2 + frontageSlack
+  return hit.distance <= maxDistance
+    ? null
+    : BUILDINGS[type].label + ' must be placed beside a road.'
+}
+
 export function buildingPlacementPreview(
   roads: RoadPath[],
   raw: Point,
@@ -292,7 +314,7 @@ export function buildingPlacementPreview(
 ): BuildingPlacementPreview {
   const point = snapPointToGrid(raw)
   const def = BUILDINGS[type]
-  if (!roadSnap || def.fortification || type === 'campfire') {
+  if (!roadSnap || def.fortification || type === 'house') {
     return {
       point,
       rotation: ((Math.round(manualRotation) % 4) + 4) % 4,

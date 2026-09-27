@@ -1,5 +1,5 @@
 import { BUILDINGS } from '../data/buildings'
-import { pointInPolygon } from './FieldPlanning'
+import { nearestFarmhouseForField, pointInPolygon } from './FieldPlanning'
 import { distance } from './Navigation'
 import { workplaceWorkers } from './Workforce'
 import { recordEvent, type Building, type FieldPlot, type Settler, type WorldState } from './WorldState'
@@ -28,10 +28,8 @@ export function assignFieldsToFarmhouses(state: WorldState): void {
     .sort((a, b) => a.id - b.id)
   for (const field of state.fields) {
     const current = farmhouses.find(building => building.id === field.farmhouseId)
-    if (current) continue
-    field.farmhouseId = farmhouses
-      .slice()
-      .sort((a, b) => distance(field, a) - distance(field, b) || a.id - b.id)[0]?.id ?? null
+    if (current && nearestFarmhouseForField(field.points, [current])?.id === current.id) continue
+    field.farmhouseId = nearestFarmhouseForField(field.points, farmhouses)?.id ?? null
   }
 }
 
