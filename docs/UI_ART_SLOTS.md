@@ -279,3 +279,8 @@ After the first in-game proof, the generated art remains unchanged but its prese
 - low-resource state moved out of the artwork itself into a quieter card footer treatment
 - construction hover information uses a darker aged-parchment treatment with larger copy
 - Farmhouse, Brewery and Tavern card/preview crops are aligned consistently
+
+
+## Full-height resource ribbon
+
+The top resource strip now follows the Manor Lords reference more closely: resource tokens use the full height of the central HUD band, artwork and values share one baseline, text labels are hidden in favor of recognizable iconography, and only subtle separators remain between resources. Target values stay available as muted inline secondary text and in the existing hover titles.

@@ -2101,3 +2101,133 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   }
   .build-preview-art { min-height: 148px; }
 }
+
+
+/* Manor Lords-style full-height resource ribbon */
+.topbar {
+  align-items: stretch;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.settlement-brand {
+  align-self: stretch;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.resource-strip {
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0;
+  min-height: 50px;
+  background: rgba(9, 10, 9, .16);
+  border-left: 1px solid rgba(126, 104, 72, .22);
+  border-right: 1px solid rgba(126, 104, 72, .22);
+}
+
+.resource-chip {
+  min-width: 72px;
+  height: auto;
+  min-height: 50px;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 0;
+  border-right: 1px solid rgba(131, 108, 74, .25);
+  background: transparent;
+  box-shadow: none;
+}
+
+.resource-chip:first-child {
+  border-left: 0;
+}
+
+.resource-chip:last-child {
+  border-right: 0;
+}
+
+.resource-label {
+  display: none;
+}
+
+.resource-chip .ui-icon-slot,
+[data-icon-slot^="resource-"] {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  background-size: 122% auto;
+  background-position: center;
+}
+
+.resource-chip strong {
+  grid-column: auto;
+  color: #e8ddc7;
+  font: 600 13px/1 Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.resource-chip small {
+  grid-column: auto;
+  grid-row: auto;
+  align-self: center;
+  margin-left: -2px;
+  color: #716d64;
+  font: 500 7px/1 Inter, system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.resource-chip.is-critical {
+  background:
+    linear-gradient(180deg, rgba(106, 54, 39, .26), rgba(67, 38, 31, .18));
+  box-shadow: inset 0 -2px rgba(181, 93, 65, .48);
+}
+
+.resource-chip.is-critical strong {
+  color: #efb69e;
+}
+
+.resource-chip.is-critical small {
+  color: #a87461;
+}
+
+.time-block {
+  align-self: stretch;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+@media (max-width: 1050px) {
+  .resource-strip {
+    min-height: 46px;
+  }
+
+  .resource-chip {
+    min-width: 58px;
+    min-height: 46px;
+    padding: 0 5px;
+    gap: 3px;
+  }
+
+  .resource-chip .ui-icon-slot,
+  [data-icon-slot^="resource-"] {
+    flex-basis: 25px;
+    width: 25px;
+    height: 25px;
+  }
+
+  .resource-chip strong {
+    font-size: 11px;
+  }
+
+  .resource-chip small {
+    font-size: 6px;
+  }
+}
