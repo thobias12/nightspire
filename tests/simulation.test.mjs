@@ -24,6 +24,10 @@ const { updateProduction } = require('../.test-build/game/simulation/Production.
 const {
   assignWorkerToWorkplace, professionLabel, workplaceStaffing,
 } = require('../.test-build/game/simulation/Workforce.js')
+const {
+  nextHaulPriority, workplaceHaulScore, workplaceInputNeed, workplaceInputTarget,
+  workplaceOutputReady, workplaceOutputThreshold,
+} = require('../.test-build/game/simulation/WorkplaceLogistics.js')
 const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
@@ -1939,4 +1943,132 @@ test('M3.11 demolishing a workplace releases its staff to the labor pool', () =>
   assert.equal(worker.workplaceId,null)
   assert.equal(professionLabel(s,worker),'Laborer')
   validateWorld(s)
+})
+
+
+test('M3.11.1 hauling priority changes local workplace reserve and pickup thresholds', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+
+  brewery.haulPriority='low'
+  assert.equal(workplaceInputTarget(brewery),2)
+  assert.equal(workplaceOutputThreshold(brewery),20)
+  assert.equal(workplaceHaulScore(brewery),275)
+  assert.equal(nextHaulPriority('low'),'normal')
+
+  brewery.haulPriority='normal'
+  assert.equal(workplaceInputTarget(brewery),8)
+  assert.equal(workplaceOutputThreshold(brewery),8)
+  assert.equal(workplaceHaulScore(brewery),310)
+  assert.equal(nextHaulPriority('normal'),'high')
+
+  brewery.haulPriority='high'
+  assert.equal(workplaceInputTarget(brewery),20)
+  assert.equal(workplaceOutputThreshold(brewery),4)
+  assert.equal(workplaceHaulScore(brewery),340)
+  assert.equal(nextHaulPriority('high'),'low')
+  validateWorld(s)
+})
+
+test('M3.11.1 unstaffed workplaces do not pull production inputs and staffed normal priority reserves a local buffer', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  const stockpile=s.buildings[0]
+  stockpile.inventory.food=100
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+
+  assert.equal(workplaceInputNeed(s,brewery,'food'),0)
+  assignJobs(s)
+  assert.equal(s.jobs.some(j=>j.kind==='supply' && j.targetId===brewery.id && j.resource==='food'),false)
+
+  for(const settler of s.settlers) { settler.jobId=null; settler.path=[]; settler.pathRevision=-1; settler.cargo={wood:0,food:0,ale:0,ore:0,tools:0} }
+  s.jobs=[]
+  staffWorkplace(s,brewery)
+  assert.equal(workplaceInputNeed(s,brewery,'food'),8)
+  assignJobs(s)
+  const inbound=s.jobs.filter(j=>j.kind==='supply' && j.targetId===brewery.id && j.resource==='food').reduce((sum,j)=>sum+j.amount,0)
+  assert.equal(inbound,8)
+  assert.equal(workplaceInputNeed(s,brewery,'food'),0)
+  validateWorld(s)
+})
+
+test('M3.11.1 output waits in local storage until the priority pickup threshold', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  s.buildings.push(brewery); s.topology++
+
+  brewery.inventory.ale=4
+  assert.equal(workplaceOutputReady(s,brewery),0)
+
+  brewery.inventory.ale=8
+  assert.equal(workplaceOutputReady(s,brewery),8)
+
+  brewery.haulPriority='high'
+  brewery.inventory.ale=4
+  assert.equal(workplaceOutputReady(s,brewery),4)
+
+  brewery.haulPriority='low'
+  brewery.inventory.ale=16
+  assert.equal(workplaceOutputReady(s,brewery),0)
+  brewery.inventory.ale=20
+  assert.equal(workplaceOutputReady(s,brewery),20)
+  validateWorld(s)
+})
+
+test('M3.11.1 high workplace hauling outranks construction while low priority yields to construction', () => {
+  const makeWorld = priority => {
+    const s=createInitialWorldState()
+    s.settlers=s.settlers.slice(0,2)
+    for(const settler of s.settlers) {
+      settler.lastMealDay=s.day
+      settler.needs={food:100,housing:100,safety:100,recreation:100}
+    }
+    const stockpile=s.buildings[0]
+    stockpile.inventory.food=100
+    stockpile.inventory.wood=100
+    const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+    brewery.haulPriority=priority
+    const house=createBuilding(s.nextId++,'house',-7,0,false)
+    s.buildings.push(brewery,house); s.topology++
+    staffWorkplace(s,brewery,1)
+    return {s,brewery,house}
+  }
+
+  const high=makeWorld('high')
+  assignJobs(high.s)
+  const highLaborer=high.s.settlers.find(a=>a.workplaceId===null)
+  const highJob=high.s.jobs.find(j=>j.settlerId===highLaborer.id)
+  assert.equal(highJob.kind,'supply')
+  assert.equal(highJob.targetId,high.brewery.id)
+
+  const low=makeWorld('low')
+  assignJobs(low.s)
+  const lowLaborer=low.s.settlers.find(a=>a.workplaceId===null)
+  const lowJob=low.s.jobs.find(j=>j.settlerId===lowLaborer.id)
+  assert.equal(lowJob.kind,'deliver')
+  assert.equal(lowJob.targetId,low.house.id)
+})
+
+test('M3.11.1 hauling priority persists and older saves migrate to Normal', () => {
+  const s=createInitialWorldState()
+  const brewery=createBuilding(s.nextId++,'brewery',7,0,true)
+  brewery.haulPriority='high'
+  s.buildings.push(brewery); s.topology++
+
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.equal(loaded.buildings.find(b=>b.id===brewery.id).haulPriority,'high')
+
+  const legacy=JSON.parse(serializeWorld(s))
+  for(const building of legacy.buildings) delete building.haulPriority
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.ok(migrated.buildings.every(b=>b.haulPriority==='normal'))
+
+  const invalid=JSON.parse(serializeWorld(s))
+  invalid.buildings.find(b=>b.id===brewery.id).haulPriority='critical'
+  assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/building state/)
 })

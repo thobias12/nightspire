@@ -681,3 +681,35 @@ Recommended live playtest:
 7. Unassign a worker and verify they resume gathering/hauling/building on the next decision tick.
 
 The feature intentionally does not add a Woodcutter building, market, household jobs, worker skill levels or a higher population cap yet. General labor jobs expose contextual profession labels so those future systems can be added without pretending every activity already has a dedicated workplace.
+
+
+## M3.11.1 local workplace logistics
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **135/135 tests passed**
+- production Vite build passed
+- no `SceneRenderer.ts`, road-planning or navigation-policy changes
+- legacy buildings without a hauling-priority field migrate to **Normal**
+
+Regression coverage verifies:
+
+- Low / Normal / High input reserve targets
+- Low / Normal / High finished-goods pickup thresholds
+- unstaffed production buildings do not pull inputs
+- Normal staffed Brewery reserves exactly its configured local Food buffer
+- once an output threshold is triggered, all currently available output can be reserved for pickup rather than stranding a remainder
+- High workplace hauling outranks construction delivery while Low yields to construction
+- priority persists through save/load and invalid values are rejected
+
+Recommended live test:
+
+1. Build and staff a Brewery.
+2. Leave hauling at **Normal** and watch Food settle around the local target rather than filling the full building capacity.
+3. Let Ale build up; it should remain locally until its pickup threshold, then Laborers haul it to stockpile.
+4. Click **Hauling: Normal** to cycle to **High**. The Brewery should request a larger Food reserve and start clearing Ale from a smaller output batch.
+5. Cycle to **Low**. It should keep only one production batch of Food buffered and allow more Ale to accumulate before requesting pickup.
+6. Add a construction blueprint while the Brewery is Low, then compare with High: Low should yield hauling effort to construction while High can pull the next free Laborer toward the workplace.
+7. Repeat with the Blacksmith and confirm Ore/Tools use its own thresholds.
+8. Save/reload and confirm each workplace keeps its selected hauling priority.

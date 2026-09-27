@@ -25,8 +25,9 @@ export interface ResidentialPlot {
   angle: number
   backyard: BackyardKind
 }
+export type HaulPriority = 'low' | 'normal' | 'high'
 export interface Building extends Point {
-  id: number; type: BuildingId; rotation: number; facingAngle?: number; complete: boolean; work: number
+  id: number; type: BuildingId; rotation: number; facingAngle?: number; complete: boolean; work: number; haulPriority: HaulPriority
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
   inventory: Inventory; delivered: Inventory; serviceProgress: number; productionProgress: number
 }
@@ -121,7 +122,7 @@ export function createBuilding(
   const def = BUILDINGS[type]
   return {
     id, type, x, z, rotation: ((Math.round(rotation) % 4) + 4) % 4, complete,
-    work: complete ? def.constructionWork : 0,
+    work: complete ? def.constructionWork : 0, haulPriority: 'normal',
     health: complete ? def.maxHealth : 0,
     maxHealth: def.maxHealth,
     destroyed: false,
