@@ -3,6 +3,8 @@ import type { DayPhase } from './DayNight'
 import { blockedCells, cellKey, distance, inBounds } from './Navigation'
 import type { Building, Point, Settler, WorldState } from './WorldState'
 
+export const SERVICE_COVERAGE_RADIUS = 18
+
 export interface ServiceAssignment {
   buildingId: number
   slot: number
@@ -80,9 +82,23 @@ export function serviceAssignments(
   const settlers = state.settlers
     .filter(settler => settler.role !== 'guard' && settler.health > 0)
     .sort((a, b) => a.id - b.id)
+  const availableSlots = [...slots]
 
-  settlers.slice(0, slots.length).forEach((settler, index) => {
-    const slot = slots[index]
+  for (const settler of settlers) {
+    const home = settler.homeId === null ? null : state.buildings.find(building => building.id === settler.homeId)
+    const origin = home ?? settler
+    const eligible = availableSlots
+      .map((slot, index) => ({ slot, index }))
+      .filter(({ slot }) => distance(origin, slot.building) <= SERVICE_COVERAGE_RADIUS)
+      .sort((a, b) =>
+        b.slot.service.priority - a.slot.service.priority
+        || distance(origin, a.slot.building) - distance(origin, b.slot.building)
+        || a.slot.building.id - b.slot.building.id
+        || a.slot.slot - b.slot.slot
+      )
+    const chosen = eligible[0]
+    if (!chosen) continue
+    const [{ slot }] = availableSlots.splice(chosen.index, 1)
     assignments.set(settler.id, {
       buildingId: slot.building.id,
       slot: slot.slot,
@@ -91,7 +107,7 @@ export function serviceAssignments(
       gainPerSecond: slot.service.gainPerSecond,
       label: BUILDINGS[slot.building.type].label,
     })
-  })
+  }
 
   return assignments
 }

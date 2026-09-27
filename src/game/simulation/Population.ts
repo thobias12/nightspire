@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { assignHousing, available, stockpiles } from './Buildings'
+import { householdSummary } from './Households'
 import { completedMarkets } from './Markets'
 import { entrance, MAP_MAX, MAP_MIN } from './Navigation'
 import { settlementNeeds } from './Needs'
@@ -23,6 +24,9 @@ export interface AttractionBreakdown {
   happiness: number
   safety: number
   raidReady: boolean
+  households: number
+  marketCoveredHouseholds: number
+  recreationCoveredHouseholds: number
   blockers: string[]
 }
 
@@ -58,11 +62,16 @@ export function populationAttraction(state: WorldState): AttractionBreakdown {
   const food = storedFood(state)
   const foodRequired = state.settlers.length * IMMIGRATION_FOOD_PER_SETTLER
   const safeAfterRaid = raidReady(state)
+  const households = householdSummary(state)
+  const formalMarketEconomy = completedMarkets(state).length > 0
 
   const blockers: string[] = []
   if (state.settlers.length >= MAX_SETTLERS) blockers.push('Population cap reached')
   if (spareBeds <= 0) blockers.push('No spare bed')
   if (food < foodRequired) blockers.push('Need ' + foodRequired + ' stored Food')
+  if (formalMarketEconomy && households.occupied > 0 && households.marketCovered < households.occupied) {
+    blockers.push('Market coverage ' + households.marketCovered + '/' + households.occupied + ' occupied households')
+  }
   if (needs.happiness < IMMIGRATION_MIN_HAPPINESS) blockers.push('Happiness below ' + IMMIGRATION_MIN_HAPPINESS + '%')
   if (needs.averages.safety < IMMIGRATION_MIN_SAFETY) blockers.push('Safety below ' + IMMIGRATION_MIN_SAFETY + '%')
   if (!safeAfterRaid) blockers.push(state.enemies.length > 0 ? 'Raid in progress' : 'Latest raid not cleared')
@@ -83,6 +92,9 @@ export function populationAttraction(state: WorldState): AttractionBreakdown {
     happiness: needs.happiness,
     safety: Math.round(needs.averages.safety),
     raidReady: safeAfterRaid,
+    households: households.occupied,
+    marketCoveredHouseholds: households.marketCovered,
+    recreationCoveredHouseholds: households.recreationCovered,
     blockers,
   }
 }

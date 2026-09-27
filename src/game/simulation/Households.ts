@@ -1,10 +1,9 @@
 import { BUILDINGS } from '../data/buildings'
-import { happinessOf } from './Needs'
 import { completedMarkets, marketCoversPoint, MARKET_COVERAGE_RADIUS } from './Markets'
 import { distance } from './Navigation'
 import { serviceAvailable } from './Services'
 import { workplaceStaffing } from './Workforce'
-import type { Building, Settler, WorldState } from './WorldState'
+import { NEED_IDS, type Building, type Settler, type WorldState } from './WorldState'
 
 export const RECREATION_COVERAGE_RADIUS = 18
 
@@ -81,7 +80,12 @@ export function householdStatus(state: WorldState, house: Building): HouseholdSt
     ? Math.round(residents.reduce((sum, settler) => sum + settler.needs.safety, 0) / residents.length)
     : 0
   const satisfaction = residents.length
-    ? Math.round(residents.reduce((sum, settler) => sum + happinessOf(settler), 0) / residents.length)
+    ? Math.round(
+        residents.reduce(
+          (sum, settler) => sum + NEED_IDS.reduce((needSum, need) => needSum + settler.needs[need], 0) / NEED_IDS.length,
+          0,
+        ) / residents.length,
+      )
     : 0
 
   return {
