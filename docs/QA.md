@@ -852,3 +852,35 @@ Recommended live test:
 5. Confirm it becomes **Prosperous Home** with 6 beds.
 6. During a fresh streak, remove Market Food or recreation for one Day and confirm the streak returns to 0.
 7. Add an unhoused settler after a capacity upgrade and confirm the new bed is filled without moving residents out of other established households.
+
+
+## M3.11.6 Gold trade & merchant economy
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **162/162 tests passed**
+- production Vite build passed
+- no `SceneRenderer.ts`, road-planning or navigation-policy changes
+- old saves migrate to **60 Gold**, Keep policies and the default merchant cadence
+
+Regression coverage verifies:
+
+- default Gold and trade-policy state
+- export staging only uses Stockpile surplus above the configured reserve
+- staged exports sell for Gold exactly once during a merchant visit
+- imports spend Gold into Trading Post cargo and then create normal Laborer unload jobs
+- prosperous Houses increase trade reputation and can reduce caravan interval
+- reserve controls clamp safely
+- trade state persists through save/load and invalid modes are rejected
+
+Recommended live test:
+
+1. Build the Trading Post with **T** and assign one or two Traders.
+2. Set Ale to **Export surplus** with reserve 10.
+3. Put more than 10 Ale into Stockpiles and watch Laborers stage only the surplus at the Trading Post.
+4. Wait for the merchant Day. The caravan should remain until a Trader physically reports, then staged Ale should convert to Gold.
+5. Set Ore or Food to **Import to reserve**, raise its reserve above current stock and confirm the next merchant spends Gold to place imports in Trading Post cargo.
+6. Watch Laborers unload imported goods into accepting Stockpiles.
+7. Build/advance prosperous homes and confirm trade reputation eventually shortens the merchant interval from 3 Days to 2.
+8. Save/reload and confirm Gold, policies, reserves, merchant schedule and trade totals survive.
