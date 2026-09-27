@@ -440,6 +440,8 @@ export class Hud {
         + '<button class="danger" data-action="remove-field">Remove field</button>')
     } else if (b) {
       const def = BUILDINGS[b.type]
+      const distribution = def.foodDistribution
+      const farmStorage = def.agricultureStorageCapacity
       const starter = b.type === 'stockpile' && b.x === 0 && b.z === 0
       const cancel = b.complete ? '' : '<button data-action="cancel-blueprint">Cancel blueprint</button>'
       const refundWood = b.destroyed ? 0 : Math.floor(def.buildCost.wood * 0.5)
