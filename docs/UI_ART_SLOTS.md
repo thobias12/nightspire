@@ -284,3 +284,23 @@ After the first in-game proof, the generated art remains unchanged but its prese
 ## Full-height resource ribbon
 
 The top resource strip now follows the Manor Lords reference more closely: resource tokens use the full height of the central HUD band, artwork and values share one baseline, text labels are hidden in favor of recognizable iconography, and only subtle separators remain between resources. Target values stay available as muted inline secondary text and in the existing hover titles.
+
+
+## Second integrated art set
+
+The second generated artwork batch is integrated into the existing live HUD slots:
+
+- Stockpile / supply-yard illustration
+- Market illustration
+- Blacksmith illustration
+- Trading Post illustration
+- Guard Post illustration
+- Road planning illustration
+- Residential Plot planning illustration
+- Field / harvest illustration
+- Center command compass emblem
+- Save and Load ledger emblem
+
+The five live building scenes are also reused for their selected-building header and construction hover preview surfaces. Road, Residential Plot and Field populate both their shelf cards and hover previews.
+
+All source PNGs were resized and optimized to WebP before commit; this batch is roughly 1.2 MB total instead of committing the original ~30 MB generation outputs.
