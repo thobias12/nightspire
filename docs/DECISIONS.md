@@ -233,3 +233,10 @@ The first Blacksmith recipe is intentionally compact: 3 Ore → 1 Tool every 18 
 Tools are durable in this slice rather than consumed per job. One stockpiled Tool covers two settlers. Coverage interpolates from no bonus to a maximum +10% hands-on work multiplier, applied multiplicatively after the existing Happiness rate. Walking, pathfinding, combat, automated building production and service rates remain unchanged. This creates a visible economic payoff without introducing per-settler equipment ownership or extra reservation traffic before M4 scale work is integrated.
 
 The tool multiplier is derived once per fixed simulation step from stockpile state, not scanned separately per settler. No new job kind or navigation behavior is introduced.
+
+
+## M3.10.3: resolve road wear on the terrain, not overlapping decals
+
+Repeated segment strips/caps/ruts made the current curved planner look tiled. The new presentation resolves the whole road network into one opaque albedo texture on the existing lit ground, with max-union coverage at junctions. This removes overlap-darkening and segment boundaries without changing road geometry or the save schema. World-space meadow/edge noise and road-ID/arc-distance wear regenerate deterministically. Sparse physical dressing remains instanced and capped.
+
+A cached meadow field and exact road-data snapshot avoid per-frame texture generation. Fixed texture memory replaces thousands of road decal slots; synchronous edit/load rebuild time is the tradeoff. The five-road fixture measured about 72–76 ms for a cached-meadow CPU bake on this machine, so dense-network editing is explicitly not declared hitch-free. See [road visual report](M3103_ROAD_VISUALS.md).

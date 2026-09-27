@@ -2,7 +2,7 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
-**Current playable milestone: M3.10.2 — Road Planner UX, with an M4 scale-integration candidate on this branch.** Roads are laid out point-by-point into a smooth persisted centerline. Grid Snap now only rounds control points to the 1m grid, **Shift** independently constrains the next segment to 0°/45°/90°, and **Road Snap** independently controls endpoint/centerline joins. Double-click or Enter finishes, RMB cancels the active stroke, Backspace removes the last committed point, C cycles curvature, and Path/Lane/Main-road width remains selectable. The M4 integration adds repeatable scale benchmarks, pass-local job reservation indexes, shared service scheduling and benchmark-aware render capacities without increasing the normal 10-settler cap. Roads still do not change navigation cost or movement speed. See [the M4 integration note](docs/M4_INTEGRATION.md) and [the direction pivot](docs/DIRECTION_PIVOT.md).
+**Current visual pass: M3.10.3 — Organic Medieval Roads, on the M3.10.2 + M4 integration head.** The road network now uses a continuous opaque earth/meadow surface with irregular shoulders, width-dependent wear and sparse clustered dressing. See [visual layers, budgets and QA](docs/M3103_ROAD_VISUALS.md). Roads are laid out point-by-point into a smooth persisted centerline. Grid Snap now only rounds control points to the 1m grid, **Shift** independently constrains the next segment to 0°/45°/90°, and **Road Snap** independently controls endpoint/centerline joins. Double-click or Enter finishes, RMB cancels the active stroke, Backspace removes the last committed point, C cycles curvature, and Path/Lane/Main-road width remains selectable. The M4 integration adds repeatable scale benchmarks, pass-local job reservation indexes, shared service scheduling and benchmark-aware render capacities without increasing the normal 10-settler cap. Roads still do not change navigation cost or movement speed. See [the M4 integration note](docs/M4_INTEGRATION.md) and [the direction pivot](docs/DIRECTION_PIVOT.md).
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -73,7 +73,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **124 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **131 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 

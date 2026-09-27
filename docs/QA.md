@@ -656,3 +656,8 @@ M3.10.1 changes road placement UX and persisted road point density without chang
 ### Architectural boundary
 
 M3.10.1 changes `Game.ts`, `TownPlanning.ts`, renderer/HUD, tests and docs. It intentionally does **not** change `WorldState.ts`, `SaveLoad.ts`, `Buildings.ts`, `Simulation.ts`, `Jobs.ts` or `Navigation.ts`. The existing `RoadPath { id, points, width }` shape is preserved. New freeform routes store their sampled centerline in the existing `points` array; no migration is required.
+
+
+## M3.10.3 verification
+
+The organic-road rendering pass starts from PR #31 at dddc79caacafc8975bd9e39e5c3e4355211f7caf. Typecheck, all 131 tests and production build pass. Production-browser checks covered Overview/Street View, curved routes, all widths, junctions, Dusk and normal-save reload/integrity; no browser console errors were captured. The planner/simulation/save code is unchanged. [Full evidence, renderer budgets, limitations and requested screenshot views](M3103_ROAD_VISUALS.md). Final aesthetic approval remains pending.
