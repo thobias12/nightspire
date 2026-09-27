@@ -233,3 +233,13 @@ The first Blacksmith recipe is intentionally compact: 3 Ore → 1 Tool every 18 
 Tools are durable in this slice rather than consumed per job. One stockpiled Tool covers two settlers. Coverage interpolates from no bonus to a maximum +10% hands-on work multiplier, applied multiplicatively after the existing Happiness rate. Walking, pathfinding, combat, automated building production and service rates remain unchanged. This creates a visible economic payoff without introducing per-settler equipment ownership or extra reservation traffic before M4 scale work is integrated.
 
 The tool multiplier is derived once per fixed simulation step from stockpile state, not scanned separately per settler. No new job kind or navigation behavior is introduced.
+
+## M4: benchmark the current patched head before changing architecture
+
+The first M3.3 measurements were superseded when the project owner requested integration of M3.8.1 at 4d9097e. The committed baseline and comparisons use that newer gameplay and presentation. The benchmark is a separate browser entry with no save writes or gameplay commands, while reusing the actual simulation, renderer and HUD. Fixed presets include current production, morale, roads and plots; they are synthetic stress cases, not sustainable large towns.
+
+Measurements identified repeated reservation scans and repeated per-settler service-plan construction as the dominant simulation costs. A pass-local JobReservations index avoids persistent cache invalidation or a second economic ledger. Stable nearest-candidate scanning removes unnecessary resource sorting. Shared per-tick service plans explicitly invalidate after job updates to preserve same-tick delivery/repair behavior. Baseline state hashes and existing gameplay tests guard ordering, resource conservation and Happiness/Tools integration.
+
+HUD pagination bounds population-dependent DOM work without removing access to settlers or changing the ten-settler display. Render batch capacities increase only for QA scenarios, preserving all current visual parts. Instance overflow invalidates benchmark reports rather than silently presenting a partial crowd.
+
+The global two-solves-per-tick navigation budget is unchanged. Its CPU cost was modest relative to scheduling, but its throughput causes multi-second waits at larger populations. Spatial indexing, route-tree caching, coarse routing, update tiers and LOD were considered and deferred: this pass establishes measurements and removes demonstrated costs without changing routing or gameplay semantics. The next scale pass should address queue responsiveness with explicit correctness/latency tests before a normal population-cap increase. See [the evidence](M4_SCALE_PROOF.md).

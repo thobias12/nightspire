@@ -68,6 +68,8 @@ Do not optimize toward 1000 agents by degrading the actual 50-agent game experie
 
 ## Benchmark requirement
 
+The first M4 measured pass is available at [M4_SCALE_PROOF.md](M4_SCALE_PROOF.md), with raw before/after browser reports. It covers 10/100/250/500 settlers on the M3.8.1 base. The demonstrated responsive synthetic envelope is conservatively 10–100 on the recorded machine and short workloads; navigation latency prevents a larger gameplay-support claim. The normal cap stays ten. GPU timing, lower-end hardware and long mixed-workload runs remain unmeasured.
+
 Any major claim such as “supports 500 settlers” should link to a repeatable benchmark configuration, measured build/commit and captured counters.
 
 ## M1 measurements
