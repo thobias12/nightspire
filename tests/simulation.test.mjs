@@ -33,8 +33,14 @@ const {
 } = require('../.test-build/game/simulation/StockpileLogistics.js')
 const {
   completedMarkets, marketFoodNeed, marketFoodTarget, marketMealCapacity, marketMealsRemaining, marketSummary,
+  MARKET_COVERAGE_RADIUS,
 } = require('../.test-build/game/simulation/Markets.js')
-const { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices } = require('../.test-build/game/simulation/Services.js')
+const {
+  householdStatus, householdSummary, RECREATION_COVERAGE_RADIUS,
+} = require('../.test-build/game/simulation/Households.js')
+const {
+  serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices, SERVICE_COVERAGE_RADIUS,
+} = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
 const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
@@ -2281,6 +2287,7 @@ test('M3.11.3 Market Food counts toward settlement attraction reserves', () => {
   const required=s.settlers.length*2
   stockpile.inventory.food=0
   market.inventory.food=required
+  staffWorkplace(s,market,2)
 
   const attraction=populationAttraction(s)
   assert.equal(attraction.food,required)
@@ -2330,5 +2337,116 @@ test('M3.11.3 Market summary exposes stocked and active distribution capacity', 
   assert.equal(summary.mealCapacity,10)
   assert.equal(summary.mealsServed,0)
   assert.equal(professionLabel(s,s.settlers.find(a=>a.workplaceId===market.id)),'Vendor')
+  validateWorld(s)
+})
+
+
+test('M3.11.4 household status keeps camp rations before Markets and reports local recreation', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  const fire=createBuilding(s.nextId++,'campfire',7,7,true)
+  s.buildings.push(house,fire); s.topology++
+  assignHousing(s)
+
+  const status=householdStatus(s,house)
+  assert.equal(status.residents.length,4)
+  assert.equal(status.foodAccess,true)
+  assert.equal(status.foodAccessLabel,'Camp rations')
+  assert.equal(status.recreationAccess,true)
+  assert.equal(status.recreation.id,fire.id)
+  assert.ok(status.recreationDistance<=RECREATION_COVERAGE_RADIUS)
+  assert.equal(householdSummary(s).marketCovered,1)
+  validateWorld(s)
+})
+
+test('M3.11.4 stocked staffed Markets only cover households inside the 18m catchment', () => {
+  const s=makeAttractive(createInitialWorldState())
+  const far=createBuilding(s.nextId++,'market',20,20,true)
+  far.inventory.food=20
+  s.buildings.push(far); s.topology++
+  staffWorkplace(s,far,2)
+
+  const summary=householdSummary(s)
+  assert.equal(MARKET_COVERAGE_RADIUS,18)
+  assert.equal(summary.occupied,2)
+  assert.equal(summary.marketCovered,0)
+  assert.ok(householdStatus(s,s.buildings.find(b=>b.type==='house')).foodAccess===false)
+
+  const attraction=populationAttraction(s)
+  assert.equal(attraction.marketCoveredHouseholds,0)
+  assert.equal(attraction.households,2)
+  assert.equal(attraction.eligible,false)
+  assert.ok(attraction.blockers.some(blocker=>blocker.startsWith('Market coverage 0/2')))
+})
+
+test('M3.11.4 nearby stocked staffed Market restores household coverage and attraction', () => {
+  const s=makeAttractive(createInitialWorldState())
+  const market=createBuilding(s.nextId++,'market',0,-7,true)
+  market.inventory.food=20
+  s.buildings.push(market); s.topology++
+  staffWorkplace(s,market,2)
+
+  const summary=householdSummary(s)
+  assert.equal(summary.occupied,2)
+  assert.equal(summary.marketCovered,2)
+  const attraction=populationAttraction(s)
+  assert.equal(attraction.marketCoveredHouseholds,2)
+  assert.equal(attraction.households,2)
+  assert.equal(attraction.eligible,true)
+  validateWorld(s)
+})
+
+test('M3.11.4 daily Market meals do not jump across uncovered neighborhoods', () => {
+  const s=createInitialWorldState()
+  s.day=2
+  const nearHouse=createBuilding(s.nextId++,'house',7,0,true)
+  const farHouse=createBuilding(s.nextId++,'house',-20,0,true)
+  const market=createBuilding(s.nextId++,'market',7,-7,true)
+  market.inventory.food=20
+  s.buildings.push(nearHouse,farHouse,market); s.topology++
+  assignHousing(s)
+  for(const settler of s.settlers) settler.lastMealDay=1
+  staffWorkplace(s,market,2)
+
+  const result=serveDailyMeal(s)
+  assert.deepEqual(result,{served:4,missed:2})
+  assert.ok(s.settlers.filter(a=>a.homeId===nearHouse.id).every(a=>a.lastMealDay===2))
+  assert.ok(s.settlers.filter(a=>a.homeId===farHouse.id).every(a=>a.lastMealDay===1))
+  assert.equal(market.distributionServed,4)
+  validateWorld(s)
+})
+
+test('M3.11.4 recreation service slots respect the same local household catchment', () => {
+  const s=createInitialWorldState()
+  const farHouse=createBuilding(s.nextId++,'house',-20,0,true)
+  const fire=createBuilding(s.nextId++,'campfire',7,0,true)
+  s.buildings.push(farHouse,fire); s.topology++
+  assignHousing(s)
+
+  assert.equal(SERVICE_COVERAGE_RADIUS,18)
+  const assignments=serviceAssignments(s,'dusk')
+  const housed=s.settlers.filter(a=>a.homeId===farHouse.id)
+  const unhoused=s.settlers.filter(a=>a.homeId===null)
+  assert.ok(housed.every(a=>!assignments.has(a.id)))
+  assert.ok(unhoused.every(a=>assignments.has(a.id)))
+  assert.equal(assignments.size,unhoused.length)
+  assert.equal(householdStatus(s,farHouse).recreationAccess,false)
+  validateWorld(s)
+})
+
+test('M3.11.4 empty or unstaffed Markets do not count as household Food access', () => {
+  const s=createInitialWorldState()
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  const market=createBuilding(s.nextId++,'market',7,-7,true)
+  s.buildings.push(house,market); s.topology++
+  assignHousing(s)
+
+  assert.equal(householdStatus(s,house).foodAccess,false)
+  market.inventory.food=10
+  assert.equal(householdStatus(s,house).foodAccess,false)
+  staffWorkplace(s,market,1)
+  assert.equal(householdStatus(s,house).foodAccess,true)
+  market.inventory.food=0
+  assert.equal(householdStatus(s,house).foodAccess,false)
   validateWorld(s)
 })
