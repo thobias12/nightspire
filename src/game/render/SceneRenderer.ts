@@ -2807,6 +2807,74 @@ export class SceneRenderer {
         def.fortification ? 0.82 : def.footprint * 0.92,
       )
       ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+
+      if (!def.fortification) {
+        const outlineColor = new THREE.Color(valid ? 0xeadfbd : 0xef756b)
+        const iconColor = new THREE.Color(valid ? 0xf6e8bb : 0xffa59d)
+        let count = 0
+        const setSegment = (a: Point, b: Point, width = 0.065, lineColor = outlineColor, y = 0.09): void => {
+          if (count >= 120) return
+          const dx = b.x - a.x
+          const dz = b.z - a.z
+          const length = Math.max(0.02, Math.hypot(dx, dz))
+          this.matrix.position.set((a.x + b.x) / 2, y, (a.z + b.z) / 2)
+          this.matrix.scale.set(width, 0.04, length)
+          this.matrix.rotation.set(0, Math.atan2(dx, dz), 0)
+          this.matrix.updateMatrix()
+          this.ghostLine.setMatrixAt(count, this.matrix.matrix)
+          this.ghostLine.setColorAt(count, lineColor)
+          count++
+        }
+        const dashed = (a: Point, b: Point): void => {
+          const dx = b.x - a.x
+          const dz = b.z - a.z
+          const length = Math.hypot(dx, dz)
+          if (length < 0.04) return
+          const ux = dx / length
+          const uz = dz / length
+          for (let offset = 0; offset < length && count < 120; offset += 0.52 + 0.3) {
+            const finish = Math.min(length, offset + 0.52)
+            setSegment(
+              { x: a.x + ux * offset, z: a.z + uz * offset },
+              { x: a.x + ux * finish, z: a.z + uz * finish },
+            )
+          }
+        }
+        const corner = (x: number, z: number): Point => {
+          const offset = this.rotatedOffset(x, z, rotation)
+          return { x: p.x + offset.x, z: p.z + offset.z }
+        }
+        const half = def.footprint / 2
+        const corners = [
+          corner(-half, -half),
+          corner(half, -half),
+          corner(half, half),
+          corner(-half, half),
+        ]
+        for (let i = 0; i < corners.length; i++) dashed(corners[i], corners[(i + 1) % corners.length])
+
+        const iconHalf = Math.min(0.38, def.footprint * 0.14)
+        const iconScale = type === 'farmhouse' ? 1 : 0.9
+        if (type === 'farmhouse') {
+          setSegment(corner(-iconHalf, -iconHalf), corner(-iconHalf, iconHalf), 0.07, iconColor, 0.115)
+          setSegment(corner(iconHalf, -iconHalf), corner(iconHalf, iconHalf), 0.07, iconColor, 0.115)
+          setSegment(corner(-iconHalf, -iconHalf), corner(iconHalf, -iconHalf), 0.07, iconColor, 0.115)
+          setSegment(corner(-iconHalf, iconHalf), corner(0, iconHalf + 0.3 * iconScale), 0.07, iconColor, 0.115)
+          setSegment(corner(0, iconHalf + 0.3 * iconScale), corner(iconHalf, iconHalf), 0.07, iconColor, 0.115)
+        } else {
+          setSegment(corner(-iconHalf, -iconHalf), corner(iconHalf, -iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(iconHalf, -iconHalf), corner(iconHalf, iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(iconHalf, iconHalf), corner(-iconHalf, iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(-iconHalf, iconHalf), corner(-iconHalf, -iconHalf), 0.065, iconColor, 0.115)
+          setSegment(corner(-iconHalf * 0.55, 0), corner(iconHalf * 0.55, 0), 0.055, iconColor, 0.115)
+          setSegment(corner(0, -iconHalf * 0.55), corner(0, iconHalf * 0.55), 0.055, iconColor, 0.115)
+        }
+
+        this.ghostLine.visible = count > 0
+        this.ghostLine.count = count
+        this.ghostLine.instanceMatrix.needsUpdate = true
+        if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
+      }
     }
 
     if (!def.fortification && type !== 'campfire' && type !== 'stockpile') {
