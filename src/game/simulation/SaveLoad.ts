@@ -66,6 +66,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && number(b.serviceProgress) && b.serviceProgress <= 300
       && number(b.productionProgress) && b.productionProgress <= 300
       && integer(b.rotation) && b.rotation <= 3
+      && ['low', 'normal', 'high'].includes(b.haulPriority)
       && (b.facingAngle === undefined || Number.isFinite(b.facingAngle)),
       'building state',
     )
@@ -327,6 +328,7 @@ export function deserializeWorld(text: string): WorldState {
       if (building.lastHitTick === undefined) building.lastHitTick = 0
       if (building.serviceProgress === undefined) building.serviceProgress = 0
       if (building.productionProgress === undefined) building.productionProgress = 0
+      if (building.haulPriority === undefined) building.haulPriority = 'normal'
       if (building.rotation === undefined) building.rotation = 0
       migrateInventory(building.inventory)
       migrateInventory(building.delivered)

@@ -12,6 +12,7 @@ import { toolCoverage } from '../simulation/Tools'
 import { enemyLabel, MAX_SETTLERS, settlerLabel, type WorldState } from '../simulation/WorldState'
 import { residentialFrontage, residentialPresentationProfile } from '../render/ResidentialPresentation'
 import { assignedWorkplace, professionLabel, workplaceStaffing } from '../simulation/Workforce'
+import { haulPriorityLabel, workplaceInputTarget, workplaceOutputThreshold } from '../simulation/WorkplaceLogistics'
 
 export interface Metrics { frame: number; simulation: number; render: number; calls: number; triangles: number; paths: number; requests: number; queue: number; failures: number; dropped: number }
 export interface HudState {
@@ -43,7 +44,7 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.0 · WORKPLACE ECONOMY</span></div><div id="resources"></div><div id="clock"></div></header>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.1 · LOCAL WORKPLACE LOGISTICS</span></div><div id="resources"></div><div id="clock"></div></header>
       <section class="guide panel"><span class="eyebrow">DRAW THE STREET, THEN BUILD FROM IT</span><h1>Roads are shaped point-by-point with independent snapping controls.</h1>
         <p>Click road points to draw an organic route, move the mouse for a live curved preview, hold Shift only when you want 0°/45°/90° alignment, and use Grid Snap independently for 1m control points. Road Snap joins nearby endpoints/centerlines and keeps curved-road frontage compatible with Residential Plots and conventional buildings.</p>
         <div id="objective"></div>
@@ -235,10 +236,16 @@ export class Hud {
             + (service.supplyResource ? '<br>Pantry: ' + b.inventory[service.supplyResource] + '/' + service.supplyCapacity + ' ' + service.supplyResource + ' · inbound ' + supplyJob : '<br>No operating supplies required')
           : ''
         const staffing = (def.workerSlots ?? 0) > 0 ? workplaceStaffing(s, b) : null
+        const inboundProduction = production
+          ? s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === production.inputResource).reduce((sum, j) => sum + j.amount, 0)
+          : 0
+        const outboundProduction = production
+          ? s.jobs.filter(j => j.kind === 'supply' && j.sourceId === b.id && j.resource === production.outputResource).reduce((sum, j) => sum + j.amount, 0)
+          : 0
         const productionText = production
           ? production.inputAmount + ' ' + production.inputResource + ' → ' + production.outputAmount + ' ' + production.outputResource + ' every ' + production.cycleSeconds + 's at full staffing'
-            + '<br>Input: ' + b.inventory[production.inputResource] + '/' + production.inputCapacity
-            + ' · Output: ' + b.inventory[production.outputResource] + '/' + production.outputCapacity
+            + '<br><b>Local input:</b> ' + b.inventory[production.inputResource] + '/' + workplaceInputTarget(b) + ' target (' + production.inputCapacity + ' max) · inbound ' + inboundProduction
+            + '<br><b>Local output:</b> ' + b.inventory[production.outputResource] + '/' + production.outputCapacity + ' · pickup from ' + workplaceOutputThreshold(b) + ' · outbound ' + outboundProduction
             + '<br>Batch progress: ' + Math.round(b.productionProgress / production.cycleSeconds * 100) + '%'
             + (staffing ? '<br>Staffing: ' + staffing.assigned + '/' + staffing.slots + ' assigned · ' + staffing.active + ' present · ' + Math.round(staffing.efficiency * 100) + '% speed' : '')
           : ''
@@ -265,7 +272,11 @@ export class Hud {
             const assign = staffing.assigned < staffing.slots
               ? '<button data-action="assign-workplace">Assign laborer</button>'
               : '<button disabled>Fully staffed</button>'
-            return '<p><b>Workforce ' + staffing.assigned + '/' + staffing.slots + '</b> · ' + staffing.active + ' physically at work</p>' + rows + assign
+            const logistics = def.production
+              ? '<button data-action="workplace-haul-priority">Hauling: ' + haulPriorityLabel(b.haulPriority) + '</button>'
+                + '<p class="muted">Low keeps one input batch and delays output pickup. Normal keeps a working reserve. High fills local input storage and clears finished goods quickly.</p>'
+              : ''
+            return '<p><b>Workforce ' + staffing.assigned + '/' + staffing.slots + '</b> · ' + staffing.active + ' physically at work</p>' + rows + assign + logistics
           })()
         : ''
       this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${demolish}`)
