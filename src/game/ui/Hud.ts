@@ -40,6 +40,7 @@ export interface HudState {
   message: string
   camera: string
   cinematic: boolean
+  selectionAnchor: { x: number; y: number } | null
   metrics: Metrics
 }
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -77,6 +78,9 @@ export class Hud {
   private activeBuildTab = 'planning'
   private activeContextTab = 'general'
   private lastContextId: number | null = null
+  private lastFloatingSelectionId: number | null = null
+  private inspectorManuallyPositioned = false
+  private draggedPanel: { panel: HTMLElement; pointerId: number; offsetX: number; offsetY: number } | null = null
 
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
@@ -118,8 +122,8 @@ export class Hud {
         <div id="tasks" class="tasks-list"></div>
       </aside>
 
-      <section class="inspector panel">
-        <div class="panel-kicker"><span class="ui-icon-slot" data-icon-slot="selection" aria-hidden="true"></span><span>Selection</span></div>
+      <section class="inspector panel floating-panel" data-draggable-panel data-panel-id="inspector">
+        <div class="panel-kicker" data-drag-handle><span class="ui-icon-slot" data-icon-slot="selection" aria-hidden="true"></span><span>Selection</span><button class="panel-close" data-action="close-selection" title="Close selection">×</button></div>
         <div id="inspection">Select something in the world.</div>
       </section>
 
@@ -147,8 +151,8 @@ export class Hud {
       </details>
 
       <footer class="bottom">
-        <div class="build-catalog panel" aria-hidden="true">
-          <div class="catalog-header">
+        <div class="build-catalog panel floating-panel" data-draggable-panel data-panel-id="build-catalog" aria-hidden="true">
+          <div class="catalog-header" data-drag-handle>
             <div><span class="eyebrow">CONSTRUCTION</span><strong>Choose what to place</strong></div>
             <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
           </div>
@@ -204,8 +208,8 @@ export class Hud {
           <div class="catalog-help">Hotkeys remain active while this menu is closed. Building artwork and icons intentionally use empty <code>data-art-slot</code> / <code>data-icon-slot</code> hooks.</div>
         </div>
 
-        <div class="road-context panel">
-          <span class="context-title">Road</span>
+        <div class="road-context panel floating-panel" data-draggable-panel data-panel-id="road-context">
+          <span class="context-title" data-drag-handle>Road</span>
           <button data-action="road-curve" title="Hotkey C">Curve [C]</button>
           <button data-action="road-width" title="Hotkeys [ and ]">Road width</button>
           <button data-action="road-snap" title="Hotkey F">Road Join [F]</button>
@@ -288,6 +292,99 @@ export class Hud {
       }
       action(input.dataset.action, input.type === 'checkbox' ? String(input.checked) : input.value)
     }, { signal })
+
+    this.element.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return
+      const target = e.target as HTMLElement
+      if (target.closest('button, input, select, textarea, a')) return
+      const handle = target.closest<HTMLElement>('[data-drag-handle]')
+      const panel = handle?.closest<HTMLElement>('[data-draggable-panel]')
+      if (!handle || !panel) return
+
+      const rect = panel.getBoundingClientRect()
+      panel.classList.add('is-user-positioned', 'is-dragging')
+      panel.style.position = 'fixed'
+      panel.style.left = rect.left + 'px'
+      panel.style.top = rect.top + 'px'
+      panel.style.right = 'auto'
+      panel.style.bottom = 'auto'
+      panel.style.margin = '0'
+      panel.style.transform = 'none'
+      if (panel.dataset.panelId === 'inspector') this.inspectorManuallyPositioned = true
+      this.draggedPanel = {
+        panel,
+        pointerId: e.pointerId,
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+      }
+      e.preventDefault()
+    }, { signal })
+
+    window.addEventListener('pointermove', e => {
+      const drag = this.draggedPanel
+      if (!drag || drag.pointerId !== e.pointerId) return
+      this.placeFloatingPanel(drag.panel, e.clientX - drag.offsetX, e.clientY - drag.offsetY)
+      e.preventDefault()
+    }, { signal })
+
+    const endPanelDrag = (e: PointerEvent) => {
+      const drag = this.draggedPanel
+      if (!drag || drag.pointerId !== e.pointerId) return
+      drag.panel.classList.remove('is-dragging')
+      this.draggedPanel = null
+    }
+    window.addEventListener('pointerup', endPanelDrag, { signal })
+    window.addEventListener('pointercancel', endPanelDrag, { signal })
+    window.addEventListener('resize', () => this.clampFloatingPanels(), { signal })
+  }
+
+  private placeFloatingPanel(panel: HTMLElement, left: number, top: number): void {
+    const margin = 6
+    const rect = panel.getBoundingClientRect()
+    const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin)
+    const maxTop = Math.max(78, window.innerHeight - rect.height - 74)
+    panel.style.position = 'fixed'
+    panel.style.left = Math.max(margin, Math.min(maxLeft, left)) + 'px'
+    panel.style.top = Math.max(78, Math.min(maxTop, top)) + 'px'
+    panel.style.right = 'auto'
+    panel.style.bottom = 'auto'
+    panel.style.margin = '0'
+    panel.style.transform = 'none'
+  }
+
+  private clampFloatingPanels(): void {
+    for (const panel of this.element.querySelectorAll<HTMLElement>('[data-draggable-panel].is-user-positioned')) {
+      const rect = panel.getBoundingClientRect()
+      this.placeFloatingPanel(panel, rect.left, rect.top)
+    }
+  }
+
+  private resetInspectorPosition(): void {
+    const panel = this.element.querySelector<HTMLElement>('.inspector')
+    if (!panel) return
+    panel.classList.remove('is-user-positioned', 'is-dragging')
+    for (const property of ['position', 'left', 'top', 'right', 'bottom', 'margin', 'transform']) {
+      panel.style.removeProperty(property)
+    }
+    this.inspectorManuallyPositioned = false
+  }
+
+  private positionInspector(anchor: { x: number; y: number } | null): void {
+    const panel = this.element.querySelector<HTMLElement>('.inspector')
+    if (!panel || !panel.classList.contains('is-active') || this.inspectorManuallyPositioned || !anchor) return
+
+    const rect = panel.getBoundingClientRect()
+    const gap = 20
+    const margin = 8
+    let left = anchor.x + gap
+    if (left + rect.width > window.innerWidth - margin) left = anchor.x - rect.width - gap
+    if (left < margin) left = margin
+
+    // Place the panel beside the selected object, biased upward so the object
+    // remains visible instead of being hidden under the panel.
+    const top = anchor.y - Math.min(rect.height * 0.34, 180)
+    this.placeFloatingPanel(panel, left, top)
+    panel.classList.add('is-world-anchored')
   }
 
   private syncBuildMenu(): void {
@@ -760,7 +857,7 @@ export class Hud {
       ).join('')
       this.set('inspection',
         '<div class="building-panel">'
-        + '<div class="building-panel-title"><span class="ui-icon-slot" data-ui-asset="building-icon:' + b.type + '" aria-hidden="true"></span><div><span class="eyebrow">' + (def.profession ?? (def.housing ? 'Residential' : def.fortification ? 'Defense' : 'Settlement building')) + '</span><h2>' + def.label + ' <small>#' + b.id + '</small></h2></div><button class="context-close" data-action="cancel" title="Close selection">×</button></div>'
+        + '<div class="building-panel-title" data-drag-handle><span class="ui-icon-slot" data-ui-asset="building-icon:' + b.type + '" aria-hidden="true"></span><div><span class="eyebrow">' + (def.profession ?? (def.housing ? 'Residential' : def.fortification ? 'Defense' : 'Settlement building')) + '</span><h2>' + def.label + ' <small>#' + b.id + '</small></h2></div><button class="context-close" data-action="close-selection" title="Close selection">×</button></div>'
         + '<div class="building-hero" data-ui-asset="building-header:' + b.type + '"><span>Artwork slot · ' + def.label + '</span></div>'
         + '<div class="context-tabs" role="tablist">' + contextTabsHtml + '</div>'
         + '<div class="context-content">' + contextPanelsHtml + '</div>'
@@ -819,8 +916,14 @@ export class Hud {
       : '<div class="task-empty">No urgent settlement matters.</div>')
 
     const inspector = this.element.querySelector<HTMLElement>('.inspector')!
+    if (ui.selectedId !== this.lastFloatingSelectionId) {
+      this.lastFloatingSelectionId = ui.selectedId
+      this.resetInspectorPosition()
+    }
     inspector.classList.toggle('is-active', ui.selectedId !== null || ui.buildType !== null || ui.planningTool !== null)
     inspector.classList.toggle('is-building', Boolean(b))
+    inspector.classList.toggle('is-world-anchored', ui.selectedId !== null && !this.inspectorManuallyPositioned)
+    if (ui.selectedId !== null) this.positionInspector(ui.selectionAnchor)
     this.element.querySelector<HTMLElement>('.road-context')!.classList.toggle('is-active', ui.planningTool === 'road')
     this.element.querySelector<HTMLElement>('#message')!.classList.toggle('is-visible', ui.message.trim().length > 0)
 

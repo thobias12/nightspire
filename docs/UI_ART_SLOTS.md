@@ -170,3 +170,18 @@ The richer building panel also reserves:
 - `service:agriculture`
 
 Final asset integration should preserve the live data and markup structure; only replace the visual placeholder treatment.
+
+
+## Floating contextual panels
+
+Transient UI is intentionally movable:
+
+- selected-object / building inspector
+- construction catalog
+- road context controls
+
+The inspector initially anchors beside the selected world object using the renderer's world-to-screen projection. It follows that object/camera until the player drags the panel, after which it remains at the chosen screen position. Selecting a different world object resets it to contextual anchoring.
+
+Permanent HUD elements such as the top resource bar, Tasks & Messages and command dock stay fixed.
+
+The selected-building X uses a dedicated `close-selection` action; it no longer reuses placement cancellation.
