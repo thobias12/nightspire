@@ -41,8 +41,11 @@
             },
           }).outputText
 
-          const specifiers = [...output.matchAll(/\b(?:from\s*|import\s*)['"]([^'"]+)['"]/g)]
-            .map(match => match[1])
+          // Ask TypeScript for real module references instead of scanning emitted code with
+          // a regex. The old regex could mistake UI strings such as "pickup from " + value
+          // for an import specifier and then try to fetch a nonsense .ts path.
+          const specifiers = ts.preProcessFile(output, true, true).importedFiles
+            .map(file => file.fileName)
           let code = output
 
           for (const specifier of [...new Set(specifiers)]) {
@@ -61,7 +64,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'm3111-55ed490')
+        entryUrl.searchParams.set('runtime', 'loaderfix-preprocess-1')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {
