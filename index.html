@@ -64,7 +64,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'loaderfix-preprocess-1')
+        entryUrl.searchParams.set('runtime', 'm3112-1085680')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {
