@@ -250,7 +250,8 @@ export class Hud {
         + workText
         + '<br>Farmhouse: ' + (farmhouse ? 'Farmhouse ' + farmhouse.id : 'Unassigned — build/repair a Farmhouse')
         + '<br>Corners: ' + field.points.length
-        + '</p><p class="muted">Ready fields are harvested before fallow fields are sown. Harvest waits if the Farmhouse Food store cannot fit the full crop.</p>')
+        + '</p><p class="muted">Ready fields are harvested before fallow fields are sown. Harvest waits if the Farmhouse Food store cannot fit the full crop.</p>'
+        + '<button class="danger" data-action="remove-field">Remove field</button>')
     } else if (b) {
       const def = BUILDINGS[b.type]
       const starter = b.type === 'stockpile' && b.x === 0 && b.z === 0
