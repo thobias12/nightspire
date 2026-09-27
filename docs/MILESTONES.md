@@ -339,6 +339,18 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 **Exit:** precise roads no longer require sacrificing curvature, and the three snapping concepts are independently controllable.
 
+### M3.10.3 — Organic medieval road visuals
+
+- [x] opaque terrain-integrated road network with shared junction coverage
+- [x] multiscale irregular shoulders and subdued soil variation
+- [x] Path / Lane / Main Road wear profiles and broken asymmetrical tracks
+- [x] sparse capped grass/stone clusters and local undergrowth suppression
+- [x] deterministic sampling/cache regression tests and production-browser checks
+- [x] planner, save schema, frontage, navigation and M4 integration preserved
+- [ ] user visual acceptance across all widths, close Street View and dense road networks
+
+See [implementation, measured limits and screenshot checklist](M3103_ROAD_VISUALS.md). Road edits rebuild a cached texture once; dense-network edit latency remains a review concern.
+
 ## M3.11 — Medieval economy depth
 
 ### M3.11.0 — Professions & workplace economy

@@ -4,6 +4,8 @@ A grounded medieval dark-fantasy settlement builder. The long-term direction is 
 
 **Current playable milestone: M3.11.7 — Agriculture & Point-Drawn Farm Fields.** Farming now uses irregular player-drawn land parcels rather than fixed farm tiles. Build a **Farmhouse**, assign up to three Farmers, then use the **Field** tool to click 3–8 corners around the exact land you want to cultivate, with optional grid snapping. Fields reject roads, buildings, residential plots, live resource nodes and other fields. Farmers physically walk to fields to sow and harvest; crops progress across Days through **Fallow → Sown → Growing → Ready → Harvested**, harvest into Farmhouse storage, and general Laborers move the Food onward into specialized Stockpiles and Markets. **Conventional buildings now require road frontage in live placement**, while fields must be linked to a Farmhouse within 18m. Fields share the same global **G** 1m Grid Snap setting as roads and residential dimensions. Field size controls yield and work, so town layout and available labor matter. M3.11.6 Gold trade, household prosperity, local Market coverage and the existing road system remain intact. See [the agriculture note](docs/M3117_AGRICULTURE.md), [the Gold trade note](docs/M3116_GOLD_TRADE.md) and [the household progression note](docs/M3115_HOUSEHOLD_PROGRESSION.md).
 
+**Road visual pass: M3.10.3 — Organic Medieval Roads.** Roads now resolve into one continuous terrain-integrated worn-earth surface with irregular shoulders, width-dependent wear and sparse grass/stone dressing, while preserving the current planner, frontage rules, navigation and save schema. See [the road visual note](docs/M3103_ROAD_VISUALS.md).
+
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
 **Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
@@ -74,7 +76,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **172 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **179 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 

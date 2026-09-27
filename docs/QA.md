@@ -941,3 +941,8 @@ Live check:
 3. Place a Field more than 18m from every Farmhouse: it should be rejected.
 4. Place the same Field near the Farmhouse: it should report that Farmhouse in its inspector.
 5. Toggle **G** while drawing roads/fields and confirm the same shared grid state is used.
+
+
+## M3.10.3 verification
+
+The organic-road rendering pass was developed from PR #31 at `dddc79caacafc8975bd9e39e5c3e4355211f7caf`. Its road-only branch passed strict typecheck, all 131 tests on that branch, production build, Overview/Street View checks, curved routes, all widths, junctions, Dusk and normal-save reload/integrity with no captured browser console errors. The planner/simulation/save code was intentionally unchanged. After integration onto M3.11.7, the combined suite includes the seven road-surface/cache regressions. See [full evidence, renderer budgets, limitations and requested screenshot views](M3103_ROAD_VISUALS.md).
