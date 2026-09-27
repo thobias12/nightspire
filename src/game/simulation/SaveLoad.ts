@@ -67,6 +67,8 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && number(b.productionProgress) && b.productionProgress <= 300
       && integer(b.rotation) && b.rotation <= 3
       && ['low', 'normal', 'high'].includes(b.haulPriority)
+      && ['low', 'normal', 'high'].includes(b.stockpilePriority)
+      && b.stockpileFilters && RESOURCE_IDS.every(resource => typeof b.stockpileFilters[resource] === 'boolean')
       && (b.facingAngle === undefined || Number.isFinite(b.facingAngle)),
       'building state',
     )
@@ -329,6 +331,10 @@ export function deserializeWorld(text: string): WorldState {
       if (building.serviceProgress === undefined) building.serviceProgress = 0
       if (building.productionProgress === undefined) building.productionProgress = 0
       if (building.haulPriority === undefined) building.haulPriority = 'normal'
+      if (building.stockpilePriority === undefined) building.stockpilePriority = 'normal'
+      if (building.stockpileFilters === undefined) {
+        building.stockpileFilters = { wood: true, food: true, ale: true, ore: true, tools: true }
+      }
       if (building.rotation === undefined) building.rotation = 0
       migrateInventory(building.inventory)
       migrateInventory(building.delivered)

@@ -713,3 +713,35 @@ Recommended live test:
 6. Add a construction blueprint while the Brewery is Low, then compare with High: Low should yield hauling effort to construction while High can pull the next free Laborer toward the workplace.
 7. Repeat with the Blacksmith and confirm Ore/Tools use its own thresholds.
 8. Save/reload and confirm each workplace keeps its selected hauling priority.
+
+
+## M3.11.2 stockpile specialization
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **139/139 tests passed**
+- production Vite build passed
+- no `SceneRenderer.ts`, road-planning or navigation-policy changes
+- old saves without stockpile settings migrate to **all resources accepted + Normal**
+
+Regression coverage verifies:
+
+- starter/default Stockpiles accept Wood, Food, Ale, Ore and Tools
+- per-resource filters persist through save/load
+- invalid receiving priority is rejected
+- gathering routes only to a Stockpile that accepts the gathered resource
+- High priority beats a nearer Normal Stockpile
+- manufactured output routes only to an accepting Stockpile
+- existing resources in a now-disabled Stockpile remain usable as construction input
+
+Recommended live test:
+
+1. Build a second Stockpile near a Brewery or Blacksmith.
+2. On that Stockpile, disable everything except the resources you want nearby.
+3. Set its receiving priority to **High**.
+4. Keep the starter Stockpile at Normal.
+5. Gather or produce the matching resource and confirm Laborers prefer the specialized High-priority store.
+6. Disable that resource on the specialized Stockpile and confirm new deliveries stop going there.
+7. Confirm any resources already stored there can still be withdrawn for construction or workplace supply.
+8. Save/reload and confirm filters + priority survive.
