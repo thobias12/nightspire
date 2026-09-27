@@ -121,7 +121,7 @@ export class Hud {
           <button data-action="load">Load</button>
         </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">0: road · 1: residential plot · P: point-drawn field · A: farmhouse · M: market · T: trading post · G: grid snap · F: building road snap · 2–9: buildings · R: rotate · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
+      <div class="controls">0: road · 1: residential plot · P: Farmhouse-linked field · A: Farmhouse · G: shared grid snap · F: road-junction snap · conventional buildings require road frontage · 2–9/M/T: buildings · R: rotate · V: street view · Esc: inspect</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -400,7 +400,7 @@ export class Hud {
       const curveLabel = ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
       const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main road' : 'Lane'
       const placement = ui.planningTool === 'field'
-        ? 'Field tool · Manor Lords-style polygon · click corners ' + ui.fieldPointCount + '/8 · Grid ' + (ui.gridSnap ? 'ON' : 'OFF') + ' · Enter/double-click closes · RMB/Backspace removes last corner.'
+        ? 'Field tool · Farmhouse-linked parcel · click corners ' + ui.fieldPointCount + '/8 · shared Grid ' + (ui.gridSnap ? 'ON' : 'OFF') + ' · must stay within 18m of a Farmhouse · Enter/double-click/first marker closes.'
         : ui.planningTool === 'road'
         ? 'Road tool · click control points · ' + curveLabel + ' · ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm · points ' + ui.roadPointCount
           + ' · Grid ' + (ui.gridSnap ? 'ON' : 'OFF') + ' · Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF')
@@ -408,8 +408,8 @@ export class Hud {
         : ui.planningTool === 'residential-plot'
           ? 'Residential Plot · road frontage is mandatory. ' + (ui.gridSnap ? 'Width/depth snap to whole metres.' : 'Freeform plot dimensions enabled.')
           : ui.buildType
-            ? 'Placing ' + BUILDINGS[ui.buildType].label + ' · ' + (ui.roadSnap && !BUILDINGS[ui.buildType].fortification && ui.buildType !== 'campfire'
-              ? 'Road Snap ON: nearby streets magnetically control position/facing.'
+            ? 'Placing ' + BUILDINGS[ui.buildType].label + ' · ' + (!BUILDINGS[ui.buildType].fortification && ui.buildType !== 'house'
+              ? 'Road frontage mandatory: the building snaps/alines to a nearby street.'
               : 'Manual grid facing ' + facing + '.')
               + (ui.dragCount > 1 ? ' · ' + ui.dragCount + ' wall segments' : '')
             : 'Select a settler to assign guard duty, or inspect a resource/building.'
@@ -448,7 +448,7 @@ export class Hud {
     gridSnap.textContent = 'Grid Snap ' + (ui.gridSnap ? 'ON' : 'OFF') + ' [G]'
     roadCurve.textContent = 'Curve ' + curveLabel + ' [C]'
     roadWidth.textContent = 'Width ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm'
-    roadSnap.textContent = 'Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
+    roadSnap.textContent = 'Road Join ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
     gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
     roadCurve.setAttribute('aria-pressed', String(ui.roadCurve > 0.05))
     roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
