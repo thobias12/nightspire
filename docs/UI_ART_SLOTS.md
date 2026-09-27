@@ -231,3 +231,10 @@ Additional art slots:
 - compact utility icons `command-save`, `command-load`
 
 Tasks & Messages deliberately suppresses routine hauling/deposit chatter. It should surface actionable settlement conditions plus only meaningful recent events.
+
+
+## Compact overview and adaptive catalog
+
+The optional Settlement Overview is now a draggable transient panel. Its collapsed header shows an actionable issue count, while the expanded checklist is deliberately compact and scroll-limited.
+
+The construction catalog no longer reserves the maximum width for every category. It sizes to the active category up to the existing 940px maximum, which keeps Planning/Logistics compact while still allowing Industry/Services to browse horizontally.

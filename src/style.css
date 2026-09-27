@@ -1607,3 +1607,97 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   .dock-main-group { gap: 0; }
   .dock-utility-group { display: none; }
 }
+
+
+/* Compact settlement overview + adaptive catalog width */
+.settlement-drawer {
+  width: 262px;
+  max-height: 330px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(31,29,24,.94), rgba(18,20,17,.95));
+  border-color: rgba(121,101,71,.5);
+}
+.settlement-drawer:not([open]) {
+  width: 218px;
+}
+.settlement-drawer[open] .drawer-body {
+  max-height: 270px;
+  overflow: auto;
+}
+.settlement-drawer summary {
+  min-height: 30px;
+  padding: 4px 6px;
+  gap: 6px;
+  font-size: 8px;
+}
+.settlement-drawer summary .ui-icon-slot {
+  width: 17px;
+  height: 17px;
+}
+.overview-count {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(154,127,82,.38);
+  border-radius: 50%;
+  color: #c9b992;
+  font: 700 7px/1 Inter, sans-serif;
+}
+.drawer-drag-handle {
+  width: 16px;
+  height: 18px;
+  display: inline-block;
+  position: relative;
+  opacity: .52;
+  cursor: grab;
+  touch-action: none;
+}
+.drawer-drag-handle::before,
+.drawer-drag-handle::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  width: 8px;
+  height: 2px;
+  border-top: 1px dotted #a48f69;
+  border-bottom: 1px dotted #a48f69;
+}
+.drawer-drag-handle::before { top: 5px; }
+.drawer-drag-handle::after { top: 10px; }
+.settlement-drawer.is-dragging .drawer-drag-handle { cursor: grabbing; opacity: .9; }
+.drawer-body {
+  padding: 2px 8px 8px;
+}
+.objective-row {
+  padding: 4px 0 0;
+  margin-top: 4px;
+  font-size: 8px;
+  line-height: 1.25;
+}
+#workforce p {
+  margin: 7px 0 1px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(104,94,70,.32);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+/* Let small categories stay compact; large ones still stop at the concept max. */
+.build-catalog {
+  width: min(var(--catalog-width, 940px), calc(100vw - 42px));
+  min-width: min(560px, calc(100vw - 42px));
+  transition: width 120ms ease-out;
+}
+.build-catalog.is-user-positioned {
+  transition: width 120ms ease-out;
+}
+@media (max-width: 620px) {
+  .build-catalog {
+    min-width: calc(100vw - 18px);
+    width: calc(100vw - 18px);
+  }
+  .settlement-drawer,
+  .settlement-drawer:not([open]) { width: 218px; }
+}
