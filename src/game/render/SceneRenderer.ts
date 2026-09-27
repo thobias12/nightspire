@@ -97,6 +97,7 @@ export class SceneRenderer {
   private readonly matrix = new THREE.Object3D()
   private readonly batches: Record<string, THREE.InstancedMesh> = {}
   private readonly batchColors: Record<string, number> = {}
+  private readonly fieldGrounds = new Map<number, { mesh: THREE.Mesh<THREE.ShapeGeometry, THREE.MeshStandardMaterial>; signature: string }>()
   private readonly settlementLitBatches = new Set([
     'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'doors', 'trim', 'props',
     'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs', 'baskets',
@@ -189,8 +190,8 @@ export class SceneRenderer {
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
-    this.addBasicBatch('fieldSoil', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x5d4932, 2800)
-    this.addBatch('fieldCrop', new THREE.BoxGeometry(1, 0.14, 0.16), 0x70804b, 2800)
+    this.addBasicBatch('fieldFurrow', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x4e3928, 4200, 0.62)
+    this.addBatch('fieldCrop', new THREE.BoxGeometry(1, 0.14, 0.16), 0x70804b, 3200)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
@@ -340,7 +341,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldSoil', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'fieldFurrow', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -578,46 +579,181 @@ export class SceneRenderer {
     }
   }
 
-  private renderFarmFields(fields: FieldPlot[]): void {
-    const cell = 1.35
-    for (const field of fields) {
-      const minX = Math.min(...field.points.map(point => point.x))
-      const maxX = Math.max(...field.points.map(point => point.x))
-      const minZ = Math.min(...field.points.map(point => point.z))
-      const maxZ = Math.max(...field.points.map(point => point.z))
-      const edge = field.points.length >= 2
-        ? Math.atan2(field.points[1].x - field.points[0].x, field.points[1].z - field.points[0].z)
-        : 0
-      const cropColor = field.phase === 'ready'
-        ? 0xb99a55
-        : field.phase === 'growing'
-          ? 0x70804b
-          : field.phase === 'sown'
-            ? 0x657044
-            : field.phase === 'harvested'
-              ? 0x897451
-              : 0x5d4932
-      const soilColor = field.phase === 'harvested' ? 0x6c5840 : field.phase === 'fallow' ? 0x59442f : 0x604b33
-      const cropScale = field.phase === 'ready' ? 0.9 : field.phase === 'growing' ? 0.7 : field.phase === 'sown' ? 0.35 : 0
+  private fieldGroundColor(field: FieldPlot): number {
+    return field.phase === 'ready'
+      ? 0x756044
+      : field.phase === 'growing'
+        ? 0x6e5a40
+        : field.phase === 'sown'
+          ? 0x6c563c
+          : field.phase === 'harvested'
+            ? 0x7a674a
+            : 0x72583d
+  }
 
-      for (let x = Math.floor(minX / cell) * cell + cell / 2; x <= maxX; x += cell) {
-        for (let z = Math.floor(minZ / cell) * cell + cell / 2; z <= maxZ; z += cell) {
-          if (!pointInPolygon({ x, z }, field.points)) continue
-          this.instance('fieldSoil', x, 0.023, z, cell * 0.95, 1, cell * 0.95, soilColor, edge)
-          if (cropScale > 0) {
-            this.instance(
-              'fieldCrop',
-              x,
-              0.06 + cropScale * 0.11,
-              z,
-              cell * 0.78,
-              cropScale,
-              0.9,
-              cropColor,
-              edge,
-            )
+  private syncFieldGrounds(fields: FieldPlot[]): void {
+    const visible = new Set(fields.map(field => field.id))
+    for (const [id, entry] of this.fieldGrounds) {
+      if (visible.has(id)) continue
+      this.scene.remove(entry.mesh)
+      entry.mesh.geometry.dispose()
+      entry.mesh.material.dispose()
+      this.fieldGrounds.delete(id)
+    }
+
+    for (const field of fields) {
+      const signature = field.points.map(point => point.x.toFixed(3) + ',' + point.z.toFixed(3)).join('|')
+      let entry = this.fieldGrounds.get(field.id)
+      if (!entry || entry.signature !== signature) {
+        if (entry) {
+          this.scene.remove(entry.mesh)
+          entry.mesh.geometry.dispose()
+          entry.mesh.material.dispose()
+        }
+        const shape = new THREE.Shape()
+        field.points.forEach((point, index) => {
+          if (index === 0) shape.moveTo(point.x, -point.z)
+          else shape.lineTo(point.x, -point.z)
+        })
+        shape.closePath()
+        const geometry = new THREE.ShapeGeometry(shape)
+        geometry.rotateX(-Math.PI / 2)
+        const material = new THREE.MeshStandardMaterial({
+          color: this.fieldGroundColor(field),
+          roughness: 1,
+          metalness: 0,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+        })
+        const mesh = new THREE.Mesh(geometry, material)
+        mesh.position.y = 0.026
+        mesh.receiveShadow = true
+        mesh.castShadow = false
+        mesh.renderOrder = 1
+        this.scene.add(mesh)
+        entry = { mesh, signature }
+        this.fieldGrounds.set(field.id, entry)
+      }
+      entry.mesh.material.color.setHex(this.fieldGroundColor(field))
+    }
+  }
+
+  private renderFarmFields(fields: FieldPlot[]): void {
+    this.syncFieldGrounds(fields)
+
+    for (const field of fields) {
+      let edgeA = field.points[0]
+      let edgeB = field.points[1] ?? field.points[0]
+      let edgeLength = 0
+      for (let i = 0; i < field.points.length; i++) {
+        const a = field.points[i]
+        const b = field.points[(i + 1) % field.points.length]
+        const length = Math.hypot(b.x - a.x, b.z - a.z)
+        if (length > edgeLength) {
+          edgeLength = length
+          edgeA = a
+          edgeB = b
+        }
+      }
+
+      const length = Math.max(0.001, Math.hypot(edgeB.x - edgeA.x, edgeB.z - edgeA.z))
+      const tx = (edgeB.x - edgeA.x) / length
+      const tz = (edgeB.z - edgeA.z) / length
+      const nx = -tz
+      const nz = tx
+      const rowRotation = Math.atan2(-tz, tx)
+      const projections = field.points.map(point => ({
+        t: point.x * tx + point.z * tz,
+        n: point.x * nx + point.z * nz,
+      }))
+      const minT = Math.min(...projections.map(point => point.t))
+      const maxT = Math.max(...projections.map(point => point.t))
+      const minN = Math.min(...projections.map(point => point.n))
+      const maxN = Math.max(...projections.map(point => point.n))
+      const rowSpacing = 0.62
+      const sampleStep = 0.34
+
+      const furrowColor = field.phase === 'ready' ? 0x665138 : field.phase === 'harvested' ? 0x68543b : 0x59442f
+      const cropColor = field.phase === 'ready'
+        ? 0xc4a85f
+        : field.phase === 'growing'
+          ? 0x778650
+          : 0x687746
+      const cropScale = field.phase === 'ready' ? 1.7 : field.phase === 'growing' ? 1.15 : field.phase === 'sown' ? 0.62 : 0
+
+      const emitRow = (t0: number, t1: number, n: number, row: number): void => {
+        const segmentLength = t1 - t0
+        if (segmentLength < 0.28) return
+        const t = (t0 + t1) / 2
+        const x = tx * t + nx * n
+        const z = tz * t + nz * n
+        const rowJitter = Math.sin(field.id * 2.41 + row * 1.73) * 0.018
+        this.instance(
+          'fieldFurrow',
+          x + nx * rowJitter,
+          0.034,
+          z + nz * rowJitter,
+          Math.max(0.18, segmentLength * 0.97),
+          1,
+          0.075,
+          furrowColor,
+          rowRotation,
+        )
+        if (cropScale > 0) {
+          this.instance(
+            'fieldCrop',
+            x + nx * rowJitter,
+            0.052 + cropScale * 0.065,
+            z + nz * rowJitter,
+            Math.max(0.18, segmentLength * 0.93),
+            cropScale,
+            0.92,
+            cropColor,
+            rowRotation,
+          )
+        }
+      }
+
+      let rowIndex = 0
+      for (let n = minN + rowSpacing * 0.55; n <= maxN - rowSpacing * 0.2; n += rowSpacing) {
+        let start: number | null = null
+        let lastInside = minT
+        for (let t = minT; t <= maxT + sampleStep * 0.5; t += sampleStep) {
+          const cappedT = Math.min(t, maxT)
+          const point = { x: tx * cappedT + nx * n, z: tz * cappedT + nz * n }
+          const inside = t <= maxT && pointInPolygon(point, field.points)
+          if (inside) {
+            if (start === null) start = cappedT
+            lastInside = cappedT
+          } else if (start !== null) {
+            emitRow(start, Math.min(maxT, lastInside + sampleStep * 0.7), n, rowIndex)
+            start = null
           }
         }
+        if (start !== null) emitRow(start, maxT, n, rowIndex)
+        rowIndex++
+      }
+
+      const borderColor = field.phase === 'ready' ? 0x8f7650 : 0x806648
+      for (let i = 0; i < field.points.length; i++) {
+        const a = field.points[i]
+        const b = field.points[(i + 1) % field.points.length]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const segmentLength = Math.max(0.05, Math.hypot(dx, dz))
+        this.instance(
+          'fieldFurrow',
+          (a.x + b.x) / 2,
+          0.038,
+          (a.z + b.z) / 2,
+          segmentLength,
+          1,
+          0.11,
+          borderColor,
+          Math.atan2(-dz, dx),
+        )
       }
     }
   }
@@ -1978,6 +2114,32 @@ export class SceneRenderer {
     }
   }
 
+  private renderFarmhouse(b: Building, rotation: number, color: number, night: number): void {
+    this.renderYard(b, rotation, 3.25, 0x695941)
+    this.timberFrame(b, rotation, 3.0, 2.7, 1.72, color, this.readableNightColor(0x5f4a37, night), 1.04)
+
+    const frontDoor = this.rotatedOffset(-0.46, 1.38, rotation)
+    this.instance('doors', b.x + frontDoor.x, 0.8, b.z + frontDoor.z, 0.72, 1.45, 0.14, 0x4b3325, rotation)
+    const window = this.rotatedOffset(0.66, 1.41, rotation)
+    this.framedWindow(b.x + window.x, 1.18, b.z + window.z, rotation, night * 0.72, 0.34, 0.42, b.id + 43)
+
+    const lean = this.rotatedOffset(-1.72, -0.2, rotation)
+    this.instance('timber', b.x + lean.x, 0.62, b.z + lean.z, 1.15, 1.14, 2.05, 0x654932, rotation)
+    this.instance('gableRoofs', b.x + lean.x, 1.24, b.z + lean.z, 1.45, 0.48, 2.28, this.readableNightColor(0x66503b, night), rotation)
+
+    for (const [lx, lz] of [[1.22, -0.9], [1.36, -0.3], [1.18, 0.28]] as const) {
+      const sack = this.rotatedOffset(lx, lz, rotation)
+      this.instance('sacks', b.x + sack.x, 0.26, b.z + sack.z, 0.48, 0.58, 0.44, 0xa38c61, rotation)
+    }
+    const basket = this.rotatedOffset(1.3, 0.78, rotation)
+    this.instance('baskets', b.x + basket.x, 0.22, b.z + basket.z, 0.58, 0.74, 0.58, 0x9c7448, rotation)
+
+    this.fenceLine(b, rotation, -1.75, -1.75, 3.5, false)
+    this.fenceLine(b, rotation, 0, -2.25, 3.8, true)
+    this.renderCart(b, rotation, -1.9, 1.0, b.id + 29)
+    this.frontageClutter(b, rotation, b.id + 37, 0.94)
+  }
+
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
       // Vertical sharpened palisade stakes replace the old horizontal log-kit look.
@@ -2215,6 +2377,8 @@ export class SceneRenderer {
         this.renderBrewery(b, rotation, baseColor, time, night, productionPhaseActive)
       } else if (b.type === 'blacksmith') {
         this.renderBlacksmith(b, rotation, baseColor, time, night, productionPhaseActive)
+      } else if (b.type === 'farmhouse') {
+        this.renderFarmhouse(b, rotation, baseColor, night)
       } else {
         this.instance('buildings', b.x, 0.4, b.z, 2.8, 0.8, 2.8, baseColor, rotation)
       }
@@ -2225,7 +2389,7 @@ export class SceneRenderer {
       }
 
       if (b.complete && (b.health < b.maxHealth || b.id === selectedId)) {
-        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.8 : b.type === 'tavern' ? 3.65 : b.type === 'brewery' || b.type === 'blacksmith' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.8
+        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.8 : b.type === 'tavern' ? 3.65 : b.type === 'brewery' || b.type === 'blacksmith' || b.type === 'farmhouse' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.8
         this.healthBar(b.x, barY, b.z, b.health, b.maxHealth, def.fortification ? 1.1 : 2.2)
       }
 
