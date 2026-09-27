@@ -204,6 +204,15 @@ export function demolishBuilding(s: WorldState, id: number): string | null {
     if (remaining > 0) return 'Need ' + remaining + ' more free stockpile capacity for the demolition refund.'
   }
 
+  for (const settler of s.settlers) {
+    if (settler.workplaceId !== id) continue
+    settler.workplaceId = null
+    if (settler.jobId === null) {
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = 'Needs work'
+    }
+  }
   s.buildings.splice(index, 1)
   s.residentialPlots = s.residentialPlots.filter(plot => plot.buildingId !== id)
   for (const refund of plan) refund.store.inventory[refund.resource] += refund.amount

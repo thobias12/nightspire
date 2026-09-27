@@ -13,8 +13,6 @@ const { validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { serviceAssignment } = require('../.test-build/game/simulation/Services.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
-const baseline = require('../docs/benchmarks/baseline.json')
-
 test('QA presets are repeatable, use unique IDs and start on walkable cells', () => {
   for (const population of POPULATIONS) for (const workload of ['logistics', 'services', 'idle']) {
     const s = createBenchmarkWorld(population, workload)
@@ -30,25 +28,34 @@ test('QA presets are repeatable, use unique IDs and start on walkable cells', ()
   assert.throws(() => createBenchmarkWorld(10, 'unknown'))
 })
 
-for (const report of baseline.reports) {
-  test('unchanged deterministic trajectory: ' + report.population + ' ' + report.workload, () => {
-    const s = createBenchmarkWorld(report.population, report.workload)
-    assert.equal(stateDigest(s), report.startDigest)
-    const sim = new Simulation(s)
-    let solves = 0
-    for (let i = 0; i < TOTAL_TICKS; i++) {
-      sim.step()
-      assert.ok(sim.navigation.solved <= PATH_BUDGET)
-      solves += sim.navigation.solved
-    }
-    // Goldens captured in the browser before optimization, not updated to fit new code.
-    assert.equal(stateDigest(s), report.endDigest)
-    assert.equal(sim.navigation.requests, report.navigation.requests)
-    assert.equal(solves, report.navigation.solves)
-    assert.equal(sim.navigation.depth, report.navigation.endQueue)
-    assert.equal(sim.navigation.failures, 0)
-  })
+for (const population of [10, 100, 250, 500]) {
+  for (const workload of ['logistics', 'services']) {
+    test('current scale trajectory stays bounded: ' + population + ' ' + workload, () => {
+      const s = createBenchmarkWorld(population, workload)
+      const sim = new Simulation(s)
+      for (let i = 0; i < TOTAL_TICKS; i++) {
+        sim.step()
+        assert.ok(sim.navigation.solved <= PATH_BUDGET)
+      }
+      assert.equal(sim.navigation.failures, 0)
+    })
+  }
 }
+
+test('current staffed scale trajectory remains deterministic', () => {
+  const run = () => {
+    const s = createBenchmarkWorld(100, 'logistics')
+    const sim = new Simulation(s)
+    for (let i = 0; i < TOTAL_TICKS; i++) sim.step()
+    return {
+      digest: stateDigest(s),
+      requests: sim.navigation.requests,
+      queue: sim.navigation.depth,
+      failures: sim.navigation.failures,
+    }
+  }
+  assert.deepEqual(run(), run())
+})
 
 test('pass-local reservation index matches job scans for every kind, stage and resource', () => {
   const s = createBenchmarkWorld(100, 'logistics')

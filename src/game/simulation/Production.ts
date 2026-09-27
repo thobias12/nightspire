@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import type { DayPhase } from './DayNight'
+import { workplaceStaffing } from './Workforce'
 import { recordEvent, type Building, type WorldState } from './WorldState'
 
 export function productionAvailable(building: Building, phase: DayPhase): boolean {
@@ -21,6 +22,9 @@ export function updateProduction(state: WorldState, delta: number, phase: DayPha
     }
     if (!production.activePhases.includes(phase)) continue
 
+    const staffing = workplaceStaffing(state, building)
+    if (staffing.slots > 0 && staffing.active <= 0) continue
+
     if (
       building.inventory[production.inputResource] < production.inputAmount
       || building.inventory[production.outputResource] + production.outputAmount > production.outputCapacity
@@ -28,7 +32,7 @@ export function updateProduction(state: WorldState, delta: number, phase: DayPha
       continue
     }
 
-    building.productionProgress += delta
+    building.productionProgress += delta * (staffing.slots > 0 ? staffing.efficiency : 1)
     while (
       building.productionProgress + 1e-8 >= production.cycleSeconds
       && building.inventory[production.inputResource] >= production.inputAmount

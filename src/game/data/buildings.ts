@@ -36,6 +36,8 @@ export interface BuildingDefinition {
   housing: number
   storage: number
   guardSlots: number
+  workerSlots?: number
+  profession?: string
   service: ServiceDefinition | null
   production: ProductionDefinition | null
   maxHealth: number
@@ -100,6 +102,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
   brewery: {
     id: 'brewery', label: 'Brewery', footprint: 3, buildCost: cost(35),
     constructionWork: 14, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 2, profession: 'Brewer',
     service: null,
     production: {
       inputResource: 'food', inputAmount: 2, inputCapacity: 20,
@@ -111,6 +114,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
   blacksmith: {
     id: 'blacksmith', label: 'Blacksmith', footprint: 3, buildCost: cost(45),
     constructionWork: 18, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 2, profession: 'Blacksmith',
     service: null,
     production: {
       inputResource: 'ore', inputAmount: 3, inputCapacity: 18,

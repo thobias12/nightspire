@@ -11,6 +11,7 @@ import { serviceAssignment, serviceAvailable, serviceSummary } from '../simulati
 import { toolCoverage } from '../simulation/Tools'
 import { enemyLabel, MAX_SETTLERS, settlerLabel, type WorldState } from '../simulation/WorldState'
 import { residentialFrontage, residentialPresentationProfile } from '../render/ResidentialPresentation'
+import { assignedWorkplace, professionLabel, workplaceStaffing } from '../simulation/Workforce'
 
 export interface Metrics { frame: number; simulation: number; render: number; calls: number; triangles: number; paths: number; requests: number; queue: number; failures: number; dropped: number }
 export interface HudState {
@@ -42,10 +43,11 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.10.2 · ROAD PLANNER UX</span></div><div id="resources"></div><div id="clock"></div></header>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.11.0 · WORKPLACE ECONOMY</span></div><div id="resources"></div><div id="clock"></div></header>
       <section class="guide panel"><span class="eyebrow">DRAW THE STREET, THEN BUILD FROM IT</span><h1>Roads are shaped point-by-point with independent snapping controls.</h1>
         <p>Click road points to draw an organic route, move the mouse for a live curved preview, hold Shift only when you want 0°/45°/90° alignment, and use Grid Snap independently for 1m control points. Road Snap joins nearby endpoints/centerlines and keeps curved-road frontage compatible with Residential Plots and conventional buildings.</p>
         <div id="objective"></div>
+        <div id="workforce"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
       <section class="inspector panel"><span class="eyebrow">INSPECT</span><div id="inspection">Select something in the world.</div></section>
@@ -84,9 +86,9 @@ export class Hud {
           <button data-action="campfire" title="Hotkey 3">[3] Campfire <small>10 wood · 6 free slots</small></button>
         </div>
         <div class="build-group"><span>Production & services</span>
-          <button data-action="brewery" title="Hotkey 4">[4] Brewery <small>35 wood · Food → Ale</small></button>
+          <button data-action="brewery" title="Hotkey 4">[4] Brewery <small>35 wood · Food → Ale · 2 Brewers</small></button>
           <button data-action="tavern" title="Hotkey 5">[5] Tavern <small>40 wood · 12 Ale-fed slots</small></button>
-          <button data-action="blacksmith" title="Hotkey 9">[9] Blacksmith <small>45 wood · Ore → Tools</small></button>
+          <button data-action="blacksmith" title="Hotkey 9">[9] Blacksmith <small>45 wood · Ore → Tools · 2 Smiths</small></button>
         </div>
         <div class="build-group"><span>Defense</span>
           <button data-action="guard-post" title="Hotkey 6">[6] Guard Post <small>25 wood · 2 guards</small></button>
@@ -111,7 +113,7 @@ export class Hud {
       const roster = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-roster]')
       if (roster) { this.rosterPage = Math.max(0, this.rosterPage + Number(roster.dataset.roster)); return }
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]')
-      if (button) action(button.dataset.action!)
+      if (button) action(button.dataset.action!, button.dataset.value)
     }, { signal })
     this.element.addEventListener('change', e => {
       const input = e.target as HTMLInputElement
@@ -143,7 +145,11 @@ export class Hud {
     const housed = s.settlers.filter(a => a.homeId !== null).length
     const beds = s.buildings.filter(b => b.complete && !b.destroyed).reduce((n, b) => n + BUILDINGS[b.type].housing, 0)
     const guards = s.settlers.filter(a => a.role === 'guard').length
+    const laborers = s.settlers.filter(a => a.role === 'worker' && a.workplaceId === null && a.arrivalTarget === null).length
     const guardSlots = s.buildings.filter(b => b.complete && !b.destroyed).reduce((n, b) => n + BUILDINGS[b.type].guardSlots, 0)
+    const workplaces = s.buildings.filter(b => b.complete && !b.destroyed && (BUILDINGS[b.type].workerSlots ?? 0) > 0)
+    const assignedWorkplaceWorkers = workplaces.reduce((n, b) => n + workplaceStaffing(s, b).assigned, 0)
+    const workplaceSlots = workplaces.reduce((n, b) => n + (BUILDINGS[b.type].workerSlots ?? 0), 0)
     const phase = phaseForTime(s.timeOfDay)
     const damaged = s.buildings.filter(b => b.complete && b.health < b.maxHealth).length
     const walls = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'wood-wall').length
@@ -160,13 +166,21 @@ export class Hud {
     const arriving = s.settlers.filter(settler => settler.arrivalTarget !== null).length
     const fedToday = s.settlers.filter(settler => settler.lastMealDay === s.day).length
 
-    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
+    this.set('resources', `<b>Wood ${wood}/${s.targets.wood}</b> <span>(${held} reserved)</span> <b>Food ${food}/${s.targets.food}</b> <b>Ale ${ale}</b> <b>Ore ${ore}/${s.targets.ore}</b> <b>Tools ${storedTools}</b> <b>Population ${s.settlers.length}/${MAX_SETTLERS}</b> <b>Housing ${housed}/${s.settlers.length}</b> <b>Laborers ${laborers}</b> <b>Workplaces ${assignedWorkplaceWorkers}/${workplaceSlots}</b> <b>Guards ${guards}/${guardSlots}</b> <b>Raiders ${s.enemies.length}</b> <b>Happy ${needSummary.happiness}%</b> <b>Work ${Math.round(effectiveWorkRate * 100)}%</b> <b>Attraction ${attraction.score}</b> <b>You ${s.player.health}/${s.player.maxHealth} HP</b>`)
     const minutes = Math.floor(s.timeOfDay * 1440)
     this.set('clock', `<span class="phase phase-${phase}">${phaseLabel(phase)}</span> · Day ${s.day} · ${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')} ${ui.paused ? '· PAUSED' : ''}<small>Ore → Blacksmith → Tools · stockpiled Tools add up to +10% hands-on work on top of Happiness</small>`)
 
     const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
     this.set('objective', `<div class="objective-row">${effectiveWorkRate >= 1 ? '✓' : '○'} Settlement productivity · ${Math.round(effectiveWorkRate * 100)}%</div><div class="objective-row">${toolSummary.coverage >= 1 ? '✓' : '○'} Tool coverage · ${toolSummary.stored}/${toolSummary.required} · +${Math.round((toolSummary.workMultiplier - 1) * 100)}%</div><div class="objective-row">${moraleSummary.refusing === 0 ? '✓' : '○'} Essentials-only workers · ${moraleSummary.refusing}</div><div class="objective-row">${attraction.spareBeds > 0 ? '✓' : '○'} Spare bed · ${attraction.spareBeds}</div><div class="objective-row">${attraction.food >= attraction.foodRequired ? '✓' : '○'} Food buffer · ${attraction.food}/${attraction.foodRequired}</div><div class="objective-row">${attraction.happiness >= 65 ? '✓' : '○'} Happiness ≥ 65% · ${attraction.happiness}%</div><div class="objective-row">${attraction.safety >= 55 ? '✓' : '○'} Safety ≥ 55% · ${attraction.safety}%</div><div class="objective-row">${attraction.raidReady ? '✓' : '○'} Settlement safe after raids</div><div class="objective-row">${s.immigration.eligibleDays >= IMMIGRATION_REQUIRED_DAYS ? '✓' : '○'} Qualification streak · ${s.immigration.eligibleDays}/${IMMIGRATION_REQUIRED_DAYS}</div><div class="objective-row">${s.immigration.totalArrivals > 0 ? '✓' : '○'} Immigrants arrived · ${s.immigration.totalArrivals}</div>`)
+    const workforceParts = workplaces.map(building => {
+      const staffing = workplaceStaffing(s, building)
+      const label = BUILDINGS[building.type].profession ?? BUILDINGS[building.type].label
+      return label + ' ' + staffing.assigned + '/' + staffing.slots
+    })
+    this.set('workforce', '<p><b>Workforce</b> · Laborers ' + laborers
+      + (workforceParts.length ? ' · ' + workforceParts.join(' · ') : ' · no staffed workplaces yet')
+      + ' · Guards ' + guards + '/' + guardSlots + '</p>')
 
     const a = s.settlers.find(a => a.id === ui.selectedId)
     const b = s.buildings.find(b => b.id === ui.selectedId)
@@ -181,7 +195,10 @@ export class Hud {
       const effectiveRate = morale.workRate * toolSummary.workMultiplier
       const serviceText = service ? service.label + ' · +' + service.gainPerSecond + ' recreation/s' : (phase === 'dusk' || phase === 'dawn' ? 'No available service slot' : 'Off hours only')
       const moraleText = morale.label + ' · morale ' + (modifier >= 0 ? '+' : '') + modifier + '% · tools +' + Math.round((toolSummary.workMultiplier - 1) * 100) + '% · effective ' + Math.round(effectiveRate * 100) + '%' + (morale.refusesNonessential ? ' · <b>ESSENTIALS ONLY</b>' + (morale.reason ? ' (' + morale.reason + ')' : '') : '')
-      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${a.role === 'guard' ? 'Guard' : 'Worker'}</b> · ${escape(a.status)}</p><p><b>Happiness ${happinessOf(a)}% · ${moraleText}</b><br>Food ${Math.round(a.needs.food)}% · Housing ${Math.round(a.needs.housing)}%<br>Safety ${Math.round(a.needs.safety)}% · Recreation ${Math.round(a.needs.recreation)}%</p><p>${a.arrivalTarget ? '<b>Immigrant:</b> walking into the settlement<br>' : ''}Recreation service: ${serviceText}<br>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food, ${a.cargo.ale} ale, ${a.cargo.ore} ore, ${a.cargo.tools} tools<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Last meal: Day ${a.lastMealDay}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p>${a.arrivalTarget ? '' : '<button data-action="toggle-role">' + (a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard') + '</button>'}`)
+      const profession = professionLabel(s, a)
+      const workplace = assignedWorkplace(s, a)
+      const workplaceText = workplace ? BUILDINGS[workplace.type].label + ' ' + workplace.id : 'General labor pool'
+      this.set('inspection', `<h2>${settlerLabel(s, a.id)}</h2><p><b>${profession}</b> · ${escape(a.status)}</p><p><b>Happiness ${happinessOf(a)}% · ${moraleText}</b><br>Food ${Math.round(a.needs.food)}% · Housing ${Math.round(a.needs.housing)}%<br>Safety ${Math.round(a.needs.safety)}% · Recreation ${Math.round(a.needs.recreation)}%</p><p>${a.arrivalTarget ? '<b>Immigrant:</b> walking into the settlement<br>' : ''}Recreation service: ${serviceText}<br>HP: ${a.health}/${a.maxHealth}<br>Cargo: ${a.cargo.wood} wood, ${a.cargo.food} food, ${a.cargo.ale} ale, ${a.cargo.ore} ore, ${a.cargo.tools} tools<br>Home: ${a.homeId === null ? 'Unhoused' : 'House ' + a.homeId}<br>Workplace: ${workplaceText}<br>Night post: ${a.role === 'guard' ? (guardAssignment ? 'Guard Post ' + guardAssignment.buildingId : 'No slot available') : 'Civilian shelter'}<br>Last meal: Day ${a.lastMealDay}<br>Position: ${a.x.toFixed(1)}, ${a.z.toFixed(1)}</p>${a.arrivalTarget ? '' : (a.workplaceId !== null ? '<button data-action="unassign-workplace" data-value="' + a.id + '">Return to labor pool</button>' : '') + '<button data-action="toggle-role">' + (a.role === 'guard' ? 'Return to worker duty' : 'Assign as guard') + '</button>'}`)
     } else if (e) {
       const target = s.buildings.find(b => b.id === e.targetId)
       this.set('inspection', `<h2>${enemyLabel(s, e.id)}</h2><p><b>Raider</b> · ${escape(e.status)}</p><p>HP: ${e.health}/${e.maxHealth}<br>Wave: ${s.raid.wave}<br>Target: ${target ? BUILDINGS[target.type].label + ' ' + target.id : 'Settlement'}<br>Position: ${e.x.toFixed(1)}, ${e.z.toFixed(1)}</p><p class="muted">Move the player within melee range and press Space, or let guards intercept.</p>`)
@@ -217,11 +234,13 @@ export class Hud {
           ? service.slots + ' ' + service.need + ' slots · +' + service.gainPerSecond + '/s'
             + (service.supplyResource ? '<br>Pantry: ' + b.inventory[service.supplyResource] + '/' + service.supplyCapacity + ' ' + service.supplyResource + ' · inbound ' + supplyJob : '<br>No operating supplies required')
           : ''
+        const staffing = (def.workerSlots ?? 0) > 0 ? workplaceStaffing(s, b) : null
         const productionText = production
-          ? production.inputAmount + ' ' + production.inputResource + ' → ' + production.outputAmount + ' ' + production.outputResource + ' every ' + production.cycleSeconds + 's'
+          ? production.inputAmount + ' ' + production.inputResource + ' → ' + production.outputAmount + ' ' + production.outputResource + ' every ' + production.cycleSeconds + 's at full staffing'
             + '<br>Input: ' + b.inventory[production.inputResource] + '/' + production.inputCapacity
             + ' · Output: ' + b.inventory[production.outputResource] + '/' + production.outputCapacity
             + '<br>Batch progress: ' + Math.round(b.productionProgress / production.cycleSeconds * 100) + '%'
+            + (staffing ? '<br>Staffing: ' + staffing.assigned + '/' + staffing.slots + ' assigned · ' + staffing.active + ' present · ' + Math.round(staffing.efficiency * 100) + '% speed' : '')
           : ''
         const functionText = def.housing ? def.housing + ' beds'
           : def.guardSlots ? def.guardSlots + ' guard slots'
@@ -235,7 +254,21 @@ export class Hud {
       } else {
         details = `Delivered: ${b.delivered.wood}/${def.buildCost.wood} wood<br>Assigned deliveries: ${s.jobs.filter(j => j.kind === 'deliver' && j.targetId === b.id).reduce((sum, j) => sum + j.amount, 0)} wood<br>Work: ${Math.round(b.work / def.constructionWork * 100)}%<br><progress value="${b.work}" max="${def.constructionWork}"></progress>${cancel}`
       }
-      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${demolish}`)
+      const workplaceControls = b.complete && !b.destroyed && (def.workerSlots ?? 0) > 0
+        ? (() => {
+            const staffing = workplaceStaffing(s, b)
+            const rows = staffing.workers.map(worker =>
+              '<div class="worker">' + settlerLabel(s, worker.id) + ' · ' + professionLabel(s, worker)
+              + (worker.jobId !== null ? ' · finishing current task' : worker.status.startsWith('Working') ? ' · present' : ' · reporting')
+              + ' <button data-action="unassign-workplace" data-value="' + worker.id + '">Unassign</button></div>'
+            ).join('')
+            const assign = staffing.assigned < staffing.slots
+              ? '<button data-action="assign-workplace">Assign laborer</button>'
+              : '<button disabled>Fully staffed</button>'
+            return '<p><b>Workforce ' + staffing.assigned + '/' + staffing.slots + '</b> · ' + staffing.active + ' physically at work</p>' + rows + assign
+          })()
+        : ''
+      this.set('inspection', `<h2>${def.label} ${b.id}</h2><p>${b.complete ? (b.destroyed ? 'Ruined — non-blocking until repaired' : 'Complete') : 'Under construction'} · Facing ${facing}${compoundText}</p><p>${details}</p>${workplaceControls}${demolish}`)
     } else if (n) {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
@@ -268,7 +301,7 @@ export class Hud {
       const paging = pages > 1
         ? `<div class="row"><button data-roster="-1" ${this.rosterPage === 0 ? 'disabled' : ''}>Previous settlers</button><span>${this.rosterPage + 1}/${pages}</span><button data-roster="1" ${this.rosterPage === pages - 1 ? 'disabled' : ''}>Next settlers</button></div>`
         : ''
-    this.set('workers', '<h3>Settlers</h3>' + paging + s.settlers.slice(start, start + size).map(a => { const morale = happinessEffect(a); return `<div class="worker">${settlerLabel(s, a.id)} · ${a.role === 'guard' ? 'Guard' : 'Worker'} · ${morale.label} ${happinessOf(a)}% · Work ${Math.round(morale.workRate * toolSummary.workMultiplier * 100)}% · ${escape(a.status)}</div>` }).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
+    this.set('workers', '<h3>Settlers</h3>' + paging + s.settlers.slice(start, start + size).map(a => { const morale = happinessEffect(a); return `<div class="worker">${settlerLabel(s, a.id)} · ${professionLabel(s, a)} · ${morale.label} ${happinessOf(a)}% · Work ${Math.round(morale.workRate * toolSummary.workMultiplier * 100)}% · ${escape(a.status)}</div>` }).join('') + (s.enemies.length ? '<h3>Raiders</h3>' + s.enemies.map(e => `<div class="worker enemy-row">${enemyLabel(s, e.id)} · ${e.health}/${e.maxHealth} HP · ${escape(e.status)}</div>`).join('') : '') + '<h3>Recent activity</h3>' + s.events.map(e => `<div class="worker">${escape(e)}</div>`).join(''))
     }
 
     this.element.querySelector('[data-action="pause"]')!.textContent = ui.paused ? 'Resume' : 'Pause'

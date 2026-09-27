@@ -341,15 +341,35 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 ## M3.11 — Medieval economy depth
 
-- [ ] richer workplace chains
-- [ ] local input/output storage
-- [ ] markets/trade
+### M3.11.0 — Professions & workplace economy
+
+- [x] persistent settler workplace assignment
+- [x] Brewery exposes two Brewer slots
+- [x] Blacksmith exposes two Blacksmith slots
+- [x] assigned staff finish current jobs before leaving the general labor pool
+- [x] dedicated staff physically report to their workplace during Day
+- [x] production pauses with zero staff physically present
+- [x] production runs at 50% with one of two slots present and 100% with both
+- [x] dynamic general-work profession labels: Laborer / Woodcutter / Forager / Miner / Hauler / Builder
+- [x] building inspector assign/unassign controls
+- [x] settler inspector shows profession and workplace
+- [x] compact settlement workforce overview
+- [x] workplace save/load migration and capacity validation
+- [x] demolition releases workplace staff back to the labor pool
+- [x] M4 benchmark presets explicitly staff a bounded subset of production workers
+- [x] normal gameplay population cap remains ten
+- [ ] live pacing/UX acceptance with Brewery + Blacksmith competing for a six-to-ten-settler workforce
+
+### Later M3.11 slices
+
+- [ ] local workplace input/output storage rules and hauling priorities
+- [ ] market/trade foundation
 - [ ] household-side production
 - [ ] transport-distance pressure
 - [ ] specialization/upgrades
 - [ ] land-use/seasonal hooks only if compatible with proven scale targets
 
-**Exit:** the player can read and optimize a believable local medieval economy by watching the settlement.
+**Exit:** the player can read and optimize a believable local medieval economy by watching and staffing the settlement.
 
 ## M4 — Scale proof
 
