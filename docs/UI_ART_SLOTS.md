@@ -118,3 +118,22 @@ Reserve the following path families for the next art pass:
 - `service:agriculture`
 
 The implementation contract is centralized in `src/game/ui/UiAssets.ts`. Final files should live beneath `assets/ui/<kind>/` and can be wired without changing simulation or HUD structure.
+
+
+### Planned construction cards
+
+The construction catalog also reserves artwork for future locked cards:
+
+- `build-granary`
+- `build-bakery`
+- `build-quarry`
+- `build-mine`
+- `build-well`
+- `build-chapel`
+- `build-bathhouse`
+- `build-pleasure-house`
+- `build-manor`
+- `build-watchtower`
+- `build-barracks`
+
+These are visual roadmap slots only and remain disabled until their simulation systems exist.

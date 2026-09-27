@@ -665,3 +665,22 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   .build-catalog { width: calc(100vw - 20px); }
   .inspector.is-building { width: min(350px, calc(100vw - 10px)); }
 }
+
+.build-card.is-planned {
+  opacity: .52;
+  filter: saturate(.5);
+  cursor: default;
+  position: relative;
+}
+.build-card.is-planned::after {
+  content: 'PLANNED';
+  position: absolute;
+  top: 7px;
+  right: 6px;
+  padding: 2px 4px;
+  border: 1px solid rgba(91,72,47,.45);
+  background: rgba(233,216,178,.82);
+  color: #594a36;
+  font: 700 7px/1 Inter, sans-serif;
+  letter-spacing: .1em;
+}
