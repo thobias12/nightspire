@@ -217,3 +217,17 @@ Art requirements:
 - planning utilities such as Grid Snap are not building cards and use compact utility icons
 
 The live HUD also marks unaffordable building cards from current settlement resources without disabling placement, so the player still receives the simulation's normal placement feedback.
+
+
+## Permanent HUD
+
+The permanent HUD is intentionally fixed rather than draggable.
+
+Additional art slots:
+- `settlement-crest`
+- `time-pause`
+- existing resource icons `resource-wood`, `resource-food`, `resource-ale`, `resource-ore`, `resource-tools`, `resource-gold`
+- command medallions `command-build`, `command-rotate`, `command-inspect`, `command-camera`, `command-street-view`, `command-center`
+- compact utility icons `command-save`, `command-load`
+
+Tasks & Messages deliberately suppresses routine hauling/deposit chatter. It should surface actionable settlement conditions plus only meaningful recent events.
