@@ -47,6 +47,13 @@ const {
   tradeReputation,
 } = require('../.test-build/game/simulation/Trading.js')
 const {
+  createField, fieldArea, fieldCentroid, fieldPlacementError, pointInPolygon,
+} = require('../.test-build/game/simulation/FieldPlanning.js')
+const {
+  FIELD_GROWTH_DAYS, agricultureSummary, assignFieldsToFarmhouses, farmerFieldAssignment,
+  fieldHarvestWork, fieldSowWork, processAgricultureDay, workField,
+} = require('../.test-build/game/simulation/Agriculture.js')
+const {
   serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices, SERVICE_COVERAGE_RADIUS,
 } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
@@ -2732,4 +2739,194 @@ test('M3.11.6 trade reserve controls clamp safely and old saves migrate to Gold 
   invalid.trade.policies.wood.mode='dump'
   assert.throws(()=>deserializeWorld(JSON.stringify(invalid)),/trade state/)
   validateWorld(loaded)
+})
+
+
+test('M3.11.7 point-drawn fields support irregular Manor Lords-style polygons', () => {
+  const s=createInitialWorldState()
+  for(const node of s.nodes) node.remaining=0
+  const points=[
+    {x:8,z:8},
+    {x:17,z:7},
+    {x:19,z:13},
+    {x:14,z:17},
+    {x:8,z:15},
+  ]
+  assert.equal(fieldPlacementError(points,[],s.buildings,[],s.nodes,[]),null)
+  const field=createField(s.nextId++,points)
+  assert.ok(fieldArea(points)>40)
+  assert.ok(pointInPolygon(fieldCentroid(points),points))
+  assert.equal(field.points.length,5)
+  assert.ok(field.yield>=8)
+  s.fields.push(field)
+  validateWorld(s)
+})
+
+test('M3.11.7 field placement rejects crossings, occupied land and later road/building intrusion', () => {
+  const s=createInitialWorldState()
+  for(const node of s.nodes) node.remaining=0
+  const points=[{x:8,z:8},{x:16,z:8},{x:16,z:14},{x:8,z:14}]
+  const field=createField(s.nextId++,points)
+  s.fields.push(field)
+
+  assert.match(fieldPlacementError(
+    [{x:12,z:10},{x:20,z:10},{x:20,z:16},{x:12,z:16}],
+    s.fields,s.buildings,s.residentialPlots,s.nodes,s.roads,
+  ),/overlap/i)
+  assert.match(placementError(s,'farmhouse',{x:12,z:11}),/farm field/i)
+  assert.match(roadPlacementError([{x:5,z:11},{x:20,z:11}],s.fields),/farm field/i)
+
+  const selfCross=[{x:20,z:8},{x:28,z:14},{x:20,z:14},{x:28,z:8}]
+  assert.match(fieldPlacementError(selfCross,s.fields,s.buildings,s.residentialPlots,s.nodes,s.roads),/edges cannot cross/i)
+  validateWorld(s)
+})
+
+test('M3.11.7 Farmers physically target fields and complete sowing work', () => {
+  const s=createInitialWorldState()
+  for(const node of s.nodes) node.remaining=0
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',7,0,true)
+  const field=createField(s.nextId++,[
+    {x:10,z:3},{x:16,z:3},{x:16,z:8},{x:10,z:8},
+  ])
+  s.buildings.push(farmhouse)
+  s.fields.push(field)
+  s.topology++
+  const [farmer]=staffWorkplace(s,farmhouse,1)
+  assignFieldsToFarmhouses(s)
+  assert.equal(field.farmhouseId,farmhouse.id)
+  assert.equal(farmerFieldAssignment(s,farmhouse,farmer).id,field.id)
+
+  const sim=new Simulation(s)
+  advance(sim,12)
+  assert.equal(field.phase,'sown')
+  assert.match(farmer.status,/field|Farmhouse/i)
+  validateWorld(s)
+})
+
+test('M3.11.7 crops grow across Days then harvest into Farmhouse Food storage', () => {
+  const s=createInitialWorldState()
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',7,0,true)
+  const field=createField(s.nextId++,[
+    {x:10,z:3},{x:16,z:3},{x:16,z:8},{x:10,z:8},
+  ])
+  s.buildings.push(farmhouse)
+  s.fields.push(field)
+  s.topology++
+  staffWorkplace(s,farmhouse,1)
+  assignFieldsToFarmhouses(s)
+
+  const producedBefore=s.totals.produced.food
+  assert.equal(workField(s,farmhouse,field,fieldSowWork(field),1),'Sown field '+field.id)
+  assert.equal(field.phase,'sown')
+
+  s.day=2
+  processAgricultureDay(s)
+  assert.equal(field.phase,'growing')
+  assert.equal(field.growthDays,1)
+
+  s.day=3
+  processAgricultureDay(s)
+  assert.equal(field.growthDays,FIELD_GROWTH_DAYS)
+  assert.equal(field.phase,'ready')
+
+  assert.equal(workField(s,farmhouse,field,fieldHarvestWork(field),1),'Harvested field '+field.id)
+  assert.equal(field.phase,'harvested')
+  assert.equal(farmhouse.inventory.food,field.yield)
+  assert.equal(s.totals.produced.food,producedBefore+field.yield)
+
+  s.day=4
+  processAgricultureDay(s)
+  assert.equal(field.phase,'fallow')
+  validateWorld(s)
+})
+
+test('M3.11.7 a full Farmhouse blocks harvest until Laborers create storage space', () => {
+  const s=createInitialWorldState()
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',7,0,true)
+  const field=createField(s.nextId++,[
+    {x:10,z:3},{x:16,z:3},{x:16,z:8},{x:10,z:8},
+  ])
+  field.phase='ready'
+  field.lastGrowthDay=s.day
+  farmhouse.inventory.food=60
+  s.buildings.push(farmhouse)
+  s.fields.push(field)
+  s.topology++
+  staffWorkplace(s,farmhouse,1)
+  assignFieldsToFarmhouses(s)
+
+  assert.equal(workField(s,farmhouse,field,fieldHarvestWork(field),1),'Farmhouse Food store full')
+  assert.equal(field.phase,'ready')
+  assert.equal(field.work,0)
+  farmhouse.inventory.food=0
+  workField(s,farmhouse,field,fieldHarvestWork(field),1)
+  assert.equal(field.phase,'harvested')
+  validateWorld(s)
+})
+
+test('M3.11.7 harvested Farmhouse Food is hauled into accepting Stockpiles', () => {
+  const s=createInitialWorldState()
+  for(const settler of s.settlers) {
+    settler.lastMealDay=s.day
+    settler.needs={food:100,housing:100,safety:100,recreation:100}
+  }
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',7,0,true)
+  farmhouse.inventory.food=24
+  s.buildings.push(farmhouse)
+  s.topology++
+  staffWorkplace(s,farmhouse,1)
+
+  assignJobs(s)
+  const job=s.jobs.find(job=>job.kind==='supply' && job.sourceId===farmhouse.id && job.resource==='food')
+  assert.ok(job)
+  assert.equal(job.targetId,s.buildings[0].id)
+  validateWorld(s)
+})
+
+test('M3.11.7 field state persists and old saves migrate with no farm fields', () => {
+  const s=createInitialWorldState()
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',7,0,true)
+  const field=createField(s.nextId++,[
+    {x:10,z:3},{x:16,z:3},{x:16,z:8},{x:10,z:8},
+  ])
+  field.phase='growing'
+  field.growthDays=1
+  field.lastGrowthDay=s.day
+  field.farmhouseId=farmhouse.id
+  s.buildings.push(farmhouse)
+  s.fields.push(field)
+  s.topology++
+
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.equal(loaded.fields.length,1)
+  assert.equal(loaded.fields[0].phase,'growing')
+  assert.equal(loaded.fields[0].farmhouseId,farmhouse.id)
+
+  const legacy=JSON.parse(serializeWorld(createInitialWorldState()))
+  delete legacy.fields
+  const migrated=deserializeWorld(JSON.stringify(legacy))
+  assert.deepEqual(migrated.fields,[])
+  validateWorld(loaded)
+})
+
+test('M3.11.7 agriculture summary exposes field stages and Farmhouse Food', () => {
+  const s=createInitialWorldState()
+  const farmhouse=createBuilding(s.nextId++,'farmhouse',7,0,true)
+  farmhouse.inventory.food=12
+  const fallow=createField(s.nextId++,[{x:10,z:3},{x:15,z:3},{x:15,z:7},{x:10,z:7}])
+  const ready=createField(s.nextId++,[{x:17,z:3},{x:22,z:3},{x:22,z:7},{x:17,z:7}])
+  ready.phase='ready'
+  s.buildings.push(farmhouse)
+  s.fields.push(fallow,ready)
+  s.topology++
+  assignFieldsToFarmhouses(s)
+
+  const summary=agricultureSummary(s)
+  assert.equal(summary.fields,2)
+  assert.equal(summary.phases.fallow,1)
+  assert.equal(summary.phases.ready,1)
+  assert.equal(summary.farmFood,12)
+  assert.equal(summary.expected,ready.yield)
+  validateWorld(s)
 })
