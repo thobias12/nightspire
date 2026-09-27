@@ -193,9 +193,9 @@ export class SceneRenderer {
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
-    this.addBatch('fieldFurrow', new THREE.BoxGeometry(1, 0.035, 0.13), 0x5b4632, 4200)
-    this.addBatch('fieldCrop', new THREE.BoxGeometry(1, 0.15, 0.18), 0x70804b, 3600)
-    this.addBatch('fieldEdgeGrass', new THREE.BoxGeometry(1, 0.065, 0.28), 0x5f6e42, 2200)
+    this.addBatch('fieldFurrow', new THREE.BoxGeometry(1, 0.024, 0.24), 0x654f3a, 4200)
+    this.addBatch('fieldCrop', new THREE.ConeGeometry(0.16, 0.42, 5), 0x70804b, 5600)
+    this.addBatch('fieldEdgeGrass', new THREE.BoxGeometry(1, 0.055, 0.42), 0x708052, 2200)
     this.addBasicBatch('yardPatch', new THREE.CircleGeometry(1, 18).rotateX(-Math.PI / 2), 0x66563f, 320, 0.28)
     this.addBatch('gardenRow', new THREE.BoxGeometry(1, 0.08, 1), 0x5f6941, 420)
     this.addBatch('chicken', new THREE.SphereGeometry(0.16, 6, 4), 0xb9a477, 160)
@@ -707,30 +707,37 @@ export class SceneRenderer {
       const maxT = Math.max(...projections.map(point => point.t))
       const minN = Math.min(...projections.map(point => point.n))
       const maxN = Math.max(...projections.map(point => point.n))
-      const rowSpacing = field.phase === 'ready' ? 0.52 : 0.64
-      const sampleStep = 0.26
+      const rowSpacing = field.phase === 'ready'
+        ? 0.58
+        : field.phase === 'growing'
+          ? 0.64
+          : field.phase === 'sown'
+            ? 0.7
+            : 0.76
+      const sampleStep = 0.24
 
       const furrowColor = field.phase === 'ready'
-        ? 0x715c42
-        : field.phase === 'harvested'
-          ? 0x765f44
-          : 0x5f4833
+        ? 0x776247
+        : field.phase === 'growing'
+          ? 0x654f3a
+          : 0x614a36
       const cropColor = field.phase === 'ready'
-        ? 0xc0a25d
+        ? 0xc5aa63
         : field.phase === 'growing'
-          ? 0x788651
+          ? 0x7d8d55
           : field.phase === 'sown'
-            ? 0x71804d
-            : 0x8e7750
+            ? 0x758451
+            : 0xa18b5b
       const cropScale = field.phase === 'ready'
-        ? 1.55
+        ? 1.28
         : field.phase === 'growing'
-          ? 1.05
+          ? 0.92
           : field.phase === 'sown'
-            ? 0.42
+            ? 0.32
             : field.phase === 'harvested'
               ? 0.24
               : 0
+      const drawFurrows = field.phase === 'sown' || field.phase === 'growing' || field.phase === 'ready'
 
       const emitRow = (t0: number, t1: number, n: number, row: number): void => {
         const segmentLength = t1 - t0
@@ -738,33 +745,45 @@ export class SceneRenderer {
         const t = (t0 + t1) / 2
         const x = tx * t + nx * n
         const z = tz * t + nz * n
-        const rowJitter = Math.sin(field.id * 2.41 + row * 1.73) * 0.028
+        const rowJitter = Math.sin(field.id * 2.41 + row * 1.73) * 0.035
 
-        this.instance(
-          'fieldFurrow',
-          x + nx * rowJitter,
-          0.048,
-          z + nz * rowJitter,
-          Math.max(0.3, segmentLength * 0.985),
-          1,
-          1,
-          furrowColor,
-          rowRotation,
-        )
-
-        if (cropScale > 0) {
-          const cropInset = field.phase === 'sown' ? 0.92 : 0.96
+        if (drawFurrows) {
           this.instance(
-            'fieldCrop',
+            'fieldFurrow',
             x + nx * rowJitter,
-            0.085 + cropScale * 0.055,
+            0.05,
             z + nz * rowJitter,
-            Math.max(0.25, segmentLength * cropInset),
-            cropScale,
-            field.phase === 'harvested' ? 0.58 : 0.86,
-            cropColor,
+            Math.max(0.3, segmentLength * 0.985),
+            1,
+            1,
+            furrowColor,
             rowRotation,
           )
+        }
+
+        if (cropScale > 0) {
+          const plantSpacing = field.phase === 'ready' ? 0.52 : field.phase === 'growing' ? 0.62 : 0.72
+          const plantCount = Math.max(1, Math.floor(segmentLength / plantSpacing))
+          for (let plant = 0; plant < plantCount; plant++) {
+            const fraction = (plant + 0.5) / plantCount
+            const seed = field.id * 31.17 + row * 7.13 + plant * 2.39
+            const along = t0 + segmentLength * fraction + Math.sin(seed * 1.7) * 0.08
+            const across = n + rowJitter + Math.cos(seed * 1.13) * 0.035
+            const px = tx * along + nx * across
+            const pz = tz * along + nz * across
+            const variation = 0.86 + (Math.sin(seed * 2.03) * 0.5 + 0.5) * 0.28
+            this.instance(
+              'fieldCrop',
+              px,
+              0.064 + cropScale * variation * 0.21,
+              pz,
+              variation,
+              cropScale * variation,
+              variation,
+              cropColor,
+              seed,
+            )
+          }
         }
       }
 
@@ -800,12 +819,12 @@ export class SceneRenderer {
         this.instance(
           'fieldEdgeGrass',
           (a.x + b.x) / 2,
-          0.052,
+          0.046,
           (a.z + b.z) / 2,
           segmentLength,
           1,
           1,
-          i % 3 === 0 ? 0x657446 : 0x5d6b40,
+          i % 3 === 0 ? 0x738454 : 0x697b4d,
           rotation,
         )
 
@@ -821,10 +840,10 @@ export class SceneRenderer {
             x,
             0.11,
             z,
-            0.22 + (Math.sin(seed * 1.9) * 0.5 + 0.5) * 0.22,
-            0.22,
-            0.22 + (Math.cos(seed * 1.3) * 0.5 + 0.5) * 0.2,
-            j % 2 === 0 ? 0x5f7448 : 0x6a7c4e,
+            0.24 + (Math.sin(seed * 1.9) * 0.5 + 0.5) * 0.24,
+            0.24,
+            0.24 + (Math.cos(seed * 1.3) * 0.5 + 0.5) * 0.22,
+            j % 2 === 0 ? 0x68804e : 0x758956,
             seed,
           )
         }
