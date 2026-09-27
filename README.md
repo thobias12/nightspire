@@ -22,6 +22,19 @@ The playable game already has roads, residential plots, agriculture, physical ha
 
 See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md). The concept image is a direction reference, not a promise that every pictured building or panel is already implemented.
 
+### Mature service / Pleasure House concept direction
+
+The Pleasure House is a planned late-settlement service building that should visually belong to the same illustrated medieval UI language as the rest of Nightspire. The first concept establishes the **building panel** direction: large hand-painted header art, workers/visitors, service effects and a restrained parchment information hierarchy.
+
+![Pleasure House building UI concept](docs/images/pleasure-house-ui-concept.jpg)
+
+The second concept establishes the **in-world building and service-space** direction: a warm, affluent multi-level venue with public drinking/entertainment areas, music, private rooms, balconies, courtyards, lanterns, flowers and visible staff/visitors. This is a visual target for layout, atmosphere and readable service activity rather than a literal final asset.
+
+![Pleasure House world and services concept](docs/images/pleasure-house-world-concept.jpg)
+
+These mature-service concepts are planned direction only. Final gameplay, balance, building footprint and art assets will be implemented separately.
+
+
 **Current playable milestone: M3.11.7 — Agriculture & Point-Drawn Farm Fields.** Farming now uses irregular player-drawn land parcels rather than fixed farm tiles. Build a **Farmhouse**, assign up to three Farmers, then use the **Field** tool to click 3–8 corners around the exact land you want to cultivate, with optional grid snapping. Fields reject roads, buildings, residential plots, live resource nodes and other fields. Farmers physically walk to fields to sow and harvest; crops progress across Days through **Fallow → Sown → Growing → Ready → Harvested**, harvest into Farmhouse storage, and general Laborers move the Food onward into specialized Stockpiles and Markets. **Conventional buildings now require road frontage in live placement**, while fields must be linked to a Farmhouse within 18m. Fields share the same global **G** 1m Grid Snap setting as roads and residential dimensions. Field size controls yield and work, so town layout and available labor matter. M3.11.6 Gold trade, household prosperity, local Market coverage and the existing road system remain intact. See [the agriculture note](docs/M3117_AGRICULTURE.md), [the Gold trade note](docs/M3116_GOLD_TRADE.md) and [the household progression note](docs/M3115_HOUSEHOLD_PROGRESSION.md).
 
 **Road visual pass: M3.10.3 — Organic Medieval Roads.** Roads now resolve into one continuous terrain-integrated worn-earth surface with irregular shoulders, width-dependent wear and sparse grass/stone dressing, while preserving the current planner, frontage rules, navigation and save schema. See [the road visual note](docs/M3103_ROAD_VISUALS.md).
