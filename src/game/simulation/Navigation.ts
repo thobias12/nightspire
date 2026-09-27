@@ -81,6 +81,8 @@ export class Navigation {
   private hostileBlocked = new Set<number>()
   private queue = new Map<number, Point>()
   private retryAfter = new Map<number, number>()
+  private queuedAt = new Map<number, number>()
+  readonly waitTicks: number[] = []
   requests = 0
   solved = 0
   failures = 0
@@ -90,6 +92,7 @@ export class Navigation {
   reset(): void {
     this.revision = -1
     this.queue.clear()
+    this.queuedAt.clear()
     this.retryAfter.clear()
   }
 
@@ -99,6 +102,7 @@ export class Navigation {
     this.hostileBlocked = blockedCells(state, true)
     this.revision = state.topology
     this.queue.clear()
+    this.queuedAt.clear()
     this.retryAfter.clear()
     for (const a of [...state.settlers, ...state.enemies]) { a.path = []; a.pathRevision = -1 }
   }
@@ -112,6 +116,7 @@ export class Navigation {
     if ((this.retryAfter.get(id) ?? 0) > tick) return false
     if (this.queue.has(id)) return true
     this.queue.set(id, target)
+    this.queuedAt.set(id, tick)
     this.requests++
     return true
   }
@@ -126,9 +131,12 @@ export class Navigation {
 
   process(state: WorldState): void {
     this.solved = 0
+    this.waitTicks.length = 0
     for (const [id, target] of this.queue) {
       if (this.solved >= PATH_BUDGET) break
       this.queue.delete(id)
+      this.waitTicks.push(state.tick - (this.queuedAt.get(id) ?? state.tick))
+      this.queuedAt.delete(id)
       this.solved++
 
       const agent = this.agent(state, id)

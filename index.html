@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#111318" />
     <title>Nightspire — Playtest</title>
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/game/benchmark/benchmark.css" />
   </head>
   <body>
     <div id="app"></div>
@@ -60,7 +61,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'm3.8.5-roof-cachefix-2')
+        entryUrl.searchParams.set('runtime', 'm4-m3102-dddc79c')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {

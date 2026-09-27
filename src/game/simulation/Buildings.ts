@@ -2,6 +2,7 @@ import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
 import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
+import type { JobReservations } from './JobReservations'
 
 export const stockpiles = (s: WorldState): Building[] =>
   s.buildings.filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].storage > 0)
@@ -11,11 +12,11 @@ export const reserved = (s: WorldState, id: number, resource: ResourceId): numbe
     .filter(j => (j.kind === 'deliver' || j.kind === 'repair' || j.kind === 'supply') && j.sourceId === id && j.stage === 'source' && j.resource === resource)
     .reduce((n, j) => n + j.amount, 0)
 
-export const available = (s: WorldState, b: Building, resource: ResourceId): number =>
-  b.inventory[resource] - reserved(s, b.id, resource)
+export const available = (s: WorldState, b: Building, resource: ResourceId, index?: JobReservations): number =>
+  b.inventory[resource] - (index ? index.pickup(b.id, resource) : reserved(s, b.id, resource))
 
-export function freeStorage(s: WorldState, b: Building): number {
-  const incoming = s.jobs
+export function freeStorage(s: WorldState, b: Building, index?: JobReservations): number {
+  const incoming = index ? index.incoming(b.id) : s.jobs
     .filter(j => (j.kind === 'gather' || j.kind === 'supply') && j.targetId === b.id)
     .reduce((n, j) => n + j.amount, 0)
   const used = RESOURCE_IDS.reduce((sum, resource) => sum + b.inventory[resource], 0)
@@ -37,8 +38,8 @@ export function resourceCapacity(b: Building, resource: ResourceId): number {
   return Math.max(supply, output)
 }
 
-export function supplyFree(state: WorldState, b: Building, resource: ResourceId): number {
-  const incoming = state.jobs
+export function supplyFree(state: WorldState, b: Building, resource: ResourceId, index?: JobReservations): number {
+  const incoming = index ? index.supplied(b.id, resource) : state.jobs
     .filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === resource)
     .reduce((sum, job) => sum + job.amount, 0)
   return Math.max(0, supplyCapacity(b, resource) - b.inventory[resource] - incoming)
