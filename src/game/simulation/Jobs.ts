@@ -8,6 +8,9 @@ import { marketFoodNeed } from './Markets'
 import { distance, entrance } from './Navigation'
 import { activeWorkplace } from './Workforce'
 import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
+import {
+  primaryTradingPost, tradeExportStagingNeed, tradeFreeStorage, tradePostPickupAvailable,
+} from './Trading'
 import { workplaceHaulScore, workplaceInputNeed, workplaceOutputReady } from './WorkplaceLogistics'
 import type { Building, Job, ResourceNode, Settler, WorldState } from './WorldState'
 
@@ -87,6 +90,54 @@ export function assignJobs(state: WorldState): void {
         stage: 'source',
         progress: 0,
       })
+    }
+
+    const tradingPost = primaryTradingPost(state)
+    if (tradingPost) {
+      // Imported goods leave the post for ordinary accepting stockpiles.
+      for (const resource of RESOURCE_IDS) {
+        const amountAvailable = tradePostPickupAvailable(state, tradingPost, resource, index)
+        if (amountAvailable <= 0) continue
+        const store = stores
+          .filter(candidate => stockpileAccepts(candidate, resource) && freeStorage(state, candidate, index) > 0)
+          .sort((a, b) => compareStockpileDestinations(a, b, tradingPost))[0]
+        if (!store) continue
+        offer({
+          kind: 'supply',
+          sourceId: tradingPost.id,
+          targetId: store.id,
+          resource,
+          amount: Math.min(CARRY_CAPACITY, amountAvailable, freeStorage(state, store, index)),
+          stage: 'source',
+          progress: 0,
+        }, resource === 'food' ? 385 : 345)
+      }
+
+      // Exports are explicitly staged at the staffed post before the next caravan.
+      if (!morale.refusesNonessential) {
+        for (const resource of RESOURCE_IDS) {
+          const needed = tradeExportStagingNeed(state, tradingPost, resource, index)
+          if (needed <= 0) continue
+          const source = stores
+            .filter(candidate => available(state, candidate, resource, index) > 0)
+            .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
+          if (!source) continue
+          offer({
+            kind: 'supply',
+            sourceId: source.id,
+            targetId: tradingPost.id,
+            resource,
+            amount: Math.min(
+              CARRY_CAPACITY,
+              needed,
+              tradeFreeStorage(state, tradingPost, index),
+              available(state, source, resource, index),
+            ),
+            stage: 'source',
+            progress: 0,
+          }, 325)
+        }
+      }
     }
 
     // Manufactured output always enters stockpile storage before downstream use.
