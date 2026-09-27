@@ -129,7 +129,8 @@ export class BenchmarkApp {
       this.metrics = { frame: raw * 1000, simulation: simulationMs, render: renderMs, ...this.renderer.stats,
         requests: this.sim.navigation.requests - requestsBefore, paths, queue: this.sim.navigation.depth, failures: this.sim.navigation.failures, dropped: this.dropped }
       this.hud.update(this.sim.state, { paused: false, selectedId: null, buildType: null,
-        planningTool: null, buildRotation: 0, dragCount: 0, cinematic: false,
+        planningTool: null, gridSnap: false, roadSnap: true, roadWidth: 1.7, roadCurve: 0.72,
+        roadAngleSnap: false, roadPointCount: 0, buildRotation: 0, dragCount: 0, cinematic: false,
         camera: 'settlement', message: 'BENCHMARK: synthetic workload, saves disabled.', metrics: this.metrics })
       if (capture) this.samples.add('hudUpdateMs', performance.now() - hudStart)
       this.status(this.current.population + ' settlers · ' + this.current.workload + ' · tick ' + this.sim.state.tick + '/' + TOTAL_TICKS + ' · ' + this.pending.length + ' cases remaining')
@@ -146,7 +147,7 @@ export class BenchmarkApp {
   private finish(): void {
     const sim = this.sim!, s = sim.state, stats = this.samples.report()
     this.reports.push({
-      presetVersion: 2, baselineHead: '4d9097e',
+      presetVersion: 3, baselineHead: 'd662c1f',
       build: __BUILD_COMMIT__, dirty: __BUILD_DIRTY__, ...this.current,
       valid: this.dimensions() === this.startDimensions && stats.instanceOverflow.max === 0, viewport: this.startDimensions, userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(), fixedStep: FIXED_STEP, pathBudget: PATH_BUDGET,
