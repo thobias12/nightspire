@@ -14,6 +14,7 @@ import {
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { essentialJob, happinessEffect } from './Happiness'
 import { processHouseholdProgression } from './HouseProgression'
+import { processFamiliesDay, synchronizeFamilies } from './Family'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, entrance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
@@ -199,7 +200,11 @@ export class Simulation {
       processAgricultureDay(s)
       const upgrades = processHouseholdProgression(s)
       assignHousing(s)
+      const familyDay = processFamiliesDay(s)
+      assignHousing(s)
+      synchronizeFamilies(s)
       if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
+      if (familyDay.matured > 0) recordEvent(s, familyDay.matured + ' young resident' + (familyDay.matured === 1 ? '' : 's') + ' joined the workforce.')
       scheduleMerchantVisit(s)
       const immigration = processImmigrationDay(s)
       if (immigration.arrived) assignHousing(s)

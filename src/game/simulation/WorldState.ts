@@ -67,10 +67,25 @@ export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
 export type NeedLevels = Record<NeedId, number>
 export interface Settler extends Point {
   id: number; homeId: number | null; jobId: number | null; role: SettlerRole; workplaceId: number | null
+  givenName: string; familyName: string; ageYears: number; familyId: number | null; partnerId: number | null
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
   needs: NeedLevels; lastMealDay: number
   arrivalTarget: Point | null
   cargo: Inventory; path: Point[]; pathRevision: number; status: string
+}
+export interface FamilyChild {
+  givenName: string
+  ageYears: number
+  ageDays: number
+}
+export interface FamilyState {
+  id: number
+  surname: string
+  adultIds: number[]
+  children: FamilyChild[]
+  homeId: number | null
+  formedDay: number
+  lastChildDay: number
 }
 export interface Enemy extends Point {
   id: number; kind: 'raider'; targetId: number
@@ -96,7 +111,7 @@ export interface ImmigrationState {
 }
 export interface WorldState {
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
-  topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
+  topology: number; player: PlayerState; settlers: Settler[]; families: FamilyState[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
   roads: RoadPath[]; residentialPlots: ResidentialPlot[]; fields: FieldPlot[]
   targets: Inventory; raid: RaidState; immigration: ImmigrationState; trade: TradeState
   totals: {
@@ -133,9 +148,20 @@ export const defaultTradeState = (): TradeState => ({
 export const NEED_IDS: NeedId[] = ['food', 'housing', 'safety', 'recreation']
 export const DEFAULT_NEEDS: NeedLevels = { food: 90, housing: 70, safety: 65, recreation: 65 }
 
+const GIVEN_NAMES = ['Alden','Beatrix','Cedric','Elara','Garrick','Helena','Ivor','Mara','Osric','Sabine','Torren','Ysabel','Rowan','Anwen','Lucan','Tilda']
+const FAMILY_NAMES = ['Ashcombe','Blackmere','Dunwald','Falkner','Grimholt','Harrow','Merewick','Ravenor','Thorne','Valebrook','Wexley','Yarrow']
+
+export function settlerIdentity(id: number): { givenName: string; familyName: string; ageYears: number } {
+  return {
+    givenName: GIVEN_NAMES[Math.abs(id * 7 + 3) % GIVEN_NAMES.length],
+    familyName: FAMILY_NAMES[Math.abs(id * 5 + 1) % FAMILY_NAMES.length],
+    ageYears: 18 + Math.abs(id * 11 + 7) % 27,
+  }
+}
+
 export function settlerLabel(state: WorldState, id: number): string {
-  const index = state.settlers.findIndex(a => a.id === id)
-  return index >= 0 ? 'Settler ' + (index + 1) : 'Settler ' + id
+  const settler = state.settlers.find(a => a.id === id)
+  return settler ? settler.givenName + ' ' + settler.familyName : 'Settler ' + id
 }
 export function enemyLabel(state: WorldState, id: number): string {
   const index = state.enemies.findIndex(a => a.id === id)
@@ -147,8 +173,11 @@ export function spawnSettler(
   arrivalTarget: Point | null = null,
 ): boolean {
   if (state.settlers.length >= MAX_SETTLERS) return false
+  const id = state.nextId++
+  const identity = settlerIdentity(id)
   state.settlers.push({
-    id: state.nextId++, x: spawn.x, z: spawn.z, homeId: null, jobId: null, role: 'worker', workplaceId: null,
+    id, x: spawn.x, z: spawn.z, homeId: null, jobId: null, role: 'worker', workplaceId: null,
+    ...identity, familyId: null, partnerId: null,
     health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0,
     needs: { ...DEFAULT_NEEDS }, lastMealDay: state.day,
     arrivalTarget,
@@ -194,7 +223,7 @@ export function createInitialWorldState(): WorldState {
   const state: WorldState = {
     version: 1, nextId: 1, tick: 0, elapsedSeconds: 0, day: 1, timeOfDay: 0.32, topology: 0,
     player: { x: 0, z: 5, health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0 },
-    settlers: [], enemies: [], nodes: [], buildings: [], jobs: [], roads: [], residentialPlots: [], fields: [],
+    settlers: [], families: [], enemies: [], nodes: [], buildings: [], jobs: [], roads: [], residentialPlots: [], fields: [],
     targets: { ...DEFAULT_TARGETS }, raid: { ...DEFAULT_RAID }, immigration: { ...DEFAULT_IMMIGRATION }, trade: defaultTradeState(),
     totals: {
       gathered: emptyInventory(), deposited: emptyInventory(), delivered: emptyInventory(),

@@ -572,3 +572,18 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [ ] more enemy archetypes and dark-fantasy threats
 
 **Tone:** sensual adult fantasy integrated into a functioning settlement economy; suggestive presentation is sufficient for the city-builder layer and explicit scenes are not required for progression.
+
+
+## M3.12 — Persistent households and families (stacked gameplay branch)
+
+- [x] settlers have deterministic persistent given names, surnames and adult ages
+- [x] compatible residents sharing a House can form persistent couple/family records
+- [x] family surnames and partner links survive save/load
+- [x] households can contain dependent children without adding pathfinding agents
+- [x] children age on a compressed simulation calendar
+- [x] new children can be born into established two-adult households
+- [x] children reaching working age become normal settlers when population capacity allows
+- [x] existing inspectors automatically use resident names through the shared settler label
+- [x] older current-schema saves migrate identity/family fields safely
+
+**Design constraint:** dependent children remain lightweight household state rather than pathfinding entities, preserving the current simulation-scale budget while making households persistent and generational.
