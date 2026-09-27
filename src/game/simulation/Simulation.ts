@@ -4,6 +4,7 @@ import {
 } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
 import { assignHousing } from './Buildings'
+import { agricultureActionLabel, farmerFieldAssignment, processAgricultureDay, workField } from './Agriculture'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
   RAIDER_ATTACK_COOLDOWN, RAIDER_ATTACK_RANGE, RAIDER_DAMAGE, RAIDER_STRUCTURE_DAMAGE,
@@ -181,6 +182,7 @@ export class Simulation {
     } else if (next === 'dawn') {
       recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
     } else if (next === 'day') {
+      processAgricultureDay(s)
       const upgrades = processHouseholdProgression(s)
       assignHousing(s)
       if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
@@ -255,6 +257,21 @@ export class Simulation {
   }
 
   private updateWorkplace(settler: Settler, building: Building): void {
+    if (building.type === 'farmhouse') {
+      const field = farmerFieldAssignment(this.state, building, settler)
+      if (field) {
+        const target = { x: field.x, z: field.z }
+        if (distance(settler, target) < 0.15) {
+          settler.path = []
+          settler.pathRevision = -1
+          settler.status = workField(this.state, building, field, FIXED_STEP, happinessEffect(settler).workRate)
+          return
+        }
+        this.move(settler, target, agricultureActionLabel(field) + ' field ' + field.id, WALK_SPEED)
+        return
+      }
+    }
+
     const target = entrance(building)
     const profession = BUILDINGS[building.type].profession ?? 'Worker'
     const label = BUILDINGS[building.type].label

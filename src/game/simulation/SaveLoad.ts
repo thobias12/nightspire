@@ -2,6 +2,7 @@ import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
+import { fieldArea, fieldCentroid, polygonsOverlap, simpleFieldPolygon } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
 import { residentialPlotsOverlap } from './TownPlanning'
@@ -41,6 +42,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
   check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
   check(Array.isArray(s.residentialPlots) && s.residentialPlots.length <= 80, 'residential plots')
+  check(Array.isArray(s.fields) && s.fields.length <= 40, 'farm fields')
   check(
     s.trade
     && integer(s.trade.gold)
@@ -70,7 +72,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     'raid state',
   )
 
-  const entities = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots]
+  const entities = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots, ...s.fields]
   check(entities.every(e => e && integer(e.id) && e.id > 0 && e.id < s.nextId), 'entity IDs')
   check(new Set(entities.map(e => e.id)).size === entities.length, 'duplicate IDs')
 
@@ -132,6 +134,28 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && road.points.every(point),
       'road path',
     )
+  }
+
+  for (let i = 0; i < s.fields.length; i++) {
+    const field = s.fields[i]
+    check(point(field), 'field center')
+    check(Array.isArray(field.points) && field.points.length >= 3 && field.points.length <= 8 && field.points.every(point), 'field points')
+    check(simpleFieldPolygon(field.points), 'field polygon')
+    const area = fieldArea(field.points)
+    const center = fieldCentroid(field.points)
+    check(number(field.area) && Math.abs(field.area - area) < 0.01 && area >= 12 && area <= 180, 'field area')
+    check(Math.abs(field.x - center.x) < 0.01 && Math.abs(field.z - center.z) < 0.01, 'field centroid')
+    check(integer(field.yield) && field.yield >= 8 && field.yield <= 60, 'field yield')
+    check(['fallow', 'sown', 'growing', 'ready', 'harvested'].includes(field.phase), 'field phase')
+    check(number(field.work) && field.work <= 120, 'field work')
+    check(integer(field.growthDays) && field.growthDays <= 4, 'field growth')
+    check(integer(field.lastGrowthDay) && field.lastGrowthDay <= s.day, 'field growth day')
+    check(
+      field.farmhouseId === null
+      || s.buildings.some(building => building.id === field.farmhouseId && building.type === 'farmhouse'),
+      'field farmhouse',
+    )
+    for (let j = 0; j < i; j++) check(!polygonsOverlap(field.points, s.fields[j].points), 'overlapping fields')
   }
 
   const plottedBuildings = new Set<number>()
@@ -215,6 +239,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
         BUILDINGS[source.type].storage > 0
         || productionSource?.outputResource === j.resource
         || (BUILDINGS[source.type].tradeStorageCapacity ?? 0) > 0
+        || (j.resource === 'food' && (BUILDINGS[source.type].agricultureStorageCapacity ?? 0) > 0)
       )
       check(
         source && source.complete && !source.destroyed && sourceCanProvide
@@ -350,6 +375,7 @@ export function deserializeWorld(text: string): WorldState {
   }
   if (candidate && candidate.version === 1 && candidate.roads === undefined) candidate.roads = []
   if (candidate && candidate.version === 1 && candidate.residentialPlots === undefined) candidate.residentialPlots = []
+  if (candidate && candidate.version === 1 && candidate.fields === undefined) candidate.fields = []
 
   if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers)) {
     for (const settler of candidate.settlers) {

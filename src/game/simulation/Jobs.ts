@@ -53,6 +53,7 @@ export function assignJobs(state: WorldState): void {
   const repairInventory = repairSources(state)
   const operating = state.buildings.filter(b => b.complete && !b.destroyed)
   const producers = operating.filter(b => BUILDINGS[b.type].production)
+  const farmhouses = operating.filter(b => (BUILDINGS[b.type].agricultureStorageCapacity ?? 0) > 0)
   const sites = state.buildings.filter(b => !b.complete)
 
   for (const settler of state.settlers) {
@@ -138,6 +139,27 @@ export function assignJobs(state: WorldState): void {
           }, 325)
         }
       }
+    }
+
+    // Harvested Food waits at the Farmhouse until general Laborers move it into
+    // accepting Stockpiles, so farming still consumes hauling capacity.
+    for (const source of farmhouses) {
+      const resource: ResourceId = 'food'
+      const amountAvailable = Math.max(0, source.inventory.food - index.pickup(source.id, resource))
+      if (amountAvailable <= 0) continue
+      const store = stores
+        .filter(candidate => stockpileAccepts(candidate, resource) && freeStorage(state, candidate, index) > 0)
+        .sort((a, b) => compareStockpileDestinations(a, b, source))[0]
+      if (!store) continue
+      offer({
+        kind: 'supply',
+        sourceId: source.id,
+        targetId: store.id,
+        resource,
+        amount: Math.min(CARRY_CAPACITY, amountAvailable, freeStorage(state, store, index)),
+        stage: 'source',
+        progress: 0,
+      }, 350)
     }
 
     // Manufactured output always enters stockpile storage before downstream use.
