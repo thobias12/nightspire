@@ -137,3 +137,8 @@ The construction catalog also reserves artwork for future locked cards:
 - `build-barracks`
 
 These are visual roadmap slots only and remain disabled until their simulation systems exist.
+
+
+## Temporarily disabled
+
+Minimap is temporarily disabled in the live HUD. Its asset keys and implementation notes remain reserved so it can be restored later without redesigning the UI.
