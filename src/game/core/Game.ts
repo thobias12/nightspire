@@ -755,6 +755,37 @@ export class Game {
             : 'OFF · road control points stay where placed. Building frontage remains mandatory.')
           this.refreshRoadDraft()
           break
+        case 'select-object': {
+          const id = Number(value)
+          if (!Number.isSafeInteger(id)) { this.message = 'That object is no longer available.'; break }
+          const exists = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.fields].some(candidate => candidate.id === id)
+          if (!exists) { this.message = 'That object is no longer available.'; break }
+          this.selectedId = id
+          this.buildType = null
+          this.planningTool = null
+          this.message = ''
+          break
+        }
+        case 'close-inspector':
+          if (this.selectedId !== null) {
+            this.selectedId = null
+            this.message = ''
+            break
+          }
+          this.buildType = null
+          this.planningTool = null
+          this.planningStart = null
+          this.roadControlPoints = []
+          this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
+          this.fieldCloseReady = false
+          this.roadAngleSnap = false
+          this.plotDraft = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.message = ''
+          break
         case 'close-selection':
           this.selectedId = null
           this.message = ''

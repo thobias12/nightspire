@@ -185,3 +185,22 @@ The inspector initially anchors beside the selected world object using the rende
 Permanent HUD elements such as the top resource bar, Tasks & Messages and command dock stay fixed.
 
 The selected-building X uses a dedicated `close-selection` action; it no longer reuses placement cancellation.
+
+
+## Contextual selection assets
+
+The non-building inspector now uses the same floating parchment-window system as buildings.
+
+Reserved assets:
+- `portrait:raider`
+- `service:housing`
+- `service:safety`
+- `category:planning`
+- `category:logistics`
+- `category:industry`
+- `category:services`
+- `category:defense`
+
+Existing `portrait:settler-*`, `resource:<resource-id>`, `service:food`, `service:recreation` and `service:agriculture` slots are reused.
+
+Context navigation buttons can jump directly between linked world objects (for example Settler → Home, Settler → Workplace, Field → Farmhouse, Raider → Target) while preserving the world-anchored floating-panel behavior.
