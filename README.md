@@ -2,7 +2,7 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
-**Current playable milestone: M3.10.1 — Curved Road Planning.** Roads are now laid out point-by-point instead of click-dragging one strip. Freeform placement samples those control points into a smooth persisted centerline, while Grid Snap keeps clean 0°/45°/90° aligned segments. Existing-road endpoints and centerlines remain magnetic join targets; double-click or Enter finishes, RMB removes the last point, C cycles curvature, and Path/Lane/Main-road width is selectable. The dirt renderer now uses rounded join caps and consistent base tone so curved streets read as continuous worn earth rather than visible rectangular tiles. Existing saves keep the same `RoadPath.points` schema, and Residential Plots/building Road Snap automatically consume the curved local tangent. Roads still do not affect movement/logistics until M4 integration. See [the direction pivot](docs/DIRECTION_PIVOT.md).
+**Current playable milestone: M3.10.2 — Road Planner UX, with an M4 scale-integration candidate on this branch.** Roads are laid out point-by-point into a smooth persisted centerline. Grid Snap now only rounds control points to the 1m grid, **Shift** independently constrains the next segment to 0°/45°/90°, and **Road Snap** independently controls endpoint/centerline joins. Double-click or Enter finishes, RMB cancels the active stroke, Backspace removes the last committed point, C cycles curvature, and Path/Lane/Main-road width remains selectable. The M4 integration adds repeatable scale benchmarks, pass-local job reservation indexes, shared service scheduling and benchmark-aware render capacities without increasing the normal 10-settler cap. Roads still do not change navigation cost or movement speed. See [the M4 integration note](docs/M4_INTEGRATION.md) and [the direction pivot](docs/DIRECTION_PIVOT.md).
 
 **Browser playtest:** https://thobias12.github.io/nightspire/
 
@@ -20,7 +20,7 @@ npm run dev
 Open the local URL printed by Vite. A camp begins with six settlers, an empty completed stockpile, 40 trees, and 20 food bushes. Workers automatically gather, carry, and deposit wood and food. No starting materials are needed.
 
 1. Watch stockpile counts rise. Click a settler or resource to inspect its task or remaining yield.
-2. Press **0 / Road** and click to place the first road point. Keep clicking to shape the route; **double-click or Enter** finishes it, while **RMB** removes the last point. **Grid Snap is ON by default**, giving clean 0°/45°/90° segments; press **G** for freeform curves. **C** cycles Straight/Smooth/Curved and **[ / ]** changes Path/Lane/Main-road width. Starts/ends prefer exact existing road endpoints and centerline joins, and attaching a branch inserts a persisted junction node into the host road.
+2. Press **0 / Road** and click to place the first road point. Keep clicking to shape the route while the mouse shows a live curved preview; **double-click or Enter** finishes it. **RMB** cancels the active stroke, **Backspace** removes the last committed point, **G** toggles 1m Grid Snap, and holding **Shift** temporarily constrains the next segment to 0°/45°/90°. **F / Road Snap** independently controls magnetic endpoint/centerline joins. **C** cycles Straight/Smooth/Curved and **[ / ]** changes Path/Lane/Main-road width. Snapped intermediate control points also insert persisted junction nodes into the host road.
 3. Press **1 / Residential Plot**, start close to a road, then drag diagonally along the desired frontage and backward into the lot. With Grid Snap on, width/depth round to whole metres, the frontage preview shows metre divisions, and starting/ending near an existing lot edge snaps flush to that neighbor. Current limits are 4–10m frontage and 5–13m depth. The resulting House blueprint still costs 20 wood and provides four beds, while the **shape and frontage character** of the lot now matter visually: narrow/deep plots become gable-front long burgage cottages, broad plots can turn their eaves toward the street, front boundaries vary between open/hedged/fenced/gated treatments, and wide/deep plots build stronger L/U-shaped courtyard compositions.
 4. Settlers reserve available wood, collect it from a stockpile, carry it to the plotted House site, then perform normal construction work. Cancelling or demolishing that House removes its attached plot.
 5. Use hotkeys **2–9** for the remaining buildings. **Road Snap is ON by default**: move a conventional building near a road and its ghost magnetically locks to a tighter roadside grid cell while a larger frontage marker clearly shows which edge will face the street, including diagonal streets. Press **F** to disable Road Snap and use normal grid placement plus **R** rotation. Walls/Gates/Campfire remain manual/grid-oriented.
@@ -49,11 +49,13 @@ Save/load uses one primary localStorage slot plus one backup slot in this browse
 | Click | Inspect, or place the selected conventional blueprint; hold Shift to remain in build mode |
 | 0 / Road | Start point-based road placement; click control points, double-click/Enter to finish |
 | 1 / Residential Plot | Start near a road and drag frontage + backyard depth in one gesture |
-| G / Grid Snap | Toggle aligned 0°/45°/90° road control points + whole-metre plot dimensions |
-| C while drawing road | Cycle Straight / Smooth / Curved freeform sampling |
+| G / Grid Snap | Toggle 1m road control-point snapping + whole-metre plot dimensions |
+| Shift while drawing road | Temporarily constrain the next segment to 0°/45°/90° |
+| C while drawing road | Cycle Straight / Smooth / Curved sampling |
 | [ / ] while drawing road | Change Path / Lane / Main-road width |
-| RMB while drawing road | Remove the last road control point |
-| F / Road Snap | Toggle magnetic roadside placement/facing for conventional buildings |
+| Backspace while drawing road | Remove the last committed road control point |
+| RMB while drawing road | Cancel the active road stroke; press again / Esc to leave the tool |
+| F / Road Snap | Toggle road endpoint/centerline joins and conventional-building road alignment |
 | 2–9 | Select Stockpile, Campfire, Brewery, Tavern, Guard Post, Wall, Gate, Blacksmith |
 | R | Rotate the active conventional blueprint when Road Snap is not controlling its frontage |
 | Drag with Wooden Wall selected | Plan a straight wall line; release to place the whole valid line |
@@ -71,7 +73,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. One hundred nine regression tests now cover the settlement/economy/combat foundation through M3.7, M3.8 presentation state, and persisted player-road / residential-plot geometry, validation, save/load and cleanup.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **124 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -88,7 +90,8 @@ Browser verification covered gathering and visible cargo, placing three houses a
 ```text
 src/game/
   core/         lifecycle, fixed-step orchestration, keyboard/camera input
-  data/         M1 building/resource/job definitions
+  benchmark/    isolated seeded scale scenarios, measurements and browser runner
+  data/         building/resource/job definitions
   simulation/   entities, job assignment/execution, placement, navigation, save validation
   render/       Three.js ownership and state presentation
   ui/           controls, inspector and QA readouts
@@ -102,4 +105,4 @@ This is a small playable procedural art-direction prototype: six starting / ten 
 
 See [DIRECTION PIVOT](docs/DIRECTION_PIVOT.md), [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses the existing generic resource, production, stockpile and supply-job architecture for Ore → Tools. M3.8.1 adds persisted town-planning data for player roads and residential plots. M3.8.2 adds session-level Grid Snap/Road Snap assists plus an optional persisted road-facing visual angle on snapped conventional buildings. M3.8.3 hardens that planning layer with exact junction-node insertion and adjacent plot-edge snapping. M3.8.4 keeps those rules fixed and changes only presentation/UI/docs: opaque earth roads remove overlap-darkening, shoulders/ruts add wear, and shared/irregular plot fences reduce the surveyed-parcel look. M3.8.5 keeps planning/persistence frozen and spends the budget on medieval art density, modular building silhouette, yard storytelling, defensive readability, adult Tavern identity, forest depth and a larger visual world footprint. M3.9.0 begins the organic-settlement roadmap with a renderer-only residential compound layer: existing plots deterministically drive cottage/homestead/burgage proportions, extra wings/outbuildings, threshold openings and service-lane dressing while the underlying House entity remains unchanged. M3.9.1 factors that logic into a shared presentation profile and adds plot-shape forms, small house offsets, varied façade rhythms, side passages and L-shaped wide/deep compositions. M3.9.2 extends that shared profile with gable/eave roof orientation, five frontage-boundary treatments, five rear-service-building variants, clearer side-passage gateways and stronger L/U courtyard composition while keeping every change visual-only. M3.9.2.1 caps the broadest main ranges and adds projecting roof/bay mass so large plots stop reading as long halls. M3.10.0 begins environment integration with softer shoulders, ruts/mud/stones/grass, less regular meadow scatter and jittered food-bush presentation. M3.10.1 changes road planning from drag-strokes to multi-point curved/aligned placement, preserves the existing road save schema, adds Path/Lane/Main-road width controls and smooths the visual road joins with rounded dirt caps. Navigation.ts, Jobs.ts, Simulation.ts and the path budget remain untouched: roads are visual-only for movement until M4 is integrated.
+M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses the existing generic resource, production, stockpile and supply-job architecture for Ore → Tools. M3.8.1–M3.9.2.1 establish persisted roads/plots and the organic residential presentation layer. M3.10.0 improves terrain/road dressing; M3.10.1 introduces sampled multi-point curved roads; M3.10.2 separates 1m Grid Snap, temporary Shift angle constraint and Road Snap while improving cancel/undo/junction behavior. The M4 integration on this branch adds measured reservation/service-scheduling optimizations and a deterministic browser benchmark harness while preserving the 10-settler gameplay cap. Navigation still uses the shared two-solves-per-tick queue, and roads remain visual-only for movement; large synchronized crowds can therefore still wait on route throughput.

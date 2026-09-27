@@ -325,6 +325,20 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 **Exit:** road planning feels like drawing a medieval street network rather than placing strip pieces, while old saves and all downstream frontage systems remain compatible.
 
+### M3.10.2 — Road planner UX refinement
+
+- [x] Grid Snap only rounds road control points to the 1m grid
+- [x] Shift independently constrains the next segment to 0°/45°/90°
+- [x] Road Snap independently controls endpoint/centerline joins
+- [x] live mouse preview uses the selected curve even with Grid Snap enabled
+- [x] RMB cancels the active stroke; Backspace removes the last committed point; Esc leaves the tool
+- [x] every snapped control point can insert a persisted junction into an existing road
+- [x] existing `RoadPath.points`, Residential Plot frontage and conventional building road-facing behavior remain compatible
+- [x] regression coverage for independent grid/angle/road snapping
+- [ ] live visual acceptance on S-curves, Shift segments, branch junctions and curved-road frontage
+
+**Exit:** precise roads no longer require sacrificing curvature, and the three snapping concepts are independently controllable.
+
 ## M3.11 — Medieval economy depth
 
 - [ ] richer workplace chains
@@ -339,15 +353,20 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 
 ## M4 — Scale proof
 
-- [ ] benchmark scene
-- [ ] spatial partitioning
-- [x] basic path request budget (implemented in M1; large-scale validation still pending)
-- [ ] AI update tiers
-- [ ] rendering LOD
-- [ ] large repeated-content instancing
-- [ ] profile 100/250/500+ simulated agents
+- [x] deterministic isolated browser benchmark scene
+- [x] 10 / 100 / 250 / 500-settler benchmark ladder
+- [x] pass-local job reservation index removes repeated reservation scans
+- [x] shared per-tick service scheduling with same-tick invalidation
+- [x] benchmark-aware renderer capacities and explicit instance-overflow reporting
+- [x] QA roster pagination keeps DOM work bounded
+- [x] basic path request budget remains two solves per fixed tick
+- [x] regression coverage preserves deterministic outcomes and the normal 10-settler cap
+- [ ] reduce navigation queue latency for synchronized large crowds
+- [ ] long combat/construction/topology soak at larger populations
+- [ ] GPU profiling / lower-end hardware measurements
+- [ ] AI update tiers, spatial indexing or LOD only where measurement justifies them
 
-**Exit:** documented performance envelope and architecture validated before content explosion.
+**Current conclusion:** the scheduling bottlenecks measured in PR #29 were substantially reduced, and that architecture is now ported onto the M3.10.2 road stack. Historical 500-settler measurements are evidence for the original M3.8.1 benchmark build, not a new claim for this integration. Navigation throughput remains the next demonstrated scale blocker, and normal gameplay stays capped at ten settlers.
 
 ## M5 — Mature Nightspire city
 
