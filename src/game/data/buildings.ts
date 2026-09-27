@@ -12,6 +12,12 @@ export interface ServiceDefinition {
   supplyCapacity: number
   supplySecondsPerUnit: number
 }
+export interface FoodDistributionDefinition {
+  resource: 'food'
+  capacity: number
+  mealsPerWorkerPerDay: number
+  reserveDays: number
+}
 export interface ProductionDefinition {
   inputResource: ResourceId
   inputAmount: number
@@ -27,7 +33,7 @@ export interface ProductionDefinition {
 
 export type BuildingId =
   | 'house' | 'stockpile' | 'guard-post' | 'wood-wall' | 'wood-gate'
-  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith'
+  | 'campfire' | 'tavern' | 'brewery' | 'blacksmith' | 'market'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -42,6 +48,7 @@ export interface BuildingDefinition {
   profession?: string
   service: ServiceDefinition | null
   production: ProductionDefinition | null
+  foodDistribution?: FoodDistributionDefinition
   maxHealth: number
   fortification: boolean
   friendlyPassable: boolean
@@ -126,5 +133,15 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
       cycleSeconds: 18, activePhases: ['day'],
     },
     maxHealth: 240, fortification: false, friendlyPassable: false, color: 0x75685e,
+  },
+  market: {
+    id: 'market', label: 'Market', footprint: 3, buildCost: cost(30),
+    constructionWork: 12, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 2, profession: 'Vendor',
+    service: null, production: null,
+    foodDistribution: {
+      resource: 'food', capacity: 20, mealsPerWorkerPerDay: 5, reserveDays: 2,
+    },
+    maxHealth: 180, fortification: false, friendlyPassable: false, color: 0xa5845f,
   },
 }

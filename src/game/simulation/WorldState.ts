@@ -33,6 +33,7 @@ export interface Building extends Point {
   stockpilePriority: StockpilePriority; stockpileFilters: StockpileFilters
   health: number; maxHealth: number; destroyed: boolean; lastHitTick: number
   inventory: Inventory; delivered: Inventory; serviceProgress: number; productionProgress: number
+  distributionDay: number; distributionServed: number
 }
 export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
 export type NeedLevels = Record<NeedId, number>
@@ -136,6 +137,8 @@ export function createBuilding(
     delivered: complete ? { ...def.buildCost } : emptyInventory(),
     serviceProgress: 0,
     productionProgress: 0,
+    distributionDay: 0,
+    distributionServed: 0,
   }
 }
 export function createInitialWorldState(): WorldState {
