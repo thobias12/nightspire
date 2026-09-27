@@ -53,6 +53,13 @@ export function damageEnemy(state: WorldState, enemy: Enemy, damage: number, sou
   if (enemy.health > 0) return false
 
   const label = enemyLabel(state, enemy.id)
+  state.remains.push({
+    id: state.nextId++,
+    x: enemy.x,
+    z: enemy.z,
+    heavy: enemy.maxHealth >= 72,
+    createdDay: state.day,
+  })
   const index = state.enemies.findIndex(e => e.id === enemy.id)
   if (index >= 0) state.enemies.splice(index, 1)
   state.raid.totalDefeated++
