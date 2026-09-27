@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { assignHousing, available, stockpiles } from './Buildings'
+import { completedMarkets } from './Markets'
 import { entrance, MAP_MAX, MAP_MIN } from './Navigation'
 import { settlementNeeds } from './Needs'
 import {
@@ -40,7 +41,9 @@ function totalBeds(state: WorldState): number {
 }
 
 function storedFood(state: WorldState): number {
-  return stockpiles(state).reduce((sum, building) => sum + Math.max(0, available(state, building, 'food')), 0)
+  const central = stockpiles(state).reduce((sum, building) => sum + Math.max(0, available(state, building, 'food')), 0)
+  const distributed = completedMarkets(state).reduce((sum, market) => sum + market.inventory.food, 0)
+  return central + distributed
 }
 
 function raidReady(state: WorldState): boolean {

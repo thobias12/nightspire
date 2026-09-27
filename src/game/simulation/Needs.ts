@@ -1,6 +1,7 @@
 import { BUILDINGS } from '../data/buildings'
 import { available, stockpiles } from './Buildings'
 import type { DayPhase } from './DayNight'
+import { compareMarketsForSettler, completedMarkets, marketMealsRemaining } from './Markets'
 import { NEED_IDS, recordEvent, type NeedId, type NeedLevels, type Settler, type WorldState } from './WorldState'
 
 const FOOD_DECAY_PER_SECOND = 22 / 360
@@ -60,9 +61,28 @@ export function serveDailyMeal(state: WorldState, announceShortage = false): { s
 
   let served = 0
   let missed = 0
-  const stores = stockpiles(state).sort((a, b) => a.id - b.id)
+  const markets = completedMarkets(state)
+  const useMarkets = markets.length > 0
+  const stores = useMarkets ? [] : stockpiles(state).sort((a, b) => a.id - b.id)
 
   for (const settler of due) {
+    if (useMarkets) {
+      const source = markets
+        .filter(market => market.inventory.food > 0 && marketMealsRemaining(state, market) > 0)
+        .sort((a, b) => compareMarketsForSettler(state, settler, a, b))[0]
+      if (source) {
+        source.inventory.food--
+        source.distributionServed++
+        settler.needs.food = 100
+        settler.lastMealDay = state.day
+        state.totals.foodConsumed++
+        served++
+      } else {
+        missed++
+      }
+      continue
+    }
+
     const source = stores.find(store => available(state, store, 'food') > 0)
     if (source) {
       source.inventory.food--
@@ -77,9 +97,19 @@ export function serveDailyMeal(state: WorldState, announceShortage = false): { s
 
   const waiting = state.settlers.filter(settler => settler.lastMealDay < state.day).length
   if (announceShortage && waiting > 0) {
-    recordEvent(state, 'Food shortage: ' + waiting + ' settlers are waiting for today\'s meal.')
+    recordEvent(
+      state,
+      useMarkets
+        ? 'Market shortage: ' + waiting + ' settlers are waiting for today\'s distributed meal.'
+        : 'Food shortage: ' + waiting + ' settlers are waiting for today\'s meal.',
+    )
   } else if (served > 0 && waiting === 0) {
-    recordEvent(state, 'Daily meal complete. All ' + state.settlers.length + ' settlers have eaten.')
+    recordEvent(
+      state,
+      useMarkets
+        ? 'Market distribution complete. All ' + state.settlers.length + ' settlers have eaten.'
+        : 'Daily meal complete. All ' + state.settlers.length + ' settlers have eaten.',
+    )
   }
   return { served, missed }
 }
