@@ -884,3 +884,39 @@ Recommended live test:
 6. Watch Laborers unload imported goods into accepting Stockpiles.
 7. Build/advance prosperous homes and confirm trade reputation eventually shortens the merchant interval from 3 Days to 2.
 8. Save/reload and confirm Gold, policies, reserves, merchant schedule and trade totals survive.
+
+
+## M3.11.7 agriculture & point-drawn farm fields
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **170/170 tests passed**
+- production Vite build passed
+- existing road geometry and road-art generation are unchanged; agriculture only reserves established field land from later road/building intrusion
+- old saves migrate with an empty field list
+
+Regression coverage verifies:
+
+- irregular 5-corner field creation and polygon area/centroid calculations
+- self-crossing fields and field overlaps are rejected
+- buildings and later roads cannot intrude into field land
+- Farmers route to reachable grid cells inside their assigned field and physically complete sowing
+- Sown crops progress across distinct Days before becoming Ready
+- harvest produces the field's expected Food into Farmhouse storage
+- a full Farmhouse blocks harvest rather than deleting crop output
+- general Laborers haul harvested Food from the Farmhouse to accepting Stockpiles
+- field geometry, stage, growth and Farmhouse assignment survive save/load
+
+Recommended live test:
+
+1. Build a **Farmhouse [A]** and assign one or more Farmers.
+2. Select **Field [P]**. Click 4–6 corners to shape an irregular parcel around terrain/buildings, then press Enter or double-click to close it.
+3. Try another non-rectangular field. Grid Snap can be toggled with **G**, but freeform placement is supported.
+4. Confirm a field cannot cross a road, building, residential plot, resource node or another field.
+5. Watch Farmers leave the Farmhouse and physically walk onto Fallow fields to sow them.
+6. Advance through Days and inspect the field: **Sown → Growing → Ready**.
+7. Ready fields should be worked before new Fallow fields. Harvested Food should appear first in Farmhouse storage.
+8. Keep an accepting Food Stockpile available and confirm Laborers haul the harvested Food out of the Farmhouse.
+9. Fill the Farmhouse to capacity and confirm a ready crop waits rather than losing its yield.
+10. Save/reload mid-growth and confirm the irregular field shape and crop stage persist.

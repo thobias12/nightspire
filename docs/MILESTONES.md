@@ -464,8 +464,30 @@ The renderer-only residential-composition work can proceed before M4. Movement, 
 - [x] no renderer/road changes
 - [ ] live trade pacing acceptance
 
+### M3.11.7 — Agriculture & point-drawn farm fields
+
+- [x] Farmhouse with three dedicated Farmer slots and 60 Food harvest storage
+- [x] Manor Lords-inspired field interaction: click 3–8 freeform polygon corners and close with Enter/double-click
+- [x] optional 1m Grid Snap for field corners
+- [x] RMB / Backspace removes the latest field corner while planning
+- [x] irregular field polygons validate self-intersection, size and settlement bounds
+- [x] fields cannot overlap other fields, buildings, residential plots, live resources or existing roads
+- [x] later roads, buildings and residential plots cannot intrude into established fields
+- [x] field area determines expected Food yield and required sow/harvest work
+- [x] crop cycle persists across Days: Fallow → Sown → Growing → Ready → Harvested → Fallow
+- [x] Farmers physically walk to assigned fields and prioritize ready harvests over new sowing
+- [x] harvest backpressure waits when the Farmhouse cannot fit the full crop
+- [x] harvested Food lands in Farmhouse storage before general Laborers haul it to accepting Stockpiles
+- [x] Farmhouse Food counts toward settlement Food reserves
+- [x] field soil/crops visually follow the irregular polygon footprint and change with crop stage
+- [x] Field/Farmhouse inspectors expose acreage, yield, crop stage, storage and assignment
+- [x] save/load persists field geometry and growth state; old saves migrate with no fields
+- [x] normal gameplay population cap remains 10
+- [ ] live placement/pacing acceptance
+
 ### Later M3.11 slices
 
+- [ ] deeper agriculture: crop choice, fertility/rotation, seasonal harvest windows, Grain → Flour → Bread
 - [ ] broader merchant/trade depth: dynamic pricing, caravan visuals, contracts and rare goods
 - [ ] household-side production
 - [ ] transport-distance pressure
