@@ -124,8 +124,8 @@ export class Hud {
         </div>
       </header>
 
-      <details class="settlement-drawer panel">
-        <summary><span class="ui-icon-slot" data-icon-slot="settlement-overview" aria-hidden="true"></span><span>Settlement overview</span></summary>
+      <details class="settlement-drawer panel floating-panel" data-draggable-panel data-panel-id="settlement-overview">
+        <summary><span class="ui-icon-slot" data-icon-slot="settlement-overview" aria-hidden="true"></span><span>Settlement overview</span><span id="overview-count" class="overview-count">0</span><span class="drawer-drag-handle" data-drag-handle data-drag-only title="Drag panel" aria-hidden="true"></span></summary>
         <div class="drawer-body">
           <div id="objective"></div>
           <div id="workforce"></div>
@@ -286,6 +286,7 @@ export class Hud {
     const signal = this.abort.signal
     this.element.addEventListener('click', e => {
       const target = e.target as HTMLElement
+      if (target.closest('[data-drag-only]')) { e.preventDefault(); return }
       const roster = target.closest<HTMLButtonElement>('button[data-roster]')
       if (roster) { this.rosterPage = Math.max(0, this.rosterPage + Number(roster.dataset.roster)); return }
 
@@ -440,6 +441,13 @@ export class Hud {
     for (const panel of this.element.querySelectorAll<HTMLElement>('[data-build-panel]')) {
       panel.classList.toggle('is-active', panel.dataset.buildPanel === this.activeBuildTab)
     }
+
+    const activePanel = this.element.querySelector<HTMLElement>('[data-build-panel="' + this.activeBuildTab + '"]')
+    const cardCount = activePanel?.querySelectorAll('.build-card').length ?? 0
+    const dividerCount = activePanel?.querySelectorAll('.planned-divider').length ?? 0
+    const desiredWidth = Math.min(940, Math.max(560, 24 + cardCount * 136 + dividerCount * 42))
+    catalog.style.setProperty('--catalog-width', desiredWidth + 'px')
+    if (catalog.classList.contains('is-user-positioned')) this.clampFloatingPanels()
   }
 
   private syncContextTabs(): void {
@@ -522,6 +530,18 @@ export class Hud {
 
     const hasPost = s.buildings.some(b => b.complete && !b.destroyed && b.type === 'guard-post')
     const shelterReady = beds >= s.settlers.length
+    const overviewIssues = [
+      effectiveWorkRate < 1,
+      toolSummary.coverage < 1,
+      moraleSummary.refusing > 0,
+      attraction.spareBeds <= 0,
+      attraction.food < attraction.foodRequired,
+      attraction.households > 0 && attraction.marketCoveredHouseholds < attraction.households,
+      attraction.happiness < 65,
+      attraction.safety < 55,
+      !attraction.raidReady,
+    ].filter(Boolean).length
+    this.set('overview-count', overviewIssues ? String(overviewIssues) : '✓')
     this.set('objective', `<div class="objective-row">${effectiveWorkRate >= 1 ? '✓' : '○'} Settlement productivity · ${Math.round(effectiveWorkRate * 100)}%</div><div class="objective-row">${toolSummary.coverage >= 1 ? '✓' : '○'} Tool coverage · ${toolSummary.stored}/${toolSummary.required} · +${Math.round((toolSummary.workMultiplier - 1) * 100)}%</div><div class="objective-row">${moraleSummary.refusing === 0 ? '✓' : '○'} Essentials-only workers · ${moraleSummary.refusing}</div><div class="objective-row">${attraction.spareBeds > 0 ? '✓' : '○'} Spare bed · ${attraction.spareBeds}</div><div class="objective-row">${attraction.food >= attraction.foodRequired ? '✓' : '○'} Food buffer · ${attraction.food}/${attraction.foodRequired}</div><div class="objective-row">${attraction.households === 0 || attraction.marketCoveredHouseholds >= attraction.households ? '✓' : '○'} Household Market coverage · ${attraction.marketCoveredHouseholds}/${attraction.households}</div><div class="objective-row">${attraction.happiness >= 65 ? '✓' : '○'} Happiness ≥ 65% · ${attraction.happiness}%</div><div class="objective-row">${attraction.safety >= 55 ? '✓' : '○'} Safety ≥ 55% · ${attraction.safety}%</div><div class="objective-row">${attraction.raidReady ? '✓' : '○'} Settlement safe after raids</div><div class="objective-row">${s.immigration.eligibleDays >= IMMIGRATION_REQUIRED_DAYS ? '✓' : '○'} Qualification streak · ${s.immigration.eligibleDays}/${IMMIGRATION_REQUIRED_DAYS}</div><div class="objective-row">${s.immigration.totalArrivals > 0 ? '✓' : '○'} Immigrants arrived · ${s.immigration.totalArrivals}</div>`)
     const workforceParts = workplaces.map(building => {
       const staffing = workplaceStaffing(s, building)
