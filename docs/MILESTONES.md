@@ -27,6 +27,21 @@
 
 **Exit verified for this pass:** Ten-settler automated and browser playthroughs gathered both resources, physically delivered 70 wood, completed three houses and a stockpile, housed all ten settlers, and resumed after save/load. See [QA.md](QA.md) for evidence and limitations.
 
+## M1.2 — Physical construction overhaul (PR #42; unmerged)
+
+- [x] construction can begin after the first material tranche reaches the site
+- [x] work progress is hard-capped by the fraction of required materials physically delivered
+- [x] hauling and construction overlap instead of waiting for every material first
+- [x] larger sites support two simultaneous builders at separate perimeter work points
+- [x] builders face the structure and visibly work with a hammer/tool
+- [x] delivered timber is visibly staged beside the site
+- [x] site presentation advances through survey, foundation, frame, scaffold, shell and finishing
+- [x] construction scaffolds remain until final completion
+- [x] parallel-builder completion is accounted exactly once
+- [x] save validation rejects construction work that exceeds delivered-material progress
+
+**Review status:** implemented on the separate overnight gameplay PR. No save schema bump is required; existing unfinished buildings remain compatible.
+
 ## M1.1 — Review hardening (complete)
 
 - [x] safe blueprint cancellation with reservation/in-transit/delivered material conservation
@@ -66,6 +81,20 @@
 **M2.4 verified:** deterministic raid pressure now starts at 20 attackers, grows by four per wave, and caps at 40. A dedicated 40-raider regression keeps all hostile routing inside the shared two-paths-per-tick budget.
 
 **Full M2 technical exit:** implemented at the intended 20–40 attacker scale. Live user balance feedback can still tune HP/damage/pacing, but the next major systems milestone is M3.
+
+## M2.5 — Night raid combat expansion (PR #42; unmerged)
+
+- [x] deterministic Skirmisher / Raider / Brute wave composition
+- [x] wave 2+ attacks from two opposite fronts while preserving the 20–40 hostile cap
+- [x] archetype-specific health, speed, melee damage, structure damage and attack cadence
+- [x] nearby guards/player actively draw attackers away from structure pressure
+- [x] Skirmishers prefer exposed defenders and Guard Posts
+- [x] Brutes favor Gates/Walls and apply heavier breach pressure
+- [x] dusk scout warning reports the next wave size and number of approaches
+- [x] enemy silhouettes, scale, shields/blades/clubs make archetypes readable in-world
+- [x] existing bounded hostile path queue remains authoritative
+
+**Review status:** implemented on the separate overnight gameplay PR. It remains intentionally unmerged and awaits live balance/visual acceptance.
 
 ## M3 — Needs and production
 

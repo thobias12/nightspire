@@ -2563,13 +2563,28 @@ export class SceneRenderer {
     for (const a of state.settlers) {
       const hit = this.recentlyHit(a.lastHitTick, state.tick)
       const color = hit ? 0xa9524a : a.health <= 0 ? 0x555555 : undefined
-      const facing = a.path.length ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z) : (a.id % 8) * Math.PI / 4
+      const activeJob = a.jobId === null ? undefined : state.jobs.find(job => job.id === a.jobId)
+      const buildTarget = activeJob?.kind === 'construct' && activeJob.stage === 'work'
+        ? state.buildings.find(building => building.id === activeJob.targetId)
+        : undefined
+      const facing = buildTarget
+        ? Math.atan2(buildTarget.x - a.x, buildTarget.z - a.z)
+        : a.path.length
+          ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z)
+          : (a.id % 8) * Math.PI / 4
       this.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing)
       this.healthBar(a.x, 1.62, a.z, a.health, a.maxHealth, 0.8)
 
       const resource = RESOURCE_IDS.find(resource => a.cargo[resource] > 0) ?? null
       if (resource) {
         this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
+      }
+
+      if (buildTarget) {
+        const hammerLift = 0.08 + (Math.sin(time * 9 + a.id * 0.7) + 1) * 0.09
+        const tool = this.rotatedOffset(0.34, 0.05, facing)
+        this.instance('timber', a.x + tool.x, 0.82 + hammerLift, a.z + tool.z, 0.055, 0.52, 0.055, 0x5c3d28, facing)
+        this.instance('metal', a.x + tool.x, 1.08 + hammerLift, a.z + tool.z, 0.28, 0.08, 0.11, 0x777b7d, facing)
       }
     }
 

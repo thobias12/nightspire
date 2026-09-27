@@ -462,6 +462,25 @@ test('large construction sites use parallel builders while other settlers keep h
   validateWorld(s)
 })
 
+test('parallel builders complete one construction site exactly once', () => {
+  const s=createInitialWorldState()
+  s.nodes.forEach(node => { node.remaining=0 })
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=20
+  s.buildings.push(site); s.topology++
+  assignJobs(s)
+  assert.equal(s.jobs.filter(job=>job.kind==='construct' && job.targetId===site.id).length,2)
+
+  const sim=new Simulation(s)
+  advance(sim,15)
+  assert.equal(site.complete,true)
+  assert.equal(site.work,12)
+  assert.equal(s.totals.constructed,1)
+  assert.ok(!s.jobs.some(job=>job.kind==='construct' && job.targetId===site.id))
+  validateWorld(s)
+})
+
 test('damage presentation maps health bands to readable world states', () => {
   assert.equal(damageVisualStage(100,100,false),'intact')
   assert.equal(damageVisualStage(70,100,false),'worn')
