@@ -63,11 +63,11 @@ export function workplaceOutputReady(
     : state.jobs
       .filter(job => job.kind === 'supply' && job.sourceId === building.id && job.resource === production.outputResource && job.stage === 'source')
       .reduce((sum, job) => sum + job.amount, 0)
-  const available = Math.max(0, building.inventory[production.outputResource] - reserved)
-  return available >= workplaceOutputThreshold(building) ? available : 0
+  if (building.inventory[production.outputResource] < workplaceOutputThreshold(building)) return 0
+  return Math.max(0, building.inventory[production.outputResource] - reserved)
 }
 
 export function workplaceHaulScore(building: Building, urgent = false): number {
   const priorityBoost = building.haulPriority === 'high' ? 40 : building.haulPriority === 'low' ? -25 : 10
-  return 300 + priorityBoost + (urgent ? 30 : 0)
+  return 300 + priorityBoost + (urgent ? 20 : 0)
 }
