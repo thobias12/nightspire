@@ -117,16 +117,37 @@ function nearestAlignedGridPoint(anchor: Point, raw: Point): Point {
   )[0]
 }
 
+function nearestAnglePoint(anchor: Point, raw: Point): Point {
+  const dx = raw.x - anchor.x
+  const dz = raw.z - anchor.z
+  const distance = Math.hypot(dx, dz)
+  if (distance <= 1e-8) return { ...anchor }
+  const step = Math.PI / 4
+  const angle = Math.round(Math.atan2(dz, dx) / step) * step
+  return {
+    x: anchor.x + Math.cos(angle) * distance,
+    z: anchor.z + Math.sin(angle) * distance,
+  }
+}
+
 export function snapRoadControlPoint(
   roads: RoadPath[],
   raw: Point,
   anchor: Point | null,
   gridSnap: boolean,
+  angleSnap = false,
+  roadSnap = true,
   joinDistance = 1.35,
 ): Point {
-  let point = gridSnap
-    ? (anchor ? nearestAlignedGridPoint(anchor, raw) : snapPointToGrid(raw))
-    : { ...raw }
+  let point = gridSnap ? snapPointToGrid(raw) : { ...raw }
+
+  if (anchor && angleSnap) {
+    point = gridSnap
+      ? nearestAlignedGridPoint(anchor, point)
+      : nearestAnglePoint(anchor, point)
+  }
+
+  if (!roadSnap) return point
 
   const endpoint = nearestRoadEndpoint(roads, point, joinDistance * 1.45)
   if (endpoint) return endpoint.point
