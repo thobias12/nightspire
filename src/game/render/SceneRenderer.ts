@@ -193,6 +193,7 @@ export class SceneRenderer {
     this.addBasicBatch('roadMud', new THREE.CircleGeometry(1, 12).rotateX(-Math.PI / 2), 0x66523d, 720, 0.34)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, 720)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
+    this.addBasicBatch('planningFill', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xb8ae82, 240, 0.1)
     this.addBasicBatch('planningGuide', this.geometry, 0xe8dfc4, 1800, 0.72)
     this.addBasicBatch('planningMarker', new THREE.RingGeometry(0.18, 0.28, 14).rotateX(-Math.PI / 2), 0xe8dfc4, 480, 0.82)
     this.addBasicBatch('fieldFurrow', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x6b573f, 4200, 0.34)
@@ -379,7 +380,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'planningGuide', 'planningMarker', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundPatch', 'groundWear', 'roadShoulder', 'roadBase', 'roadBlend', 'roadWear', 'roadEdgePatch', 'roadMud', 'roadStone', 'plotGround', 'planningFill', 'planningGuide', 'planningMarker', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -520,8 +521,108 @@ export class SceneRenderer {
     this.renderPlanExtensionIcon(rearMid, plot.angle, 0.9)
   }
 
+  private renderPlanBuildingIcon(type: BuildingId, center: Point, rotation: number, color = 0xf1e2b7): void {
+    if (type === 'farmhouse' || type === 'tavern') {
+      this.renderPlanHouseIcon(center, rotation, type === 'farmhouse' ? 0.92 : 0.82, color)
+      if (type === 'tavern') {
+        const sign = this.rotatedOffset(0.58, 0.2, rotation)
+        const signCenter = { x: center.x + sign.x, z: center.z + sign.z }
+        const top = this.rotatedOffset(0, 0.24, rotation)
+        const bottom = this.rotatedOffset(0, -0.24, rotation)
+        this.renderPlanSegment(
+          { x: signCenter.x + bottom.x, z: signCenter.z + bottom.z },
+          { x: signCenter.x + top.x, z: signCenter.z + top.z },
+          0.055,
+          color,
+          0.116,
+        )
+      }
+      return
+    }
+
+    const local = (x: number, z: number): Point => {
+      const offset = this.rotatedOffset(x, z, rotation)
+      return { x: center.x + offset.x, z: center.z + offset.z }
+    }
+
+    if (type === 'campfire') {
+      const radius = 0.38
+      const ring: Point[] = []
+      for (let i = 0; i < 8; i++) {
+        const angle = i / 8 * Math.PI * 2
+        ring.push(local(Math.cos(angle) * radius, Math.sin(angle) * radius))
+      }
+      for (let i = 0; i < ring.length; i++) {
+        this.renderPlanSegment(ring[i], ring[(i + 1) % ring.length], 0.055, color, 0.116)
+      }
+      this.renderPlanSegment(local(-0.24, -0.2), local(0.24, 0.2), 0.06, color, 0.117)
+      this.renderPlanSegment(local(0.24, -0.2), local(-0.24, 0.2), 0.06, color, 0.117)
+      return
+    }
+
+    if (type === 'guard-post') {
+      this.renderPlanSegment(local(-0.32, -0.3), local(0.32, -0.3), 0.065, color, 0.116)
+      this.renderPlanSegment(local(-0.32, -0.3), local(-0.32, 0.34), 0.065, color, 0.116)
+      this.renderPlanSegment(local(0.32, -0.3), local(0.32, 0.34), 0.065, color, 0.116)
+      this.renderPlanSegment(local(-0.32, 0.34), local(0.32, 0.34), 0.065, color, 0.116)
+      this.renderPlanSegment(local(0, -0.12), local(0, 0.55), 0.055, color, 0.117)
+      this.renderPlanSegment(local(0, 0.55), local(0.28, 0.42), 0.055, color, 0.117)
+      return
+    }
+
+    if (type === 'market' || type === 'trading-post') {
+      const half = type === 'market' ? 0.46 : 0.42
+      this.renderPlanSegment(local(-half, -0.28), local(-half, 0.3), 0.06, color, 0.116)
+      this.renderPlanSegment(local(half, -0.28), local(half, 0.3), 0.06, color, 0.116)
+      this.renderPlanSegment(local(-half, 0.3), local(half, 0.3), 0.075, color, 0.116)
+      this.renderPlanSegment(local(-half - 0.08, 0.12), local(half + 0.08, 0.12), 0.055, color, 0.116)
+      if (type === 'trading-post') {
+        this.renderPlanSegment(local(-0.22, -0.08), local(0.22, -0.08), 0.06, color, 0.117)
+        this.renderPlanSegment(local(0.22, -0.08), local(0.08, -0.22), 0.06, color, 0.117)
+      }
+      return
+    }
+
+    if (type === 'brewery') {
+      this.renderPlanSegment(local(-0.34, -0.32), local(0.22, -0.32), 0.065, color, 0.116)
+      this.renderPlanSegment(local(-0.34, -0.32), local(-0.34, 0.34), 0.065, color, 0.116)
+      this.renderPlanSegment(local(-0.34, 0.34), local(0.22, 0.34), 0.065, color, 0.116)
+      this.renderPlanSegment(local(0.22, 0.34), local(0.22, -0.32), 0.065, color, 0.116)
+      this.renderPlanSegment(local(0.22, 0.2), local(0.48, 0.12), 0.055, color, 0.116)
+      this.renderPlanSegment(local(0.48, 0.12), local(0.22, -0.04), 0.055, color, 0.116)
+      return
+    }
+
+    if (type === 'blacksmith') {
+      this.renderPlanSegment(local(-0.42, 0.2), local(0.42, 0.2), 0.075, color, 0.116)
+      this.renderPlanSegment(local(-0.18, 0.2), local(-0.05, -0.02), 0.065, color, 0.116)
+      this.renderPlanSegment(local(0.18, 0.2), local(0.05, -0.02), 0.065, color, 0.116)
+      this.renderPlanSegment(local(-0.05, -0.02), local(0.05, -0.02), 0.07, color, 0.116)
+      this.renderPlanSegment(local(0, -0.02), local(0, -0.38), 0.075, color, 0.116)
+      this.renderPlanSegment(local(-0.24, -0.38), local(0.24, -0.38), 0.075, color, 0.116)
+      return
+    }
+
+    this.renderPlanExtensionIcon(center, rotation, 1.08, color)
+  }
+
+  private renderPlanFrontage(center: Point, rotation: number, footprint: number, color = 0xf5d78e): void {
+    const local = (x: number, z: number): Point => {
+      const offset = this.rotatedOffset(x, z, rotation)
+      return { x: center.x + offset.x, z: center.z + offset.z }
+    }
+    const half = footprint / 2
+    const gateHalf = Math.min(0.62, Math.max(0.36, footprint * 0.18))
+    const frontZ = half + 0.08
+    this.renderPlanSegment(local(-gateHalf, frontZ), local(gateHalf, frontZ), 0.105, color, 0.121)
+    this.renderPlanSegment(local(0, frontZ), local(0, frontZ + 0.42), 0.07, color, 0.122)
+    this.renderPlanSegment(local(0, frontZ + 0.42), local(-0.16, frontZ + 0.24), 0.07, color, 0.122)
+    this.renderPlanSegment(local(0, frontZ + 0.42), local(0.16, frontZ + 0.24), 0.07, color, 0.122)
+  }
+
   private renderBuildingPlanningOverlay(b: Building, rotation: number): void {
-    const half = BUILDINGS[b.type].footprint / 2
+    const footprint = BUILDINGS[b.type].footprint
+    const half = footprint / 2
     const corner = (x: number, z: number): Point => {
       const offset = this.rotatedOffset(x, z, rotation)
       return { x: b.x + offset.x, z: b.z + offset.z }
@@ -532,12 +633,16 @@ export class SceneRenderer {
       corner(half, half),
       corner(-half, half),
     ]
+
+    this.instance('planningFill', b.x, 0.047, b.z, footprint * 0.94, 1, footprint * 0.94, 0xb8ae82, rotation)
+
     for (let i = 0; i < corners.length; i++) {
       this.renderDashedPlanSegment(corners[i], corners[(i + 1) % corners.length], 0xe6dcc0, 0.52, 0.3, 0.065, 0.095)
       this.instance('planningMarker', corners[i].x, 0.102, corners[i].z, 0.82, 1, 0.82, 0xf0e3bf)
     }
-    if (b.type === 'farmhouse') this.renderPlanHouseIcon(b, rotation, 0.9)
-    else this.renderPlanExtensionIcon(b, rotation, 1.1, 0xf1e2b7)
+
+    this.renderPlanBuildingIcon(b.type, b, rotation)
+    this.renderPlanFrontage(b, rotation, footprint)
   }
 
   private recentlyHit(lastHitTick: number, tick: number): boolean {
@@ -2799,14 +2904,16 @@ export class SceneRenderer {
       if (this.ghostLine.instanceColor) this.ghostLine.instanceColor.needsUpdate = true
     } else {
       this.ghost.visible = true
-      this.ghost.position.set(p.x, height / 2, p.z)
+      this.ghost.position.set(p.x, def.fortification ? height / 2 : 0.055, p.z)
       this.ghost.rotation.set(0, rotation, 0)
       this.ghost.scale.set(
-        def.fortification ? 0.92 : def.footprint * 0.92,
-        height,
-        def.fortification ? 0.82 : def.footprint * 0.92,
+        def.fortification ? 0.92 : def.footprint * 0.94,
+        def.fortification ? height : 0.08,
+        def.fortification ? 0.82 : def.footprint * 0.94,
       )
-      ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(color)
+      ;(this.ghost.material as THREE.MeshBasicMaterial).color.copy(
+        new THREE.Color(def.fortification ? (valid ? 0x77d9a0 : 0xef6d65) : (valid ? 0xb8ae82 : 0xd96f68)),
+      )
 
       if (!def.fortification) {
         const outlineColor = new THREE.Color(valid ? 0xeadfbd : 0xef756b)
@@ -2877,7 +2984,7 @@ export class SceneRenderer {
       }
     }
 
-    if (!def.fortification && type !== 'campfire' && type !== 'stockpile') {
+    if (!def.fortification) {
       const distance = def.footprint / 2 + 0.65
       this.facing.visible = true
       this.facing.position.set(
