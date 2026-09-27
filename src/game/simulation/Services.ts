@@ -98,7 +98,7 @@ export function serviceAssignments(
       )
     const chosen = eligible[0]
     if (!chosen) continue
-    const [{ slot }] = availableSlots.splice(chosen.index, 1)
+    const [slot] = availableSlots.splice(chosen.index, 1)
     assignments.set(settler.id, {
       buildingId: slot.building.id,
       slot: slot.slot,
