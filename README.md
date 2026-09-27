@@ -6,7 +6,7 @@ A grounded medieval dark-fantasy settlement builder. The long-term direction is 
 
 The image below is the current **north-star UI / presentation concept** for Nightspire. The exact artwork is not final, but the **layout hierarchy and product direction are intentional**: compact settlement information at the top, contextual building/character panels on the left, tasks/messages on the right, a large illustrated construction catalog at the bottom, and the world kept visible in the center.
 
-![Nightspire UI and feature direction](docs/images/nightspire-ui-concept-v1.jpg)
+![Nightspire UI and feature direction](docs/images/nightspire-ui-concept-hq.jpg)
 
 The playable game already has roads, residential plots, agriculture, physical hauling, Markets, Brewery → Ale → Tavern, Ore → Tools, Gold trade, households, Happiness, immigration, guards, wooden fortifications, raids, day/night and save/load. The roadmap now grows outward from that foundation rather than replacing it.
 
@@ -26,11 +26,11 @@ See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md) and [UI art-slot con
 
 The Pleasure House is a planned late-settlement service building that should visually belong to the same illustrated medieval UI language as the rest of Nightspire. The first concept establishes the **building panel** direction: large hand-painted header art, workers/visitors, service effects and a restrained parchment information hierarchy.
 
-![Pleasure House building UI concept](docs/images/pleasure-house-ui-concept.jpg)
+![Pleasure House building UI concept](docs/images/pleasure-house-ui-concept-hq.jpg)
 
 The second concept establishes the **in-world building and service-space** direction: a warm, affluent multi-level venue with public drinking/entertainment areas, music, private rooms, balconies, courtyards, lanterns, flowers and visible staff/visitors. This is a visual target for layout, atmosphere and readable service activity rather than a literal final asset.
 
-![Pleasure House world and services concept](docs/images/pleasure-house-world-concept.jpg)
+![Pleasure House world and services concept](docs/images/pleasure-house-world-concept-hq.jpg)
 
 These mature-service concepts are planned direction only. Final gameplay, balance, building footprint and art assets will be implemented separately.
 
