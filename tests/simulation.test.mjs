@@ -2893,7 +2893,7 @@ test('M3.12 capped adolescents remain save-valid until a worker slot opens', () 
   s.topology++
   assignHousing(s)
   synchronizeFamilies(s)
-  const family=s.families.find(f=>f.homeId!==null)
+  const family=s.families.find(f=>f.homeId===houses[1].id)
   assert.ok(family)
   family.children=[{givenName:'Bryn',ageYears:15,ageDays:CHILD_DAYS_PER_YEAR-1}]
   const workers=s.settlers.length
