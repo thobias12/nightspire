@@ -304,3 +304,16 @@ The second generated artwork batch is integrated into the existing live HUD slot
 The five live building scenes are also reused for their selected-building header and construction hover preview surfaces. Road, Residential Plot and Field populate both their shelf cards and hover previews.
 
 All source PNGs were resized and optimized to WebP before commit; this batch is roughly 1.2 MB total instead of committing the original ~30 MB generation outputs.
+
+
+## Active-surface art completion pass
+
+The remaining currently playable visual gaps are now filled without enabling any planned gameplay:
+
+- Campfire construction art
+- Wood Wall construction art
+- Wood Gate construction art
+- House selected-building header art
+- Settlement Overview, Selection, Developer, Tasks & Messages and Pause utility symbols
+
+All selectable live building headers now have artwork, and internal `data-art-slot` / `data-ui-asset` debug labels are suppressed wherever finished art is present. Planned roadmap cards intentionally remain subdued placeholders until their systems are implemented.

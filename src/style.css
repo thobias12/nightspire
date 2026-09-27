@@ -2340,3 +2340,98 @@ button.danger:hover { background: #75443a; border-color: #d58a77; }
   background-position: center;
   border-radius: 4px;
 }
+
+
+/* Third Nightspire UI art completion pass: active surfaces + permanent HUD utilities */
+[data-art-slot="build-campfire"],
+[data-ui-asset="building-header:campfire"] {
+  background-image: url("../assets/ui/building-card/campfire.svg");
+}
+[data-art-slot="build-wood-wall"],
+[data-ui-asset="building-header:wood-wall"] {
+  background-image: url("../assets/ui/building-card/wood-wall.svg");
+}
+[data-art-slot="build-wood-gate"],
+[data-ui-asset="building-header:wood-gate"] {
+  background-image: url("../assets/ui/building-card/wood-gate.svg");
+}
+[data-ui-asset="building-header:house"] {
+  background-image: url("../assets/ui/building-card/house.svg");
+}
+
+[data-art-slot="build-campfire"],
+[data-art-slot="build-wood-wall"],
+[data-art-slot="build-wood-gate"] {
+  background-size: cover;
+  background-position: center 48%;
+  background-repeat: no-repeat;
+  border-style: solid;
+  border-color: rgba(88,65,39,.48);
+  box-shadow: inset 0 0 0 1px rgba(80,58,35,.18);
+}
+
+[data-ui-asset="building-header:house"],
+[data-ui-asset="building-header:campfire"],
+[data-ui-asset="building-header:wood-wall"],
+[data-ui-asset="building-header:wood-gate"] {
+  background-size: cover;
+  background-position: center 48%;
+  background-repeat: no-repeat;
+}
+
+/* Every selectable live building now has real header art, so debug slot labels can disappear. */
+[data-ui-asset^="building-header:"] > span {
+  display: none;
+}
+[data-ui-asset^="building-header:"]::after {
+  content: none;
+}
+
+.build-preview-art[data-art-slot="build-campfire"],
+.build-preview-art[data-art-slot="build-wood-wall"],
+.build-preview-art[data-art-slot="build-wood-gate"] {
+  background-size: cover;
+  background-position: center 48%;
+  color: transparent;
+}
+.build-preview-art[data-art-slot="build-campfire"] > span,
+.build-preview-art[data-art-slot="build-wood-wall"] > span,
+.build-preview-art[data-art-slot="build-wood-gate"] > span {
+  display: none;
+}
+
+/* Suppress internal asset-key labels anywhere the construction preview has finished artwork. */
+.build-preview-art[data-art-slot="build-road"]::after,
+.build-preview-art[data-art-slot="build-residential-plot"]::after,
+.build-preview-art[data-art-slot="build-field"]::after,
+.build-preview-art[data-art-slot="build-stockpile"]::after,
+.build-preview-art[data-art-slot="build-farmhouse"]::after,
+.build-preview-art[data-art-slot="build-brewery"]::after,
+.build-preview-art[data-art-slot="build-blacksmith"]::after,
+.build-preview-art[data-art-slot="build-campfire"]::after,
+.build-preview-art[data-art-slot="build-tavern"]::after,
+.build-preview-art[data-art-slot="build-market"]::after,
+.build-preview-art[data-art-slot="build-trading-post"]::after,
+.build-preview-art[data-art-slot="build-guard-post"]::after,
+.build-preview-art[data-art-slot="build-wood-wall"]::after,
+.build-preview-art[data-art-slot="build-wood-gate"]::after {
+  content: none;
+}
+
+[data-icon-slot="settlement-overview"] { background-image: url("../assets/ui/command/overview.svg"); }
+[data-icon-slot="selection"] { background-image: url("../assets/ui/command/selection.svg"); }
+[data-icon-slot="developer"] { background-image: url("../assets/ui/command/developer.svg"); }
+[data-icon-slot="tasks-messages"] { background-image: url("../assets/ui/command/tasks.svg"); }
+[data-icon-slot="time-pause"] { background-image: url("../assets/ui/command/pause.svg"); }
+
+[data-icon-slot="settlement-overview"],
+[data-icon-slot="selection"],
+[data-icon-slot="developer"],
+[data-icon-slot="tasks-messages"],
+[data-icon-slot="time-pause"] {
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-color: transparent;
+  background-color: transparent;
+}

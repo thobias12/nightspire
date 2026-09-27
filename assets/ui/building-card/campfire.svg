@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 320">
+<defs>
+  <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#1b2430"/><stop offset="1" stop-color="#6b4f3b"/></linearGradient>
+  <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2a261f"/><stop offset="1" stop-color="#151613"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#d7a25d" stop-opacity=".9"/><stop offset="1" stop-color="#d7a25d" stop-opacity="0"/></radialGradient>
+  <filter id="grain"><feTurbulence baseFrequency=".75" numOctaves="2" seed="7" type="fractalNoise" result="n"/><feColorMatrix in="n" type="saturate" values="0" result="g"/><feComponentTransfer in="g"><feFuncA type="table" tableValues="0 .09"/></feComponentTransfer></filter>
+</defs>
+<rect width="768" height="320" fill="url(#sky)"/>
+<circle cx="610" cy="74" r="92" fill="url(#glow)" opacity=".38"/>
+<path d="M0 205 C130 174 256 197 372 181 C518 161 633 185 768 165 V320 H0Z" fill="url(#ground)"/>
+
+<ellipse cx="386" cy="232" rx="155" ry="37" fill="#151512" opacity=".72"/>
+<ellipse cx="386" cy="205" rx="116" ry="104" fill="url(#glow)" opacity=".74"/>
+<path d="M304 233 L463 190 M309 191 L463 233" stroke="#342219" stroke-width="16" stroke-linecap="round"/>
+<path d="M389 223 C349 194 363 166 386 145 C391 173 422 183 414 219 C407 238 369 245 354 219 C343 197 360 182 371 170 C370 192 392 195 389 223Z" fill="#c96d33"/>
+<path d="M388 215 C370 194 382 176 394 165 C396 184 414 191 404 213 C398 225 379 228 371 215 C365 204 376 194 382 187 C381 201 392 202 388 215Z" fill="#f1c16c"/>
+<path d="M169 237 C186 204 213 187 244 183 C229 214 232 240 249 260Z" fill="#24231d"/>
+<path d="M602 241 C579 204 551 188 522 184 C539 217 535 243 520 262Z" fill="#22211c"/>
+<circle cx="207" cy="173" r="13" fill="#191916"/><circle cx="560" cy="176" r="13" fill="#191916"/>
+<path d="M72 213 L97 133 L113 214 M648 211 L677 126 L694 212" stroke="#191a17" stroke-width="12"/>
+
+<rect width="768" height="320" filter="url(#grain)" opacity=".28"/>
+<rect x="5" y="5" width="758" height="310" rx="3" fill="none" stroke="#a98a5d" stroke-opacity=".22" stroke-width="2"/>
+</svg>
