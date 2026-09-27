@@ -6,6 +6,7 @@ import { essentialJob, happinessEffect } from './Happiness'
 import { JobReservations } from './JobReservations'
 import { distance, entrance } from './Navigation'
 import { activeWorkplace } from './Workforce'
+import { workplaceHaulScore, workplaceInputNeed, workplaceOutputReady } from './WorkplaceLogistics'
 import type { Building, Job, ResourceNode, Settler, WorldState } from './WorldState'
 
 const repairSources = (state: WorldState): Building[] =>
@@ -19,6 +20,12 @@ const repairWoodNeed = (state: WorldState, index: JobReservations): number => {
   return Math.max(0, missing - active)
 }
 
+function supplyNeed(state: WorldState, building: Building, resource: ResourceId, index: JobReservations): number {
+  const production = BUILDINGS[building.type].production
+  if (production?.inputResource === resource) return workplaceInputNeed(state, building, resource, index)
+  return supplyFree(state, building, resource, index)
+}
+
 function gatherNeed(state: WorldState, resource: ResourceId, index: JobReservations): number {
   const stores = stockpiles(state)
   const availableStock = stores.reduce((n, b) => n + Math.max(0, available(state, b, resource, index)), 0)
@@ -28,7 +35,7 @@ function gatherNeed(state: WorldState, resource: ResourceId, index: JobReservati
   const repair = resource === 'wood' ? repairWoodNeed(state, index) : 0
   const supply = state.buildings
     .filter(b => b.complete && !b.destroyed)
-    .reduce((sum, b) => sum + supplyFree(state, b, resource, index), 0)
+    .reduce((sum, b) => sum + supplyNeed(state, b, resource, index), 0)
   return Math.max(0, state.targets[resource] + construction + repair + supply - availableStock - inbound)
 }
 
@@ -46,11 +53,14 @@ export function assignJobs(state: WorldState): void {
     if (settler.jobId !== null || settler.health <= 0 || settler.arrivalTarget !== null) continue
     if (activeWorkplace(state, settler)) continue
 
-    const options: Omit<Job, 'id' | 'settlerId'>[] = []
+    const options: Array<{ job: Omit<Job, 'id' | 'settlerId'>; score: number }> = []
     const morale = happinessEffect(settler)
-    const offer = (option: Omit<Job, 'id' | 'settlerId'>): boolean => {
+    const offer = (
+      option: Omit<Job, 'id' | 'settlerId'>,
+      score = JOBS[option.kind].priority * 100,
+    ): boolean => {
       if (morale.refusesNonessential && !essentialJob(option)) return false
-      options.push(option)
+      options.push({ job: option, score })
       return true
     }
 
@@ -81,7 +91,7 @@ export function assignJobs(state: WorldState): void {
     for (const source of producers) {
       const production = BUILDINGS[source.type].production!
       const resource = production.outputResource
-      const amountAvailable = available(state, source, resource, index)
+      const amountAvailable = workplaceOutputReady(state, source, index)
       if (amountAvailable <= 0) continue
 
       const store = stores
@@ -97,13 +107,13 @@ export function assignJobs(state: WorldState): void {
         amount: Math.min(CARRY_CAPACITY, amountAvailable, freeStorage(state, store, index)),
         stage: 'source',
         progress: 0,
-      })
+      }, workplaceHaulScore(source, source.inventory[resource] >= production.outputCapacity - production.outputAmount))
     }
 
     // Production inputs and service supplies are sourced from stockpiles only.
     for (const building of operating) {
       for (const resource of RESOURCE_IDS) {
-        const needed = supplyFree(state, building, resource, index)
+        const needed = supplyNeed(state, building, resource, index)
         if (needed <= 0) continue
 
         const source = stores
@@ -111,6 +121,10 @@ export function assignJobs(state: WorldState): void {
           .sort((a, b) => distance(settler, a) - distance(settler, b))[0]
         if (!source) continue
 
+        const production = BUILDINGS[building.type].production
+        const score = production?.inputResource === resource
+          ? workplaceHaulScore(building, building.inventory[resource] < production.inputAmount)
+          : JOBS.supply.priority * 100
         offer({
           kind: 'supply',
           sourceId: source.id,
@@ -119,7 +133,7 @@ export function assignJobs(state: WorldState): void {
           amount: Math.min(CARRY_CAPACITY, needed, available(state, source, resource, index)),
           stage: 'source',
           progress: 0,
-        })
+        }, score)
       }
     }
 
@@ -195,8 +209,8 @@ export function assignJobs(state: WorldState): void {
       }
     }
 
-    options.sort((a, b) => JOBS[b.kind].priority - JOBS[a.kind].priority)
-    const option = options[0]
+    options.sort((a, b) => b.score - a.score)
+    const option = options[0]?.job
     if (!option) continue
 
     const job: Job = { ...option, id: state.nextId++, settlerId: settler.id }
