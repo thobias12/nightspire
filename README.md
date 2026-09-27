@@ -2,6 +2,26 @@
 
 A grounded medieval dark-fantasy settlement builder. The long-term direction is to grow an organic, lived-in city by day, personally defend it at night, and develop a distinctly adult sensual fantasy society as the settlement matures.
 
+## Product vision & planned feature direction
+
+The image below is the current **north-star UI / presentation concept** for Nightspire. The exact artwork is not final, but the **layout hierarchy and product direction are intentional**: compact settlement information at the top, contextual building/character panels on the left, tasks/messages on the right, a large illustrated construction catalog at the bottom, and the world kept visible in the center.
+
+![Nightspire UI and feature direction](docs/images/nightspire-ui-feature-concept.jpg)
+
+The playable game already has roads, residential plots, agriculture, physical hauling, Markets, Brewery → Ale → Tavern, Ore → Tools, Gold trade, households, Happiness, immigration, guards, wooden fortifications, raids, day/night and save/load. The roadmap grows outward from that foundation rather than replacing it.
+
+**Near-term presentation work:** finish the compact Manor Lords-inspired HUD shell; replace placeholders with original Nightspire medieval-illustration icons/cards; add richer contextual building panels, worker portraits, tasks/messages, notifications, minimap/readability tools and consistent placement feedback.
+
+**Settlement/economy expansion:** deepen food storage and processing; expand resource extraction; add more agriculture and rural land uses; broaden Markets, trade, logistics, prosperity and upgrade paths.
+
+**Civic, faith and services:** add Well/Chapel/Manor-style civic progression, prestige, policies and service coverage; later grow Bathhouse, recreation, luxury and nightlife into a richer mature-city service economy.
+
+**Defense and night pressure:** extend Guard Posts, Walls and Gates toward Watchtowers/Barracks/stronger fortifications, more enemy archetypes and deeper nightly defense while keeping daytime settlement growth central.
+
+**Scale and character depth:** continue profiling toward larger populations, stronger navigation/job scaling, richer citizens and featured characters, equipment/visual progression, and more detailed household/social simulation.
+
+See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md). The concept image is a direction reference, not a promise that every pictured building or panel is already implemented.
+
 **Current playable milestone: M3.11.7 — Agriculture & Point-Drawn Farm Fields.** Farming now uses irregular player-drawn land parcels rather than fixed farm tiles. Build a **Farmhouse**, assign up to three Farmers, then use the **Field** tool to click 3–8 corners around the exact land you want to cultivate, with optional grid snapping. Fields reject roads, buildings, residential plots, live resource nodes and other fields. Farmers physically walk to fields to sow and harvest; crops progress across Days through **Fallow → Sown → Growing → Ready → Harvested**, harvest into Farmhouse storage, and general Laborers move the Food onward into specialized Stockpiles and Markets. **Conventional buildings now require road frontage in live placement**, while fields must be linked to a Farmhouse within 18m. Fields share the same global **G** 1m Grid Snap setting as roads and residential dimensions. Field size controls yield and work, so town layout and available labor matter. M3.11.6 Gold trade, household prosperity, local Market coverage and the existing road system remain intact. See [the agriculture note](docs/M3117_AGRICULTURE.md), [the Gold trade note](docs/M3116_GOLD_TRADE.md) and [the household progression note](docs/M3115_HOUSEHOLD_PROGRESSION.md).
 
 **Road visual pass: M3.10.3 — Organic Medieval Roads.** Roads now resolve into one continuous terrain-integrated worn-earth surface with irregular shoulders, width-dependent wear and sparse grass/stone dressing, while preserving the current planner, frontage rules, navigation and save schema. See [the road visual note](docs/M3103_ROAD_VISUALS.md).
