@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "reports": [
+    {
+      "presetVersion": 2,
+      "baselineHead": "4d9097e",
+      "build": "da5f1969f5b4e193035241c84e89c9bb92506427",
+      "dirty": false,
+      "population": 500,
+      "workload": "logistics",
+      "valid": true,
+      "viewport": "1280x720@1",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+      "timestamp": "2026-09-26T18:00:23.702Z",
+      "fixedStep": 0.05,
+      "pathBudget": 2,
+      "warmupTicks": 40,
+      "sampleTicks": 360,
+      "endTick": 400,
+      "setupMs": 19.600000001490116,
+      "startupAndSampleTickMaxMs": 51.69999999552965,
+      "fps": 174.89860547808212,
+      "droppedSeconds": 0,
+      "navigation": {
+        "requests": 1049,
+        "solves": 800,
+        "queuePeak": 440,
+        "endQueue": 249,
+        "failures": 0
+      },
+      "entities": {
+        "settlers": 500,
+        "enemies": 0,
+        "buildings": 31,
+        "nodes": 500,
+        "jobs": 487
+      },
+      "progress": {
+        "gathered": {
+          "wood": 1295,
+          "food": 515,
+          "ale": 0,
+          "ore": 495,
+          "tools": 0
+        },
+        "deposited": {
+          "wood": 340,
+          "food": 305,
+          "ale": 0,
+          "ore": 225,
+          "tools": 0
+        },
+        "delivered": {
+          "wood": 0,
+          "food": 0,
+          "ale": 0,
+          "ore": 0,
+          "tools": 0
+        },
+        "constructed": 0,
+        "repairedHealth": 0,
+        "repairWoodUsed": 0,
+        "structureDamage": 0,
+        "foodConsumed": 0,
+        "serviceConsumed": {
+          "wood": 0,
+          "food": 0,
+          "ale": 0,
+          "ore": 0,
+          "tools": 0
+        },
+        "productionConsumed": {
+          "wood": 0,
+          "food": 8,
+          "ale": 0,
+          "ore": 6,
+          "tools": 0
+        },
+        "produced": {
+          "wood": 0,
+          "food": 0,
+          "ale": 16,
+          "ore": 0,
+          "tools": 2
+        },
+        "serviceVisitors": 0
+      },
+      "startDigest": "00b60dbf",
+      "endDigest": "e4ad09c3",
+      "statistics": {
+        "routeWaitSeconds": {
+          "samples": 800,
+          "mean": 6.667000000000009,
+          "p50": 7.550000000000001,
+          "p95": 10,
+          "p99": 10.8,
+          "max": 11
+        },
+        "frameMs": {
+          "samples": 3148,
+          "mean": 5.717598475222363,
+          "p50": 5.7000000000116415,
+          "p95": 5.800000000017462,
+          "p99": 5.800000000017462,
+          "max": 11.39999999999418
+        },
+        "simulationFrameMs": {
+          "samples": 3148,
+          "mean": 0.2178526048133152,
+          "p50": 0,
+          "p95": 1.8000000044703484,
+          "p99": 2.7000000029802322,
+          "max": 3.600000001490116
+        },
+        "renderCpuMs": {
+          "samples": 3148,
+          "mean": 3.017280813195332,
+          "p50": 3,
+          "p95": 3.7000000029802322,
+          "p99": 4.100000001490116,
+          "max": 5.600000001490116
+        },
+        "drawCalls": {
+          "samples": 3148,
+          "mean": 64.22808132147395,
+          "p50": 64,
+          "p95": 66,
+          "p99": 66,
+          "max": 66
+        },
+        "triangles": {
+          "samples": 3148,
+          "mean": 364318.60991105466,
+          "p50": 364872,
+          "p95": 368344,
+          "p99": 368488,
+          "max": 368560
+        },
+        "instanceOverflow": {
+          "samples": 3148,
+          "mean": 0,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0,
+          "max": 0
+        },
+        "hudUpdateMs": {
+          "samples": 89,
+          "mean": 1.874157303421015,
+          "p50": 1.8999999985098839,
+          "p95": 2.3000000044703484,
+          "p99": 2.600000001490116,
+          "max": 2.600000001490116
+        },
+        "simulationTickMs": {
+          "samples": 360,
+          "mean": 1.8933333332339923,
+          "p50": 1.7999999970197678,
+          "p95": 2.9000000059604645,
+          "p99": 3.399999998509884,
+          "max": 3.600000001490116
+        },
+        "decisionsMs": {
+          "samples": 36,
+          "mean": 0.4472222224705749,
+          "p50": 0.20000000298023224,
+          "p95": 1.2000000029802322,
+          "p99": 1.3999999985098839,
+          "max": 1.3999999985098839
+        },
+        "agentsMs": {
+          "samples": 360,
+          "mean": 1.0891666666501099,
+          "p50": 1,
+          "p95": 2,
+          "p99": 2.399999998509884,
+          "max": 2.600000001490116
+        },
+        "needsServicesMs": {
+          "samples": 360,
+          "mean": 0.03749999991721577,
+          "p50": 0,
+          "p95": 0.10000000149011612,
+          "p99": 0.10000000149011612,
+          "max": 0.20000000298023224
+        },
+        "navigationMs": {
+          "samples": 360,
+          "mean": 0.7066666666832235,
+          "p50": 0.7000000029802322,
+          "p95": 0.8999999985098839,
+          "p99": 1.0999999940395355,
+          "max": 1.1000000014901161
+        },
+        "otherMs": {
+          "samples": 360,
+          "mean": 0.012777777761220932,
+          "p50": 0,
+          "p95": 0.10000000149011612,
+          "p99": 0.10000000149011612,
+          "max": 0.10000000149011612
+        },
+        "queueDepth": {
+          "samples": 360,
+          "mean": 301.6638888888889,
+          "p50": 300,
+          "p95": 351,
+          "p99": 364,
+          "max": 370
+        },
+        "activeJobs": {
+          "samples": 360,
+          "mean": 497.28333333333336,
+          "p50": 499,
+          "p95": 500,
+          "p99": 500,
+          "max": 500
+        }
+      }
+    }
+  ]
+}
