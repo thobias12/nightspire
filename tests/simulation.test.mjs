@@ -9,6 +9,10 @@ const {
   placementBatchError, placementError, stockpiles, available, freeStorage, wallLinePoints,
 } = require('../.test-build/game/simulation/Buildings.js')
 const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
+const {
+  canAdvanceConstruction, constructionCrewCapacity, constructionMaterialRatio,
+  constructionStage, constructionWorkLimit, constructionWorkPoint,
+} = require('../.test-build/game/simulation/Construction.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey, entrance } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
@@ -399,11 +403,60 @@ test('visual atmosphere is bright by day, cold/dense at night and warmest near t
   assert.ok(dusk.twilight>0.95)
 })
 
-test('construction presentation advances deterministically from foundation to frame to shell', () => {
-  assert.equal(constructionVisualStage(0,10,false),'foundation')
+test('construction presentation advances through a full physical build sequence', () => {
+  assert.equal(constructionVisualStage(0,10,false),'site')
+  assert.equal(constructionVisualStage(1,10,false),'foundation')
   assert.equal(constructionVisualStage(3,10,false),'frame')
-  assert.equal(constructionVisualStage(8,10,false),'shell')
+  assert.equal(constructionVisualStage(5,10,false),'scaffold')
+  assert.equal(constructionVisualStage(7,10,false),'shell')
+  assert.equal(constructionVisualStage(9,10,false),'finishing')
   assert.equal(constructionVisualStage(0,10,true),'complete')
+})
+
+test('construction work is capped by materials physically delivered to the site', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  s.nodes.forEach(node => { node.remaining=0 })
+  s.buildings[0].inventory.wood=0
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=10
+  s.buildings.push(site); s.topology++
+
+  assert.equal(constructionMaterialRatio(site),0.5)
+  assert.equal(constructionWorkLimit(site),6)
+  assert.equal(canAdvanceConstruction(site),true)
+  assert.equal(constructionStage(site),'site')
+
+  const sim=new Simulation(s)
+  advance(sim,12)
+  assert.ok(Math.abs(site.work-6)<1e-8)
+  assert.equal(site.complete,false)
+  assert.equal(canAdvanceConstruction(site),false)
+  assert.ok(!s.jobs.some(job=>job.kind==='construct' && job.targetId===site.id))
+  validateWorld(s)
+})
+
+test('large construction sites use parallel builders while other settlers keep hauling', () => {
+  const s=createInitialWorldState()
+  s.nodes.forEach(node => { node.remaining=0 })
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  s.buildings[0].inventory.wood=10
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=10
+  s.buildings.push(site); s.topology++
+
+  assert.equal(constructionCrewCapacity(site),2)
+  assignJobs(s)
+  const builders=s.jobs.filter(job=>job.kind==='construct' && job.targetId===site.id)
+  const haulers=s.jobs.filter(job=>job.kind==='deliver' && job.targetId===site.id)
+  assert.equal(builders.length,2)
+  assert.equal(haulers.reduce((sum,job)=>sum+job.amount,0),10)
+  assert.notDeepEqual(
+    constructionWorkPoint(site,builders[0].settlerId),
+    constructionWorkPoint(site,builders[1].settlerId),
+  )
+  validateWorld(s)
 })
 
 test('damage presentation maps health bands to readable world states', () => {
