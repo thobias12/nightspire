@@ -176,7 +176,16 @@ export function processFamiliesDay(state: WorldState): FamilyDayResult {
         child.ageDays = 0
         child.ageYears++
       }
-      if (child.ageYears >= 16 && growChildIntoSettler(state, family, i)) matured++
+      if (child.ageYears >= 16) {
+        if (growChildIntoSettler(state, family, i)) {
+          matured++
+        } else {
+          // Dependents stay at the adulthood threshold until an active-settler
+          // slot and valid home are available; save validation remains bounded.
+          child.ageYears = 15
+          child.ageDays = CHILD_DAYS_PER_YEAR - 1
+        }
+      }
     }
 
     const adults = familyAdults(state, family)
