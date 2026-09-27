@@ -813,3 +813,42 @@ Recommended live test:
 6. Add a second Market near the uncovered House, stock/staff it, and verify coverage becomes complete.
 7. Place a Campfire or Tavern near only one neighborhood and confirm recreation coverage differs between Houses.
 8. Check the immigration objective: once formal Markets exist, all occupied households must have Market coverage.
+
+
+## M3.11.5 household prosperity & home progression
+
+Automated verification on 2026-09-27:
+
+- strict TypeScript passed
+- **156/156 tests passed**
+- production Vite build passed
+- no `SceneRenderer.ts`, road-planning or navigation-policy changes
+- old saves migrate Houses to Level 1 Cottage with zero progression streak
+
+Progression rules:
+
+- **Level 1 · Cottage** — 4 beds
+- **Level 2 · Established Home** — 5 beds after 2 qualifying Days with occupancy, Food access, recreation, Safety ≥ 60% and satisfaction ≥ 70%
+- **Level 3 · Prosperous Home** — 6 beds after 3 further qualifying Days with occupancy, Food access, recreation, Safety ≥ 70% and satisfaction ≥ 80%
+- any failed requirement resets the current streak
+- the same Day cannot be counted twice
+
+Regression coverage verifies:
+
+- Cottage → Established → Prosperous progression timing
+- failed service coverage resets the streak
+- upgraded capacity does not reshuffle existing households
+- newly available beds take currently unhoused settlers
+- upgraded bed capacity contributes to immigration spare-bed calculations
+- progression state persists through save/load
+- invalid progression levels are rejected
+
+Recommended live test:
+
+1. Build and occupy a House with nearby stocked/staffed Market coverage and nearby recreation.
+2. Keep its residents at Safety ≥ 60% and satisfaction ≥ 70%.
+3. Advance through two Day transitions and inspect the House: it should become **Established Home** with 5 beds.
+4. Keep stronger Safety ≥ 70% and satisfaction ≥ 80% for three more Day transitions.
+5. Confirm it becomes **Prosperous Home** with 6 beds.
+6. During a fresh streak, remove Market Food or recreation for one Day and confirm the streak returns to 0.
+7. Add an unhoused settler after a capacity upgrade and confirm the new bed is filled without moving residents out of other established households.

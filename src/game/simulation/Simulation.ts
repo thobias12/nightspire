@@ -12,6 +12,7 @@ import {
 } from './Combat'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { essentialJob, happinessEffect } from './Happiness'
+import { processHouseholdProgression } from './HouseProgression'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, entrance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
@@ -177,7 +178,9 @@ export class Simulation {
     } else if (next === 'dawn') {
       recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
     } else if (next === 'day') {
+      const upgrades = processHouseholdProgression(s)
       assignHousing(s)
+      if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
       const immigration = processImmigrationDay(s)
       if (immigration.arrived) assignHousing(s)
       serveDailyMeal(s, true)

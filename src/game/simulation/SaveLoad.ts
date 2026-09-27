@@ -2,6 +2,7 @@ import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
+import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
 import { residentialPlotsOverlap } from './TownPlanning'
 import { DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from './WorldState'
@@ -67,6 +68,9 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       && number(b.productionProgress) && b.productionProgress <= 300
       && integer(b.distributionDay) && b.distributionDay <= s.day
       && integer(b.distributionServed) && b.distributionServed <= MAX_SETTLERS
+      && integer(b.houseLevel) && (b.type === 'house' ? b.houseLevel >= 1 && b.houseLevel <= 3 : b.houseLevel === 0)
+      && integer(b.houseQualifyingDays) && b.houseQualifyingDays <= 3
+      && integer(b.houseLastEvaluationDay) && b.houseLastEvaluationDay <= s.day
       && integer(b.rotation) && b.rotation <= 3
       && ['low', 'normal', 'high'].includes(b.haulPriority)
       && ['low', 'normal', 'high'].includes(b.stockpilePriority)
@@ -230,7 +234,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const b of s.buildings) {
     const def = BUILDINGS[b.type]
-    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : def.housing), 'housing capacity')
+    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : houseBedCapacity(b)), 'housing capacity')
     if (b.complete) {
       for (const resource of RESOURCE_IDS) {
         const capacity = supplyCapacity(b, resource)
@@ -334,6 +338,9 @@ export function deserializeWorld(text: string): WorldState {
       if (building.productionProgress === undefined) building.productionProgress = 0
       if (building.distributionDay === undefined) building.distributionDay = 0
       if (building.distributionServed === undefined) building.distributionServed = 0
+      if (building.houseLevel === undefined) building.houseLevel = building.type === 'house' ? 1 : 0
+      if (building.houseQualifyingDays === undefined) building.houseQualifyingDays = 0
+      if (building.houseLastEvaluationDay === undefined) building.houseLastEvaluationDay = 0
       if (building.haulPriority === undefined) building.haulPriority = 'normal'
       if (building.stockpilePriority === undefined) building.stockpilePriority = 'normal'
       if (building.stockpileFilters === undefined) {
