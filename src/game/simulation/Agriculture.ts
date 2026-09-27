@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../data/buildings'
+import { pointInPolygon } from './FieldPlanning'
 import { distance } from './Navigation'
 import { workplaceWorkers } from './Workforce'
 import { recordEvent, type Building, type FieldPlot, type Settler, type WorldState } from './WorldState'
@@ -53,6 +54,30 @@ export function farmerFieldAssignment(state: WorldState, farmhouse: Building, fa
   const workers = workplaceWorkers(state, farmhouse.id)
   const index = Math.max(0, workers.findIndex(worker => worker.id === farmer.id))
   return workable[index % workable.length]
+}
+
+export function fieldWorkPoint(field: FieldPlot): { x: number; z: number } {
+  const rounded = { x: Math.round(field.x), z: Math.round(field.z) }
+  if (pointInPolygon(rounded, field.points)) return rounded
+
+  const minX = Math.ceil(Math.min(...field.points.map(point => point.x)))
+  const maxX = Math.floor(Math.max(...field.points.map(point => point.x)))
+  const minZ = Math.ceil(Math.min(...field.points.map(point => point.z)))
+  const maxZ = Math.floor(Math.max(...field.points.map(point => point.z)))
+  let best: { x: number; z: number } | null = null
+  let bestDistance = Infinity
+  for (let x = minX; x <= maxX; x++) {
+    for (let z = minZ; z <= maxZ; z++) {
+      const candidate = { x, z }
+      if (!pointInPolygon(candidate, field.points)) continue
+      const d = distance(candidate, field)
+      if (d < bestDistance) {
+        best = candidate
+        bestDistance = d
+      }
+    }
+  }
+  return best ?? rounded
 }
 
 export function agricultureActionLabel(field: FieldPlot): string {
