@@ -1,5 +1,15 @@
 # Architecture principles
 
+## M4 measured improvements
+
+`?benchmark=1` dynamically loads an isolated runner instead of Game. Seeded plain-data worlds feed the real Simulation, SceneRenderer and Hud, without gameplay input or save writes. The runner uses the existing 20 Hz fixed-step/catch-up policy. Renderer instance capacities are supplied once for QA populations; gameplay defaults remain unchanged, and overflow is reported.
+
+JobReservations is a derived index rebuilt from jobs once per assignment pass, extended immediately after every assignment, then discarded. It indexes source pickups, destination deliveries/supplies/storage, gather claims and construction/repair claims. Active jobs remain authoritative; no reservation ledger enters saves. Candidate building groups are shared within the pass, and the first eligible gathering node is found in one stable scan instead of sorting all nodes.
+
+Off-hours movement shares one service assignment map per tick. Job updates invalidate it because a carried delivery, construction or repair can change availability before another settler is scheduled. Service consumption still derives a fresh map after movement. Happiness restrictions, work rates, Tool coverage and stable tie order are preserved.
+
+The QA roster renders at most 25 settlers per page and skips roster rebuilding when collapsed. The normal ten-settler view is unchanged. Entity arrays, global navigation budgets, the renderer and fixed-step loop were retained; [measurements](M4_SCALE_PROOF.md) do not justify replacing them wholesale.
+
 ## Core rule: simulation is not the scene graph
 
 Three.js objects are presentation. They must not become the source of truth for population, economy, jobs, combat or buildings.

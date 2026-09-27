@@ -4,7 +4,9 @@ A grounded medieval dark-fantasy settlement builder. The long-term direction is 
 
 **Current playable milestone: M3.8.1 — Roads & Residential Plot Foundation.** The full M3.7 economy and M3.8.0 visual work remain intact, but town shape is now player-authored: draw persistent dirt roads, then drag road-front Residential Plots whose normal House blueprint supplies the existing construction/housing simulation while the persistent plot controls road-facing modular architecture, fences and backyard identity. Roads do not affect pathfinding/logistics yet; those hooks remain deferred until the M4 architecture is integrated. See [the direction pivot](docs/DIRECTION_PIVOT.md).
 
-**Browser playtest:** https://thobias12.github.io/nightspire/
+**M4 scale work on this branch:** repeatable browser benchmarks and measured scheduling improvements, based on the M3.8.1 head. Gameplay and its ten-settler cap are unchanged. See [the scale report](docs/M4_SCALE_PROOF.md).
+
+**Browser playtest:** https://thobias12.github.io/nightspire/ (published playtest; this M4 branch has not been deployed).
 
 **Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
 
@@ -66,9 +68,15 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. Ninety-six regression tests now cover the settlement/economy/combat foundation through M3.7, M3.8 presentation state, and persisted player-road / residential-plot geometry, validation, save/load and cleanup.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The 110 tests cover the settlement/economy/combat foundation, M3.8 presentation and town planning, plus deterministic scale scenarios, reservation accounting for all five resources, same-tick service changes and preserved Happiness restrictions.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
+
+## Run the scale benchmark
+
+Build and start the production preview, then open `/?benchmark=1` on its local URL, or use **Open M4 scale benchmark** in QA & performance. **Run 10–500 ladder** runs Day Logistics and Dusk Services for 10, 100, 250 and 500 settlers. Each case runs two simulated seconds of warmup and eighteen of measurement at 1×. Keep the tab active and viewport unchanged; hidden runs abort. Export the JSON after completion. Idle and 1000 presets are available individually.
+
+The isolated QA world cannot write gameplay saves. Reports include build identity, preset version, state hashes, simulation stages, render submission CPU, HUD CPU, frame intervals/FPS, jobs/entities, draw calls/triangles, route requests/solves/queue delay, instance overflow and dropped simulation time. Current M3.8.1 visuals, roads/plots, Happiness and both production chains run in these scenarios. See [method, evidence and limitations](docs/M4_SCALE_PROOF.md).
 
 ## Implementation
 
@@ -83,6 +91,7 @@ Browser verification covered gathering and visible cargo, placing three houses a
 ```text
 src/game/
   core/         lifecycle, fixed-step orchestration, keyboard/camera input
+  benchmark/    isolated seeded scale scenarios, measurements and browser runner
   data/         M1 building/resource/job definitions
   simulation/   entities, job assignment/execution, placement, navigation, save validation
   render/       Three.js ownership and state presentation
@@ -97,4 +106,4 @@ This is a small playable procedural art-direction prototype: six starting / ten 
 
 See [DIRECTION PIVOT](docs/DIRECTION_PIVOT.md), [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses the existing generic resource, production, stockpile and supply-job architecture for Ore → Tools. M3.8.1 adds persisted town-planning data for player roads and residential plots, but Navigation.ts, Jobs.ts, Simulation.ts and the path budget remain untouched: roads are visual-only for movement until M4 is integrated.
+M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses generic production and supply jobs for Ore → Tools. M3.8.1 adds persisted roads and residential plots; roads remain visual-only for movement. M4 adds temporary reservation indexes and shared service scheduling without changing simulation outcomes or the shared two-paths-per-tick budget. Larger-population gameplay support is not established by these short synthetic benchmarks.

@@ -382,3 +382,18 @@ Start a fresh run rather than loading the M3.8.0 QA settlement.
 ### Architectural boundary
 
 This milestone intentionally does not modify `Navigation.ts`, `Jobs.ts`, `Simulation.ts`, path budgets, resource reservations or settler decision logic. Persisted roads are prepared for post-M4 movement/logistics integration, but right now they organize player-authored settlement shape and residential frontage only.
+
+## M4 browser verification (2026-09-26–27)
+
+Production preview of the M3.8.1-based optimized build da5f196 was exercised in the connected browser. Full measurements, provenance and limits are in [M4_SCALE_PROOF.md](M4_SCALE_PROOF.md).
+
+- Completed baseline and optimized 10/100/250/500 Logistics and Services ladders, plus separate optimized 500 repeats. All eight before/after state hashes and route counts match; repeats match too.
+- Selected Idle at 500, paged the roster from settlers 1–25 to 26–50, then cancelled. The cancelled case produced no completed report. Export reports was exercised; raw evidence was captured from the report JSON field.
+- Started normal gameplay with six settlers and empty storage. Observed gathering, carried wood/food, deposits and rising stock. Placed a Campfire through the world UI; workers completed it, exposing six recreation slots. Integrity audit passed.
+- Saved at tick 1822 with five active jobs, carried food, 110 Wood, 59 Food and the completed Campfire. Reloaded the page and loaded while paused: tick, stocks, jobs and construction count were restored; integrity passed again.
+- Staged the existing M3.8.1 Town Center on a fresh run. Verified the current modular presentation and three roads/three residential plots. Advanced through Dusk into Night: recreation reached 99%, Tavern consumed one Ale, civilians sheltered and the existing 20-raider wave damaged structures.
+- Saved/reloaded that town at tick 1256. Three roads/three plots, one consumed Ale and 514 structure damage were restored. Integrity passed. This is a smoke test, not a large-combat performance qualification.
+- No browser console warnings or errors were captured in these checks. Existing road/plot authoring, immigration, combat and conservation regressions remain in the automated suite; not every historical browser workflow was repeated.
+
+The normal cap remains ten. No M4 deployment or merge was performed.
+Final local checks on 2026-09-27: npm install, npm run typecheck, all 110 tests and npm run build passed. Final diff and raw report consistency were inspected. The existing large-bundle warning remains.

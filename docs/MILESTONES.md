@@ -161,13 +161,18 @@ Starts after M4 integration because this is expected to touch movement, placemen
 
 ## M4 — Scale proof
 
-- [ ] benchmark scene
-- [ ] spatial partitioning
-- [x] basic path request budget (implemented in M1; large-scale validation still pending)
-- [ ] AI update tiers
-- [ ] rendering LOD
-- [ ] large repeated-content instancing
-- [ ] profile 100/250/500+ simulated agents
+- [x] deterministic browser benchmark ladder at 10/100/250/500, with optional Idle/1000 presets
+- [x] before/after CPU, frame, navigation, workload and rendering measurements on M3.8.1
+- [x] measured reservation/scheduling bottlenecks reduced with regression coverage
+- [x] basic path request budget retained and queue latency measured at scale
+- [x] existing instanced presentation exercised with QA capacities and overflow checks
+- [ ] spatial partitioning — deferred until measured need justifies it
+- [ ] AI update tiers — deferred; no behavior reductions used to claim success
+- [ ] rendering LOD — deferred; current visual fidelity retained
+- [ ] long-duration, mixed combat/topology and representative lower-end hardware scale validation
+- [ ] larger normal gameplay cap — remains ten
+
+**First scale pass:** see [M4_SCALE_PROOF.md](M4_SCALE_PROOF.md) and its raw reports. The current benchmark demonstrates CPU improvements while exposing long navigation waits above 100 settlers. This does not establish 500-settler gameplay support or authorize content expansion.
 
 **Exit:** documented performance envelope and architecture validated before content explosion.
 
