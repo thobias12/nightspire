@@ -2790,8 +2790,8 @@ test('M3.12 dependents consume housing headroom and prevent household overfill',
   assert.equal(settlementPopulation(s),4)
   assert.equal(populationAttraction(s).spareBeds,0)
 
-  family.lastChildDay=s.day-FAMILY_CHILD_INTERVAL_DAYS
-  s.day++
+  family.lastChildDay=1
+  s.day=FAMILY_CHILD_INTERVAL_DAYS+1
   const result=processFamiliesDay(s)
   assert.equal(result.births,0)
   assert.equal(family.children.length,2)
