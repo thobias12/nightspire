@@ -204,3 +204,16 @@ Reserved assets:
 Existing `portrait:settler-*`, `resource:<resource-id>`, `service:food`, `service:recreation` and `service:agriculture` slots are reused.
 
 Context navigation buttons can jump directly between linked world objects (for example Settler → Home, Settler → Workplace, Field → Farmhouse, Raider → Target) while preserving the world-anchored floating-panel behavior.
+
+
+## Construction catalog strip
+
+The construction menu is now intentionally a horizontal illustrated strip rather than a responsive card grid.
+
+Art requirements:
+- building-card art remains the dominant area of every live or planned card
+- category icons remain small and quiet
+- planned cards use the same art dimensions but are visually subdued
+- planning utilities such as Grid Snap are not building cards and use compact utility icons
+
+The live HUD also marks unaffordable building cards from current settlement resources without disabling placement, so the player still receives the simulation's normal placement feedback.
