@@ -242,7 +242,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const j of s.jobs) {
     const a = s.settlers.find(a => a.id === j.settlerId)
-    const target = s.buildings.find(b => b.id === j.targetId)
+    const target = s.buildings.find(b => b.id === j.targetId)!
     const cleanupTarget = s.remains.find(remains => remains.id === j.targetId)
     check(a && a.jobId === j.id && !workers.has(a.id) && (j.kind === 'cleanup' ? cleanupTarget : target), 'job references')
     workers.add(a.id)
