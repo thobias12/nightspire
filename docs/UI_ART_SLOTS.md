@@ -317,3 +317,16 @@ The remaining currently playable visual gaps are now filled without enabling any
 - Settlement Overview, Selection, Developer, Tasks & Messages and Pause utility symbols
 
 All selectable live building headers now have artwork, and internal `data-art-slot` / `data-ui-asset` debug labels are suppressed wherever finished art is present. Planned roadmap cards intentionally remain subdued placeholders until their systems are implemented.
+
+
+## Context artwork pass
+
+The remaining live contextual placeholders now use original medieval UI sprites:
+
+- eight settler portrait archetypes plus empty-worker and raider portraits
+- Food, Housing, Safety, Recreation and Agriculture service/need symbols
+- Raid, Housing, Food, Storage, Repair, Trade, Arrival and Event task symbols
+- recipe, storage and cargo rows reuse the existing resource artwork
+- selected-building title icons reuse each building's integrated illustration
+
+The portrait and status artwork is packed into lightweight SVG sprite sheets so the UI gains visual identity without adding dozens of network requests.
