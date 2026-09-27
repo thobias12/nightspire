@@ -23,7 +23,7 @@ const {
   raidArchetypeForSpawn, raidFrontCountForWave, raidPlanForWave, raidSizeForWave, raiderArchetype,
 } = require('../.test-build/game/simulation/Raid.js')
 const {
-  PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE, damageBuilding,
+  PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE, damageBuilding, damageEnemy,
 } = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
 const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
@@ -2633,6 +2633,38 @@ test('M3.11.4 empty or unstaffed Markets do not count as household Food access',
   validateWorld(s)
 })
 
+
+test('M2.7 defeated attackers leave remains that laborers physically clear', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  s.nodes.forEach(node=>{node.remaining=0})
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  s.settlers[0].lastMealDay=s.day
+  s.settlers[0].needs={food:100,housing:100,safety:100,recreation:100}
+
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:5,z:5,path:[],pathRevision:-1,status:'test',
+  }
+  s.enemies.push(enemy)
+  s.raid.totalSpawned=1
+  assert.equal(damageEnemy(s,enemy,999,'Test guard'),true)
+  assert.equal(s.enemies.length,0)
+  assert.equal(s.remains.length,1)
+  assert.equal(s.remains[0].heavy,false)
+
+  assignJobs(s)
+  const cleanup=s.jobs.find(job=>job.kind==='cleanup')
+  assert.ok(cleanup)
+  assert.equal(cleanup.targetId,s.remains[0].id)
+
+  const sim=new Simulation(s)
+  advance(sim,8)
+  assert.equal(s.remains.length,0)
+  assert.ok(!s.jobs.some(job=>job.kind==='cleanup'))
+  validateWorld(s)
+})
 
 test('M2.6 later raid waves include deterministic siege rams that prioritize fortifications', () => {
   const plan=raidPlanForWave(3)
