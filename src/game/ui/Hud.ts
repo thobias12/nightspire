@@ -20,6 +20,9 @@ export interface HudState {
   planningTool: 'road' | 'residential-plot' | null
   gridSnap: boolean
   roadSnap: boolean
+  roadWidth: number
+  roadCurve: number
+  roadPointCount: number
   buildRotation: number
   dragCount: number
   message: string
@@ -37,9 +40,9 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.10.0 · TERRAIN & ROAD INTEGRATION</span></div><div id="resources"></div><div id="clock"></div></header>
-      <section class="guide panel"><span class="eyebrow">ROADS THAT BELONG TO THE LAND</span><h1>Worn earth should fade into grass, not sit on top of it.</h1>
-        <p>Roads now break into short width-varied dirt sections with softened soil edges, intermittent ruts, mud, stones and grass intrusion. Meadow color patches and food-bush visuals are less regular, reducing the flat ribbon-road and evenly spaced landscape look without changing any road or navigation rules.</p>
+      <header class="topbar"><div><b>NIGHTSPIRE</b><span class="tag">M3.10.1 · CURVED ROAD PLANNING</span></div><div id="resources"></div><div id="clock"></div></header>
+      <section class="guide panel"><span class="eyebrow">DRAW THE STREET, THEN BUILD FROM IT</span><h1>Roads are shaped point-by-point instead of dragged as strips.</h1>
+        <p>Click road control points to draw a route, use freeform curvature for organic medieval streets or Grid Snap for clean aligned segments, snap starts/ends into existing roads, choose Path/Lane/Main-road width, then finish with double-click or Enter. Existing Residential Plots and building Road Snap read the sampled curved centerline automatically.</p>
         <div id="objective"></div>
         <p class="muted">Gold: workers · Rust: guards · Dark red: raiders · Cyan: you<br>Damaged structures show health bars; recent hits flash red.</p>
       </section>
@@ -51,7 +54,7 @@ export class Hud {
         <h3>Stock targets</h3>
         <div class="row"><label>Wood <input class="number-input" aria-label="Wood stock target" type="number" min="0" max="10000" step="25" data-action="target-wood"></label><label>Food <input class="number-input" aria-label="Food stock target" type="number" min="0" max="10000" step="25" data-action="target-food"></label><label>Ore <input class="number-input" aria-label="Ore stock target" type="number" min="0" max="10000" step="5" data-action="target-ore"></label></div>
         <div class="row"><button data-action="resources">+50 wood / food</button><button data-action="resources-ore">+30 ore</button><button data-action="spawn">Spawn settler</button></div>
-        <button data-action="town-visual">Stage M3.10 terrain-road visual target</button>
+        <button data-action="town-visual">Stage M3.10.1 curved-road visual target</button>
         <button data-action="immigration-test">Test immigration now</button>
         <div class="row"><button data-action="needs-low">Needs → 25%</button><button data-action="needs-reset">Needs → 100%</button></div>
         <div class="row"><button data-action="building-supply">+5 selected input</button><button data-action="damage-selected">Damage selected -60 HP</button></div>
@@ -64,12 +67,14 @@ export class Hud {
       </div></details>
       <footer class="bottom"><div class="toolbar panel">
         <div class="build-group"><span>Town planning</span>
-          <button data-action="road" title="Hotkey 0 · Grid Snap gives aligned segments">[0] Road <small>Aligned or freeform persistent road</small></button>
+          <button data-action="road" title="Hotkey 0 · click control points; double-click/Enter to finish">[0] Road <small>Point-drawn curved or aligned road</small></button>
           <button data-action="residential-plot" title="Hotkey 1 · requires road frontage">[1] Residential Plot <small>Shape-driven frontage · lived-in compound</small></button>
         </div>
-        <div class="build-group"><span>Snapping</span>
-          <button data-action="grid-snap" title="Hotkey G · affects road and plot geometry">Grid Snap [G]</button>
-          <button data-action="road-snap" title="Hotkey F · affects conventional building placement">Road Snap [F]</button>
+        <div class="build-group"><span>Road controls</span>
+          <button data-action="grid-snap" title="Hotkey G · aligned road control points / plot dimensions">Grid Snap [G]</button>
+          <button data-action="road-curve" title="Hotkey C · cycles Straight / Smooth / Curved">Curve [C]</button>
+          <button data-action="road-width" title="Cycles Path / Lane / Main Road; [ and ] also adjust while drawing">Road width</button>
+          <button data-action="road-snap" title="Hotkey F · affects conventional building placement">Building Road Snap [F]</button>
         </div>
         <div class="build-group"><span>Infrastructure</span>
           <button data-action="stockpile" title="Hotkey 2">[2] Stockpile <small>10 wood · 400 storage</small></button>
@@ -95,7 +100,7 @@ export class Hud {
           <button data-action="load">Load</button>
         </div>
       </div><div class="status panel" role="status" id="message"></div>
-      <div class="controls">0: road · 1: residential plot · G: grid snap · F: road snap · 2–9: buildings · R: rotate/manual facing · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
+      <div class="controls">0: road · click: add road point · double-click/Enter: finish · RMB: undo road point · G: grid/aligned · C: road curve · [ ]: road width · 1: residential plot · F: building road snap · 2–9: buildings · R: rotate · V: street view · Q/E: camera rotate · Esc: inspect · Space: melee</div></footer>
     `
     root.append(this.element)
     const signal = this.abort.signal
@@ -230,8 +235,10 @@ export class Hud {
       this.set('inspection', `<h2>${n.resource === 'wood' ? 'Tree' : n.resource === 'food' ? 'Food bush' : RESOURCES[n.resource].label + ' deposit'} ${n.id}</h2><p>${n.remaining} ${n.resource} remaining<br>${s.jobs.some(j => j.sourceId === n.id) ? 'Claimed by a settler' : 'Available for gathering'}</p>`)
     } else {
       const facing = ['South', 'East', 'North', 'West'][ui.buildRotation]
+      const curveLabel = ui.gridSnap || ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
+      const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main road' : 'Lane'
       const placement = ui.planningTool === 'road'
-        ? 'Road tool · ' + (ui.gridSnap ? 'Grid Snap ON: straight 0°/45°/90° segments with magnetic road joins.' : 'Grid Snap OFF: freeform road stroke with magnetic endpoint joins.')
+        ? 'Road tool · click control points · ' + curveLabel + ' · ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm · points ' + ui.roadPointCount + ' · double-click/Enter finishes.'
         : ui.planningTool === 'residential-plot'
           ? 'Residential Plot · road frontage is mandatory. ' + (ui.gridSnap ? 'Width/depth snap to whole metres.' : 'Freeform plot dimensions enabled.')
           : ui.buildType
@@ -258,10 +265,17 @@ export class Hud {
     this.element.querySelector('[data-action="road"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'road'))
     this.element.querySelector('[data-action="residential-plot"]')!.setAttribute('aria-pressed', String(ui.planningTool === 'residential-plot'))
     const gridSnap = this.element.querySelector('[data-action="grid-snap"]') as HTMLButtonElement
+    const roadCurve = this.element.querySelector('[data-action="road-curve"]') as HTMLButtonElement
+    const roadWidth = this.element.querySelector('[data-action="road-width"]') as HTMLButtonElement
     const roadSnap = this.element.querySelector('[data-action="road-snap"]') as HTMLButtonElement
+    const curveLabel = ui.gridSnap || ui.roadCurve <= 0.05 ? 'Straight' : ui.roadCurve < 0.8 ? 'Smooth' : 'Curved'
+    const widthLabel = ui.roadWidth <= 1.25 ? 'Path' : ui.roadWidth >= 2.35 ? 'Main' : 'Lane'
     gridSnap.textContent = 'Grid Snap ' + (ui.gridSnap ? 'ON' : 'OFF') + ' [G]'
-    roadSnap.textContent = 'Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
+    roadCurve.textContent = 'Curve ' + curveLabel + ' [C]'
+    roadWidth.textContent = 'Width ' + widthLabel + ' ' + ui.roadWidth.toFixed(1) + 'm'
+    roadSnap.textContent = 'Building Road Snap ' + (ui.roadSnap ? 'ON' : 'OFF') + ' [F]'
     gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
+    roadCurve.setAttribute('aria-pressed', String(!ui.gridSnap && ui.roadCurve > 0.05))
     roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
     for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'wood-wall', 'wood-gate']) this.element.querySelector('[data-action="' + type + '"]')!.setAttribute('aria-pressed', String(ui.buildType === type))
 
