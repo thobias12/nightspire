@@ -11,12 +11,12 @@ import { marketSummary } from '../simulation/Markets'
 import { IMMIGRATION_REQUIRED_DAYS, populationAttraction } from '../simulation/Population'
 import { raidSizeForWave } from '../simulation/Raid'
 import { assignedGuardPost } from '../simulation/Schedule'
-import { serviceAssignment, serviceAvailable, serviceSummary } from '../simulation/Services'
+import { serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary } from '../simulation/Services'
 import { toolCoverage } from '../simulation/Tools'
 import {
   merchantIntervalDays, merchantPresent, primaryTradingPost, tradeModeLabel, tradeReputation, tradeStorageUsed, TRADE_PRICES,
 } from '../simulation/Trading'
-import { enemyLabel, MAX_SETTLERS, settlerLabel, type WorldState } from '../simulation/WorldState'
+import { enemyLabel, MAX_SETTLERS, settlerLabel, type Settler, type WorldState } from '../simulation/WorldState'
 import { residentialFrontage, residentialPresentationProfile } from '../render/ResidentialPresentation'
 import { assignedWorkplace, professionLabel, workplaceStaffing } from '../simulation/Workforce'
 import { stockpilePriorityLabel } from '../simulation/StockpileLogistics'
@@ -44,6 +44,30 @@ export interface HudState {
 }
 const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 const needLabel = (value: string) => value[0].toUpperCase() + value.slice(1)
+const percentage = (value: number, max: number): number => max <= 0 ? 0 : Math.max(0, Math.min(100, Math.round(value / max * 100)))
+const BUILDING_DESCRIPTIONS: Record<BuildingId, string> = {
+  house: 'A household plot that shelters settlers and grows in prosperity when nearby services and safety remain strong.',
+  stockpile: 'A general logistics yard where haulers collect and deposit settlement resources.',
+  'guard-post': 'A staffed defensive post that anchors settlement safety and gives guards a place to stand watch.',
+  'wood-wall': 'A simple timber fortification that blocks movement and channels attackers toward controlled approaches.',
+  'wood-gate': 'A controlled opening in the settlement wall. Friendly settlers may pass while raiders are forced to breach it.',
+  campfire: 'A small communal gathering place that restores recreation around dawn and dusk.',
+  tavern: 'A social service building where settlers spend Ale for stronger recreation and evening activity.',
+  brewery: 'A staffed workshop that turns Food into Ale during the working day.',
+  blacksmith: 'A staffed workshop that turns Ore into Tools, improving the settlement economy and labor output.',
+  market: 'A staffed food-distribution hub that supplies nearby households with daily meals.',
+  'trading-post': 'A staffed regional trade hub that stores cargo, manages import/export policies and receives visiting merchants.',
+  farmhouse: 'The center of local agriculture. Farmers sow nearby fields, harvest crops and return Food to the farm store.',
+}
+const portraitAsset = (settler: Settler): string => 'portrait:settler-' + ((settler.id % 8) + 1)
+const personCard = (state: WorldState, settler: Settler, role: string, action = ''): string =>
+  '<div class="person-card" title="' + escape(settler.status) + '">'
+  + '<span class="portrait-slot" data-ui-asset="' + portraitAsset(settler) + '" aria-hidden="true"></span>'
+  + '<span class="person-copy"><b>' + escape(settlerLabel(state, settler.id)) + '</b><small>' + escape(role) + '</small></span>'
+  + action
+  + '</div>'
+const emptyPersonCard = (label: string): string =>
+  '<div class="person-card is-empty"><span class="portrait-slot" data-ui-asset="portrait:worker-empty" aria-hidden="true">+</span><span class="person-copy"><b>Empty</b><small>' + escape(label) + '</small></span></div>'
 
 export class Hud {
   readonly element = document.createElement('div')
@@ -514,19 +538,25 @@ export class Hud {
       const workplaceControls = b.complete && !b.destroyed && (def.workerSlots ?? 0) > 0
         ? (() => {
             const staffing = workplaceStaffing(s, b)
-            const rows = staffing.workers.map(worker =>
-              '<div class="worker">' + settlerLabel(s, worker.id) + ' · ' + professionLabel(s, worker)
-              + (worker.jobId !== null ? ' · finishing current task' : worker.status.startsWith('Working') ? ' · present' : ' · reporting')
-              + ' <button data-action="unassign-workplace" data-value="' + worker.id + '">Unassign</button></div>'
-            ).join('')
+            const cards = staffing.workers.map(worker =>
+              personCard(
+                s,
+                worker,
+                professionLabel(s, worker) + (worker.jobId !== null ? ' · finishing task' : worker.status.startsWith('Working') ? ' · present' : ' · reporting'),
+                '<button class="person-action" data-action="unassign-workplace" data-value="' + worker.id + '" title="Unassign">×</button>',
+              )
+            )
+            while (cards.length < staffing.slots) cards.push(emptyPersonCard(def.profession ?? 'Worker'))
             const assign = staffing.assigned < staffing.slots
-              ? '<button data-action="assign-workplace">Assign laborer</button>'
+              ? '<button class="context-primary" data-action="assign-workplace">+ Assign laborer</button>'
               : '<button disabled>Fully staffed</button>'
             const logistics = def.production
-              ? '<button data-action="workplace-haul-priority">Hauling: ' + haulPriorityLabel(b.haulPriority) + '</button>'
-                + '<p class="muted">Low keeps one input batch and delays output pickup. Normal keeps a working reserve. High fills local input storage and clears finished goods quickly.</p>'
+              ? '<div class="context-control-row"><span><b>Hauling priority</b><small>Controls input buffer and finished-goods pickup.</small></span><button data-action="workplace-haul-priority">' + haulPriorityLabel(b.haulPriority) + '</button></div>'
               : ''
-            return '<p><b>Workforce ' + staffing.assigned + '/' + staffing.slots + '</b> · ' + staffing.active + ' physically at work</p>' + rows + assign + logistics
+            return '<div class="context-section-head"><span><b>Workers</b><small>' + staffing.active + ' of ' + staffing.assigned + ' assigned currently active</small></span><strong>' + staffing.assigned + ' / ' + staffing.slots + '</strong></div>'
+              + '<div class="people-grid">' + cards.join('') + '</div>'
+              + '<div class="context-actions">' + assign + '</div>'
+              + logistics
           })()
         : ''
       const stockpileControls = b.complete && !b.destroyed && def.storage > 0
@@ -561,19 +591,163 @@ export class Hud {
         this.activeContextTab = 'general'
       }
       const buildingStatus = b.complete ? (b.destroyed ? 'Ruined' : 'Fully operational') : 'Under construction'
+      const statusTone = b.destroyed ? 'danger' : !b.complete || b.health < b.maxHealth ? 'warning' : 'good'
+      const hpPercent = percentage(b.health, b.maxHealth)
+      const generalBody =
+        '<p class="building-description">' + BUILDING_DESCRIPTIONS[b.type] + '</p>'
+        + '<div class="building-status-banner status-' + statusTone + '"><span><b>' + buildingStatus + '</b><small>Facing ' + facing + '</small></span><strong>' + hpPercent + '%</strong></div>'
+        + compoundText
+        + '<div class="context-status">' + details + '</div>'
+        + demolish
+
+      const residentCards = household
+        ? (() => {
+            const cards = household.residents.map(resident =>
+              personCard(
+                s,
+                resident,
+                'Resident · ' + Math.round(happinessOf(resident)) + '% satisfaction',
+              )
+            )
+            while (cards.length < houseBedCapacity(b)) cards.push(emptyPersonCard('Available bed'))
+            return cards.join('')
+          })()
+        : ''
+      const housePeopleBody = household
+        ? '<div class="context-section-head"><span><b>Residents</b><small>Household members and available beds</small></span><strong>' + household.residents.length + ' / ' + houseBedCapacity(b) + '</strong></div>'
+          + '<div class="people-grid">' + residentCards + '</div>'
+          + '<div class="household-needs">'
+          + '<div><span>Food access</span><b>' + escape(household.foodAccessLabel) + '</b></div>'
+          + '<div><span>Recreation</span><b>' + escape(household.recreation ? BUILDINGS[household.recreation.type].label : 'Unavailable') + '</b></div>'
+          + '<div><span>Safety</span><b>' + household.safety + '%</b></div>'
+          + '<div><span>Satisfaction</span><b>' + household.satisfaction + '%</b></div>'
+          + '</div>'
+        : ''
+
+      const guardsAtPost = def.guardSlots > 0
+        ? s.settlers.filter(settler => assignedGuardPost(s, settler)?.buildingId === b.id)
+        : []
+      const guardPeopleBody = def.guardSlots > 0
+        ? (() => {
+            const cards = guardsAtPost.map(guard => personCard(s, guard, 'Guard · ' + guard.status))
+            while (cards.length < def.guardSlots) cards.push(emptyPersonCard('Guard slot'))
+            return '<div class="context-section-head"><span><b>Guard detail</b><small>Assigned by settlement guard order</small></span><strong>' + guardsAtPost.length + ' / ' + def.guardSlots + '</strong></div>'
+              + '<div class="people-grid">' + cards.join('') + '</div>'
+          })()
+        : ''
+
+      const serviceBody = def.service && b.complete && !b.destroyed
+        ? (() => {
+            const service = def.service!
+            const assignments = serviceAssignments(s, phase)
+            const visitorIds = [...assignments.entries()].filter(([, assignment]) => assignment.buildingId === b.id).map(([id]) => id)
+            const visitors = visitorIds.map(id => s.settlers.find(settler => settler.id === id)).filter((settler): settler is Settler => !!settler)
+            const supplied = serviceAvailable(b)
+            const supply = service.supplyResource
+            const supplyText = supply
+              ? '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:' + supply + '"></span><b>' + RESOURCES[supply].label + '</b><em>' + b.inventory[supply] + ' / ' + service.supplyCapacity + '</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory[supply], service.supplyCapacity) + '%"></i></div></div>'
+              : '<div class="context-note">No operating supply is required.</div>'
+            const visitorCards = visitors.slice(0, service.slots).map(visitor => personCard(s, visitor, 'Visitor · ' + Math.round(visitor.needs[service.need]) + '% ' + service.need))
+            while (visitorCards.length < Math.min(service.slots, 6)) visitorCards.push(emptyPersonCard('Visitor slot'))
+            return '<div class="context-section-head"><span><b>' + needLabel(service.need) + ' service</b><small>' + (supplied ? 'Open during ' + service.activePhases.map(phaseLabel).join(' / ') : 'Waiting for supplies') + '</small></span><strong>' + visitors.length + ' / ' + service.slots + '</strong></div>'
+              + '<div class="service-effect"><span class="ui-icon-slot" data-ui-asset="service:' + service.need + '"></span><div><b>+' + service.gainPerSecond + ' / sec</b><small>Need recovery while actively visiting</small></div></div>'
+              + supplyText
+              + '<div class="people-grid compact-people">' + visitorCards.join('') + '</div>'
+          })()
+        : ''
+
+      const productionBody = def.production && b.complete && !b.destroyed
+        ? (() => {
+            const production = def.production!
+            const staffing = workplaceStaffing(s, b)
+            const input = production.inputResource
+            const output = production.outputResource
+            const inbound = s.jobs.filter(j => j.kind === 'supply' && j.targetId === b.id && j.resource === input).reduce((sum, j) => sum + j.amount, 0)
+            const outbound = s.jobs.filter(j => j.kind === 'supply' && j.sourceId === b.id && j.resource === output).reduce((sum, j) => sum + j.amount, 0)
+            return '<div class="context-section-head"><span><b>Active recipe</b><small>' + production.cycleSeconds + ' sec base cycle · ' + Math.round(staffing.efficiency * 100) + '% staffing speed</small></span><strong>' + Math.round(b.productionProgress / production.cycleSeconds * 100) + '%</strong></div>'
+              + '<div class="recipe-row">'
+              + '<div class="recipe-item"><span class="recipe-icon" data-ui-asset="resource:' + input + '"></span><b>' + production.inputAmount + ' ' + RESOURCES[input].label + '</b></div>'
+              + '<span class="recipe-arrow">→</span>'
+              + '<div class="recipe-item"><span class="recipe-icon" data-ui-asset="resource:' + output + '"></span><b>' + production.outputAmount + ' ' + RESOURCES[output].label + '</b></div>'
+              + '</div>'
+              + '<div class="production-progress"><i style="width:' + percentage(b.productionProgress, production.cycleSeconds) + '%"></i></div>'
+              + '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:' + input + '"></span><b>Input store</b><em>' + b.inventory[input] + ' / ' + production.inputCapacity + ' · +' + inbound + ' inbound</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory[input], production.inputCapacity) + '%"></i></div></div>'
+              + '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:' + output + '"></span><b>Output store</b><em>' + b.inventory[output] + ' / ' + production.outputCapacity + ' · ' + outbound + ' outbound</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory[output], production.outputCapacity) + '%"></i></div></div>'
+              + '<div class="context-control-row"><span><b>Pickup threshold</b><small>Haulers collect at ' + workplaceOutputThreshold(b) + ' ' + RESOURCES[output].label + '</small></span><button data-action="workplace-haul-priority">' + haulPriorityLabel(b.haulPriority) + '</button></div>'
+          })()
+        : ''
+
+      const storageBody = b.complete && !b.destroyed && (def.storage > 0 || def.tradeStorageCapacity || def.agricultureStorageCapacity)
+        ? (() => {
+            const capacity = def.storage || def.tradeStorageCapacity || def.agricultureStorageCapacity || 1
+            const relevant = def.agricultureStorageCapacity
+              ? (['food'] as const)
+              : RESOURCE_IDS
+            const meters = relevant.map(resource =>
+              '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:' + resource + '"></span><b>' + RESOURCES[resource].label + '</b><em>' + b.inventory[resource] + ' / ' + capacity + '</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory[resource], capacity) + '%"></i></div></div>'
+            ).join('')
+            const extra = def.agricultureStorageCapacity
+              ? '<div class="context-note">' + fieldsForFarmhouse(s, b.id).length + ' field(s) assigned to this Farmhouse.</div>'
+              : def.tradeStorageCapacity
+                ? '<div class="context-note">Trade cargo used: ' + tradeStorageUsed(b) + ' / ' + def.tradeStorageCapacity + ' · Gold ' + s.trade.gold + '</div>'
+                : '<div class="context-note">Unreserved shared capacity: ' + Math.max(0, freeStorage(s, b)) + '</div>'
+            return '<div class="context-section-head"><span><b>Local storage</b><small>Resources physically held at this building</small></span><strong>' + (def.tradeStorageCapacity ? tradeStorageUsed(b) : b.inventory.wood + b.inventory.food + b.inventory.ale + b.inventory.ore + b.inventory.tools) + ' / ' + capacity + '</strong></div>'
+              + meters + extra
+          })()
+        : ''
+
+      const marketBody = distribution && b.complete && !b.destroyed
+        ? (() => {
+            const staffing = workplaceStaffing(s, b)
+            const served = b.distributionDay === s.day ? b.distributionServed : 0
+            const dailyCapacity = staffing.active * distribution.mealsPerWorkerPerDay
+            return '<div class="context-section-head"><span><b>Food distribution</b><small>Nearby households draw meals from staffed stalls</small></span><strong>' + served + ' / ' + dailyCapacity + '</strong></div>'
+              + '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:food"></span><b>Food stalls</b><em>' + b.inventory.food + ' / ' + distribution.capacity + '</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory.food, distribution.capacity) + '%"></i></div></div>'
+              + '<div class="service-effect"><span class="ui-icon-slot" data-ui-asset="service:food"></span><div><b>' + distribution.mealsPerWorkerPerDay + ' meals / active Vendor / Day</b><small>' + distribution.reserveDays + ' Days of assigned capacity targeted in local stock</small></div></div>'
+          })()
+        : ''
+
+      const farmBody = farmStorage && b.complete && !b.destroyed
+        ? (() => {
+            const fields = fieldsForFarmhouse(s, b.id)
+            const rows = fields.slice(0, 6).map(field => {
+              const workMax = field.phase === 'ready' ? fieldHarvestWork(field) : field.phase === 'fallow' ? fieldSowWork(field) : 1
+              const work = field.phase === 'ready' || field.phase === 'fallow' ? percentage(field.work, workMax) : field.phase === 'growing' ? percentage(field.growthDays, 2) : field.phase === 'sown' ? 35 : 100
+              return '<div class="field-row"><span class="field-icon" data-ui-asset="service:agriculture"></span><div><b>Field #' + field.id + '</b><small>' + needLabel(field.phase) + ' · ' + field.area.toFixed(0) + 'm² · yield ' + field.yield + ' Food</small></div><em>' + work + '%</em></div>'
+            }).join('')
+            return storageBody
+              + '<div class="context-subhead"><b>Assigned fields</b><span>' + fields.length + '</span></div>'
+              + (rows || '<p class="context-empty">No fields are assigned. Draw a field within Farmhouse range.</p>')
+              + (fields.length > 6 ? '<p class="muted">+' + (fields.length - 6) + ' more field(s)</p>' : '')
+          })()
+        : ''
+
       const peopleBody = workplaceControls
-        || (b.type === 'house' && operations ? operations : '')
-        || (def.guardSlots ? operations : '')
-        || '<p class="context-empty">No dedicated workforce assigned to this building.</p>'
-      const operationBody = b.type === 'house' || def.guardSlots
-        ? '<p class="context-empty">Household and staffing information is shown under People.</p>'
-        : (operations || '<p class="context-empty">No active production or service cycle.</p>')
+        || housePeopleBody
+        || guardPeopleBody
+        || '<p class="context-empty">This building has no dedicated resident or worker slots.</p>'
+
+      const operationBody = productionBody
+        || serviceBody
+        || marketBody
+        || farmBody
+        || storageBody
+        || (b.type === 'house' && houseProgress
+          ? '<div class="context-section-head"><span><b>Household prosperity</b><small>' + escape(houseProgress.label) + '</small></span><strong>Level ' + houseProgress.level + '</strong></div>'
+            + (houseProgress.next
+              ? '<div class="prosperity-progress"><i style="width:' + percentage(houseProgress.qualifyingDays, houseProgress.next.requiredDays) + '%"></i></div><p>Qualifying streak ' + houseProgress.qualifyingDays + ' / ' + houseProgress.next.requiredDays + ' Days</p>'
+                + (houseProgress.blockers.length ? '<p class="context-note warning-note">Blocked: ' + escape(houseProgress.blockers.join(' · ')) + '</p>' : '<p class="context-note good-note">Qualifying today</p>')
+              : '<p class="context-note good-note">Maximum household prosperity reached.</p>')
+          : operations || '<p class="context-empty">No active production, service or storage cycle.</p>')
+
       const advancedBody = stockpileControls + tradeControls
+        || (def.production ? '<div class="context-control-row"><span><b>Hauling behavior</b><small>Low conserves hauling labor. High prioritizes this workplace.</small></span><button data-action="workplace-haul-priority">' + haulPriorityLabel(b.haulPriority) + '</button></div>' : '')
         || '<p class="context-empty">No advanced policies are available for this building yet.</p>'
+
       const contextTabs = [
-        { id: 'general', label: 'General', body: '<p><b>' + buildingStatus + '</b> · Facing ' + facing + compoundText + '</p><div class="context-status">' + details + '</div>' + demolish },
+        { id: 'general', label: 'General', body: generalBody },
         { id: 'people', label: 'People', body: peopleBody },
-        { id: 'operations', label: def.production ? 'Production' : def.service ? 'Services' : def.storage || def.tradeStorageCapacity || def.agricultureStorageCapacity ? 'Storage' : 'Operations', body: operationBody },
+        { id: 'operations', label: def.production ? 'Production' : def.service ? 'Services' : def.storage || def.tradeStorageCapacity || def.agricultureStorageCapacity ? 'Storage' : b.type === 'house' ? 'Household' : 'Operations', body: operationBody },
         { id: 'advanced', label: 'Advanced', body: advancedBody },
       ]
       const contextTabsHtml = contextTabs.map(tab =>

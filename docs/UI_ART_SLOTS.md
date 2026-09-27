@@ -142,3 +142,31 @@ These are visual roadmap slots only and remain disabled until their simulation s
 ## Temporarily disabled
 
 Minimap is temporarily disabled in the live HUD. Its asset keys and implementation notes remain reserved so it can be restored later without redesigning the UI.
+
+
+## Worker and resident portraits
+
+The building panel now renders stable portrait placeholders.
+
+Current generic portrait keys:
+- `portrait:settler-1`
+- `portrait:settler-2`
+- `portrait:settler-3`
+- `portrait:settler-4`
+- `portrait:settler-5`
+- `portrait:settler-6`
+- `portrait:settler-7`
+- `portrait:settler-8`
+- `portrait:worker-empty`
+
+These can initially be illustrated archetypes rather than unique generated faces. The same portrait can appear in houses, workplaces, service visitor slots and guard details.
+
+## Context-detail assets
+
+The richer building panel also reserves:
+- `resource:<resource-id>` for recipe and storage rows
+- `service:recreation`
+- `service:food`
+- `service:agriculture`
+
+Final asset integration should preserve the live data and markup structure; only replace the visual placeholder treatment.
