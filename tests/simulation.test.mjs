@@ -2855,6 +2855,58 @@ test('M3.12 a dependent reaching working age replaces household dependency with 
   validateWorld(s)
 })
 
+test('M3.12 dependents reserve real beds when housing new adults', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,3)
+  const h1=createBuilding(s.nextId++,'house',-7,0,true)
+  const h2=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(h1,h2); s.topology++
+  s.settlers[0].homeId=h1.id
+  s.settlers[1].homeId=h1.id
+  s.settlers[2].homeId=null
+  synchronizeFamilies(s)
+  const family=s.families.find(f=>f.homeId===h1.id)
+  assert.ok(family)
+  family.children=[
+    {givenName:'Mira',ageYears:4,ageDays:0},
+    {givenName:'Edric',ageYears:7,ageDays:0},
+  ]
+
+  assignHousing(s)
+  assert.equal(s.settlers[2].homeId,h2.id)
+  assert.equal(
+    s.settlers.filter(a=>a.homeId===h1.id).length + dependentCountAtHome(s,h1.id),
+    4,
+  )
+  validateWorld(s)
+})
+
+test('M3.12 capped adolescents remain save-valid until a worker slot opens', () => {
+  const s=createInitialWorldState()
+  pop10(s)
+  const houses=[
+    createBuilding(s.nextId++,'house',-7,0,true),
+    createBuilding(s.nextId++,'house',7,0,true),
+    createBuilding(s.nextId++,'house',0,7,true),
+  ]
+  for(const house of houses) { house.houseLevel=3; s.buildings.push(house) }
+  s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families.find(f=>f.homeId!==null)
+  assert.ok(family)
+  family.children=[{givenName:'Bryn',ageYears:15,ageDays:CHILD_DAYS_PER_YEAR-1}]
+  const workers=s.settlers.length
+
+  s.day++
+  const result=processFamiliesDay(s)
+  assert.equal(result.matured,0)
+  assert.equal(s.settlers.length,workers)
+  assert.equal(family.children[0].ageYears,15)
+  assert.equal(family.children[0].ageDays,CHILD_DAYS_PER_YEAR-1)
+  validateWorld(s)
+})
+
 test('M3.11.5 sustained household services promote Cottage to Established and Prosperous homes', () => {
   const s=createInitialWorldState()
   const house=createBuilding(s.nextId++,'house',7,0,true)
