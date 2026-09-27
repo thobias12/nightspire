@@ -1,5 +1,5 @@
 import { entrance } from './Navigation'
-import { recordEvent, spawnSettler, type FamilyState, type Settler, type WorldState } from './WorldState'
+import { MAX_SETTLERS, recordEvent, spawnSettler, type FamilyState, type Settler, type WorldState } from './WorldState'
 
 export const CHILD_DAYS_PER_YEAR = 6
 export const FAMILY_CHILD_INTERVAL_DAYS = 6
@@ -102,7 +102,7 @@ export function synchronizeFamilies(state: WorldState): void {
 }
 
 function growChildIntoSettler(state: WorldState, family: FamilyState, childIndex: number): boolean {
-  if (state.settlers.length >= 10 || family.homeId === null) return false
+  if (state.settlers.length >= MAX_SETTLERS || family.homeId === null) return false
   const child = family.children[childIndex]
   const home = state.buildings.find(building => building.id === family.homeId && building.complete && !building.destroyed)
   if (!home) return false
