@@ -84,6 +84,7 @@ export function workField(
     field.work += dt * workRate
     if (field.work >= fieldHarvestWork(field)) {
       farmhouse.inventory.food += field.yield
+      state.totals.produced.food += field.yield
       field.phase = 'harvested'
       field.work = 0
       field.growthDays = 0
