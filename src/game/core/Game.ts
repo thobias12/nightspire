@@ -22,6 +22,8 @@ import { Simulation } from '../simulation/Simulation'
 import {
   backyardForPlot,
   buildingPlacementPreview,
+  buildingRequiresRoadFrontage,
+  buildingRoadPlacementError,
   insertRoadJunctionPoint,
   roadLength,
   sampleRoadCurve,
@@ -35,7 +37,7 @@ import {
   type ResidentialPlotPreview,
 } from '../simulation/TownPlanning'
 import {
-  createField, fieldArea, fieldPlacementError, pointInField, residentialPlotFieldError,
+  createField, fieldArea, fieldPlacementError, nearestFarmhouseForField, pointInField, residentialPlotFieldError,
 } from '../simulation/FieldPlanning'
 import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
@@ -69,7 +71,6 @@ export class Game {
   private pointer: Point | null = null
   private rawPointer: Point | null = null
   private gridSnap = true
-  private fieldGridSnap = false
   private roadSnap = true
   private dragStart: Point | null = null
   private dragPoints: Point[] = []
@@ -114,7 +115,7 @@ export class Game {
           this.simulation.state.residentialPlots,
         )
       } else if (this.planningTool === 'field' && precise) {
-        const rawFieldPoint = this.fieldGridSnap ? snapPointToGrid(precise) : precise
+        const rawFieldPoint = this.gridSnap ? snapPointToGrid(precise) : precise
         const first = this.fieldControlPoints[0]
         this.fieldCloseReady = this.fieldControlPoints.length >= 3
           && !!first
@@ -174,7 +175,7 @@ export class Game {
         }
 
         if (this.planningTool === 'field') {
-          const point = this.fieldGridSnap ? snapPointToGrid(raw) : raw
+          const point = this.gridSnap ? snapPointToGrid(raw) : raw
           const first = this.fieldControlPoints[0]
           if (
             this.fieldControlPoints.length >= 3
@@ -352,9 +353,16 @@ export class Game {
       const s = this.simulation.state
       if (this.buildType) {
         const type = this.buildType
-        const preview = buildingPlacementPreview(s.roads, precise, type, this.roadSnap, this.buildRotation)
+        const preview = buildingPlacementPreview(
+          s.roads,
+          precise,
+          type,
+          buildingRequiresRoadFrontage(type) ? true : this.roadSnap,
+          this.buildRotation,
+        )
         const beforeId = s.nextId
-        const error = placeBuilding(s, type, preview.point, preview.rotation)
+        const roadError = buildingRoadPlacementError(s.roads, preview.point, type)
+        const error = roadError ?? placeBuilding(s, type, preview.point, preview.rotation)
         this.message = error ?? (preview.snappedToRoad
           ? BUILDINGS[type].label + ' snapped to the road and faced toward it.'
           : e.shiftKey
@@ -609,10 +617,17 @@ export class Game {
       this.updateHud()
       return
     }
-    const field = createField(s.nextId++, points)
+    const farmhouse = nearestFarmhouseForField(points, s.buildings)
+    if (!farmhouse) {
+      this.message = 'Field needs a Farmhouse within 18m.'
+      this.updateGhost()
+      this.updateHud()
+      return
+    }
+    const field = createField(s.nextId++, points, farmhouse.id)
     s.fields.push(field)
     this.selectedId = field.id
-    this.message = 'Field planned · ' + field.area.toFixed(1) + 'm² · expected harvest ' + field.yield + ' Food. Click to start another field.'
+    this.message = 'Field linked to Farmhouse ' + farmhouse.id + ' · ' + field.area.toFixed(1) + 'm² · expected harvest ' + field.yield + ' Food. Click to start another field.'
     this.planningStart = null
     this.fieldControlPoints = []
     this.fieldDraft = []
@@ -659,6 +674,10 @@ export class Game {
           this.message = 'Road width · ' + (this.roadWidth <= 1.25 ? 'Path' : this.roadWidth >= 2.35 ? 'Main road' : 'Lane') + ' · ' + this.roadWidth.toFixed(1) + 'm.'
           break
         case 'field':
+          if (!s.buildings.some(building => building.type === 'farmhouse' && !building.destroyed)) {
+            this.message = 'Build a road-fronted Farmhouse before planning fields.'
+            break
+          }
           this.buildType = null
           this.planningTool = 'field'
           this.planningStart = null
@@ -671,7 +690,7 @@ export class Game {
           this.dragStart = null
           this.dragPoints = []
           this.renderer.mode = 'settlement'
-          this.message = 'Field tool · freeform by default · click 3–8 corners · click the first marker to close · Enter/double-click also finishes · RMB/Backspace removes a corner · G toggles optional grid snap.'
+          this.message = 'Field tool · shared Grid Snap is ' + (this.gridSnap ? 'ON' : 'OFF') + ' · click 3–8 corners within 18m of a Farmhouse · click the first marker to close · G toggles the same 1m grid used by roads.'
           break
         case 'residential-plot':
           if (s.roads.length === 0) {
@@ -716,26 +735,24 @@ export class Game {
           this.message = BUILDINGS[this.buildType].label + ' rotated to ' + ['South', 'East', 'North', 'West'][this.buildRotation] + '.'
           break
         case 'grid-snap':
-          if (this.planningTool === 'field') {
-            this.fieldGridSnap = !this.fieldGridSnap
-            this.message = 'Field Grid Snap ' + (this.fieldGridSnap
-              ? 'ON · field corners snap to 1m. Press G again for freeform placement.'
-              : 'OFF · field corners follow the terrain freely. Press G if you want a straighter planned parcel.')
+          this.gridSnap = !this.gridSnap
+          this.message = 'Grid Snap ' + (this.gridSnap
+            ? 'ON · roads, residential dimensions and field corners use the shared 1m grid.'
+            : 'OFF · roads, residential dimensions and field corners can be freeform.')
+          if (this.planningTool === 'road') {
+            this.refreshRoadDraft()
+          } else if (this.planningTool === 'field') {
             this.fieldDraft = [...this.fieldControlPoints]
-          } else {
-            this.gridSnap = !this.gridSnap
-            this.message = 'Grid Snap ' + (this.gridSnap ? 'ON · road control points snap to 1m and plot dimensions snap to 1m. Hold Shift when you want 0°/45°/90° road segments.' : 'OFF · road points and plot dimensions are freeform. Hold Shift for angle-constrained road segments.')
-            if (this.planningTool === 'road') {
-              this.refreshRoadDraft()
-            } else if (this.planningStart && this.planningTool === 'residential-plot') {
-              this.planningStart = null
-              this.plotDraft = null
-            }
+          } else if (this.planningStart && this.planningTool === 'residential-plot') {
+            this.planningStart = null
+            this.plotDraft = null
           }
           break
         case 'road-snap':
           this.roadSnap = !this.roadSnap
-          this.message = 'Road Snap ' + (this.roadSnap ? 'ON · road control points join nearby endpoints/centerlines and conventional buildings align to nearby roads.' : 'OFF · road points stay where placed and conventional buildings use manual grid placement/rotation.')
+          this.message = 'Road Join Snap ' + (this.roadSnap
+            ? 'ON · road control points join nearby endpoints and centerlines. Building frontage remains mandatory.'
+            : 'OFF · road control points stay where placed. Building frontage remains mandatory.')
           this.refreshRoadDraft()
           break
         case 'cancel':
@@ -1165,16 +1182,25 @@ export class Game {
     }
 
     const placement = this.buildType && (this.rawPointer ?? this.pointer)
-      ? buildingPlacementPreview(this.simulation.state.roads, this.rawPointer ?? this.pointer!, this.buildType, this.roadSnap, this.buildRotation)
+      ? buildingPlacementPreview(
+          this.simulation.state.roads,
+          this.rawPointer ?? this.pointer!,
+          this.buildType,
+          buildingRequiresRoadFrontage(this.buildType) ? true : this.roadSnap,
+          this.buildRotation,
+        )
       : null
-    const error = this.buildType && placement ? placementError(this.simulation.state, this.buildType, placement.point) : null
+    const error = this.buildType && placement
+      ? placementError(this.simulation.state, this.buildType, placement.point)
+        ?? buildingRoadPlacementError(this.simulation.state.roads, placement.point, this.buildType)
+      : null
     this.renderer.showGhost(this.buildType, placement?.point ?? this.pointer, !error, placement?.rotation ?? this.buildRotation, [], placement?.facingAngle ?? null)
     if (this.buildType && placement) {
       if (this.buildType === 'wood-gate' && !error) {
         const wall = this.simulation.state.buildings.find(b => b.type === 'wood-wall' && b.x === placement.point.x && b.z === placement.point.z)
         this.message = wall ? 'Valid gate insertion. Existing wall timber will be retained.' : 'Valid site. Click to place.'
       } else if (!error && placement.snappedToRoad) {
-        this.message = 'Road Snap · ' + BUILDINGS[this.buildType].label + ' is magnetically aligned to the street. Press F to place manually.'
+        this.message = 'Road frontage · ' + BUILDINGS[this.buildType].label + ' is aligned to the street. Conventional buildings must stay road-connected.'
       } else {
         this.message = error ?? (this.buildType === 'wood-wall' ? 'Click or drag to place Wooden Walls.' : 'Valid grid site. Click to place · Shift keeps build mode · R rotates.')
       }
@@ -1214,7 +1240,7 @@ export class Game {
       selectedId: this.selectedId,
       buildType: this.buildType,
       planningTool: this.planningTool,
-      gridSnap: this.planningTool === 'field' ? this.fieldGridSnap : this.gridSnap,
+      gridSnap: this.gridSnap,
       roadSnap: this.roadSnap,
       roadWidth: this.roadWidth,
       roadCurve: this.roadCurve,
