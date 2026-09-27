@@ -33,7 +33,7 @@ export interface Building extends Point {
 export type NeedId = 'food' | 'housing' | 'safety' | 'recreation'
 export type NeedLevels = Record<NeedId, number>
 export interface Settler extends Point {
-  id: number; homeId: number | null; jobId: number | null; role: SettlerRole
+  id: number; homeId: number | null; jobId: number | null; role: SettlerRole; workplaceId: number | null
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
   needs: NeedLevels; lastMealDay: number
   arrivalTarget: Point | null
@@ -97,7 +97,7 @@ export function spawnSettler(
 ): boolean {
   if (state.settlers.length >= MAX_SETTLERS) return false
   state.settlers.push({
-    id: state.nextId++, x: spawn.x, z: spawn.z, homeId: null, jobId: null, role: 'worker',
+    id: state.nextId++, x: spawn.x, z: spawn.z, homeId: null, jobId: null, role: 'worker', workplaceId: null,
     health: 100, maxHealth: 100, attackCooldown: 0, lastHitTick: 0,
     needs: { ...DEFAULT_NEEDS }, lastMealDay: state.day,
     arrivalTarget,
