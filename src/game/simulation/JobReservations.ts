@@ -11,6 +11,7 @@ export class JobReservations {
   readonly gathered = emptyInventory()
   readonly gatherSources = new Set<number>()
   readonly repairTargets = new Set<number>()
+  readonly cleanupTargets = new Set<number>()
   private readonly constructionCrews = new Map<number, number>()
   repairWood = 0
 
@@ -42,6 +43,7 @@ export class JobReservations {
       this.gatherSources.add(job.sourceId)
     }
     if (job.kind === 'repair') { this.repairWood += job.amount; this.repairTargets.add(job.targetId) }
+    if (job.kind === 'cleanup') this.cleanupTargets.add(job.targetId)
     if (job.kind === 'construct') this.constructionCrews.set(job.targetId, this.constructCount(job.targetId) + 1)
   }
 }

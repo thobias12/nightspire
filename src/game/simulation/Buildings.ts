@@ -1,6 +1,7 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
 import { pointInField } from './FieldPlanning'
+import { dependentCountAtHome, synchronizeFamilies } from './Family'
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
@@ -231,6 +232,7 @@ export function demolishBuilding(s: WorldState, id: number): string | null {
   s.residentialPlots = s.residentialPlots.filter(plot => plot.buildingId !== id)
   for (const refund of plan) refund.store.inventory[refund.resource] += refund.amount
   assignHousing(s)
+  synchronizeFamilies(s)
   s.topology++
   const refundText = RESOURCE_IDS
     .filter(resource => refunds[resource] > 0)
@@ -301,7 +303,7 @@ export function assignHousing(s: WorldState): void {
     .filter(b => b.complete && !b.destroyed && BUILDINGS[b.type].housing > 0)
     .sort((a, b) => a.id - b.id)
   const capacity = new Map(houses.map(house => [house.id, houseBedCapacity(house)]))
-  const used = new Map<number, number>()
+  const used = new Map<number, number>(houses.map(house => [house.id, dependentCountAtHome(s, house.id)]))
 
   // Keep valid households stable when capacity changes; only displaced/unhoused settlers move.
   for (const settler of s.settlers) {

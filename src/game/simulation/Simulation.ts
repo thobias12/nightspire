@@ -8,12 +8,14 @@ import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processA
 import { constructionStageLabel, constructionWorkLimit } from './Construction'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
+  GUARD_RANGED_COOLDOWN, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE,
   damageBuilding, damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
   playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
 } from './Combat'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { essentialJob, happinessEffect } from './Happiness'
 import { processHouseholdProgression } from './HouseProgression'
+import { processFamiliesDay, synchronizeFamilies } from './Family'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, entrance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
@@ -25,7 +27,7 @@ import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
 import {
   enemyTarget, enemyTargetBuilding, raidPlanForWave, raiderProfile, retreatRaid, spawnNightRaid,
 } from './Raid'
-import { nightTarget } from './Schedule'
+import { assignedGuardPost, guardPostTarget, nightTarget } from './Schedule'
 import { activeWorkplace } from './Workforce'
 import {
   recordEvent, settlerLabel, type Building, type Enemy, type Job, type Point, type Settler, type WorldState,
@@ -157,7 +159,8 @@ export class Simulation {
       this.state,
       'Raid ' + plan.wave + ': ' + count + ' attackers across ' + plan.fronts + ' front'
       + (plan.fronts === 1 ? '' : 's') + ' — '
-      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes.',
+      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes'
+      + (plan.rams > 0 ? ', ' + plan.rams + ' siege ram' + (plan.rams === 1 ? '' : 's') : '') + '.',
     )
   }
 
@@ -199,7 +202,11 @@ export class Simulation {
       processAgricultureDay(s)
       const upgrades = processHouseholdProgression(s)
       assignHousing(s)
+      const familyDay = processFamiliesDay(s)
+      assignHousing(s)
+      synchronizeFamilies(s)
       if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
+      if (familyDay.matured > 0) recordEvent(s, familyDay.matured + ' young resident' + (familyDay.matured === 1 ? '' : 's') + ' joined the workforce.')
       scheduleMerchantVisit(s)
       const immigration = processImmigrationDay(s)
       if (immigration.arrived) assignHousing(s)
@@ -336,6 +343,33 @@ export class Simulation {
 
   private updateGuardCombat(guard: Settler): void {
     const s = this.state
+    const assignment = assignedGuardPost(s, guard)
+    const postTarget = assignment ? guardPostTarget(s, guard) : null
+    const post = assignment ? s.buildings.find(building => building.id === assignment.buildingId) : undefined
+
+    if (postTarget && post) {
+      if (distance(guard, postTarget) > 0.08) {
+        this.move(guard, postTarget, 'Manning Guard Post ' + post.id, WALK_SPEED)
+        return
+      }
+
+      const rangedEnemy = nearestEnemy(s, post, GUARD_RANGED_RANGE)
+      guard.path = []
+      guard.pathRevision = -1
+      if (!rangedEnemy) {
+        guard.status = 'Watching from Guard Post ' + post.id
+        return
+      }
+
+      guard.status = 'Firing from Guard Post ' + post.id
+      if (guard.attackCooldown <= 0) {
+        guard.attackCooldown = GUARD_RANGED_COOLDOWN
+        const killed = damageEnemy(s, rangedEnemy, GUARD_RANGED_DAMAGE, settlerLabel(s, guard.id))
+        if (killed) guard.status = 'Dropped raider from Guard Post ' + post.id
+      }
+      return
+    }
+
     const enemy = nearestEnemy(s, guard, GUARD_AGGRO_RANGE)
     if (!enemy) {
       this.updateNightSchedule(guard)
@@ -505,6 +539,16 @@ export class Simulation {
     const s = this.state
     const workDelta = FIXED_STEP * workRate
     job.progress += workDelta
+
+    if (job.kind === 'cleanup') {
+      settler.status = 'Clearing battlefield'
+      if (job.progress + 1e-8 < 1.5) return
+      const index = s.remains.findIndex(remains => remains.id === job.targetId)
+      if (index >= 0) s.remains.splice(index, 1)
+      recordEvent(s, settlerLabel(s, settler.id) + ' cleared battlefield remains.')
+      finishJob(s, settler, job)
+      return
+    }
 
     if (job.kind === 'gather') {
       settler.status = 'Gathering ' + job.resource

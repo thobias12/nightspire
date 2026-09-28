@@ -3,13 +3,14 @@ import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
 import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, supplyCapacity } from './Buildings'
 import { canAdvanceConstruction, constructionCrewCapacity, constructionWorkLimit } from './Construction'
+import { dependentCountAtHome } from './Family'
 import { fieldArea, fieldCentroid, polygonsOverlap, simpleFieldPolygon } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
 import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
 import { residentialPlotsOverlap } from './TownPlanning'
 import {
   DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS,
-  defaultTradeState, type WorldState,
+  defaultTradeState, settlerIdentity, type WorldState,
 } from './WorldState'
 
 export const SAVE_KEY = 'nightspire.m1.save.v1'
@@ -38,9 +39,11 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(integer(s.day) && s.day >= 1 && number(s.timeOfDay) && s.timeOfDay < 1 && point(s.player) && combatant(s.player, s.tick), 'time/player')
   check(inventory(s.targets) && RESOURCE_IDS.every(r => s.targets[r] <= 10_000), 'stock targets')
   check(Array.isArray(s.settlers) && s.settlers.length <= MAX_SETTLERS && s.settlers.length > 0, 'population')
+  check(Array.isArray(s.families) && s.families.length <= MAX_SETTLERS, 'families')
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 120, 'buildings')
   check(Array.isArray(s.nodes) && s.nodes.length <= 1000 && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
+  check(Array.isArray(s.remains) && s.remains.length <= 256, 'battlefield remains')
   check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
   check(Array.isArray(s.residentialPlots) && s.residentialPlots.length <= 80, 'residential plots')
   check(Array.isArray(s.fields) && s.fields.length <= 40, 'farm fields')
@@ -73,7 +76,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     'raid state',
   )
 
-  const entities = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots, ...s.fields]
+  const entities = [...s.settlers, ...s.families, ...s.enemies, ...s.remains, ...s.buildings, ...s.nodes, ...s.jobs, ...s.roads, ...s.residentialPlots, ...s.fields]
   check(entities.every(e => e && integer(e.id) && e.id > 0 && e.id < s.nextId), 'entity IDs')
   check(new Set(entities.map(e => e.id)).size === entities.length, 'duplicate IDs')
 
@@ -177,6 +180,11 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const a of s.settlers) {
     check(point(a) && combatant(a, s.tick) && inventory(a.cargo) && RESOURCE_IDS.reduce((sum, resource) => sum + a.cargo[resource], 0) <= CARRY_CAPACITY, 'settler/cargo')
+    check(typeof a.givenName === 'string' && a.givenName.length >= 1 && a.givenName.length <= 40, 'settler given name')
+    check(typeof a.familyName === 'string' && a.familyName.length >= 1 && a.familyName.length <= 40, 'settler family name')
+    check(integer(a.ageYears) && a.ageYears >= 16 && a.ageYears <= 120, 'settler age')
+    check(a.familyId === null || s.families.some(family => family.id === a.familyId && family.adultIds.includes(a.id)), 'settler family')
+    check(a.partnerId === null || s.settlers.some(partner => partner.id === a.partnerId && partner.partnerId === a.id), 'settler partner')
     check(a.role === 'worker' || a.role === 'guard', 'settler role')
     check(
       a.workplaceId === null
@@ -199,6 +207,28 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     check(a.jobId !== null || RESOURCE_IDS.every(resource => a.cargo[resource] === 0), 'unowned cargo')
   }
 
+  const familyAdults = new Set<number>()
+  for (const family of s.families) {
+    check(typeof family.surname === 'string' && family.surname.length >= 1 && family.surname.length <= 40, 'family surname')
+    check(Array.isArray(family.adultIds) && family.adultIds.length >= 1 && family.adultIds.length <= MAX_SETTLERS, 'family adults')
+    check(family.adultIds.every(id => integer(id) && s.settlers.some(settler => settler.id === id)), 'family adult references')
+    check(family.adultIds.every(id => !familyAdults.has(id)), 'duplicate family adult')
+    for (const id of family.adultIds) familyAdults.add(id)
+    check(Array.isArray(family.children) && family.children.length <= 3, 'family children')
+    check(family.children.every(child =>
+      child && typeof child.givenName === 'string' && child.givenName.length >= 1 && child.givenName.length <= 40
+      && integer(child.ageYears) && child.ageYears >= 0 && child.ageYears <= 15
+      && integer(child.ageDays) && child.ageDays >= 0 && child.ageDays < 6
+    ), 'family child')
+    check(family.homeId === null || s.buildings.some(building => building.id === family.homeId && building.type === 'house'), 'family home')
+    check(integer(family.formedDay) && family.formedDay <= s.day, 'family formed day')
+    check(integer(family.lastChildDay) && family.lastChildDay <= s.day, 'family child day')
+  }
+
+  for (const remains of s.remains) {
+    check(point(remains) && typeof remains.heavy === 'boolean' && integer(remains.createdDay) && remains.createdDay <= s.day, 'battlefield remains')
+  }
+
   for (const enemy of s.enemies) {
     check(point(enemy) && combatant(enemy, s.tick) && enemy.kind === 'raider' && integer(enemy.targetId), 'enemy')
     check(Array.isArray(enemy.path) && enemy.path.length <= 3000 && enemy.path.every(gridPoint) && Number.isInteger(enemy.pathRevision), 'enemy route')
@@ -213,14 +243,21 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const j of s.jobs) {
     const a = s.settlers.find(a => a.id === j.settlerId)
-    const target = s.buildings.find(b => b.id === j.targetId)
-    check(a && a.jobId === j.id && !workers.has(a.id) && target, 'job references')
+    const target = s.buildings.find(b => b.id === j.targetId)!
+    const cleanupTarget = s.remains.find(remains => remains.id === j.targetId)
+    check(a && a.jobId === j.id && !workers.has(a.id) && (j.kind === 'cleanup' ? cleanupTarget : target), 'job references')
     workers.add(a.id)
 
-    check(['gather', 'deliver', 'supply', 'construct', 'repair'].includes(j.kind) && ['source', 'work', 'target'].includes(j.stage), 'job kind/stage')
+    check(['gather', 'deliver', 'supply', 'construct', 'repair', 'cleanup'].includes(j.kind) && ['source', 'work', 'target'].includes(j.stage), 'job kind/stage')
     check(RESOURCE_IDS.includes(j.resource) && integer(j.amount) && j.amount <= CARRY_CAPACITY && number(j.progress), 'job amount/progress')
 
-    if (j.kind === 'gather') {
+    if (j.kind === 'cleanup') {
+      check(
+        cleanupTarget && j.sourceId === cleanupTarget.id && j.targetId === cleanupTarget.id
+        && j.amount === 0 && j.stage !== 'target',
+        'cleanup claim',
+      )
+    } else if (j.kind === 'gather') {
       const node = s.nodes.find(n => n.id === j.sourceId)
       check(node && node.resource === j.resource && !gatherers.has(node.id) && j.amount > 0, 'gather claim')
       check(j.stage === 'target' || node.remaining >= j.amount, 'exhausted claim')
@@ -273,7 +310,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
       repairers.add(target.id)
     }
 
-    const ownsCargo = j.stage === 'target' || (j.kind === 'repair' && j.stage === 'work')
+    const ownsCargo = j.kind !== 'cleanup' && (j.stage === 'target' || (j.kind === 'repair' && j.stage === 'work'))
     check(
       RESOURCE_IDS.every(r => a.cargo[r] === (ownsCargo && r === j.resource ? j.amount : 0)),
       'cargo/job mismatch',
@@ -294,7 +331,11 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const b of s.buildings) {
     const def = BUILDINGS[b.type]
-    check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : houseBedCapacity(b)), 'housing capacity')
+    check(
+      s.settlers.filter(a => a.homeId === b.id).length + dependentCountAtHome(s, b.id)
+      <= (b.destroyed ? 0 : houseBedCapacity(b)),
+      'housing capacity',
+    )
     if (b.complete) {
       for (const resource of RESOURCE_IDS) {
         const capacity = supplyCapacity(b, resource)
@@ -380,8 +421,15 @@ export function deserializeWorld(text: string): WorldState {
   if (candidate && candidate.version === 1 && candidate.residentialPlots === undefined) candidate.residentialPlots = []
   if (candidate && candidate.version === 1 && candidate.fields === undefined) candidate.fields = []
 
+  if (candidate && candidate.version === 1 && candidate.families === undefined) candidate.families = []
   if (candidate && candidate.version === 1 && Array.isArray(candidate.settlers)) {
     for (const settler of candidate.settlers) {
+      const identity = settlerIdentity(settler.id)
+      if (settler.givenName === undefined) settler.givenName = identity.givenName
+      if (settler.familyName === undefined) settler.familyName = identity.familyName
+      if (settler.ageYears === undefined) settler.ageYears = identity.ageYears
+      if (settler.familyId === undefined) settler.familyId = null
+      if (settler.partnerId === undefined) settler.partnerId = null
       if (settler.role === undefined) settler.role = 'worker'
       if (settler.workplaceId === undefined) settler.workplaceId = null
       if (settler.health === undefined) Object.assign(settler, { health: 100, maxHealth: 100, attackCooldown: 0 })
@@ -399,6 +447,7 @@ export function deserializeWorld(text: string): WorldState {
   if (candidate && candidate.version === 1 && candidate.player?.lastHitTick === undefined) candidate.player.lastHitTick = 0
 
   if (candidate && candidate.version === 1 && candidate.enemies === undefined) candidate.enemies = []
+  if (candidate && candidate.version === 1 && candidate.remains === undefined) candidate.remains = []
   if (candidate && candidate.version === 1 && Array.isArray(candidate.enemies)) {
     for (const enemy of candidate.enemies) {
       if (enemy.health === undefined) Object.assign(enemy, { health: 40, maxHealth: 40, attackCooldown: 0 })

@@ -572,3 +572,59 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [ ] more enemy archetypes and dark-fantasy threats
 
 **Tone:** sensual adult fantasy integrated into a functioning settlement economy; suggestive presentation is sufficient for the city-builder layer and explicit scenes are not required for progression.
+
+
+## M3.12 — Persistent households and families (stacked gameplay branch)
+
+- [x] settlers have deterministic persistent given names, surnames and adult ages
+- [x] compatible residents sharing a House can form persistent couple/family records
+- [x] family surnames and partner links survive save/load
+- [x] households can contain dependent children without adding pathfinding agents
+- [x] children age on a compressed simulation calendar
+- [x] new children can be born into established two-adult households
+- [x] children reaching working age become normal settlers when population capacity allows
+- [x] existing inspectors automatically use resident names through the shared settler label
+- [x] older current-schema saves migrate identity/family fields safely
+
+**Design constraint:** dependent children remain lightweight household state rather than pathfinding entities, preserving the current simulation-scale budget while making households persistent and generational.
+
+
+## M3.13 — Settlement evolution (stacked gameplay branch)
+
+- [x] derived Camp → Hamlet → Village → Town → Stronghold progression
+- [x] tiers depend on actual houses, prosperity, civic buildings, roads, defenses and raid success
+- [x] Established and Prosperous homes visibly gain stonework, height, windows and richer roof treatment
+- [x] Town roads visibly transition toward laid cobble without changing navigation semantics
+- [x] Town/Stronghold guard posts gain civic banners
+- [x] Stronghold palisades gain raised fighting-platform dressing
+- [x] progression remains derived rather than adding another save-state ledger
+
+**Design constraint:** settlement evolution is renderer/simulation-derived and does not alter the road topology or job scheduler.
+
+
+## M2.6 — Siege warfare expansion (stacked gameplay branch)
+
+- [x] Guard Posts become true ranged defensive positions at night
+- [x] posted guards hold their assigned position instead of abandoning it to chase attackers
+- [x] posted guards fire on attackers inside a 9m defensive radius
+- [x] later raid waves include deterministic Battering Ram siege units
+- [x] Rams are slow, durable, ignore ordinary defender bait and heavily prioritize Gates/Walls
+- [x] Rams inflict substantially higher fortification damage and can create breaches quickly
+- [x] Rams have a distinct wheeled timber-frame world silhouette
+- [x] Stronghold palisades gain raised fighting-platform dressing
+- [x] existing shared hostile path budget remains unchanged
+
+**Design constraint:** siege additions reuse the existing Enemy collection, combat cooldowns and Navigation queue rather than adding per-unit controllers or a second pathfinder.
+
+
+## M2.7 — Battlefield aftermath (stacked gameplay branch)
+
+- [x] defeated attackers leave persistent world remains rather than disappearing instantly
+- [x] heavy attackers and destroyed Battering Rams leave larger timber/wheel wreckage
+- [x] battlefield remains survive save/load
+- [x] daytime Laborers receive cleanup jobs through the normal scheduler
+- [x] cleanup requires physical travel and work at the battlefield location
+- [x] remains are reserved so multiple workers cannot claim the same wreck
+- [x] aftermath reuses existing renderer batches and the shared pathfinding budget
+
+**Design constraint:** battlefield cleanup is a normal data-driven job, not another AI loop.

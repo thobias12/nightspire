@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../data/buildings'
+import { dependentCountAtHome } from './Family'
 import { completedMarkets, marketCoversPoint, MARKET_COVERAGE_RADIUS } from './Markets'
 import { distance } from './Navigation'
 import { serviceAvailable } from './Services'
@@ -10,6 +11,7 @@ export const RECREATION_COVERAGE_RADIUS = 18
 export interface HouseholdStatus {
   house: Building
   residents: Settler[]
+  dependents: number
   market: Building | null
   marketDistance: number | null
   foodAccess: boolean
@@ -65,6 +67,7 @@ function recreationForHouse(state: WorldState, house: Building): Building | null
 
 export function householdStatus(state: WorldState, house: Building): HouseholdStatus {
   const residents = houseResidents(state, house.id)
+  const dependents = dependentCountAtHome(state, house.id)
   const markets = completedMarkets(state)
   const market = operationalMarketForHouse(state, house)
   const recreation = recreationForHouse(state, house)
@@ -91,6 +94,7 @@ export function householdStatus(state: WorldState, house: Building): HouseholdSt
   return {
     house,
     residents,
+    dependents,
     market,
     marketDistance,
     foodAccess,
