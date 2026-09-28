@@ -120,7 +120,9 @@ test('regional raids retain a short approach outside the occupied settlement edg
   world.nodes = world.nodes.filter(n => Math.abs(n.x - 90) > 3 || Math.abs(n.z) > 3)
   world.buildings.push(createBuilding(world.nextId++, 'stockpile', 90, 0, true))
   spawnNightRaid(world)
-  assert.ok(world.enemies.every(e => e.x >= 112))
+  assert.ok(world.enemies.some(e => e.x >= 112))
+  assert.ok(world.enemies.some(e => e.x <= -22))
+  assert.ok(world.enemies.every(e => e.x >= 112 || e.x <= -22))
   validateWorld(world)
 })
 
