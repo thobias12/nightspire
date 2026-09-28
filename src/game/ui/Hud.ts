@@ -697,10 +697,10 @@ export class Hud {
       }, {} as Record<number, number>)
 
     this.set('settlement-summary',
-      '<span>Population ' + s.settlers.length + '/' + MAX_SETTLERS + '</span>'
-      + '<span>Laborers ' + laborers + '</span>'
-      + '<span>Housing ' + housed + '/' + s.settlers.length + '</span>'
-      + '<span>Approval ' + needSummary.happiness + '%</span>'
+      '<span title="Population"><i class="top-stat-icon" data-ui-asset="portrait:worker-empty" aria-hidden="true"></i><b>' + s.settlers.length + '</b></span>'
+      + '<span title="Available laborers"><i class="top-stat-icon" data-ui-asset="category:industry" aria-hidden="true"></i><b>' + laborers + '</b></span>'
+      + '<span title="Housing"><i class="top-stat-icon" data-ui-asset="service:housing" aria-hidden="true"></i><b>' + housed + '/' + s.settlers.length + '</b></span>'
+      + '<span title="Approval"><i class="top-stat-icon" data-ui-asset="service:recreation" aria-hidden="true"></i><b>' + needSummary.happiness + '%</b></span>'
     )
     this.set('resources', `
       <div class="resource-chip ${wood < 10 ? 'is-critical' : ''}" title="Wood: ${wood}/${s.targets.wood}; ${held} reserved"><span class="ui-icon-slot" data-icon-slot="resource-wood" aria-hidden="true"></span><span class="resource-label">Wood</span><strong>${wood}</strong><small>/${s.targets.wood}</small></div>
