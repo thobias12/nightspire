@@ -44,6 +44,14 @@ import { Hud, type Metrics } from '../ui/Hud'
 import { runQaAction } from '../qa/QaActions'
 import { InputController } from './InputController'
 import { clearPlanningDrafts, createPlanningState, resetPlanningForImport } from './PlanningState'
+import {
+  adjustRoadWidth as changeRoadWidth,
+  finalizeFieldDraft as commitFieldDraft,
+  finalizeRoadDraft as commitRoadDraft,
+  refreshRoadDraft as rebuildRoadDraft,
+  roadCurveLabel,
+  undoRoadControlPoint as removeRoadControlPoint,
+} from './PlanningOperations'
 
 export class Game {
   private readonly renderer = new SceneRenderer()
@@ -511,110 +519,37 @@ export class Game {
     this.renderer.zoom = this.simulation.state.map ? 55 : 31
     this.accumulator = 0; this.selectedId = null; resetPlanningForImport(this.planning)
   }
-  private roadCurveLabel(): string {
-    if (this.planning.roadCurve <= 0.05) return 'Straight'
-    return this.planning.roadCurve < 0.8 ? 'Smooth' : 'Curved'
-  }
-
   private refreshRoadDraft(): void {
-    if (this.planning.tool !== 'road') return
-    if (this.planning.roadControlPoints.length === 0) {
-      this.planning.roadDraft = []
-      return
-    }
-
-    const controls = [...this.planning.roadControlPoints]
-    const anchor = controls[controls.length - 1]
-    if (this.planning.rawPointer) {
-      const end = snapRoadControlPoint(
-        this.simulation.state.roads,
-        this.planning.rawPointer,
-        anchor,
-        this.planning.gridSnap,
-        this.planning.roadAngleSnap,
-        this.planning.roadSnap,
-      )
-      if (Math.hypot(end.x - anchor.x, end.z - anchor.z) >= 0.08) controls.push(end)
-    }
-    this.planning.roadDraft = sampleRoadCurve(controls, this.planning.roadCurve)
+    rebuildRoadDraft(this.planning, this.simulation.state)
   }
 
   private undoRoadControlPoint(): void {
-    if (this.planning.tool !== 'road' || this.planning.roadControlPoints.length === 0) return
-    this.planning.roadControlPoints.pop()
-    this.planning.start = this.planning.roadControlPoints[0] ?? null
-    this.refreshRoadDraft()
-    this.message = this.planning.roadControlPoints.length
-      ? 'Removed last road point. Continue shaping or finish with Enter.'
-      : 'Road draft cleared. Click to place a new start point.'
+    const message = removeRoadControlPoint(this.planning, this.simulation.state)
+    if (message === null) return
+    this.message = message
     this.updateGhost()
     this.updateHud()
   }
 
   private adjustRoadWidth(direction: -1 | 1): void {
-    const widths = [1.2, 1.7, 2.4]
-    let index = widths.findIndex(width => Math.abs(width - this.planning.roadWidth) < 0.05)
-    if (index < 0) index = 1
-    index = Math.max(0, Math.min(widths.length - 1, index + direction))
-    this.planning.roadWidth = widths[index]
-    this.message = 'Road width · ' + (this.planning.roadWidth <= 1.25 ? 'Path' : this.planning.roadWidth >= 2.35 ? 'Main road' : 'Lane') + ' · ' + this.planning.roadWidth.toFixed(1) + 'm.'
+    this.message = changeRoadWidth(this.planning, direction)
     this.updateGhost()
     this.updateHud()
   }
 
   private finalizeRoadDraft(): void {
-    if (this.planning.tool !== 'road') return
-    const points = sampleRoadCurve(this.planning.roadControlPoints, this.planning.roadCurve)
-    const error = roadPlacementError(points, this.simulation.state.fields, worldHalf(this.simulation.state))
-    if (error) {
-      this.message = error
-      this.updateGhost()
-      this.updateHud()
-      return
-    }
-
-    const s = this.simulation.state
-    for (const control of this.planning.roadControlPoints) insertRoadJunctionPoint(s.roads, control)
-    s.roads.push({ id: s.nextId++, points, width: this.planning.roadWidth })
-    this.message = 'Road placed · ' + roadLength(points).toFixed(1) + 'm · ' + this.roadCurveLabel()
-      + ' · ' + this.planning.roadWidth.toFixed(1) + 'm. Click to start another road.'
-    this.planning.start = null
-    this.planning.roadControlPoints = []
-    this.planning.roadDraft = []
-    this.planning.rawPointer = null
-    this.planning.pointer = null
+    const message = commitRoadDraft(this.planning, this.simulation.state)
+    if (message === null) return
+    this.message = message
     this.updateGhost()
     this.updateHud()
   }
 
   private finalizeFieldDraft(): void {
-    if (this.planning.tool !== 'field') return
-    const s = this.simulation.state
-    const points = this.planning.fieldControlPoints.map(point => ({ ...point }))
-    const error = fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads, worldHalf(s))
-    if (error) {
-      this.message = error
-      this.updateGhost()
-      this.updateHud()
-      return
-    }
-    const farmhouse = nearestFarmhouseForField(points, s.buildings)
-    if (!farmhouse) {
-      this.message = 'Field needs a Farmhouse within 18m.'
-      this.updateGhost()
-      this.updateHud()
-      return
-    }
-    const field = createField(s.nextId++, points, farmhouse.id)
-    s.fields.push(field)
-    this.selectedId = field.id
-    this.message = 'Field linked to Farmhouse ' + farmhouse.id + ' · ' + field.area.toFixed(1) + 'm² · expected harvest ' + field.yield + ' Food. Click to start another field.'
-    this.planning.start = null
-    this.planning.fieldControlPoints = []
-    this.planning.fieldDraft = []
-    this.planning.fieldCloseReady = false
-    this.planning.rawPointer = null
-    this.planning.pointer = null
+    const result = commitFieldDraft(this.planning, this.simulation.state)
+    if (result === null) return
+    this.message = result.message
+    if (result.selectedId !== undefined) this.selectedId = result.selectedId
     this.updateGhost()
     this.updateHud()
   }
@@ -661,7 +596,7 @@ export class Game {
           break
         case 'road-curve':
           this.planning.roadCurve = this.planning.roadCurve < 0.2 ? 0.58 : this.planning.roadCurve < 0.8 ? 0.92 : 0
-          this.message = 'Road curvature · ' + this.planning.roadCurveLabel() + '. Grid Snap only controls point positions; hold Shift for 0°/45°/90° segments.'
+          this.message = 'Road curvature · ' + roadCurveLabel(this.planning.roadCurve) + '. Grid Snap only controls point positions; hold Shift for 0°/45°/90° segments.'
           this.refreshRoadDraft()
           break
         case 'road-width':
@@ -1006,7 +941,7 @@ export class Game {
       if (this.planning.roadControlPoints.length > 0 && this.planning.rawPointer) {
         this.message = error ?? (
           'Road preview · ' + roadLength(points).toFixed(1) + 'm · '
-          + this.planning.roadCurveLabel() + ' · ' + this.planning.roadWidth.toFixed(1)
+          + roadCurveLabel(this.planning.roadCurve) + ' · ' + this.planning.roadWidth.toFixed(1)
           + 'm · ' + (this.planning.roadAngleSnap ? 'Shift angle constrain ON · ' : '')
           + (this.planning.gridSnap ? 'Grid ON · ' : 'Grid OFF · ')
           + (this.planning.roadSnap ? 'Road Snap ON · ' : 'Road Snap OFF · ')
