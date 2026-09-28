@@ -1,6 +1,6 @@
 # Seeded regional maps
 
-This branch starts from UI PR #41 at `974ce09023c5ac64f6a1bed1806aa32569063441`, preserving its latest contextual panels, tasks and minimap. It adds playable seeded landscapes, not a population-cap increase.
+This branch starts from UI PR #41 at `974ce09023c5ac64f6a1bed1806aa32569063441`, then incorporates newer UI patches through `5aad764`. The permanent minimap remains disabled; regional navigation is available inside the optional New region panel. It adds playable seeded landscapes, not a population-cap increase.
 
 ## Reference and scope
 
