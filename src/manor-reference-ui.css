@@ -1044,3 +1044,159 @@
     grid-template-rows: 135px 29px !important;
   }
 }
+
+
+/* 2026-09-28 compact Manor-Lords-style top ribbon */
+.manor-topbar.topbar {
+  width: min(1120px, calc(100vw - 84px)) !important;
+  min-height: 66px !important;
+}
+
+.topbar-ribbon {
+  height: 39px !important;
+  grid-template-columns: minmax(240px, 1fr) minmax(300px, .92fr) minmax(250px, 1fr) !important;
+  gap: 5px !important;
+  padding: 0 20px !important;
+  border-color: rgba(103,75,42,.76) !important;
+  background:
+    linear-gradient(90deg, rgba(149,115,70,.9), rgba(225,210,172,.99) 8%, rgba(233,218,181,.99) 50%, rgba(224,207,169,.99) 92%, rgba(146,112,68,.9)) !important;
+  box-shadow:
+    0 3px 9px rgba(0,0,0,.34),
+    inset 0 -2px rgba(91,62,33,.2),
+    inset 0 1px rgba(255,249,224,.66) !important;
+}
+
+.topbar-ribbon::before,
+.topbar-ribbon::after {
+  top: 2px !important;
+  width: 44px !important;
+  height: 33px !important;
+}
+
+.settlement-brand {
+  min-width: 300px !important;
+  height: 38px !important;
+  gap: 8px !important;
+  padding: 0 24px !important;
+  background: rgba(195,173,128,.2) !important;
+}
+
+.settlement-brand .ui-crest-slot {
+  width: 31px !important;
+  height: 31px !important;
+  border-width: 1px !important;
+}
+
+.settlement-copy { gap: 7px !important; }
+.settlement-copy b {
+  font-size: 16px !important;
+  letter-spacing: .05em !important;
+}
+.settlement-region {
+  font-size: 7px !important;
+  letter-spacing: .08em !important;
+}
+
+.topbar-stat-group {
+  justify-self: stretch !important;
+  justify-content: flex-end !important;
+}
+
+.topbar-stat-group span {
+  min-width: 54px !important;
+  height: 29px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px !important;
+  font: 700 8px/1 Inter, sans-serif !important;
+}
+
+.top-stat-icon {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  flex: 0 0 14px;
+  border: 0 !important;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: .72;
+}
+
+.time-block {
+  justify-self: stretch !important;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+}
+
+.time-readout { min-width: 100px !important; }
+.time-readout > div { gap: 4px !important; }
+.time-readout strong { font-size: 8px !important; }
+.time-readout span { font-size: 6px !important; }
+.time-readout em { font-size: 5px !important; }
+
+.sim-button {
+  min-width: 24px !important;
+  width: 24px !important;
+  min-height: 23px !important;
+  height: 23px !important;
+  padding: 1px !important;
+}
+.sim-button .ui-icon-slot {
+  width: 15px !important;
+  height: 15px !important;
+}
+.speed-control { font-size: 6px !important; }
+.speed-control select {
+  width: 50px;
+  height: 23px !important;
+  padding: 0 4px !important;
+  font-size: 7px !important;
+}
+
+.topbar-resources.resource-strip {
+  top: 43px !important;
+  width: min(560px, calc(100vw - 220px)) !important;
+  min-height: 24px !important;
+  padding: 1px 17px !important;
+}
+
+.resource-chip {
+  height: 20px !important;
+  gap: 4px !important;
+  padding: 0 6px !important;
+}
+.resource-chip .ui-icon-slot {
+  width: 14px !important;
+  height: 14px !important;
+}
+.resource-chip strong { font-size: 8px !important; }
+.resource-chip small { font-size: 5px !important; }
+
+/* No transient sentence floating over the bottom controls. */
+.status,
+.ui-mode-build .status,
+.ui-mode-placement .status,
+.ui-mode-road .status {
+  display: none !important;
+}
+
+@media (max-width: 1000px) {
+  .manor-topbar.topbar {
+    width: calc(100vw - 24px) !important;
+  }
+  .topbar-ribbon {
+    grid-template-columns: minmax(160px, 1fr) minmax(260px, .8fr) minmax(160px, 1fr) !important;
+    padding-inline: 10px !important;
+  }
+  .topbar-stat-group span {
+    min-width: 42px !important;
+    padding-inline: 4px !important;
+  }
+  .settlement-brand {
+    min-width: 260px !important;
+    padding-inline: 14px !important;
+  }
+}
