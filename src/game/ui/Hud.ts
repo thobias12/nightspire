@@ -154,25 +154,27 @@ export class Hud {
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud'
     this.element.innerHTML = `
-      <header class="topbar">
-        <div class="settlement-brand">
-          <span class="ui-crest-slot" data-art-slot="settlement-crest" aria-hidden="true"></span>
-          <div class="settlement-copy">
-            <span class="settlement-region">Oakridge</span>
-            <b>NIGHTSPIRE</b>
-            <div id="settlement-summary" class="settlement-summary"></div>
+      <header class="topbar manor-topbar">
+        <div class="topbar-ribbon">
+          <div id="settlement-summary" class="settlement-summary topbar-stat-group" aria-label="Settlement status"></div>
+          <div class="settlement-brand">
+            <span class="ui-crest-slot" data-art-slot="settlement-crest" aria-hidden="true"></span>
+            <div class="settlement-copy">
+              <b>Oakridge</b>
+              <span class="settlement-region">NIGHTSPIRE</span>
+            </div>
+          </div>
+          <div class="time-block">
+            <div id="time-readout" class="time-readout"></div>
+            <div class="simulation-controls">
+              <button class="sim-button" data-action="pause" title="Pause / resume simulation"><span class="ui-icon-slot compact" data-icon-slot="time-pause" aria-hidden="true"></span><span>Pause</span></button>
+              <label class="speed-control"><span>Speed</span>
+                <select aria-label="Simulation speed" data-action="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select>
+              </label>
+            </div>
           </div>
         </div>
-        <div id="resources" class="resource-strip" aria-label="Settlement resources"></div>
-        <div class="time-block">
-          <div id="time-readout" class="time-readout"></div>
-          <div class="simulation-controls">
-            <button class="sim-button" data-action="pause" title="Pause / resume simulation"><span class="ui-icon-slot compact" data-icon-slot="time-pause" aria-hidden="true"></span><span>Pause</span></button>
-            <label class="speed-control">Speed
-              <select aria-label="Simulation speed" data-action="speed"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select>
-            </label>
-          </div>
-        </div>
+        <div id="resources" class="resource-strip topbar-resources" aria-label="Settlement resources"></div>
       </header>
 
       <details class="settlement-drawer panel floating-panel" data-draggable-panel data-panel-id="settlement-overview">
@@ -644,6 +646,11 @@ export class Hud {
   }
 
   update(s: WorldState, ui: HudState): void {
+    this.element.classList.toggle('ui-mode-build', this.buildMenuOpen)
+    this.element.classList.toggle('ui-mode-road', ui.planningTool === 'road')
+    this.element.classList.toggle('ui-mode-placement', ui.planningTool !== null || ui.buildType !== null)
+    this.element.classList.toggle('ui-mode-selection', ui.selectedId !== null)
+
     const stores = stockpiles(s)
     const wood = stores.reduce((n, b) => n + b.inventory.wood, 0)
     const markets = marketSummary(s)
@@ -1132,9 +1139,8 @@ export class Hud {
         || '<p class="context-empty">No advanced policies are available for this building yet.</p>'
 
       const contextTabs = [
-        { id: 'general', label: 'General', body: generalBody },
+        { id: 'general', label: 'General', body: generalBody + operationBody },
         { id: 'people', label: 'People', body: peopleBody },
-        { id: 'operations', label: def.production ? 'Production' : def.service ? 'Services' : def.storage || def.tradeStorageCapacity || def.agricultureStorageCapacity ? 'Storage' : b.type === 'house' ? 'Household' : 'Operations', body: operationBody },
         { id: 'advanced', label: 'Advanced', body: advancedBody },
       ]
       const contextTabsHtml = contextTabs.map(tab =>
