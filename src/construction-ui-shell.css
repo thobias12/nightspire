@@ -372,3 +372,214 @@
     display: none;
   }
 }
+
+
+/* Approved card anatomy: fixed card size + one semantic icon footer. */
+.build-catalog {
+  --build-card-width: 132px;
+  --build-card-art-height: 108px;
+}
+
+/* Undo category-dependent card shrinking. Every construction card now uses one size. */
+.build-catalog .build-card {
+  flex: 0 0 var(--build-card-width);
+  width: var(--build-card-width);
+  min-width: var(--build-card-width);
+  max-width: var(--build-card-width);
+  min-height: 174px;
+  grid-template-rows: var(--build-card-art-height) 30px 34px;
+}
+.build-catalog .build-art-slot {
+  width: 100%;
+  height: var(--build-card-art-height);
+  aspect-ratio: auto;
+}
+
+/* Let category shells adapt, not the cards. */
+.build-catalog:has([data-build-tab="planning"][aria-pressed="true"]),
+.build-catalog:has([data-build-tab="logistics"][aria-pressed="true"]) {
+  width: min(620px, calc(100vw - 34px));
+}
+.build-catalog:has([data-build-tab="industry"][aria-pressed="true"]) {
+  width: min(930px, calc(100vw - 34px));
+}
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+  width: min(1260px, calc(100vw - 34px));
+}
+.build-catalog:has([data-build-tab="defense"][aria-pressed="true"]) {
+  width: min(900px, calc(100vw - 34px));
+}
+
+.build-catalog .build-panel {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  min-height: 184px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+/* One icon only in the dark footer. Existing text remains in the DOM for
+   tooltips/accessibility but is visually replaced by the semantic icon. */
+.build-catalog .build-card small {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0;
+  overflow: hidden;
+}
+.build-catalog .build-card small::before {
+  content: '';
+  width: 26px;
+  height: 26px;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: sepia(.18) saturate(.75) brightness(1.12);
+  opacity: .96;
+}
+
+/* Planning */
+.build-catalog [data-action="road"] small::before {
+  background-image: url("../assets/ui/category/planning.webp");
+}
+.build-catalog [data-action="residential-plot"] small::before {
+  background-image: url("../assets/ui/building-card/house.svg");
+}
+.build-catalog [data-action="field"] small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+
+/* Logistics */
+.build-catalog [data-action="stockpile"] small::before {
+  background-image: url("../assets/ui/category/logistics.webp");
+}
+.build-catalog [data-action="trading-post"] small::before {
+  background-image: url("../assets/ui/resource/gold.webp");
+}
+.build-catalog .build-card:has([data-art-slot="build-granary"]) small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+
+/* Industry */
+.build-catalog [data-action="farmhouse"] small::before,
+.build-catalog .build-card:has([data-art-slot="build-bakery"]) small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+.build-catalog [data-action="brewery"] small::before {
+  background-image: url("../assets/ui/resource/ale.webp");
+}
+.build-catalog [data-action="blacksmith"] small::before {
+  background-image: url("../assets/ui/resource/tools.webp");
+}
+.build-catalog .build-card:has([data-art-slot="build-quarry"]) small::before {
+  background-image: url("../assets/ui/resource/wood.webp");
+  filter: grayscale(1) brightness(1.45);
+}
+.build-catalog .build-card:has([data-art-slot="build-mine"]) small::before {
+  background-image: url("../assets/ui/resource/ore.webp");
+}
+
+/* Services */
+.build-catalog [data-action="campfire"] small::before {
+  background-image: url("../assets/ui/category/services.webp");
+}
+.build-catalog [data-action="tavern"] small::before {
+  background-image: url("../assets/ui/resource/ale.webp");
+}
+.build-catalog [data-action="market"] small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+.build-catalog .build-card:has([data-art-slot="build-well"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-bathhouse"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-chapel"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-pleasure-house"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-manor"]) small::before {
+  background-image: url("../assets/ui/category/services.webp");
+}
+
+/* Defense */
+.build-catalog [data-action="guard-post"] small::before,
+.build-catalog [data-action="wood-wall"] small::before,
+.build-catalog [data-action="wood-gate"] small::before,
+.build-catalog .build-card:has([data-art-slot="build-watchtower"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-barracks"]) small::before {
+  background-image: url("../assets/ui/category/defense.webp");
+}
+
+/* Planned items stay muted, including their semantic footer icon. */
+.build-catalog .build-card.is-planned small::before {
+  opacity: .48;
+  filter: grayscale(.75) sepia(.15) brightness(1.05);
+}
+
+/* Proper illuminated-manuscript rails rather than plain dotted wooden strips. */
+.build-catalog::before,
+.build-catalog::after {
+  top: 7px;
+  bottom: 49px;
+  width: 34px;
+  opacity: 1;
+  border: 1px solid rgba(83,55,29,.72);
+  background:
+    radial-gradient(circle at 50% 9%, rgba(151,55,43,.9) 0 3px, rgba(215,167,80,.82) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 24%, rgba(43,78,103,.92) 0 3px, rgba(209,163,75,.72) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 40%, rgba(151,55,43,.9) 0 3px, rgba(215,167,80,.82) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 57%, rgba(43,78,103,.92) 0 3px, rgba(209,163,75,.72) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 73%, rgba(151,55,43,.9) 0 3px, rgba(215,167,80,.82) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 89%, rgba(43,78,103,.92) 0 3px, rgba(209,163,75,.72) 4px 5px, transparent 6px),
+    linear-gradient(63deg, transparent 43%, rgba(70,91,63,.7) 44% 48%, transparent 49%) 0 0 / 18px 32px,
+    linear-gradient(117deg, transparent 43%, rgba(124,63,44,.68) 44% 48%, transparent 49%) 0 16px / 18px 32px,
+    linear-gradient(180deg, rgba(206,178,126,.96), rgba(163,126,76,.97));
+  box-shadow:
+    inset 0 0 0 2px rgba(239,211,157,.4),
+    inset 0 0 0 4px rgba(93,62,34,.14);
+}
+
+/* If a viewport genuinely cannot contain a crowded category, wrap fixed-size
+   cards to a second row instead of shrinking or scrolling them. */
+@media (max-width: 1180px) {
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    max-height: 372px;
+  }
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 900px) {
+  .build-catalog .build-card {
+    flex-basis: var(--build-card-width);
+    width: var(--build-card-width);
+    min-width: var(--build-card-width);
+    max-width: var(--build-card-width);
+  }
+  .build-catalog .build-panel {
+    flex-wrap: wrap;
+    max-height: 372px;
+  }
+  .build-catalog {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 620px) {
+  .build-catalog .build-card {
+    flex-basis: var(--build-card-width);
+    width: var(--build-card-width);
+    min-width: var(--build-card-width);
+    max-width: var(--build-card-width);
+    grid-template-rows: var(--build-card-art-height) 30px 34px;
+    min-height: 174px;
+  }
+  .build-catalog .build-art-slot {
+    height: var(--build-card-art-height);
+  }
+}
