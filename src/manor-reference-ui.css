@@ -932,3 +932,115 @@
   .catalog-tool-label { display: none !important; }
   .road-context { width: calc(100vw - 12px) !important; overflow-x: auto; justify-content: flex-start !important; }
 }
+
+
+/* Reference shelf cleanup: transparent row + icon-only card footers */
+
+/* The reference keeps the cards floating over the world. There is no backing
+   rectangle behind the card row; only the category toolbar has a dark strip. */
+.build-catalog .build-panel,
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+  background: transparent !important;
+}
+
+/* With names/details supplied by hover, the card itself is just artwork plus
+   a small semantic output/service medallion like the reference. */
+.build-catalog,
+.build-catalog:has([data-build-tab][aria-pressed="true"]) {
+  --build-card-art-height: 148px !important;
+}
+
+.build-catalog .build-card,
+.build-catalog:has([data-build-tab][aria-pressed="true"]) .build-card {
+  height: 184px !important;
+  min-height: 184px !important;
+  grid-template-rows: var(--build-card-art-height) 30px !important;
+}
+
+/* Preserve the building name for accessibility, but remove the visible label
+   strip: names and details belong to the hover information card. */
+.build-catalog .build-name {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.build-catalog .build-card small.build-card-icons {
+  position: relative !important;
+  min-height: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+.build-catalog .build-card small.build-card-icons::before,
+.build-catalog .build-card small.build-card-icons::after {
+  content: none !important;
+  display: none !important;
+}
+
+.build-card-product-medallion {
+  width: 25px;
+  height: 25px;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid rgba(183,157,108,.88);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(87,84,76,.98), rgba(31,31,29,.99) 68%);
+  box-shadow:
+    inset 0 0 0 2px rgba(17,17,16,.78),
+    0 1px 3px rgba(0,0,0,.5);
+}
+
+.build-card-product-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  border: 0 !important;
+  background-color: transparent !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  filter: saturate(.88) brightness(1.08);
+}
+
+/* Keep planned outputs visibly locked without turning the medallion into text. */
+.build-card.is-planned .build-card-product-medallion {
+  opacity: .5;
+  filter: grayscale(.55);
+}
+
+/* The transient helper sentence below the construction bar is redundant while
+   browsing: all card information is exposed by hover/focus. */
+.ui-mode-build .status {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .build-catalog,
+  .build-catalog:has([data-build-tab][aria-pressed="true"]) {
+    --build-card-art-height: 135px !important;
+  }
+  .build-catalog .build-card,
+  .build-catalog:has([data-build-tab][aria-pressed="true"]) .build-card {
+    height: 170px !important;
+    min-height: 170px !important;
+    grid-template-rows: 135px 29px !important;
+  }
+}
