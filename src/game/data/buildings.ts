@@ -18,6 +18,14 @@ export interface FoodDistributionDefinition {
   mealsPerWorkerPerDay: number
   reserveDays: number
 }
+export interface ResourceOperationDefinition {
+  resource: 'wood' | 'food' | 'ore'
+  radius: number
+  cycleSeconds: number
+  outputCapacity: number
+  renewable?: boolean
+  replant?: boolean
+}
 export interface ProductionDefinition {
   inputResource: ResourceId
   inputAmount: number
@@ -34,6 +42,7 @@ export interface ProductionDefinition {
 export type BuildingId =
   | 'house' | 'stockpile' | 'guard-post' | 'wood-wall' | 'wood-gate'
   | 'campfire' | 'tavern' | 'brewery' | 'blacksmith' | 'market' | 'trading-post' | 'farmhouse'
+  | 'foresters-lodge' | 'mine' | 'ore-yard' | 'fishing-hut' | 'pleasure-house'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -48,6 +57,8 @@ export interface BuildingDefinition {
   profession?: string
   service: ServiceDefinition | null
   production: ProductionDefinition | null
+  resourceOperation?: ResourceOperationDefinition
+  storageResources?: ResourceId[]
   foodDistribution?: FoodDistributionDefinition
   tradeStorageCapacity?: number
   agricultureStorageCapacity?: number
@@ -161,5 +172,47 @@ export const BUILDINGS: Record<BuildingId, BuildingDefinition> = {
     service: null, production: null,
     agricultureStorageCapacity: 60,
     maxHealth: 200, fortification: false, friendlyPassable: false, color: 0x8a7656,
+  },
+  'foresters-lodge': {
+    id: 'foresters-lodge', label: "Forester's Lodge", footprint: 3, buildCost: cost(35),
+    constructionWork: 14, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 3, profession: 'Forester',
+    service: null, production: null,
+    resourceOperation: { resource: 'wood', radius: 26, cycleSeconds: 6, outputCapacity: 30, replant: true },
+    maxHealth: 205, fortification: false, friendlyPassable: false, color: 0x6f6547,
+  },
+  mine: {
+    id: 'mine', label: 'Mine', footprint: 3, buildCost: cost(55),
+    constructionWork: 22, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 3, profession: 'Miner',
+    service: null, production: null,
+    resourceOperation: { resource: 'ore', radius: 30, cycleSeconds: 8, outputCapacity: 36 },
+    maxHealth: 270, fortification: false, friendlyPassable: false, color: 0x655f59,
+  },
+  'ore-yard': {
+    id: 'ore-yard', label: 'Ore Yard', footprint: 3, buildCost: cost(25),
+    constructionWork: 10, housing: 0, storage: 220, guardSlots: 0,
+    storageResources: ['ore'],
+    service: null, production: null,
+    maxHealth: 210, fortification: false, friendlyPassable: false, color: 0x77736b,
+  },
+  'fishing-hut': {
+    id: 'fishing-hut', label: "Fisherman's Hut", footprint: 3, buildCost: cost(30),
+    constructionWork: 12, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 2, profession: 'Fisher',
+    service: null, production: null,
+    resourceOperation: { resource: 'food', radius: 0, cycleSeconds: 9, outputCapacity: 24, renewable: true },
+    maxHealth: 175, fortification: false, friendlyPassable: false, color: 0x7a7058,
+  },
+  'pleasure-house': {
+    id: 'pleasure-house', label: 'Pleasure House', footprint: 3, buildCost: cost(60),
+    constructionWork: 20, housing: 0, storage: 0, guardSlots: 0,
+    workerSlots: 2, profession: 'Host',
+    service: {
+      need: 'recreation', slots: 10, gainPerSecond: 12, priority: 4,
+      activePhases: ['dusk', 'night'], supplyResource: 'ale', supplyCapacity: 16, supplySecondsPerUnit: 22,
+    },
+    production: null, maxHealth: 230,
+    fortification: false, friendlyPassable: false, color: 0x7b4d5d,
   },
 }

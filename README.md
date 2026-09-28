@@ -24,7 +24,7 @@ See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md) and [UI art-slot con
 
 ### Mature service / Pleasure House concept direction
 
-The Pleasure House is a planned late-settlement service building that should visually belong to the same illustrated medieval UI language as the rest of Nightspire. The first concept establishes the **building panel** direction: large hand-painted header art, workers/visitors, service effects and a restrained parchment information hierarchy.
+The Pleasure House is an implemented late-settlement service building that should visually belong to the same illustrated medieval UI language as the rest of Nightspire. The first concept establishes the **building panel** direction: large hand-painted header art, workers/visitors, service effects and a restrained parchment information hierarchy.
 
 ![Pleasure House building UI concept](docs/images/pleasure-house-ui-concept-hq.jpg)
 
@@ -32,7 +32,7 @@ The second concept establishes the **in-world building and service-space** direc
 
 ![Pleasure House world and services concept](docs/images/pleasure-house-world-concept-hq.jpg)
 
-These mature-service concepts are planned direction only. Final gameplay, balance, building footprint and art assets will be implemented separately.
+These mature-service concepts remain art-direction references. The gameplay building is implemented; its balance, presentation and final art can continue to evolve.
 
 
 **Current playable milestone: M3.11.7 — Agriculture & Point-Drawn Farm Fields.** Farming now uses irregular player-drawn land parcels rather than fixed farm tiles. Build a **Farmhouse**, assign up to three Farmers, then use the **Field** tool to click 3–8 corners around the exact land you want to cultivate, with optional grid snapping. Fields reject roads, buildings, residential plots, live resource nodes and other fields. Farmers physically walk to fields to sow and harvest; crops progress across Days through **Fallow → Sown → Growing → Ready → Harvested**, harvest into Farmhouse storage, and general Laborers move the Food onward into specialized Stockpiles and Markets. **Conventional buildings now require road frontage in live placement**, while fields must be linked to a Farmhouse within 18m. Fields share the same global **G** 1m Grid Snap setting as roads and residential dimensions. Field size controls yield and work, so town layout and available labor matter. M3.11.6 Gold trade, household prosperity, local Market coverage and the existing road system remain intact. See [the agriculture note](docs/M3117_AGRICULTURE.md), [the Gold trade note](docs/M3116_GOLD_TRADE.md) and [the household progression note](docs/M3115_HOUSEHOLD_PROGRESSION.md).
@@ -115,11 +115,14 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **188 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains the full passing regression suite, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
 ## Implementation
+
+For code ownership and the fastest route to a change, see [AI / ChatGPT navigation](docs/AI_NAVIGATION.md).
+
 
 - TypeScript, Three.js, Vite; original pinned versions retained.
 - Plain serializable entity records with stable IDs, independent of Three.js.
@@ -131,14 +134,23 @@ Browser verification covered gathering and visible cargo, placing three houses a
 
 ```text
 src/game/
-  core/         lifecycle, fixed-step orchestration, keyboard/camera input
-  benchmark/    isolated seeded scale scenarios, measurements and browser runner
-  data/         building/resource/job definitions
-  simulation/   entities, job assignment/execution, placement, navigation, save validation
-  render/       Three.js ownership and state presentation
-  ui/           controls, inspector and QA readouts
-tests/          renderer-independent simulation regression tests
-docs/           design, architecture, milestones, decisions and QA
+  app/          browser lifecycle, placement/input coordination
+  benchmark/    isolated seeded scale scenarios
+  data/         declarative building/resource/job definitions
+  model/        serializable state records and core types
+  persistence/  save validation/serialization
+  runtime/      fixed-step orchestration and time progression
+  world/        maps, grid/navigation, roads, plots and fields
+  systems/
+    construction/
+    jobs/
+    economy/
+    population/
+    combat/
+  render/       Three.js presentation
+  ui/           DOM/HUD presentation
+tests/          renderer-independent regression tests
+docs/           design, architecture, milestones, decisions and AI navigation
 ```
 
 ## Scope and limitations

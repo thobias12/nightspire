@@ -1,7 +1,7 @@
 import './style.css'
 import './game/ui/MedievalHud.css'
 import { BenchmarkApp } from './game/benchmark/BenchmarkApp'
-import { Game } from './game/core/Game'
+import { Game } from './game/app/Game'
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
