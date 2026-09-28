@@ -4,9 +4,10 @@
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #080806 url("../assets/ui/menu/nightspire-main-menu.jpg") center / cover no-repeat;
+  background: #080806 url("../assets/ui/menu/nightspire-main-menu.avif") center / cover no-repeat;
   color: #e9dfca;
   font-family: Georgia, "Times New Roman", serif;
+  image-rendering: auto;
 }
 
 .main-menu-shell::before {
