@@ -2404,6 +2404,123 @@ export class SceneRenderer {
     this.frontageClutter(b, rotation, b.id + 37, 0.94)
   }
 
+
+  private renderForestersLodge(b: Building, rotation: number, color: number, night: number): void {
+    this.renderYard(b, rotation, 3.1, 0x5f573d)
+    this.timberFrame(b, rotation, 2.65, 2.42, 1.62, color, this.readableNightColor(0x554434, night), 1.0)
+    const door = this.rotatedOffset(-0.45, 1.24, rotation)
+    this.instance('doors', b.x + door.x, 0.76, b.z + door.z, 0.64, 1.34, 0.14, 0x463124, rotation)
+    const win = this.rotatedOffset(0.54, 1.27, rotation)
+    this.framedWindow(b.x + win.x, 1.12, b.z + win.z, rotation, night * 0.55, 0.32, 0.38, b.id + 71)
+    for (let i = 0; i < 6; i++) {
+      const p = this.rotatedOffset(-1.25 + (i % 3) * 0.42, -1.18 + Math.floor(i / 3) * 0.38, rotation)
+      this.instance('logs', b.x + p.x, 0.18 + Math.floor(i / 3) * 0.16, b.z + p.z, 0.7, 0.6, 0.6, 0x69462e, rotation)
+    }
+    const rack = this.rotatedOffset(1.2, -0.72, rotation)
+    this.instance('timber', b.x + rack.x, 0.62, b.z + rack.z, 0.12, 1.2, 0.12, 0x4c3527, rotation)
+    for (let i = 0; i < 3; i++) {
+      const sapling = this.rotatedOffset(0.9 + i * 0.34, -1.38, rotation)
+      this.instance('treeTrunk', b.x + sapling.x, 0.25, b.z + sapling.z, 0.28, 0.5, 0.28, 0x573e2b, rotation)
+      this.instance('wood', b.x + sapling.x, 0.62, b.z + sapling.z, 0.42, 0.5, 0.42, 0x526b48, rotation)
+    }
+    this.frontageClutter(b, rotation, b.id + 67, 0.9)
+  }
+
+  private renderMine(b: Building, rotation: number, color: number, night: number): void {
+    this.renderYard(b, rotation, 3.2, 0x514b42)
+    const portal = this.rotatedOffset(0, -0.35, rotation)
+    this.instance('stone', b.x + portal.x, 0.5, b.z + portal.z, 2.5, 0.9, 1.9, 0x565653, rotation)
+    this.instance('timber', b.x + portal.x, 1.05, b.z + portal.z, 2.2, 0.18, 0.18, 0x493426, rotation)
+    for (const lx of [-0.92, 0.92]) {
+      const post = this.rotatedOffset(lx, -0.2, rotation)
+      this.instance('timber', b.x + post.x, 1.1, b.z + post.z, 0.2, 2.2, 0.2, 0x493426, rotation)
+    }
+    const beam = this.rotatedOffset(0, 0.28, rotation)
+    this.instance('timber', b.x + beam.x, 2.1, b.z + beam.z, 2.45, 0.2, 0.2, 0x51382a, rotation)
+    const hoist = this.rotatedOffset(0, 0.2, rotation)
+    this.instance('metal', b.x + hoist.x, 1.42, b.z + hoist.z, 0.16, 1.16, 0.16, 0x5b6266, rotation)
+    for (let i = 0; i < 7; i++) {
+      const ore = this.rotatedOffset(1.0 + (i % 3) * 0.28, 0.7 + Math.floor(i / 3) * 0.25, rotation)
+      this.instance('ore', b.x + ore.x, 0.18 + Math.floor(i / 3) * 0.11, b.z + ore.z, 0.42, 0.34, 0.42, i % 2 ? 0x656d75 : 0x737a82, rotation + i)
+    }
+    this.renderCart(b, rotation, -1.55, 0.75, b.id + 79)
+    const lamp = this.rotatedOffset(-0.72, 0.55, rotation)
+    this.warmWindow(b.x + lamp.x, 1.24, b.z + lamp.z, rotation, night, 0.28, 0.28)
+    this.frontageClutter(b, rotation, b.id + 83, 0.8)
+  }
+
+  private renderOreYard(b: Building, rotation: number, color: number): void {
+    this.renderYard(b, rotation, 3.35, 0x555049)
+    this.fenceLine(b, rotation, -1.72, -1.75, 3.45, false)
+    this.fenceLine(b, rotation, 0, -1.82, 3.45, true)
+    for (let i = 0; i < 12; i++) {
+      const p = this.rotatedOffset(-1.12 + (i % 4) * 0.48, -0.82 + Math.floor(i / 4) * 0.43, rotation)
+      const height = 0.16 + Math.floor(i / 4) * 0.11
+      this.instance('ore', b.x + p.x, height, b.z + p.z, 0.52, 0.4, 0.52, i % 3 === 0 ? 0x788087 : 0x646c73, rotation + i)
+    }
+    const crane = this.rotatedOffset(1.1, 0.15, rotation)
+    this.instance('timber', b.x + crane.x, 1.18, b.z + crane.z, 0.18, 2.3, 0.18, 0x4f3929, rotation)
+    const arm = this.rotatedOffset(0.45, 0.15, rotation)
+    this.instance('timber', b.x + arm.x, 2.15, b.z + arm.z, 1.55, 0.16, 0.16, 0x573d2c, rotation)
+    this.instance('metal', b.x + crane.x, 1.48, b.z + crane.z, 0.09, 1.0, 0.09, 0x5e666b, rotation)
+    this.renderCart(b, rotation, 1.65, 1.05, b.id + 89)
+  }
+
+  private renderFishingHut(b: Building, rotation: number, color: number, night: number): void {
+    this.renderYard(b, rotation, 2.95, 0x625945)
+    this.timberFrame(b, rotation, 2.55, 2.25, 1.48, color, this.readableNightColor(0x5a493a, night), 0.92)
+    const door = this.rotatedOffset(-0.42, 1.14, rotation)
+    this.instance('doors', b.x + door.x, 0.72, b.z + door.z, 0.6, 1.24, 0.14, 0x463226, rotation)
+    for (const [lx, lz] of [[1.05, 0.85], [1.25, 0.25], [0.95, -0.38]] as const) {
+      const basket = this.rotatedOffset(lx, lz, rotation)
+      this.instance('baskets', b.x + basket.x, 0.2, b.z + basket.z, 0.62, 0.62, 0.62, 0x927045, rotation)
+    }
+    const rack = this.rotatedOffset(-1.35, -0.15, rotation)
+    for (const lx of [-0.42, 0.42]) {
+      const post = this.rotatedOffset(-1.35 + lx, -0.15, rotation)
+      this.instance('timber', b.x + post.x, 0.76, b.z + post.z, 0.1, 1.48, 0.1, 0x4d3729, rotation)
+    }
+    this.instance('timber', b.x + rack.x, 1.43, b.z + rack.z, 1.05, 0.1, 0.1, 0x553c2c, rotation)
+    const net = this.rotatedOffset(-1.35, 0.0, rotation)
+    this.instance('cloth', b.x + net.x, 0.83, b.z + net.z, 1.0, 0.06, 1.12, 0x7d7a61, rotation)
+    for (let i = 0; i < 3; i++) {
+      const barrel = this.rotatedOffset(-0.75 + i * 0.52, 1.34, rotation)
+      this.instance('barrels', b.x + barrel.x, 0.3, b.z + barrel.z, 0.38, 0.6, 0.38, 0x6c4b32, rotation)
+    }
+    this.frontageClutter(b, rotation, b.id + 97, 0.82)
+  }
+
+  private renderPleasureHouse(b: Building, rotation: number, color: number, night: number, time: number, activity: number): void {
+    this.renderYard(b, rotation, 3.25, 0x675044)
+    this.timberFrame(b, rotation, 3.0, 2.72, 2.08, color, this.readableNightColor(0x503741, night), 1.3)
+    const door = this.rotatedOffset(0, 1.42, rotation)
+    this.instance('doors', b.x + door.x, 0.88, b.z + door.z, 0.72, 1.5, 0.14, 0x3f2928, rotation)
+    for (const [index, lx] of [-0.84, 0.84].entries()) {
+      const win = this.rotatedOffset(lx, 1.46, rotation)
+      this.framedWindow(b.x + win.x, 1.34, b.z + win.z, rotation, night, 0.42, 0.52, b.id + 110 + index)
+    }
+    const canopy = this.rotatedOffset(0, 1.76, rotation)
+    this.instance('cloth', b.x + canopy.x, 1.72, b.z + canopy.z, 2.55, 0.1, 0.82, 0x7b3f55, rotation)
+    const signPost = this.rotatedOffset(1.48, 1.05, rotation)
+    this.instance('timber', b.x + signPost.x, 1.35, b.z + signPost.z, 0.11, 1.65, 0.11, 0x493126, rotation)
+    this.instance('cloth', b.x + signPost.x, 1.8, b.z + signPost.z, 0.7, 0.52, 0.06, 0x8d4962, rotation)
+    if (night > 0.12 && b.inventory.ale > 0) {
+      this.instance('glow', b.x + signPost.x, 1.65, b.z + signPost.z, 0.34, 0.28, 0.34, 0xffb060)
+      this.warmGroundPool(b.x, b.z + 0.8, 5.4, 0.46, night)
+    }
+    if (activity > 0.15) {
+      for (let i = 0; i < 2; i++) {
+        const o = this.rotatedOffset(-0.48 + i * 0.96, 1.92 + Math.sin(time * 0.5 + i) * 0.1, rotation)
+        this.instance('entertainer', b.x + o.x, 0.46, b.z + o.z, 0.72, 0.95, 0.72, i ? 0x6f4861 : 0x87546b, rotation + i * 0.2)
+      }
+    }
+    for (const lx of [-1.1, 1.05]) {
+      const barrel = this.rotatedOffset(lx, 1.48, rotation)
+      this.instance('barrels', b.x + barrel.x, 0.32, b.z + barrel.z, 0.4, 0.64, 0.4, 0x704830, rotation)
+    }
+    this.frontageClutter(b, rotation, b.id + 121, 1.02)
+  }
+
   private renderFortification(b: Building, rotation: number, color: number): void {
     if (b.type === 'wood-wall') {
       // Vertical sharpened palisade stakes replace the old horizontal log-kit look.
@@ -2472,8 +2589,15 @@ export class SceneRenderer {
     }
 
     for (const n of state.nodes) {
-      if (n.remaining <= 0) continue
       if (state.map && (n.x - this.focus.x) ** 2 + (n.z - this.focus.z) ** 2 > Math.max(90, this.zoom * 1.6) ** 2) continue
+      if (n.resource === 'wood' && n.planted && n.remaining <= 0 && (n.growth ?? 0) < 1) {
+        const growth = Math.max(0.15, n.growth ?? 0.15)
+        const scale = 0.28 + growth * 0.72
+        this.instance('treeTrunk', n.x, 0.48 * scale, n.z, 0.48 * scale, 0.95 * scale, 0.48 * scale, 0x563d2b, n.id * 0.17)
+        this.instance('wood', n.x, 1.08 * scale, n.z, 0.82 * scale, 0.72 * scale, 0.82 * scale, 0x496447, n.id * 0.23)
+        continue
+      }
+      if (n.remaining <= 0) continue
       if (state.map && n.resource === 'wood') {
         const scale = 1.3 + (n.id % 13) * 0.065
         const far = Math.hypot(n.x - this.focus.x, n.z - this.focus.z) > 80 || this.zoom > 150
@@ -2646,6 +2770,17 @@ export class SceneRenderer {
         this.renderBlacksmith(b, rotation, baseColor, time, night, productionPhaseActive)
       } else if (b.type === 'farmhouse') {
         this.renderFarmhouse(b, rotation, baseColor, night)
+      } else if (b.type === 'foresters-lodge') {
+        this.renderForestersLodge(b, rotation, baseColor, night)
+      } else if (b.type === 'mine') {
+        this.renderMine(b, rotation, baseColor, night)
+      } else if (b.type === 'ore-yard') {
+        this.renderOreYard(b, rotation, baseColor)
+      } else if (b.type === 'fishing-hut') {
+        this.renderFishingHut(b, rotation, baseColor, night)
+      } else if (b.type === 'pleasure-house') {
+        const activity = state.enemies.length === 0 && b.inventory.ale > 0 ? Math.max(atmosphere.twilight, night * 0.78) : 0
+        this.renderPleasureHouse(b, rotation, baseColor, night, time, activity)
       } else {
         this.instance('buildings', b.x, 0.4, b.z, 2.8, 0.8, 2.8, baseColor, rotation)
       }
@@ -2656,7 +2791,7 @@ export class SceneRenderer {
       }
 
       if (b.complete && (b.health < b.maxHealth || b.id === selectedId)) {
-        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.8 : b.type === 'tavern' ? 3.65 : b.type === 'brewery' || b.type === 'blacksmith' || b.type === 'farmhouse' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.8
+        const barY = def.fortification ? 2.2 : b.type === 'house' ? 3.8 : b.type === 'tavern' || b.type === 'pleasure-house' ? 3.65 : b.type === 'brewery' || b.type === 'blacksmith' || b.type === 'farmhouse' || b.type === 'foresters-lodge' || b.type === 'mine' || b.type === 'fishing-hut' ? 3.55 : b.type === 'campfire' ? 1.15 : 2.8
         this.healthBar(b.x, barY, b.z, b.health, b.maxHealth, def.fortification ? 1.1 : 2.2)
       }
 
