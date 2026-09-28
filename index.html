@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="./src/manuscript-art.css?v=77b21371" />
     <link rel="stylesheet" href="./src/construction-reference-layout.css?v=9fd5c01b" />
     <link rel="stylesheet" href="./src/construction-ui-shell.css?v=82f992ea" />
+    <link rel="stylesheet" href="./src/manor-reference-ui.css?v=16e94ac9" />
   </head>
   <body>
     <div id="app"></div>
@@ -67,7 +68,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'all-features-bb7e7d81')
+        entryUrl.searchParams.set('runtime', 'reference-ui-1a3546f7')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {
