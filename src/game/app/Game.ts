@@ -4,21 +4,16 @@ import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, type ResourceId } from '../data/resources'
 import { SceneRenderer } from '../render/SceneRenderer'
 import {
-  assignHousing,
   cancelBuilding,
   demolishBuilding,
-  freeStorage,
   placeBuilding,
   placeBuildingBatch,
   placementBatchError,
   placementError,
-  stockpiles,
   wallLinePoints,
 } from '../systems/construction/Buildings'
-import { damageBuilding } from '../systems/combat/Combat'
 import { distance } from '../world/Navigation'
-import { forceImmigrationIfEligible } from '../systems/population/Population'
-import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../persistence/SaveLoad'
+import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld } from '../persistence/SaveLoad'
 import { Simulation } from '../runtime/Simulation'
 import {
   backyardForPlot,
@@ -40,12 +35,13 @@ import {
 import {
   createField, fieldArea, fieldPlacementError, nearestFarmhouseForField, pointInField, residentialPlotFieldError,
 } from '../world/FieldPlanning'
-import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../model/WorldState'
+import { createInitialWorldState, type Point } from '../model/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../systems/population/Workforce'
 import { nextStockpilePriority, stockpilePriorityLabel } from '../systems/economy/StockpileLogistics'
 import { haulPriorityLabel, nextHaulPriority } from '../systems/economy/WorkplaceLogistics'
 import { adjustTradeReserve, nextTradeMode, tradeModeLabel } from '../systems/economy/Trading'
 import { Hud, type Metrics } from '../ui/Hud'
+import { runQaAction } from '../qa/QaActions'
 import { InputController } from './InputController'
 
 export class Game {
@@ -651,6 +647,20 @@ export class Game {
   private readonly action = (action: string, value?: string): void => {
     const s = this.simulation.state
     try {
+      const qa = runQaAction(action, value, {
+        state: s,
+        selectedId: this.selectedId,
+        simulation: this.simulation,
+        renderer: this.renderer,
+      })
+      if (qa.handled) {
+        if ('selectedId' in qa) this.selectedId = qa.selectedId ?? null
+        if (qa.message !== undefined) this.message = qa.message
+        this.updateGhost()
+        this.updateHud()
+        return
+      }
+
       switch (action) {
         case 'road':
           this.buildType = null
@@ -921,165 +931,12 @@ export class Game {
         }
         case 'pause': this.paused = !this.paused; this.accumulator = 0; break
         case 'speed': this.speed = Number(value); break
-        case 'time': this.simulation.setTimeOfDay(Number(value) / 24); break
-        case 'jump-day': this.simulation.setTimeOfDay(12 / 24); break
-        case 'jump-dusk': this.simulation.setTimeOfDay(18 / 24); break
-        case 'jump-night': this.simulation.setTimeOfDay(21 / 24); break
-        case 'jump-dawn': this.simulation.setTimeOfDay(5 / 24); break
-        case 'next-raid': {
-          this.simulation.setTimeOfDay(5 / 24)
-          if (s.raid.lastSpawnDay === s.day) s.day++
-          this.simulation.setTimeOfDay(6 / 24)
-          this.simulation.setTimeOfDay(21 / 24)
-          this.message = 'Advanced to raid wave ' + s.raid.wave + '. The new day meal and needs update were processed first.'
-          break
-        }
         case 'target-wood': case 'target-food': case 'target-ore': {
           const resource = action === 'target-wood' ? 'wood' : action === 'target-food' ? 'food' : 'ore'
           const target = Math.max(0, Math.min(10_000, Math.round(Number(value))))
           if (!Number.isFinite(target)) throw new Error('Stock target must be a number.')
           s.targets[resource] = target
           this.message = resource[0].toUpperCase() + resource.slice(1) + ' stock target set to ' + target + '.'
-          break
-        }
-        case 'damage-selected': {
-          const building = s.buildings.find(b => b.id === this.selectedId && b.complete)
-          if (!building) { this.message = 'Select a completed structure first.'; break }
-          const destroyed = damageBuilding(s, building, 60)
-          assignHousing(s)
-          this.message = destroyed
-            ? 'QA destroyed the selected fortification. Daylight repair can rebuild it.'
-            : 'QA dealt 60 structure damage. Daylight workers will repair it with wood.'
-          break
-        }
-        case 'needs-low':
-          for (const settler of s.settlers) settler.needs = { food: 25, housing: 25, safety: 25, recreation: 25 }
-          this.message = 'QA set all settler needs to 25%.'; break
-        case 'needs-reset':
-          for (const settler of s.settlers) settler.needs = { food: 100, housing: 100, safety: 100, recreation: 100 }
-          this.message = 'QA reset all settler needs to 100%.'; break
-        case 'immigration-test': {
-          const result = forceImmigrationIfEligible(s)
-          this.message = result.message
-          break
-        }
-        case 'building-supply': {
-          const building = s.buildings.find(b => b.id === this.selectedId && b.complete && !b.destroyed)
-          if (!building) {
-            this.message = 'Select a completed producer or supplied service building first.'
-            break
-          }
-          const def = BUILDINGS[building.type]
-          const resource = def.service?.supplyResource ?? def.production?.inputResource ?? null
-          const capacity = def.service?.supplyResource
-            ? def.service.supplyCapacity
-            : def.production?.inputCapacity ?? 0
-          if (!resource || capacity <= 0) {
-            this.message = 'Select a completed producer or supplied service building first.'
-            break
-          }
-          const amount = Math.min(5, Math.max(0, capacity - building.inventory[resource]))
-          building.inventory[resource] += amount
-          this.message = amount > 0
-            ? 'QA added ' + amount + ' ' + resource + ' to ' + BUILDINGS[building.type].label + '.'
-            : BUILDINGS[building.type].label + ' input storage is already full.'
-          break
-        }
-        case 'paths': this.renderer.debug = value === 'true'; break
-        case 'spawn': this.message = spawnSettler(s) ? 'QA settler spawned directly in camp.' : 'M3.3 maximum remains 10 settlers.'; break
-        case 'resources': {
-          let added = 0
-          for (const resource of ['wood', 'food'] as const) {
-            let remaining = 50
-            for (const b of stockpiles(s)) {
-              const amount = Math.min(remaining, freeStorage(s, b))
-              b.inventory[resource] += amount; remaining -= amount; added += amount
-            }
-          }
-          this.message = 'QA added ' + added + ' wood/food within unreserved storage capacity.'; break
-        }
-        case 'resources-ore': {
-          let remaining = 30
-          let added = 0
-          for (const b of stockpiles(s)) {
-            const amount = Math.min(remaining, freeStorage(s, b))
-            b.inventory.ore += amount
-            remaining -= amount
-            added += amount
-          }
-          this.message = 'QA added ' + added + ' Iron Ore within unreserved storage capacity.'; break
-        }
-        case 'town-visual': {
-          if (s.buildings.some(building => !(building.type === 'stockpile' && building.x === 0 && building.z === 0))) {
-            this.message = 'Town Center visual target is available on a fresh settlement only.'
-            break
-          }
-          const starter = s.buildings.find(building => building.type === 'stockpile' && building.x === 0 && building.z === 0)!
-          starter.inventory.wood = 220
-          starter.inventory.food = 120
-          starter.inventory.ale = 8
-          starter.inventory.ore = 18
-          starter.inventory.tools = 3
-
-          const plan: Array<[BuildingId, number, number, number]> = [
-            ['house', -7, -3, 0],
-            ['house', 7, -3, 0],
-            ['house', 0, -8, 0],
-            ['tavern', -5, 5, 1],
-            ['blacksmith', 5, 5, 3],
-            ['campfire', 0, 4, 0],
-            ['guard-post', 0, 9, 2],
-            ['wood-wall', -4, 12, 1],
-            ['wood-wall', -3, 12, 1],
-            ['wood-wall', -2, 12, 1],
-            ['wood-wall', -1, 12, 1],
-            ['wood-gate', 0, 12, 1],
-            ['wood-wall', 1, 12, 1],
-            ['wood-wall', 2, 12, 1],
-            ['wood-wall', 3, 12, 1],
-            ['wood-wall', 4, 12, 1],
-          ]
-          const built = plan.map(([type, x, z, rotation]) => createBuilding(s.nextId++, type, x, z, true, rotation))
-          const tavern = built.find(building => building.type === 'tavern')!
-          const smith = built.find(building => building.type === 'blacksmith')!
-          tavern.inventory.ale = 12
-          smith.inventory.ore = 12
-          s.buildings.push(...built)
-
-          const mainRoadId = s.nextId++
-          const southRoadId = s.nextId++
-          const lowerRoadId = s.nextId++
-          s.roads.push(
-            { id: mainRoadId, width: 1.7, points: [{ x: -11, z: 0 }, { x: -6, z: 0.2 }, { x: 0, z: 0 }, { x: 6, z: 0.15 }, { x: 11, z: 0 }] },
-            { id: southRoadId, width: 1.7, points: [{ x: 0, z: 0 }, { x: 0.2, z: -2.5 }, { x: 0, z: -5 }] },
-            { id: lowerRoadId, width: 1.65, points: [{ x: -4, z: -5 }, { x: 0, z: -5 }, { x: 4, z: -5 }] },
-          )
-          const houses = built.filter(building => building.type === 'house')
-          const plotSpecs = [
-            { buildingId: houses[0].id, roadId: mainRoadId, frontageA: { x: -9, z: 0 }, frontageB: { x: -5, z: 0 }, depth: 6, side: -1 as const, angle: 0 },
-            { buildingId: houses[1].id, roadId: mainRoadId, frontageA: { x: 5, z: 0 }, frontageB: { x: 9, z: 0 }, depth: 6, side: -1 as const, angle: 0 },
-            { buildingId: houses[2].id, roadId: lowerRoadId, frontageA: { x: -2.25, z: -5 }, frontageB: { x: 2.25, z: -5 }, depth: 6.5, side: -1 as const, angle: 0 },
-          ]
-          for (const spec of plotSpecs) {
-            const plotId = s.nextId++
-            s.residentialPlots.push({ id: plotId, ...spec, backyard: backyardForPlot(plotId, spec.depth) })
-          }
-
-          const clearSites = [{x:0,z:0}, ...built.map(building => ({x:building.x,z:building.z}))]
-          for (const node of s.nodes) {
-            if (clearSites.some(site => Math.hypot(site.x - node.x, site.z - node.z) < 3.1)) node.remaining = 0
-          }
-          s.topology++
-          assignHousing(s)
-          s.timeOfDay = 17.5 / 24
-          this.renderer.mode = 'settlement'
-          this.renderer.cinematic = true
-          this.renderer.focus.x = 0
-          this.renderer.focus.z = 2
-          this.renderer.angle = 0.62
-          this.renderer.zoom = 23
-          this.selectedId = tavern.id
-          this.message = 'M3.8.1 Town Center staged with player-road data and modular residential plots. Use 0 Road / 1 Residential Plot on a fresh run to test the actual tools.'
           break
         }
         case 'camera':
@@ -1171,7 +1028,6 @@ export class Game {
           break
         }
         case 'import-error': throw new Error(value || 'Could not read the selected save file.')
-        case 'audit': validateWorld(s); this.message = 'State integrity PASS: population attraction, needs, Ore/Tools production, services, raids, reservations and connectivity.'; break
       }
     } catch (error) { this.message = error instanceof Error ? error.message : 'Operation failed. Current settlement retained.' }
     this.updateGhost(); this.updateHud()
