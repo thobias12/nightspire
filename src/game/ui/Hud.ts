@@ -61,6 +61,11 @@ const BUILDING_DESCRIPTIONS: Record<BuildingId, string> = {
   market: 'A staffed food-distribution hub that supplies nearby households with daily meals.',
   'trading-post': 'A staffed regional trade hub that stores cargo, manages import/export policies and receives visiting merchants.',
   farmhouse: 'The center of local agriculture. Farmers sow nearby fields, harvest crops and return Food to the farm store.',
+  'foresters-lodge': 'A staffed woodland workplace. Foresters fell nearby mature trees and replant managed saplings that mature over several days.',
+  mine: 'A staffed extraction site that works nearby Ore deposits and buffers mined Ore for settlement haulers.',
+  'ore-yard': 'A dedicated high-capacity Ore logistics yard. It accepts Ore only, keeping heavy mineral hauling separate from general stockpiles.',
+  'fishing-hut': 'A staffed renewable food workplace. Fishers steadily land Food during the working day without exhausting inland forage.',
+  'pleasure-house': 'A staffed mature recreation service for late evening and night. It consumes Ale and provides the strongest recreation service while the settlement is safe.',
 }
 interface CatalogPreview {
   title: string
@@ -271,6 +276,7 @@ export class Hud {
           <div class="build-panel" data-build-panel="logistics">
             <button class="build-card" data-action="stockpile" data-building-type="stockpile" title="Hotkey 2"><span class="build-art-slot" data-art-slot="build-stockpile" aria-hidden="true"></span><span class="build-name">Stockpile</span><small class="build-card-icons" aria-label="Storage"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="category:logistics"></span></span></small></button>
             <button class="build-card" data-action="trading-post" data-building-type="trading-post" title="Hotkey T"><span class="build-art-slot" data-art-slot="build-trading-post" aria-hidden="true"></span><span class="build-name">Trading Post</span><small class="build-card-icons" aria-label="Gold"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:gold"></span></span></small></button>
+            <button class="build-card" data-action="ore-yard" data-building-type="ore-yard"><span class="build-art-slot" data-art-slot="build-ore-yard" aria-hidden="true"></span><span class="build-name">Ore Yard</span><small class="build-card-icons" aria-label="Ore storage"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:ore"></span></span></small></button>
             <div class="planned-divider"><span>Planned</span></div>
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-granary" aria-hidden="true"></span><span class="build-name">Granary</span><small class="build-card-icons" aria-label="Food"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:food"></span></span></small></button>
           </div>
@@ -279,10 +285,12 @@ export class Hud {
             <button class="build-card" data-action="farmhouse" data-building-type="farmhouse" title="Hotkey A"><span class="build-art-slot" data-art-slot="build-farmhouse" aria-hidden="true"></span><span class="build-name">Farmhouse</span><small class="build-card-icons" aria-label="Food"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:food"></span></span></small></button>
             <button class="build-card" data-action="brewery" data-building-type="brewery" title="Hotkey 4"><span class="build-art-slot" data-art-slot="build-brewery" aria-hidden="true"></span><span class="build-name">Brewery</span><small class="build-card-icons" aria-label="Ale"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:ale"></span></span></small></button>
             <button class="build-card" data-action="blacksmith" data-building-type="blacksmith" title="Hotkey 9"><span class="build-art-slot" data-art-slot="build-blacksmith" aria-hidden="true"></span><span class="build-name">Blacksmith</span><small class="build-card-icons" aria-label="Tools"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:tools"></span></span></small></button>
+            <button class="build-card" data-action="foresters-lodge" data-building-type="foresters-lodge"><span class="build-art-slot" data-art-slot="build-foresters-lodge" aria-hidden="true"></span><span class="build-name">Forester's Lodge</span><small class="build-card-icons" aria-label="Wood"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:wood"></span></span></small></button>
+            <button class="build-card" data-action="mine" data-building-type="mine"><span class="build-art-slot" data-art-slot="build-mine" aria-hidden="true"></span><span class="build-name">Mine</span><small class="build-card-icons" aria-label="Ore"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:ore"></span></span></small></button>
+            <button class="build-card" data-action="fishing-hut" data-building-type="fishing-hut"><span class="build-art-slot" data-art-slot="build-fishing-hut" aria-hidden="true"></span><span class="build-name">Fisherman's Hut</span><small class="build-card-icons" aria-label="Food"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:food"></span></span></small></button>
             <div class="planned-divider"><span>Planned</span></div>
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-bakery" aria-hidden="true"></span><span class="build-name">Bakery</span><small class="build-card-icons" aria-label="Food"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:food"></span></span></small></button>
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-quarry" aria-hidden="true"></span><span class="build-name">Quarry</span><small class="build-card-icons" aria-label="Stone"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="category:industry"></span></span></small></button>
-            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-mine" aria-hidden="true"></span><span class="build-name">Mine</span><small class="build-card-icons" aria-label="Ore"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="resource:ore"></span></span></small></button>
           </div>
 
           <div class="build-panel" data-build-panel="services">
@@ -293,7 +301,7 @@ export class Hud {
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-well" aria-hidden="true"></span><span class="build-name">Well</span><small class="build-card-icons" aria-label="Water service"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="category:services"></span></span></small></button>
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-chapel" aria-hidden="true"></span><span class="build-name">Chapel</span><small class="build-card-icons" aria-label="Faith service"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="category:services"></span></span></small></button>
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-bathhouse" aria-hidden="true"></span><span class="build-name">Bathhouse</span><small class="build-card-icons" aria-label="Bathhouse service"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="category:services"></span></span></small></button>
-            <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-pleasure-house" aria-hidden="true"></span><span class="build-name">Pleasure House</span><small class="build-card-icons" aria-label="Recreation"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="service:recreation"></span></span></small></button>
+            <button class="build-card" data-action="pleasure-house" data-building-type="pleasure-house"><span class="build-art-slot" data-art-slot="build-pleasure-house" aria-hidden="true"></span><span class="build-name">Pleasure House</span><small class="build-card-icons" aria-label="Recreation"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="service:recreation"></span></span></small></button>
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-manor" aria-hidden="true"></span><span class="build-name">Manor</span><small class="build-card-icons" aria-label="Civic service"><span class="build-card-product-medallion" aria-hidden="true"><span class="build-card-product-icon" data-ui-asset="category:services"></span></span></small></button>
           </div>
 
@@ -550,6 +558,9 @@ export class Hud {
       if (def.agricultureStorageCapacity) detailParts.push(def.agricultureStorageCapacity + ' Food storage')
       if (def.production) {
         detailParts.push(RESOURCES[def.production.inputResource].label + ' → ' + RESOURCES[def.production.outputResource].label)
+      } else if (def.resourceOperation) {
+        detailParts.push((def.resourceOperation.renewable ? 'Renewable ' : '') + RESOURCES[def.resourceOperation.resource].label + ' operation')
+        if (def.resourceOperation.replant) detailParts.push('Replants saplings')
       } else if (def.service) {
         detailParts.push(def.service.slots + ' visitor slots')
       } else if (def.foodDistribution) {
@@ -561,7 +572,7 @@ export class Hud {
 
       return {
         title: def.label,
-        category: def.fortification ? 'Defense' : def.production ? 'Industry' : def.service || def.foodDistribution ? 'Services' : buildingType === 'stockpile' || buildingType === 'trading-post' ? 'Logistics' : 'Construction',
+        category: def.fortification ? 'Defense' : def.production || def.resourceOperation ? 'Industry' : def.service || def.foodDistribution ? 'Services' : buildingType === 'stockpile' || buildingType === 'trading-post' || buildingType === 'ore-yard' ? 'Logistics' : 'Construction',
         description: BUILDING_DESCRIPTIONS[buildingType],
         detail: detailParts.join(' · '),
         requirement,
@@ -698,7 +709,7 @@ export class Hud {
     const services = serviceSummary(s, phase)
     const taverns = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'tavern')
     const breweries = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'brewery')
-    const suppliedTaverns = taverns.filter(serviceAvailable).length
+    const suppliedTaverns = taverns.filter(building => serviceAvailable(building, s)).length
     const needSummary = settlementNeeds(s)
     const moraleSummary = settlementHappinessEffect(s)
     const toolSummary = toolCoverage(s)
@@ -1058,7 +1069,7 @@ export class Hud {
             const assignments = serviceAssignments(s, phase)
             const visitorIds = [...assignments.entries()].filter(([, assignment]) => assignment.buildingId === b.id).map(([id]) => id)
             const visitors = visitorIds.map(id => s.settlers.find(settler => settler.id === id)).filter((settler): settler is Settler => !!settler)
-            const supplied = serviceAvailable(b)
+            const supplied = serviceAvailable(b, s)
             const supply = service.supplyResource
             const supplyText = supply
               ? '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:' + supply + '"></span><b>' + RESOURCES[supply].label + '</b><em>' + b.inventory[supply] + ' / ' + service.supplyCapacity + '</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory[supply], service.supplyCapacity) + '%"></i></div></div>'
@@ -1303,7 +1314,7 @@ export class Hud {
     gridSnap.setAttribute('aria-pressed', String(ui.gridSnap))
     roadCurve.setAttribute('aria-pressed', String(ui.roadCurve > 0.05))
     roadSnap.setAttribute('aria-pressed', String(ui.roadSnap))
-    for (const type of ['stockpile', 'guard-post', 'campfire', 'brewery', 'tavern', 'blacksmith', 'farmhouse', 'market', 'trading-post', 'wood-wall', 'wood-gate']) {
+    for (const type of ['stockpile', 'ore-yard', 'guard-post', 'campfire', 'brewery', 'tavern', 'pleasure-house', 'blacksmith', 'farmhouse', 'foresters-lodge', 'mine', 'fishing-hut', 'market', 'trading-post', 'wood-wall', 'wood-gate']) {
       const button = this.element.querySelector<HTMLButtonElement>('[data-action="' + type + '"]')!
       button.setAttribute('aria-pressed', String(ui.buildType === type))
       const definition = BUILDINGS[type as BuildingId]

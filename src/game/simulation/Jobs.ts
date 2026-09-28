@@ -56,6 +56,7 @@ export function assignJobs(state: WorldState): void {
   const repairInventory = repairSources(state)
   const operating = state.buildings.filter(b => b.complete && !b.destroyed)
   const producers = operating.filter(b => BUILDINGS[b.type].production)
+  const extractors = operating.filter(b => BUILDINGS[b.type].resourceOperation)
   const farmhouses = operating.filter(b => (BUILDINGS[b.type].agricultureStorageCapacity ?? 0) > 0)
   const sites = state.buildings.filter(b => !b.complete)
   const battlefield = state.remains
@@ -201,6 +202,29 @@ export function assignJobs(state: WorldState): void {
         stage: 'source',
         progress: 0,
       }, workplaceHaulScore(source, source.inventory[resource] >= production.outputCapacity - production.outputAmount))
+    }
+
+    // Raw output from staffed extraction workplaces also enters settlement storage.
+    for (const source of extractors) {
+      const operation = BUILDINGS[source.type].resourceOperation!
+      const resource = operation.resource
+      const amountAvailable = Math.max(0, source.inventory[resource] - index.pickup(source.id, resource))
+      if (amountAvailable <= 0) continue
+
+      const store = stores
+        .filter(candidate => candidate.id !== source.id && stockpileAccepts(candidate, resource) && freeStorage(state, candidate, index) > 0)
+        .sort((a, b) => compareStockpileDestinations(a, b, source))[0]
+      if (!store) continue
+
+      offer({
+        kind: 'supply',
+        sourceId: source.id,
+        targetId: store.id,
+        resource,
+        amount: Math.min(CARRY_CAPACITY, amountAvailable, freeStorage(state, store, index)),
+        stage: 'source',
+        progress: 0,
+      }, source.inventory[resource] >= operation.outputCapacity - 2 ? 390 : 350)
     }
 
     // Production inputs and service supplies are sourced from stockpiles only.
