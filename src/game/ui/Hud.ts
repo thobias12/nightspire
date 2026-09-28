@@ -32,7 +32,8 @@ import {
   needLabel,
   needMeter,
   percentage,
-  personCard
+  personCard,
+  portraitAsset,
 } from './HudContent'
 import { createHudTemplate } from './HudTemplate'
 import { catalogPreviewFor } from './HudCatalog'
