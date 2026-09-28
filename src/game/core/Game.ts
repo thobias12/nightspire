@@ -517,6 +517,19 @@ export class Game {
     this.updateHud()
   }
   start(): void { if (!this.animationFrame) this.animationFrame = requestAnimationFrame(this.tick) }
+  loadPrimarySave(): boolean {
+    const saved = localStorage.getItem(SAVE_KEY)
+    if (!saved) return false
+    try {
+      this.replaceWorld(saved)
+      this.message = 'Loaded local settlement.'
+      this.updateHud()
+      return true
+    } catch (error) {
+      console.error('Failed to load Nightspire save from main menu.', error)
+      return false
+    }
+  }
   stop(): void {
     cancelAnimationFrame(this.animationFrame); this.animationFrame = 0
     this.abort.abort(); this.resizeObserver.disconnect(); this.input.dispose(); this.hud.dispose(); this.renderer.dispose()
