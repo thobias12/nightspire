@@ -2,6 +2,7 @@ import './style.css'
 import './manuscript-art.css'
 import './construction-reference-layout.css'
 import './construction-ui-shell.css'
+import './manor-reference-ui.css'
 import { BenchmarkApp } from './game/benchmark/BenchmarkApp'
 import { Game } from './game/core/Game'
 
