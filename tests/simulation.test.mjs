@@ -22,6 +22,9 @@ const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.te
 const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
 const { updateProduction } = require('../.test-build/game/simulation/Production.js')
 const {
+  FORESTER_TREE_TARGET, SAPLING_GROWTH_PER_DAY, processForestryDay, updateResourceWorkplaces,
+} = require('../.test-build/game/simulation/ResourceWorkplaces.js')
+const {
   assignWorkerToWorkplace, professionLabel, workplaceStaffing,
 } = require('../.test-build/game/simulation/Workforce.js')
 const {
@@ -2972,4 +2975,89 @@ test('M3.11.7 agriculture summary exposes field stages and Farmhouse Food', () =
   assert.equal(summary.farmFood,12)
   assert.equal(summary.expected,ready.yield)
   validateWorld(s)
+})
+
+
+test('Foresters, Miners and Fishers run staffed resource operations with bounded workplace buffers', () => {
+  const state = createInitialWorldState()
+  const worker = state.settlers[0]
+  const target = { x: 8, z: 8 }
+  worker.x = target.x
+  worker.z = target.z + 2
+
+  const lodge = createBuilding(state.nextId++, 'foresters-lodge', target.x, target.z, true)
+  state.buildings.push(lodge)
+  worker.workplaceId = lodge.id
+  const lodgeDoor = entrance(lodge)
+  worker.x = lodgeDoor.x; worker.z = lodgeDoor.z
+  const tree = { id: state.nextId++, x: target.x + 4, z: target.z, resource: 'wood', remaining: 3 }
+  state.nodes.push(tree)
+  updateResourceWorkplaces(state, 18, 'day')
+  assert.equal(lodge.inventory.wood, 1)
+  assert.equal(tree.remaining, 2)
+
+  const mine = createBuilding(state.nextId++, 'mine', -8, 8, true)
+  state.buildings.push(mine)
+  worker.workplaceId = mine.id
+  const mineDoor = entrance(mine)
+  worker.x = mineDoor.x; worker.z = mineDoor.z
+  const ore = { id: state.nextId++, x: -4, z: 8, resource: 'ore', remaining: 3 }
+  state.nodes.push(ore)
+  updateResourceWorkplaces(state, 24, 'day')
+  assert.equal(mine.inventory.ore, 1)
+  assert.equal(ore.remaining, 2)
+
+  const fishery = createBuilding(state.nextId++, 'fishing-hut', -8, -8, true)
+  state.buildings.push(fishery)
+  worker.workplaceId = fishery.id
+  const fishDoor = entrance(fishery)
+  worker.x = fishDoor.x; worker.z = fishDoor.z
+  updateResourceWorkplaces(state, 18, 'day')
+  assert.equal(fishery.inventory.food, 1)
+  assert.ok(fishery.inventory.food <= 24)
+})
+
+test('Foresters replant exhausted tree stands and managed saplings mature over multiple days', () => {
+  const state = createInitialWorldState()
+  state.nodes = []
+  const lodge = createBuilding(state.nextId++, 'foresters-lodge', 8, 8, true)
+  state.buildings.push(lodge)
+  const exhausted = { id: state.nextId++, x: 12, z: 8, resource: 'wood', remaining: 0 }
+  state.nodes.push(exhausted)
+
+  processForestryDay(state)
+  assert.equal(exhausted.planted, true)
+  assert.ok(exhausted.growth >= 0.15)
+  assert.ok(state.nodes.filter(node => node.resource === 'wood' && Math.hypot(node.x - lodge.x, node.z - lodge.z) <= 26).length <= FORESTER_TREE_TARGET)
+
+  exhausted.growth = 1 - SAPLING_GROWTH_PER_DAY
+  processForestryDay(state)
+  assert.equal(exhausted.growth, 1)
+  assert.equal(exhausted.remaining, 18)
+
+  const restored = deserializeWorld(serializeWorld(state))
+  assert.equal(restored.nodes.find(node => node.id === exhausted.id).planted, true)
+  assert.equal(restored.nodes.find(node => node.id === exhausted.id).remaining, 18)
+})
+
+test('Ore Yard is dedicated mineral storage and Pleasure House is a staffed safe-night service', () => {
+  const state = createInitialWorldState()
+  const yard = createBuilding(state.nextId++, 'ore-yard', 8, 8, true)
+  state.buildings.push(yard)
+  assert.equal(stockpileAccepts(yard, 'ore'), true)
+  assert.equal(stockpileAccepts(yard, 'wood'), false)
+  assert.equal(stockpileAccepts(yard, 'food'), false)
+
+  const pleasure = createBuilding(state.nextId++, 'pleasure-house', -8, -8, true)
+  state.buildings.push(pleasure)
+  pleasure.inventory.ale = 4
+  const host = state.settlers[0]
+  host.workplaceId = pleasure.id
+  const door = entrance(pleasure)
+  host.x = door.x; host.z = door.z
+  assert.equal(serviceAvailable(pleasure, state), true)
+  assert.ok(serviceAssignments(state, 'night').size > 0)
+
+  state.enemies.push({ id: state.nextId++, kind: 'raider', targetId: 0, x: 0, z: 0, health: 10, maxHealth: 10, attackCooldown: 0, lastHitTick: 0, path: [], pathRevision: -1, status: 'Raid' })
+  assert.equal(serviceAssignments(state, 'night').size, 0)
 })

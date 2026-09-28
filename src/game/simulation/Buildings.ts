@@ -41,9 +41,10 @@ export function resourceCapacity(b: Building, resource: ResourceId): number {
   if (def.storage > 0) return def.storage
   const supply = supplyCapacity(b, resource)
   const output = def.production?.outputResource === resource ? def.production.outputCapacity : 0
+  const extraction = def.resourceOperation?.resource === resource ? def.resourceOperation.outputCapacity : 0
   const trade = def.tradeStorageCapacity ?? 0
   const agriculture = resource === 'food' ? (def.agricultureStorageCapacity ?? 0) : 0
-  return Math.max(supply, output, trade, agriculture)
+  return Math.max(supply, output, extraction, trade, agriculture)
 }
 
 export function supplyFree(state: WorldState, b: Building, resource: ResourceId, index?: JobReservations): number {

@@ -3,6 +3,7 @@ import { BUILDINGS, type ServiceNeedId } from '../data/buildings'
 import type { DayPhase } from './DayNight'
 import { blockedCells, cellKey, distance, inBounds } from './Navigation'
 import type { Building, Point, Settler, WorldState } from './WorldState'
+import { workplaceStaffing } from './Workforce'
 
 export const SERVICE_COVERAGE_RADIUS = 18
 
@@ -40,9 +41,11 @@ function perimeterPoints(building: Building): Point[] {
   return points
 }
 
-export function serviceAvailable(building: Building): boolean {
-  const service = BUILDINGS[building.type].service
+export function serviceAvailable(building: Building, state?: WorldState): boolean {
+  const def = BUILDINGS[building.type]
+  const service = def.service
   if (!service || !building.complete || building.destroyed) return false
+  if (state && (def.workerSlots ?? 0) > 0 && workplaceStaffing(state, building).active <= 0) return false
   if (service.supplyResource === null) return true
   return building.inventory[service.supplyResource] > 0
 }
@@ -53,13 +56,13 @@ export function serviceAssignments(
   need: ServiceNeedId = 'recreation',
 ): Map<number, ServiceAssignment> {
   const assignments = new Map<number, ServiceAssignment>()
-  if (phase !== 'dusk' && phase !== 'dawn') return assignments
+  if (phase === 'day' || (phase === 'night' && state.enemies.length > 0)) return assignments
 
   const blocked = blockedCells(state, false)
   const providers = state.buildings
     .filter(building => {
       const service = BUILDINGS[building.type].service
-      return serviceAvailable(building) && service?.need === need && service.activePhases.includes(phase)
+      return serviceAvailable(building, state) && service?.need === need && service.activePhases.includes(phase)
     })
     .sort((a, b) => {
       const sa = BUILDINGS[a.type].service!
@@ -141,7 +144,7 @@ export function updateServices(state: WorldState, delta: number, phase: DayPhase
     }
 
     const visitors = activeByBuilding.get(building.id) ?? 0
-    if (!serviceAvailable(building) || visitors === 0 || !service.activePhases.includes(phase)) {
+    if (!serviceAvailable(building, state) || visitors === 0 || !service.activePhases.includes(phase)) {
       if (visitors === 0) building.serviceProgress = 0
       continue
     }
@@ -182,6 +185,6 @@ export function serviceSummary(state: WorldState, phase: DayPhase): ServiceSumma
     providers: providers.length,
     slots,
     activeVisitors,
-    suppliedProviders: providers.filter(serviceAvailable).length,
+    suppliedProviders: providers.filter(building => serviceAvailable(building, state)).length,
   }
 }

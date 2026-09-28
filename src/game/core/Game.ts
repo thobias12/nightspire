@@ -713,7 +713,7 @@ export class Game {
           this.renderer.mode = 'settlement'
           this.message = 'Residential Plot: start close to a road, then drag frontage + backyard depth. ' + (this.gridSnap ? 'Grid Snap rounds width/depth to 1m.' : 'Freeform dimensions enabled.')
           break
-        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market': case 'trading-post': case 'farmhouse':
+        case 'house': case 'stockpile': case 'guard-post': case 'wood-wall': case 'wood-gate': case 'campfire': case 'tavern': case 'brewery': case 'blacksmith': case 'market': case 'trading-post': case 'farmhouse': case 'foresters-lodge': case 'mine': case 'ore-yard': case 'fishing-hut': case 'pleasure-house':
           this.buildType = action
           this.planningTool = null
           this.planningStart = null
