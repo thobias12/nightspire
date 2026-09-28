@@ -13,70 +13,9 @@ import { residentialPresentationProfile, type ResidentialPresentationProfile } f
 import { TOWN_PALETTE } from './TownPresentation'
 import { RoadTerrain } from './RoadTerrain'
 import { roadCoverageAt, ROAD_GRASS_LIMIT, ROAD_STONE_LIMIT } from './RoadSurface'
+import { createCartWheelGeometry, createGableRoofGeometry, createRadialGlowTexture, createRoofCourseGeometry } from './RenderPrimitives'
 
 export type CameraMode = 'settlement' | 'follow'
-
-function createGableRoofGeometry(): THREE.BufferGeometry {
-  const indexed = new THREE.BufferGeometry()
-  const vertices = new Float32Array([
-    -0.5, 0, -0.5,
-     0.5, 0, -0.5,
-     0, 0.5, -0.5,
-    -0.5, 0,  0.5,
-     0.5, 0,  0.5,
-     0, 0.5,  0.5,
-  ])
-
-  // Outward-facing front/back gables and the two roof slopes only.
-  // Deliberately omit the horizontal underside: the old mesh wound every face
-  // inward and left an upward-facing bottom exactly coplanar with the wall top,
-  // which caused the full-roof zoom-dependent z-fighting seen in live videos.
-  const indices = [
-    0, 2, 1, // front gable (-Z)
-    3, 4, 5, // back gable (+Z)
-    0, 3, 5, 0, 5, 2, // left roof slope
-    1, 2, 5, 1, 5, 4, // right roof slope
-  ]
-  indexed.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-  indexed.setIndex(indices)
-
-  const geometry = indexed.toNonIndexed()
-  indexed.dispose()
-  geometry.computeVertexNormals()
-  return geometry
-}
-
-function createRoofCourseGeometry(slope: number): THREE.BufferGeometry {
-  return new THREE.BoxGeometry(1, 1, 1).rotateZ(slope)
-}
-
-function createCartWheelGeometry(): THREE.BufferGeometry {
-  return new THREE.TorusGeometry(0.5, 0.09, 5, 10).rotateY(Math.PI / 2)
-}
-
-function createRadialGlowTexture(size = 64): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 4)
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const nx = (x + 0.5) / size * 2 - 1
-      const ny = (y + 0.5) / size * 2 - 1
-      const distance = Math.sqrt(nx * nx + ny * ny)
-      const falloff = Math.pow(Math.max(0, 1 - distance), 2.15)
-      const offset = (y * size + x) * 4
-      const mask = Math.round(falloff * 255)
-      data[offset] = mask
-      data[offset + 1] = mask
-      data[offset + 2] = mask
-      data[offset + 3] = 255
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
-  texture.magFilter = THREE.LinearFilter
-  texture.minFilter = THREE.LinearFilter
-  texture.generateMipmaps = false
-  texture.needsUpdate = true
-  return texture
-}
 
 export class SceneRenderer {
   overflowInstances = 0

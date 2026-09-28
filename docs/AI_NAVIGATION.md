@@ -65,3 +65,52 @@ Do **not** create barrel `index.ts` files just for convenience. Direct imports m
 ## Navigation primitives
 
 `world/Grid.ts` owns packed grid keys and dependency-free point math. Do not duplicate `cellKey` to escape a cycle; move low-level shared primitives downward instead.
+
+## Fast change recipes
+
+Use the narrowest path that owns the behavior:
+
+| Goal | Read first | Avoid unless required |
+| --- | --- | --- |
+| add a building | `data/buildings.ts` + owning `systems/*` module | bespoke rules in `Game.ts` / renderer |
+| add persisted state | `model/WorldState.ts` → `persistence/SaveMigrations.ts` + `SaveLoad.ts` | silent defaults in UI/runtime |
+| change save compatibility | `persistence/SaveMigrations.ts` | mixing migration mutations into validation |
+| add QA/debug controls | `qa/QaActions.ts` | expanding the production Game action switch |
+| add reusable Three.js geometry | `render/RenderPrimitives.ts` | another top-level helper inside `SceneRenderer.ts` |
+| change simulation ordering | `runtime/Simulation.ts` | implementing the rule itself in runtime |
+| add economy/population/combat behavior | matching `systems/<domain>/` module | a new generic utility or simulation folder |
+| change placement/path geometry | `world/` | renderer-owned collision/game rules |
+| change HUD presentation | `ui/` | changing gameplay state from DOM code |
+
+## Concurrent work protocol
+
+Multiple ChatGPT sessions regularly work on Nightspire. Before changing a hotspot:
+
+1. inspect current branch heads and open PR filenames;
+2. avoid overlapping files with an active PR when an isolated domain change is possible;
+3. use a dedicated branch with one purpose;
+4. keep refactors behavior-preserving unless the PR explicitly states otherwise;
+5. run `npm run verify` on the exact head;
+6. re-check branch divergence before merge and before any Pages transplant.
+
+Do not “solve” an overlap by copying a second implementation into another folder. Either integrate the owning branch, or move the shared primitive to the correct lower layer.
+
+## Current decomposition ledger
+
+Already extracted:
+
+- `qa/QaActions.ts`: dev/QA state mutation and staging actions formerly embedded in `Game.ts`.
+- `persistence/SaveMigrations.ts`: backward-compatibility mutations separated from strict validation.
+- `render/RenderPrimitives.ts`: reusable geometry/texture constructors separated from scene orchestration.
+- `world/Grid.ts`: low-level packed-grid helpers shared without navigation cycles.
+- `data/map.ts`: persisted region schema separated from procedural generation.
+
+Tracked legacy hotspots:
+
+- `render/SceneRenderer.ts`: world sync + building/agent/field visuals still share one class.
+- `ui/Hud.ts`: markup, projection and panel updating still share one class.
+- `tests/simulation.test.mjs`: broad regression suite still shares one fixture/preamble.
+- `app/Game.ts`: much smaller after QA extraction, but pointer/planning orchestration is still the next cohesive split.
+
+The architecture check treats new >80 KiB TypeScript modules as a failure and reports the known legacy oversized modules explicitly.
+

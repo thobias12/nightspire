@@ -1,7 +1,7 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import type { JobKind } from '../data/jobs'
 import { emptyInventory, type Inventory, type ResourceId } from '../data/resources'
-import type { MapDefinition } from '../world/MapGenerator'
+import type { MapDefinition } from '../data/map'
 
 export interface Point { x: number; z: number }
 export type SettlerRole = 'worker' | 'guard'

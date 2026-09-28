@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { forestDensity, horizonHeight, landscapeNoise, mapHash, type MapDefinition } from '../world/MapGenerator'
+import type { MapDefinition } from '../data/map'
+import { forestDensity, horizonHeight, landscapeNoise, mapHash } from '../world/MapGenerator'
 
 /** Regenerated only when the region changes. No simulation entities or updates. */
 export class RegionalBackdrop extends THREE.Group {
