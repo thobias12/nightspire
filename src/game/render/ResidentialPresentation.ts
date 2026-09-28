@@ -1,4 +1,4 @@
-import type { ResidentialPlot } from '../simulation/WorldState'
+import type { ResidentialPlot } from '../model/WorldState'
 
 export type ResidentialCompoundTier = 'cottage' | 'homestead' | 'burgage'
 export type ResidentialCompoundForm = 'compact' | 'long-burgage' | 'balanced' | 'wide-shallow' | 'wide-deep'
