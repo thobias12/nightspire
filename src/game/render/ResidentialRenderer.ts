@@ -88,14 +88,14 @@ export class ResidentialRenderer {
     return { x: frontageMid.x + rear.x, z: frontageMid.z + rear.z }
   }
 
-  private residentialDoorOffset(profile: ResidentialPresentationProfile, seed: number, width: number): number {
+  residentialDoorOffset(profile: ResidentialPresentationProfile, seed: number, width: number): number {
     if (profile.form === 'wide-deep') return -profile.sidePassage * Math.min(0.82, width * 0.2)
     if (profile.form === 'long-burgage') return -profile.sidePassage * Math.min(0.42, width * 0.16)
     if (profile.form === 'wide-shallow') return (seed % 2 === 0 ? -1 : 1) * Math.min(0.66, width * 0.16)
     return ((seed % 3) - 1) * Math.min(profile.tier === 'homestead' ? 0.52 : 0.4, width * 0.17)
   }
 
-  private residentialVisualPlacement(
+  residentialVisualPlacement(
     b: Building,
     plot: ResidentialPlot,
     profile: ResidentialPresentationProfile,
