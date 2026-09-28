@@ -1,8 +1,8 @@
-import { worldHalf } from './MapGenerator'
-import { BUILDINGS, type ServiceNeedId } from '../data/buildings'
-import type { DayPhase } from './DayNight'
-import { blockedCells, cellKey, distance, inBounds } from './Navigation'
-import type { Building, Point, Settler, WorldState } from './WorldState'
+import { worldHalf } from '../../world/MapGenerator'
+import { BUILDINGS, type ServiceNeedId } from '../../data/buildings'
+import type { DayPhase } from '../../runtime/DayNight'
+import { blockedCells, cellKey, distance, inBounds } from '../../world/Navigation'
+import type { Building, Point, Settler, WorldState } from '../../model/WorldState'
 import { workplaceStaffing } from './Workforce'
 
 export const SERVICE_COVERAGE_RADIUS = 18

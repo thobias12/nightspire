@@ -1,9 +1,9 @@
-import { BUILDINGS } from '../data/buildings'
-import { distance } from './Navigation'
+import { BUILDINGS } from '../../data/buildings'
+import { distance } from '../../world/Navigation'
 import {
   enemyLabel, recordEvent, settlerLabel,
   type Building, type Enemy, type Point, type Settler, type WorldState,
-} from './WorldState'
+} from '../../model/WorldState'
 
 export const PLAYER_DAMAGE = 20
 export const PLAYER_ATTACK_RANGE = 2.2

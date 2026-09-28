@@ -1,9 +1,9 @@
-import { BUILDINGS } from '../data/buildings'
-import { completedMarkets, marketCoversPoint, MARKET_COVERAGE_RADIUS } from './Markets'
-import { distance } from './Navigation'
+import { BUILDINGS } from '../../data/buildings'
+import { completedMarkets, marketCoversPoint, MARKET_COVERAGE_RADIUS } from '../economy/Markets'
+import { distance } from '../../world/Navigation'
 import { serviceAvailable } from './Services'
 import { workplaceStaffing } from './Workforce'
-import { NEED_IDS, type Building, type Settler, type WorldState } from './WorldState'
+import { NEED_IDS, type Building, type Settler, type WorldState } from '../../model/WorldState'
 
 export const RECREATION_COVERAGE_RADIUS = 18
 

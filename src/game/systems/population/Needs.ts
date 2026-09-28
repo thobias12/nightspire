@@ -1,8 +1,8 @@
-import { BUILDINGS } from '../data/buildings'
-import { available, stockpiles } from './Buildings'
-import type { DayPhase } from './DayNight'
-import { compareMarketsForSettler, completedMarkets, marketCoversSettler, marketMealsRemaining } from './Markets'
-import { NEED_IDS, recordEvent, type NeedId, type NeedLevels, type Settler, type WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import { available, stockpiles } from '../construction/Buildings'
+import type { DayPhase } from '../../runtime/DayNight'
+import { compareMarketsForSettler, completedMarkets, marketCoversSettler, marketMealsRemaining } from '../economy/Markets'
+import { NEED_IDS, recordEvent, type NeedId, type NeedLevels, type Settler, type WorldState } from '../../model/WorldState'
 
 const FOOD_DECAY_PER_SECOND = 22 / 360
 const RECREATION_DECAY_PER_SECOND = 18 / 360

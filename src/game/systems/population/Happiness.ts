@@ -1,4 +1,4 @@
-import type { Job, Settler, WorldState } from './WorldState'
+import type { Job, Settler, WorldState } from '../../model/WorldState'
 import { happinessOf } from './Needs'
 
 export type MoraleBand = 'thriving' | 'content' | 'strained' | 'unhappy' | 'miserable'
