@@ -2,6 +2,7 @@ import { BUILDINGS, type BuildingId } from '../data/buildings'
 import type { JobKind } from '../data/jobs'
 import { emptyInventory, type Inventory, type ResourceId } from '../data/resources'
 import type { SettlerRole } from './Schedule'
+import type { MapDefinition } from './MapGenerator'
 
 export interface Point { x: number; z: number }
 export interface PlayerState extends Point {
@@ -95,6 +96,7 @@ export interface ImmigrationState {
   totalArrivals: number
 }
 export interface WorldState {
+  map?: MapDefinition
   version: 1; nextId: number; tick: number; elapsedSeconds: number; day: number; timeOfDay: number
   topology: number; player: PlayerState; settlers: Settler[]; enemies: Enemy[]; nodes: ResourceNode[]; buildings: Building[]; jobs: Job[]
   roads: RoadPath[]; residentialPlots: ResidentialPlot[]; fields: FieldPlot[]

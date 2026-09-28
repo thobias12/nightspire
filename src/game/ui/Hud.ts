@@ -1,3 +1,4 @@
+import { forestDensity, worldHalf } from '../simulation/MapGenerator'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { agricultureSummary, fieldHarvestWork, fieldSowWork, fieldsForFarmhouse } from '../simulation/Agriculture'
@@ -38,6 +39,7 @@ export interface HudState {
   buildRotation: number
   dragCount: number
   message: string
+  cameraPoint?: { x: number; z: number }
   camera: string
   cinematic: boolean
   metrics: Metrics
@@ -49,6 +51,8 @@ export class Hud {
   readonly element = document.createElement('div')
   private readonly abort = new AbortController()
   private rosterPage = 0
+  private mapBackgroundKey = ''
+  private mapBackground = ''
   private buildMenuOpen = false
   private activeBuildTab = 'planning'
   private activeContextTab = 'general'
@@ -82,6 +86,13 @@ export class Hud {
         <div class="drawer-body">
           <div id="objective"></div>
           <div id="workforce"></div>
+          <details><summary>New region</summary>
+            <p>Start a seeded landscape. Your current settlement is saved before replacement.</p>
+            <label>Map seed <input id="map-seed" aria-label="Map seed" type="number" min="0" max="4294967295" value="137"></label>
+            <label>Region size <select id="map-size" aria-label="Region size"><option value="129">129 × 129 m</option><option value="257" selected>257 × 257 m</option><option value="513">513 × 513 m</option></select></label>
+            <label>Landscape <select id="map-landscape" aria-label="Landscape"><option value="meadows">Meadows & copses</option><option value="woodland">Woodland clearings</option></select></label>
+            <button data-action="new-region">Start new region (save current)</button>
+          </details>
         </div>
       </details>
 
@@ -123,7 +134,7 @@ export class Hud {
       </details>
 
       <aside class="minimap-shell panel" aria-label="Settlement minimap">
-        <div class="minimap-header"><span>Oakridge</span><small>Settlement map</small></div>
+        <div class="minimap-header"><span id="region-label">Nightspire</span><button data-action="region-view">Region view</button></div>
         <div id="minimap-map" class="minimap-map"></div>
         <div class="minimap-legend"><span><i class="legend-building"></i>Buildings</span><span><i class="legend-field"></i>Fields</span><span><i class="legend-hostile"></i>Raiders</span></div>
       </aside>
@@ -218,6 +229,12 @@ export class Hud {
     const signal = this.abort.signal
     this.element.addEventListener('click', e => {
       const target = e.target as HTMLElement
+      const minimap = target.closest<HTMLElement>('#minimap-map')
+      if (minimap) {
+        const rect = minimap.getBoundingClientRect()
+        action('map-focus', ((e.clientX - rect.left) / rect.width * 2 - 1) + ',' + ((e.clientY - rect.top) / rect.height * 2 - 1))
+        return
+      }
       const roster = target.closest<HTMLButtonElement>('button[data-roster]')
       if (roster) { this.rosterPage = Math.max(0, this.rosterPage + Number(roster.dataset.roster)); return }
 
@@ -244,7 +261,10 @@ export class Hud {
       }
 
       const button = target.closest<HTMLButtonElement>('button[data-action]')
-      if (button) action(button.dataset.action!, button.dataset.value)
+      if (button?.dataset.action === 'new-region') {
+        const input = (id: string) => this.element.querySelector<HTMLInputElement>('#' + id)!.value
+        action('new-region', JSON.stringify({ seed: Number(input('map-seed')), size: Number(input('map-size')), landscape: input('map-landscape') }))
+      } else if (button) action(button.dataset.action!, button.dataset.value)
     }, { signal })
 
     this.element.addEventListener('change', e => {
@@ -609,7 +629,7 @@ export class Hud {
 
     this.set('message', escape(ui.message))
     const m = ui.metrics
-    this.set('metrics', `<dl><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Work productivity</dt><dd>${Math.round(effectiveWorkRate * 100)}% · morale ${Math.round(moraleSummary.averageWorkRate * 100)}% · tools +${Math.round((toolSummary.workMultiplier - 1) * 100)}%</dd><dt>Tools / coverage</dt><dd>${toolSummary.stored}/${toolSummary.required} · ${Math.round(toolSummary.coverage * 100)}%</dd><dt>Attraction / blocker</dt><dd>${attraction.score} / ${attraction.eligible ? 'Eligible' : escape(attraction.blockers[0] ?? 'Score too low')}</dd><dt>Qualification streak</dt><dd>${s.immigration.eligibleDays}/${IMMIGRATION_REQUIRED_DAYS}</dd><dt>Immigrants / arriving</dt><dd>${s.immigration.totalArrivals} / ${arriving}</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Fed today</dt><dd>${fedToday}/${s.settlers.length}</dd><dt>Household Market coverage</dt><dd>${households.marketCovered}/${households.occupied}</dd><dt>Household recreation coverage</dt><dd>${households.recreationCovered}/${households.occupied}</dd><dt>Fully supported households</dt><dd>${households.fullySupported}/${households.occupied}</dd><dt>Home prosperity tiers</dt><dd>L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</dd><dt>Total beds</dt><dd>${beds}</dd><dt>Gold</dt><dd>${s.trade.gold} · earned ${s.trade.goldEarned} · spent ${s.trade.goldSpent}</dd><dt>Merchant visits</dt><dd>${s.trade.visits} · next Day ${s.trade.nextMerchantDay}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Service providers</dt><dd>${services.suppliedProviders}/${services.providers} supplied</dd><dt>Service slots / visitors</dt><dd>${services.slots} / ${services.activeVisitors}</dd><dt>Food → production</dt><dd>${s.totals.productionConsumed.food}</dd><dt>Ale produced / used</dt><dd>${s.totals.produced.ale} / ${s.totals.serviceConsumed.ale}</dd><dt>Ore → production</dt><dd>${s.totals.productionConsumed.ore}</dd><dt>Tools produced / stored</dt><dd>${s.totals.produced.tools} / ${storedTools}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Roads / residential plots</dt><dd>${s.roads.length} / ${s.residentialPlots.length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
+    this.set('metrics', `<dl><dt>Region / resource nodes</dt><dd>${s.map?.size ?? 47}m / ${s.nodes.length}</dd><dt>Phase</dt><dd>${phaseLabel(phase)}</dd><dt>Frame / FPS</dt><dd>${m.frame.toFixed(1)} ms / ${(1000 / Math.max(m.frame, 1)).toFixed(0)}</dd><dt>Simulation CPU</dt><dd>${m.simulation.toFixed(2)} ms</dd><dt>Render submission CPU</dt><dd>${m.render.toFixed(2)} ms</dd><dt>Draws / triangles</dt><dd>${m.calls} / ${m.triangles}</dd><dt>Active jobs / settlers</dt><dd>${s.jobs.length} / ${s.settlers.length}</dd><dt>Guards / post slots</dt><dd>${guards} / ${guardSlots}</dd><dt>Path requests / solves</dt><dd>${m.requests} / ${m.paths}</dd><dt>Queued paths</dt><dd>${m.queue}</dd><dt>Path failures</dt><dd>${m.failures}</dd><dt>Catch-up dropped</dt><dd>${m.dropped.toFixed(2)} s</dd><dt>Enemies</dt><dd>${s.enemies.length}</dd><dt>Raid wave / spawned</dt><dd>${s.raid.wave} / ${s.raid.totalSpawned}</dd><dt>Next wave size</dt><dd>${raidSizeForWave(s.raid.wave + 1)}</dd><dt>Happiness / worst</dt><dd>${needSummary.happiness}% / ${needLabel(needSummary.worst)} ${Math.round(needSummary.averages[needSummary.worst])}%</dd><dt>Work productivity</dt><dd>${Math.round(effectiveWorkRate * 100)}% · morale ${Math.round(moraleSummary.averageWorkRate * 100)}% · tools +${Math.round((toolSummary.workMultiplier - 1) * 100)}%</dd><dt>Tools / coverage</dt><dd>${toolSummary.stored}/${toolSummary.required} · ${Math.round(toolSummary.coverage * 100)}%</dd><dt>Attraction / blocker</dt><dd>${attraction.score} / ${attraction.eligible ? 'Eligible' : escape(attraction.blockers[0] ?? 'Score too low')}</dd><dt>Qualification streak</dt><dd>${s.immigration.eligibleDays}/${IMMIGRATION_REQUIRED_DAYS}</dd><dt>Immigrants / arriving</dt><dd>${s.immigration.totalArrivals} / ${arriving}</dd><dt>Need averages</dt><dd>F ${Math.round(needSummary.averages.food)} · H ${Math.round(needSummary.averages.housing)} · S ${Math.round(needSummary.averages.safety)} · R ${Math.round(needSummary.averages.recreation)}</dd><dt>Fed today</dt><dd>${fedToday}/${s.settlers.length}</dd><dt>Household Market coverage</dt><dd>${households.marketCovered}/${households.occupied}</dd><dt>Household recreation coverage</dt><dd>${households.recreationCovered}/${households.occupied}</dd><dt>Fully supported households</dt><dd>${households.fullySupported}/${households.occupied}</dd><dt>Home prosperity tiers</dt><dd>L1 ${houseTiers[1] ?? 0} · L2 ${houseTiers[2] ?? 0} · L3 ${houseTiers[3] ?? 0}</dd><dt>Total beds</dt><dd>${beds}</dd><dt>Gold</dt><dd>${s.trade.gold} · earned ${s.trade.goldEarned} · spent ${s.trade.goldSpent}</dd><dt>Merchant visits</dt><dd>${s.trade.visits} · next Day ${s.trade.nextMerchantDay}</dd><dt>Food consumed</dt><dd>${s.totals.foodConsumed}</dd><dt>Service providers</dt><dd>${services.suppliedProviders}/${services.providers} supplied</dd><dt>Service slots / visitors</dt><dd>${services.slots} / ${services.activeVisitors}</dd><dt>Food → production</dt><dd>${s.totals.productionConsumed.food}</dd><dt>Ale produced / used</dt><dd>${s.totals.produced.ale} / ${s.totals.serviceConsumed.ale}</dd><dt>Ore → production</dt><dd>${s.totals.productionConsumed.ore}</dd><dt>Tools produced / stored</dt><dd>${s.totals.produced.tools} / ${storedTools}</dd><dt>Raiders defeated</dt><dd>${s.raid.totalDefeated}</dd><dt>Last cleared wave</dt><dd>${s.raid.lastClearedWave || '—'}</dd><dt>Player HP</dt><dd>${s.player.health}/${s.player.maxHealth}</dd><dt>Structure damage</dt><dd>${s.totals.structureDamage} HP</dd><dt>Repaired</dt><dd>${s.totals.repairedHealth} HP / ${s.totals.repairWoodUsed} wood</dd><dt>Damaged structures</dt><dd>${damaged}</dd><dt>Completed / sites</dt><dd>${s.totals.constructed} / ${s.buildings.filter(b => !b.complete).length}</dd><dt>Roads / residential plots</dt><dd>${s.roads.length} / ${s.residentialPlots.length}</dd><dt>Simulation tick</dt><dd>${s.tick}</dd></dl>`)
     if (this.element.querySelector<HTMLDetailsElement>('.qa')!.open) {
       const size = 25
       const pages = Math.max(1, Math.ceil(s.settlers.length / size))
@@ -644,7 +664,17 @@ export class Hud {
     ).join('')
     const miniSettlers = s.settlers.map(settler => '<circle class="mini-settler" cx="' + settler.x.toFixed(2) + '" cy="' + settler.z.toFixed(2) + '" r=".33"/>').join('')
     const miniEnemies = s.enemies.map(enemy => '<circle class="mini-enemy" cx="' + enemy.x.toFixed(2) + '" cy="' + enemy.z.toFixed(2) + '" r=".48"/>').join('')
-    this.set('minimap-map', '<svg viewBox="-28 -28 56 56" role="img" aria-label="Settlement overview"><g transform="scale(1,-1)">' + miniFields + miniRoads + miniBuildings + miniSettlers + miniEnemies + '</g></svg>')
+    const half = worldHalf(s), mapKey = JSON.stringify(s.map)
+    if (mapKey !== this.mapBackgroundKey) {
+      this.mapBackgroundKey = mapKey; this.mapBackground = ''
+      if (s.map) for (let z = -half; z < half; z += half / 20) for (let x = -half; x < half; x += half / 20) {
+        const density = forestDensity(x, z, s.map)
+        if (density > 0.15) this.mapBackground += '<rect x="' + x + '" y="' + z + '" width="' + half / 20 + '" height="' + half / 20 + '" fill="#344c35" opacity="' + density + '"/>'
+      }
+      this.set('minimap-map', '<svg viewBox="' + [-half, -half, half * 2, half * 2].join(' ') + '" preserveAspectRatio="none" role="img" aria-label="Settlement overview">' + this.mapBackground + '<g id="minimap-live"></g></svg>')
+    }
+    this.set('region-label', s.map ? s.map.size + 'm · seed ' + s.map.seed : 'Camp')
+    this.set('minimap-live', '<circle cx="' + (ui.cameraPoint?.x ?? 0) + '" cy="' + (ui.cameraPoint?.z ?? 0) + '" r="' + half / 15 + '" fill="none" stroke="#edd39a" stroke-width="' + half / 160 + '"/>' + miniFields + miniRoads + miniBuildings + miniSettlers + miniEnemies + '<circle cx="0" cy="0" r="' + Math.max(1, half / 40) + '" fill="#edce89"/>')
 
     const inspector = this.element.querySelector<HTMLElement>('.inspector')!
     inspector.classList.toggle('is-active', ui.selectedId !== null || ui.buildType !== null || ui.planningTool !== null)

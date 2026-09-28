@@ -1,9 +1,10 @@
+import { worldHalf } from './MapGenerator'
 import { BUILDINGS } from '../data/buildings'
 import { assignHousing, available, stockpiles } from './Buildings'
 import { houseBedCapacity } from './HouseProgression'
 import { householdSummary } from './Households'
 import { completedMarkets } from './Markets'
-import { entrance, MAP_MAX, MAP_MIN } from './Navigation'
+import { entrance } from './Navigation'
 import { settlementNeeds } from './Needs'
 import {
   MAX_SETTLERS, recordEvent, spawnSettler,
@@ -103,12 +104,12 @@ export function populationAttraction(state: WorldState): AttractionBreakdown {
   }
 }
 
-function arrivalSpawn(index: number): Point {
+function arrivalSpawn(index: number, half: number): Point {
   const entries: Point[] = [
-    { x: MAP_MIN + 1, z: -8 },
-    { x: MAP_MAX - 1, z: 8 },
-    { x: -8, z: MAP_MIN + 1 },
-    { x: 8, z: MAP_MAX - 1 },
+    { x: -half + 1, z: -8 },
+    { x: half - 1, z: 8 },
+    { x: -8, z: -half + 1 },
+    { x: 8, z: half - 1 },
   ]
   return entries[index % entries.length]
 }
@@ -119,7 +120,7 @@ function arrivalDestination(state: WorldState): Point {
 }
 
 function admitImmigrant(state: WorldState, attraction: AttractionBreakdown): ImmigrationResult {
-  const spawn = arrivalSpawn(state.immigration.totalArrivals)
+  const spawn = arrivalSpawn(state.immigration.totalArrivals, worldHalf(state))
   const destination = arrivalDestination(state)
   if (!spawnSettler(state, spawn, destination)) {
     return { arrived: false, message: 'Population cap reached.', attraction: populationAttraction(state) }

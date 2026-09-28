@@ -1,3 +1,4 @@
+import { worldHalf } from './MapGenerator'
 import { BUILDINGS, type ServiceNeedId } from '../data/buildings'
 import type { DayPhase } from './DayNight'
 import { blockedCells, cellKey, distance, inBounds } from './Navigation'
@@ -69,7 +70,7 @@ export function serviceAssignments(
   const slots = providers.flatMap(building => {
     const service = BUILDINGS[building.type].service!
     return perimeterPoints(building)
-      .filter(point => inBounds(point) && !blocked.has(cellKey(point)))
+      .filter(point => inBounds(point, worldHalf(state)) && !blocked.has(cellKey(point)))
       .slice(0, service.slots)
       .map((target, slot) => ({
         building,
@@ -172,7 +173,7 @@ export function serviceSummary(state: WorldState, phase: DayPhase): ServiceSumma
   const slots = providers.reduce((sum, building) => {
     const service = BUILDINGS[building.type].service!
     const usable = perimeterPoints(building)
-      .filter(point => inBounds(point) && !blocked.has(cellKey(point)))
+      .filter(point => inBounds(point, worldHalf(state)) && !blocked.has(cellKey(point)))
       .slice(0, service.slots)
       .length
     return sum + usable

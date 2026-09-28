@@ -43,6 +43,10 @@ These mature-service concepts are planned direction only. Final gameplay, balanc
 
 **Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
 
+## Seeded regional maps
+
+New settlements now start on a seeded 257-cell region. Use **Settlement overview → New region** to choose a seed, Meadows/Woodland, and **129, 257 or 513 cells per side** (one metre per cell). Region view, zoom/pan and the clickable minimap let you explore the expanded playable land. Starting another region first saves your current settlement. The playable valley floor remains flat; distant hills are scenery. See [controls, measured timings, verification and limits](docs/REGIONAL_MAPS.md).
+
 ## Play locally
 
 Use Node.js 22.12+ (verified here with Node 24.19.0) and npm.
@@ -52,7 +56,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. A camp begins with six settlers, an empty completed stockpile, 40 trees, and 20 food bushes. Workers automatically gather, carry, and deposit wood and food. No starting materials are needed.
+Open the local URL printed by Vite. A camp begins with six settlers, an empty completed stockpile, 40 nearby trees, 20 food bushes, 12 Ore nodes, and seeded regional resource clusters. Workers automatically gather, carry, and deposit wood and food. No starting materials are needed.
 
 1. Watch stockpile counts rise. Click a settler or resource to inspect its task or remaining yield.
 2. Press **0 / Road** and click to place the first road point. Keep clicking to shape the route while the mouse shows a live curved preview; **double-click or Enter** finishes it. **RMB** cancels the active stroke, **Backspace** removes the last committed point, **G** toggles 1m Grid Snap, and holding **Shift** temporarily constrains the next segment to 0°/45°/90°. **F / Road Snap** independently controls magnetic endpoint/centerline joins. **C** cycles Straight/Smooth/Curved and **[ / ]** changes Path/Lane/Main-road width. Snapped intermediate control points also insert persisted junction nodes into the host road.
@@ -109,7 +113,7 @@ npm test
 npm run preview
 ```
 
-The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **179 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
+The tests compile the existing TypeScript with the existing compiler and use Node's built-in test runner; no test dependency was added. The integrated suite now contains **188 passing tests**, covering the settlement/economy/combat foundation, current road/residential planning, deterministic scale presets, reservation accounting, same-tick service invalidation and the unchanged 10-settler gameplay cap.
 
 Browser verification covered gathering and visible cargo, placing three houses and a stockpile, 70 wood delivered, ten settlers housed, pause/speed/time/resource/spawn controls, navigation overlays, inspection, player movement/collision, and page-reload save recovery. See [QA and performance notes](docs/QA.md) for details and limitations.
 
@@ -137,8 +141,8 @@ docs/           design, architecture, milestones, decisions and QA
 
 ## Scope and limitations
 
-This is a small playable procedural art-direction prototype: six starting / ten maximum settlers, a fixed 47×47 grid, houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, physical Food → Ale → Tavern and Ore → Tools production chains, deterministic population attraction from 6 → 10, Happiness-driven productivity, dedicated build-mode UX, and a first settlement atmosphere/readability pass. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
+This is a small playable procedural art-direction prototype: six starting / ten maximum settlers, seeded regions up to 513×513 grid cells (legacy saves/benchmarks retain 47×47), houses/stockpiles/guard posts/Campfires/Breweries/Taverns/wooden fortifications, deterministic raids scaling from 20 to 40 attackers, four settler needs, generic services, physical Food → Ale → Tavern and Ore → Tools production chains, deterministic population attraction from 6 → 10, Happiness-driven productivity, dedicated build-mode UX, and a first settlement atmosphere/readability pass. Gate open/close control is still deferred. Core buildings cannot be fully destroyed in M2.3, permanent settler death is deferred, and there are no equipment stats, loot, towers, siege weapons, or final combat animations/VFX. Workers may overlap one another and resource vegetation does not block movement.
 
 See [DIRECTION PIVOT](docs/DIRECTION_PIVOT.md), [DECISIONS](docs/DECISIONS.md), [MILESTONES](docs/MILESTONES.md), and [PERFORMANCE_BUDGETS](docs/PERFORMANCE_BUDGETS.md). No claim is made about hundreds of NPCs; larger populations still require profiling. The production bundle retains Vite's >500 kB chunk warning, primarily from Three.js.
 
-M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses the existing generic resource, production, stockpile and supply-job architecture for Ore → Tools. M3.8.1–M3.9.2.1 establish persisted roads/plots and the organic residential presentation layer. M3.10.0 improves terrain/road dressing; M3.10.1 introduces sampled multi-point curved roads; M3.10.2 separates 1m Grid Snap, temporary Shift angle constraint and Road Snap while improving cancel/undo/junction behavior. The M4 integration on this branch adds measured reservation/service-scheduling optimizations and a deterministic browser benchmark harness while preserving the 10-settler gameplay cap. Navigation still uses the shared two-solves-per-tick queue, and roads remain visual-only for movement; large synchronized crowds can therefore still wait on route throughput.
+M3.5 is intentionally presentation-only. M3.6 adds a small derived morale layer with no new persisted state. M3.7 reuses the existing generic resource, production, stockpile and supply-job architecture for Ore → Tools. M3.8.1–M3.9.2.1 establish persisted roads/plots and the organic residential presentation layer. M3.10.0 improves terrain/road dressing; M3.10.1 introduces sampled multi-point curved roads; M3.10.2 separates 1m Grid Snap, temporary Shift angle constraint and Road Snap while improving cancel/undo/junction behavior. The M4 integration on this branch adds measured reservation/service-scheduling optimizations and a deterministic browser benchmark harness while preserving the 10-settler gameplay cap. Generated regions use a shared A* workspace; navigation still uses the shared two-solves-per-tick queue, and roads remain visual-only for movement; large synchronized crowds can therefore still wait on route throughput.

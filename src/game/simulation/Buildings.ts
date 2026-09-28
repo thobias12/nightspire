@@ -1,8 +1,10 @@
+import { worldHalf } from './MapGenerator'
+import { regionalReachability } from './RegionalNavigation'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../data/resources'
 import { pointInField } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
-import { blockedCells, cellKey, distance, entrance, flood, footprint, inBounds, occupiedCells } from './Navigation'
+import { blockedCells, cellKey, distance, entrance, footprint, inBounds, occupiedCells } from './Navigation'
 import { createBuilding, recordEvent, type Building, type Point, type WorldState } from './WorldState'
 import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
 import type { JobReservations } from './JobReservations'
@@ -73,7 +75,7 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
   if (s.buildings.length >= 120) return 'Building limit reached (120).'
 
   const cells = footprint({ ...p, type })
-  if (cells.some(c => !inBounds(c))) return 'Outside the camp boundary.'
+  if (cells.some(c => !inBounds(c, worldHalf(s)))) return 'Outside the camp boundary.'
 
   const occupied = occupiedCells(s)
   if (cells.some(c => occupied.has(cellKey(c)))) return 'Overlaps a building or ruin.'
@@ -85,7 +87,7 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
 
   const friendlyBlocked = blockedCells(s, false)
   if (!BUILDINGS[type].friendlyPassable) for (const c of cells) friendlyBlocked.add(cellKey(c))
-  const reachable = flood({ x: 0, z: 2 }, friendlyBlocked)
+  const reachable = regionalReachability({ x: 0, z: 2 }, friendlyBlocked, worldHalf(s))
   const interaction = { x: p.x, z: p.z + Math.floor(BUILDINGS[type].footprint / 2) + 1 }
   const required = [
     ...s.buildings.filter(b => !b.destroyed).map(entrance),
