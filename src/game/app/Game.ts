@@ -52,6 +52,7 @@ import {
   roadCurveLabel,
   undoRoadControlPoint as removeRoadControlPoint,
 } from './PlanningOperations'
+import { updatePlanningGhost } from './PlanningPresentation'
 
 export class Game {
   private readonly renderer = new SceneRenderer()
@@ -913,96 +914,8 @@ export class Game {
     this.updateGhost(); this.updateHud()
   }
   private updateGhost(): void {
-    if (this.planning.tool === 'field') {
-      const points = this.planning.fieldControlPoints.length ? this.planning.fieldDraft : []
-      const s = this.simulation.state
-      const error = points.length >= 3
-        ? fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads, worldHalf(s))
-        : null
-      this.renderer.showFieldGhost(points, !error, this.planning.gridSnap)
-      if (this.planning.fieldControlPoints.length > 0) {
-        const area = points.length >= 3 ? fieldArea(points) : 0
-        const projectedYield = area > 0 ? Math.max(8, Math.min(60, Math.round(area * 0.55))) : 0
-        this.message = error ?? (
-          'Field preview · ' + (area > 0 ? area.toFixed(1) + 'm² · about ' + projectedYield + ' Food · ' : '')
-          + this.planning.fieldControlPoints.length + ' fixed corner' + (this.planning.fieldControlPoints.length === 1 ? '' : 's')
-          + (this.planning.fieldCloseReady
-            ? ' · click to close this parcel.'
-            : ' · continue shaping or return to the first marker to close.')
-        )
-      }
-      return
-    }
-
-    if (this.planning.tool === 'road') {
-      const points = this.planning.roadControlPoints.length ? this.planning.roadDraft : []
-      const error = points.length >= 2 ? roadPlacementError(points, this.simulation.state.fields, worldHalf(this.simulation.state)) : null
-      this.renderer.showRoadGhost(points, !error, this.planning.gridSnap, this.planning.roadWidth)
-      if (this.planning.roadControlPoints.length > 0 && this.planning.rawPointer) {
-        this.message = error ?? (
-          'Road preview · ' + roadLength(points).toFixed(1) + 'm · '
-          + roadCurveLabel(this.planning.roadCurve) + ' · ' + this.planning.roadWidth.toFixed(1)
-          + 'm · ' + (this.planning.roadAngleSnap ? 'Shift angle constrain ON · ' : '')
-          + (this.planning.gridSnap ? 'Grid ON · ' : 'Grid OFF · ')
-          + (this.planning.roadSnap ? 'Road Snap ON · ' : 'Road Snap OFF · ')
-          + 'click point ' + (this.planning.roadControlPoints.length + 1) + ', double-click / Enter to finish.'
-        )
-      }
-      return
-    }
-
-    if (this.planning.tool === 'residential-plot') {
-      const preview = this.planning.plotDraft
-      let error = residentialPlotError(preview, this.simulation.state.residentialPlots, worldHalf(this.simulation.state))
-      if (!error) error = residentialPlotBuildingError(preview, this.simulation.state.buildings)
-      if (!error) error = residentialPlotResourceError(preview, this.simulation.state.nodes)
-      if (!error) error = residentialPlotFieldError(preview, this.simulation.state.fields)
-      if (!error && preview) error = placementError(this.simulation.state, 'house', preview.housePoint)
-      this.renderer.showResidentialPlotGhost(preview, !error, this.planning.gridSnap)
-      if (this.planning.start) {
-        this.message = error ?? (preview
-          ? 'Residential plot preview · ' + preview.width.toFixed(1) + 'm frontage × ' + preview.depth.toFixed(1) + 'm depth.'
-            + (preview.adjacentSnapped ? ' · Edge snapped to neighboring plot.' : '')
-            + ' Release to plan.'
-          : 'Start close to a player road and drag diagonally into the backyard.')
-      }
-      return
-    }
-
-    if (this.planning.buildType === 'wood-wall' && this.planning.dragStart && this.planning.dragPoints.length) {
-      const end = this.planning.dragPoints.at(-1)!
-      const horizontal = Math.abs(end.x - this.planning.dragStart.x) >= Math.abs(end.z - this.planning.dragStart.z)
-      const rotation = horizontal ? 1 : 0
-      const error = placementBatchError(this.simulation.state, 'wood-wall', this.planning.dragPoints, rotation)
-      this.renderer.showGhost('wood-wall', end, !error, rotation, this.planning.dragPoints)
-      this.message = error ?? ('Wall line: ' + this.planning.dragPoints.length + ' segment' + (this.planning.dragPoints.length === 1 ? '' : 's') + '. Release to place.')
-      return
-    }
-
-    const placement = this.planning.buildType && (this.planning.rawPointer ?? this.planning.pointer)
-      ? buildingPlacementPreview(
-          this.simulation.state.roads,
-          this.planning.rawPointer ?? this.planning.pointer!,
-          this.planning.buildType,
-          buildingRequiresRoadFrontage(this.planning.buildType) ? true : this.planning.roadSnap,
-          this.planning.buildRotation,
-        )
-      : null
-    const error = this.planning.buildType && placement
-      ? placementError(this.simulation.state, this.planning.buildType, placement.point)
-        ?? buildingRoadPlacementError(this.simulation.state.roads, placement.point, this.planning.buildType)
-      : null
-    this.renderer.showGhost(this.planning.buildType, placement?.point ?? this.planning.pointer, !error, placement?.rotation ?? this.planning.buildRotation, [], placement?.facingAngle ?? null)
-    if (this.planning.buildType && placement) {
-      if (this.planning.buildType === 'wood-gate' && !error) {
-        const wall = this.simulation.state.buildings.find(b => b.type === 'wood-wall' && b.x === placement.point.x && b.z === placement.point.z)
-        this.message = wall ? 'Valid gate insertion. Existing wall timber will be retained.' : 'Valid site. Click to place.'
-      } else if (!error && placement.snappedToRoad) {
-        this.message = 'Road frontage · ' + BUILDINGS[this.planning.buildType].label + ' is aligned to the street. Conventional buildings must stay road-connected.'
-      } else {
-        this.message = error ?? (this.planning.buildType === 'wood-wall' ? 'Click or drag to place Wooden Walls.' : 'Valid grid site. Click to place · Shift keeps build mode · R rotates.')
-      }
-    }
+    const message = updatePlanningGhost(this.renderer, this.simulation.state, this.planning)
+    if (message !== undefined) this.message = message
   }
   private readonly tick = (timestamp: number): void => {
     const rawDelta = this.lastTime === 0 ? 0 : (timestamp - this.lastTime) / 1000
