@@ -1,4 +1,4 @@
-import { BUILDINGS } from '../data/buildings'
+import { BUILDINGS, type BuildingId } from '../data/buildings'
 import type { Building, Point, ResidentialPlot } from '../model/WorldState'
 import { plotCorners } from '../world/TownPlanning'
 import type { FieldInstanceFn } from './FieldRenderer'
