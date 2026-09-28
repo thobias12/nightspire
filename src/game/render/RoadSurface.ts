@@ -59,7 +59,11 @@ export function createRoadSurface(
   roads: readonly RoadPath[], extent: number, size = ROAD_SURFACE_SIZE,
   meadow = createMeadowField(extent, size),
 ): RoadSurface {
-  const count = size * size, coverage = new Float32Array(count), wear = new Float32Array(count)
+  const count = size * size, coverage = new Float32Array(count)
+  if (roads.length === 0) {
+    return { pixels: meadow.pixels, coverage, size, extent, grass: [], stones: [] }
+  }
+  const wear = new Float32Array(count)
   const { coarse, fine } = meadow
   const pixels = meadow.pixels.slice(), unit = extent / size, half = extent / 2
   const pixel = (v: number) => Math.max(0, Math.min(size - 1, Math.floor((v + half) / unit)))
