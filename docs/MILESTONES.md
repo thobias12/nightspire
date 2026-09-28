@@ -574,6 +574,20 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 **Tone:** sensual adult fantasy integrated into a functioning settlement economy; suggestive presentation is sufficient for the city-builder layer and explicit scenes are not required for progression.
 
 
+## Seeded regional maps — first playable pass
+
+- [x] 129 / 257 / 513-cell generated regions, seed + Meadows/Woodland selection
+- [x] broad clearings, coherent forests, guaranteed nearby resources, bounded regional nodes
+- [x] expanded placement/navigation/save/camera bounds and clickable regional minimap
+- [x] shared regional A*, unchanged global path budget and population cap
+- [x] instanced woodland, distance detail reduction and scenic horizon hills
+- [x] regression coverage and browser generation/road/gather/save/load checks
+- [ ] foreground GPU/frame-pacing soak and dense large-town stress test
+- [ ] buildable slopes, terrain editing, water and regional economic balance
+
+See [verified scope and CPU measurements](REGIONAL_MAPS.md). This is not a claim of full Manor Lords map scale or hundreds of supported citizens.
+
+
 ## M3.12 — Persistent households and families (stacked gameplay branch)
 
 - [x] settlers have deterministic persistent given names, surnames and adult ages

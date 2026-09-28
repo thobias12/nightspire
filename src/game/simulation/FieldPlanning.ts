@@ -150,10 +150,11 @@ export function fieldPlacementError(
   residentialPlots: ResidentialPlot[],
   nodes: ResourceNode[],
   roads: RoadPath[],
+  half = 23,
 ): string | null {
   if (points.length < 3) return 'Place at least 3 field corners.'
   if (points.length > 8) return 'Fields support up to 8 corners in this slice.'
-  if (points.some(point => !inBounds(point))) return 'Keep the whole field inside the settlement boundary.'
+  if (points.some(point => !inBounds(point, half))) return 'Keep the whole field inside the settlement boundary.'
   if (!simpleFieldPolygon(points)) return 'Field edges cannot cross and corners need at least 0.75m spacing.'
   const area = fieldArea(points)
   if (area < 12) return 'Field is too small. Draw at least 12m².'
