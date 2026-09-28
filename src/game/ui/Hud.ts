@@ -226,21 +226,23 @@ export class Hud {
             <div><span class="eyebrow">CONSTRUCTION</span><strong>Choose what to place</strong></div>
             <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
           </div>
-          <div class="build-tabs" role="tablist" aria-label="Construction categories">
-            <button data-build-tab="planning" aria-pressed="true"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
-            <button data-build-tab="logistics" aria-pressed="false"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
-            <button data-build-tab="industry" aria-pressed="false"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
-            <button data-build-tab="services" aria-pressed="false"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
-            <button data-build-tab="defense" aria-pressed="false"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
-          </div>
+          <div class="catalog-nav">
+            <div class="build-tabs" role="tablist" aria-label="Construction categories">
+              <button data-build-tab="planning" aria-pressed="true"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
+              <button data-build-tab="logistics" aria-pressed="false"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
+              <button data-build-tab="industry" aria-pressed="false"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
+              <button data-build-tab="services" aria-pressed="false"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
+              <button data-build-tab="defense" aria-pressed="false"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
+            </div>
 
-          <div class="catalog-tools" aria-label="Planning utilities">
-            <button class="catalog-tool" data-action="grid-snap" title="Hotkey G · shared 1m planning grid">
-              <span class="category-icon" data-art-slot="tool-grid-snap" aria-hidden="true"></span>
-              <span class="catalog-tool-label">Grid Snap</span>
-              <small>[G]</small>
-            </button>
-            <span class="catalog-tool-note">Planning tools use the same 1m grid as roads and fields.</span>
+            <div class="catalog-tools" aria-label="Planning utilities">
+              <button class="catalog-tool" data-action="grid-snap" title="Hotkey G · shared 1m planning grid">
+                <span class="category-icon" data-art-slot="tool-grid-snap" aria-hidden="true"></span>
+                <span class="catalog-tool-label">Grid Snap</span>
+                <small>[G]</small>
+              </button>
+              <span class="catalog-tool-note">Planning tools use the same 1m grid as roads and fields.</span>
+            </div>
           </div>
 
           <div id="build-preview" class="build-preview" aria-hidden="true"></div>
@@ -610,7 +612,16 @@ export class Hud {
     const activePanel = this.element.querySelector<HTMLElement>('[data-build-panel="' + this.activeBuildTab + '"]')
     const cardCount = activePanel?.querySelectorAll('.build-card').length ?? 0
     const dividerCount = activePanel?.querySelectorAll('.planned-divider').length ?? 0
-    const desiredWidth = Math.min(940, Math.max(560, 24 + cardCount * 136 + dividerCount * 42))
+    const itemCount = cardCount + dividerCount
+    const cardWidth = 132
+    const dividerWidth = 22
+    const gap = 6
+    const horizontalChrome = 96
+    const contentWidth =
+      cardCount * cardWidth +
+      dividerCount * dividerWidth +
+      Math.max(0, itemCount - 1) * gap
+    const desiredWidth = Math.max(600, contentWidth + horizontalChrome)
     catalog.style.setProperty('--catalog-width', desiredWidth + 'px')
     if (catalog.classList.contains('is-user-positioned')) this.clampFloatingPanels()
   }
