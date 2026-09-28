@@ -67,7 +67,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'all-features-01423f93')
+        entryUrl.searchParams.set('runtime', 'all-features-bb7e7d81')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {

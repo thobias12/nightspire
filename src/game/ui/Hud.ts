@@ -616,12 +616,15 @@ export class Hud {
     const cardWidth = 132
     const dividerWidth = 22
     const gap = 6
-    const horizontalChrome = 96
+    // Catalog width is border-box. Account for 46px parchment padding on
+    // each side, borders, panel padding and a little rounding safety so the
+    // last fixed-size card never wraps just because we're a few pixels short.
+    const horizontalChrome = 108
     const contentWidth =
       cardCount * cardWidth +
       dividerCount * dividerWidth +
       Math.max(0, itemCount - 1) * gap
-    const desiredWidth = Math.max(600, contentWidth + horizontalChrome)
+    const desiredWidth = Math.max(520, contentWidth + horizontalChrome)
     catalog.style.setProperty('--catalog-width', desiredWidth + 'px')
     if (catalog.classList.contains('is-user-positioned')) this.clampFloatingPanels()
   }
