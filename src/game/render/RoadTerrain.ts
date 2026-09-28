@@ -1,4 +1,4 @@
-import type { MapDefinition } from '../world/MapGenerator'
+import type { MapDefinition } from '../data/map'
 import * as THREE from 'three'
 import type { RoadPath } from '../model/WorldState'
 import { createMeadowField, createRoadSurface, ROAD_SURFACE_SIZE, type MeadowField, type RoadSurface } from './RoadSurface'
