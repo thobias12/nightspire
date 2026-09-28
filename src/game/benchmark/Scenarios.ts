@@ -1,7 +1,7 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
-import { assignHousing } from '../simulation/Buildings'
-import { blockedCells, cellKey, entrance, flood, MAP_MIN, MAP_MAX } from '../simulation/Navigation'
-import { createBuilding, createInitialWorldState, type WorldState } from '../simulation/WorldState'
+import { assignHousing } from '../domain/construction/Buildings'
+import { blockedCells, cellKey, entrance, flood, MAP_MIN, MAP_MAX } from '../domain/world/Navigation'
+import { createBuilding, createInitialWorldState, type WorldState } from '../domain/world/WorldState'
 
 export const BENCHMARK_VERSION = 3
 export const POPULATIONS = [10, 100, 250, 500, 1000] as const
