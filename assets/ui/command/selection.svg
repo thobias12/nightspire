@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+<defs>
+ <radialGradient id="bg"><stop stop-color="#62513b"/><stop offset="1" stop-color="#241f19"/></radialGradient>
+ <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dbc692"/><stop offset=".48" stop-color="#9f875a"/><stop offset="1" stop-color="#5c4a31"/></linearGradient>
+</defs>
+<circle cx="48" cy="48" r="44" fill="url(#bg)" stroke="#b89b62" stroke-width="3"/>
+<circle cx="48" cy="48" r="37" fill="none" stroke="#4c3d2a" stroke-width="2"/>
+<path d="M17 48 C29 31 39 26 48 26 C58 26 68 31 79 48 C68 65 58 70 48 70 C39 70 29 65 17 48Z" fill="#2b251d" stroke="url(#metal)" stroke-width="4"/><circle cx="48" cy="48" r="11" fill="#b99859"/><circle cx="48" cy="48" r="5" fill="#221c17"/><path d="M48 16 V25 M48 71 V80 M16 48 H25 M71 48 H80" stroke="#cfb783" stroke-width="3" stroke-linecap="round"/>
+</svg>

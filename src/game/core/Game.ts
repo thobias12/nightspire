@@ -1,3 +1,4 @@
+import { createGeneratedWorld, worldHalf, type MapSize, type Landscape } from '../simulation/MapGenerator'
 import { FIXED_STEP } from '../data/jobs'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, type ResourceId } from '../data/resources'
@@ -49,7 +50,7 @@ import { InputController } from './InputController'
 
 export class Game {
   private readonly renderer = new SceneRenderer()
-  private readonly simulation = new Simulation(createInitialWorldState())
+  private readonly simulation = new Simulation(createGeneratedWorld())
   private readonly hud: Hud
   private readonly input: InputController
   private readonly resizeObserver: ResizeObserver
@@ -241,7 +242,7 @@ export class Game {
 
         {
           const preview = residentialPlotPreview(s.roads, this.planningStart, rawEnd, 2.2, this.gridSnap, s.residentialPlots)
-          let error = residentialPlotError(preview, s.residentialPlots)
+          let error = residentialPlotError(preview, s.residentialPlots, worldHalf(s))
           if (!error) error = residentialPlotBuildingError(preview, s.buildings)
           if (!error) error = residentialPlotResourceError(preview, s.nodes)
           if (!error) error = residentialPlotFieldError(preview, s.fields)
@@ -528,6 +529,8 @@ export class Game {
   }
   private replaceWorld(text: string): void {
     this.simulation.replace(deserializeWorld(text))
+    this.renderer.focus.x = 0; this.renderer.focus.z = -1
+    this.renderer.zoom = this.simulation.state.map ? 55 : 31
     this.accumulator = 0; this.selectedId = null; this.buildType = null; this.planningTool = null; this.planningStart = null; this.roadControlPoints = []; this.roadDraft = []; this.fieldControlPoints = []; this.fieldDraft = []; this.roadAngleSnap = false; this.plotDraft = null; this.dragStart = null; this.dragPoints = []; this.buildRotation = 0
   }
   private roadCurveLabel(): string {
@@ -584,7 +587,7 @@ export class Game {
   private finalizeRoadDraft(): void {
     if (this.planningTool !== 'road') return
     const points = sampleRoadCurve(this.roadControlPoints, this.roadCurve)
-    const error = roadPlacementError(points, this.simulation.state.fields)
+    const error = roadPlacementError(points, this.simulation.state.fields, worldHalf(this.simulation.state))
     if (error) {
       this.message = error
       this.updateGhost()
@@ -610,7 +613,7 @@ export class Game {
     if (this.planningTool !== 'field') return
     const s = this.simulation.state
     const points = this.fieldControlPoints.map(point => ({ ...point }))
-    const error = fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads)
+    const error = fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads, worldHalf(s))
     if (error) {
       this.message = error
       this.updateGhost()
@@ -754,6 +757,41 @@ export class Game {
             ? 'ON · road control points join nearby endpoints and centerlines. Building frontage remains mandatory.'
             : 'OFF · road control points stay where placed. Building frontage remains mandatory.')
           this.refreshRoadDraft()
+          break
+        case 'select-object': {
+          const id = Number(value)
+          if (!Number.isSafeInteger(id)) { this.message = 'That object is no longer available.'; break }
+          const exists = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.fields].some(candidate => candidate.id === id)
+          if (!exists) { this.message = 'That object is no longer available.'; break }
+          this.selectedId = id
+          this.buildType = null
+          this.planningTool = null
+          this.message = ''
+          break
+        }
+        case 'close-inspector':
+          if (this.selectedId !== null) {
+            this.selectedId = null
+            this.message = ''
+            break
+          }
+          this.buildType = null
+          this.planningTool = null
+          this.planningStart = null
+          this.roadControlPoints = []
+          this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
+          this.fieldCloseReady = false
+          this.roadAngleSnap = false
+          this.plotDraft = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.message = ''
+          break
+        case 'close-selection':
+          this.selectedId = null
+          this.message = ''
           break
         case 'cancel':
           this.buildType = null
@@ -1070,13 +1108,37 @@ export class Game {
           if (this.renderer.cinematic) this.renderer.zoom = Math.min(this.renderer.zoom, 24)
           this.message = this.renderer.cinematic ? 'Street-oblique camera enabled. Pan and rotate normally; press V to return.' : 'Settlement overview camera restored.'
           break
+        case 'new-region': {
+          const settings = JSON.parse(value ?? '{}') as { seed: number; size: MapSize; landscape: Landscape }
+          const next = createGeneratedWorld(settings.seed, settings.size, settings.landscape)
+          const text = serializeWorld(next)
+          this.storePrimary(serializeWorld(s))
+          this.replaceWorld(text)
+          this.renderer.focus.x = 0; this.renderer.focus.z = -1
+          this.renderer.zoom = 55; this.renderer.mode = 'settlement'; this.renderer.cinematic = false
+          this.message = 'Created ' + settings.size + 'm region, seed ' + settings.seed + '. Previous settlement saved: Load restores it.'
+          break
+        }
+        case 'region-view':
+          this.renderer.mode = 'settlement'; this.renderer.cinematic = false
+          this.renderer.focus.x = 0; this.renderer.focus.z = 0; this.renderer.zoom = (s.map?.size ?? 47) * 1.18
+          break
+        case 'map-focus': {
+          const [x, z] = (value ?? '').split(',').map(Number), half = worldHalf(s)
+          if (Number.isFinite(x) && Number.isFinite(z)) {
+            this.renderer.mode = 'settlement'; this.renderer.focus.x = Math.max(-half, Math.min(half, x * half))
+            this.renderer.focus.z = Math.max(-half, Math.min(half, z * half)); this.renderer.zoom = 55
+            this.message = 'Viewing region at ' + Math.round(this.renderer.focus.x) + ', ' + Math.round(this.renderer.focus.z) + 'm.'
+          }
+          break
+        }
         case 'center':
           this.renderer.mode = 'settlement'
           this.renderer.cinematic = false
           this.renderer.focus.x = 0
           this.renderer.focus.z = -1
           this.renderer.angle = 0
-          this.renderer.zoom = 31
+          this.renderer.zoom = s.map ? 55 : 31
           break
         case 'save': {
           this.storePrimary(serializeWorld(s))
@@ -1119,7 +1181,7 @@ export class Game {
       const points = this.fieldControlPoints.length ? this.fieldDraft : []
       const s = this.simulation.state
       const error = points.length >= 3
-        ? fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads)
+        ? fieldPlacementError(points, s.fields, s.buildings, s.residentialPlots, s.nodes, s.roads, worldHalf(s))
         : null
       this.renderer.showFieldGhost(points, !error, this.gridSnap)
       if (this.fieldControlPoints.length > 0) {
@@ -1138,7 +1200,7 @@ export class Game {
 
     if (this.planningTool === 'road') {
       const points = this.roadControlPoints.length ? this.roadDraft : []
-      const error = points.length >= 2 ? roadPlacementError(points, this.simulation.state.fields) : null
+      const error = points.length >= 2 ? roadPlacementError(points, this.simulation.state.fields, worldHalf(this.simulation.state)) : null
       this.renderer.showRoadGhost(points, !error, this.gridSnap, this.roadWidth)
       if (this.roadControlPoints.length > 0 && this.rawPointer) {
         this.message = error ?? (
@@ -1155,7 +1217,7 @@ export class Game {
 
     if (this.planningTool === 'residential-plot') {
       const preview = this.plotDraft
-      let error = residentialPlotError(preview, this.simulation.state.residentialPlots)
+      let error = residentialPlotError(preview, this.simulation.state.residentialPlots, worldHalf(this.simulation.state))
       if (!error) error = residentialPlotBuildingError(preview, this.simulation.state.buildings)
       if (!error) error = residentialPlotResourceError(preview, this.simulation.state.nodes)
       if (!error) error = residentialPlotFieldError(preview, this.simulation.state.fields)
@@ -1235,7 +1297,19 @@ export class Game {
     this.animationFrame = requestAnimationFrame(this.tick)
   }
   private updateHud(): void {
-    this.hud.update(this.simulation.state, {
+    const state = this.simulation.state
+    const selectedBuilding = state.buildings.find(candidate => candidate.id === this.selectedId)
+    const selectedWorldObject = selectedBuilding
+      ?? state.settlers.find(candidate => candidate.id === this.selectedId)
+      ?? state.enemies.find(candidate => candidate.id === this.selectedId)
+      ?? state.nodes.find(candidate => candidate.id === this.selectedId)
+      ?? state.fields.find(candidate => candidate.id === this.selectedId)
+      ?? null
+    const selectionAnchor = selectedWorldObject
+      ? this.renderer.screenPoint(selectedWorldObject, selectedBuilding ? Math.max(1.6, BUILDINGS[selectedBuilding.type].fortification ? 1.35 : 2.0) : 1.15)
+      : null
+
+    this.hud.update(state, {
       paused: this.paused,
       selectedId: this.selectedId,
       buildType: this.buildType,
@@ -1251,7 +1325,9 @@ export class Game {
       dragCount: this.dragPoints.length,
       message: this.message,
       camera: this.renderer.mode,
+      cameraPoint: this.renderer.focus,
       cinematic: this.renderer.cinematic,
+      selectionAnchor,
       metrics: this.metrics,
     })
   }
