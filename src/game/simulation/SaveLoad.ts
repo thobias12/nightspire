@@ -1,3 +1,5 @@
+import { MAX_MAP_NODES, MAP_SIZES, worldHalf } from './MapGenerator'
+import { regionalReachability } from './RegionalNavigation'
 import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
 import { RESOURCE_IDS } from '../data/resources'
@@ -6,7 +8,7 @@ import { canAdvanceConstruction, constructionCrewCapacity, constructionWorkLimit
 import { dependentCountAtHome } from './Family'
 import { fieldArea, fieldCentroid, polygonsOverlap, simpleFieldPolygon } from './FieldPlanning'
 import { houseBedCapacity } from './HouseProgression'
-import { blockedCells, cellKey, entrance, flood, footprint, inBounds } from './Navigation'
+import { blockedCells, cellKey, entrance, footprint, inBounds } from './Navigation'
 import { residentialPlotsOverlap } from './TownPlanning'
 import {
   DEFAULT_IMMIGRATION, DEFAULT_NEEDS, DEFAULT_RAID, DEFAULT_TARGETS, MAX_ENEMIES, MAX_SETTLERS, NEED_IDS,
@@ -22,8 +24,6 @@ const check: (value: unknown, message: string) => asserts value = (value, messag
 const number = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const integer = (v: unknown): v is number => number(v) && Number.isSafeInteger(v)
 const inventory = (v: any): boolean => v && RESOURCE_IDS.every(r => integer(v[r]))
-const point = (v: any): boolean => v && Number.isFinite(v.x) && Number.isFinite(v.z) && inBounds(v)
-const gridPoint = (v: any): boolean => point(v) && Number.isInteger(v.x) && Number.isInteger(v.z)
 const needs = (v: any): boolean => v && NEED_IDS.every(need => number(v[need]) && v[need] <= 100)
 const combatant = (v: any, tick: number): boolean =>
   v && integer(v.maxHealth) && v.maxHealth > 0
@@ -35,13 +35,17 @@ const combatant = (v: any, tick: number): boolean =>
 export function validateWorld(value: unknown): asserts value is WorldState {
   const s = value as WorldState
   check(s && s.version === 1, 'unsupported version')
+  check(s.map === undefined || s.map && s.map.version === 1 && integer(s.map.seed) && s.map.seed <= 0xffffffff
+    && MAP_SIZES.includes(s.map.size) && ['meadows', 'woodland'].includes(s.map.landscape), 'map definition')
+  const point = (v: any): boolean => v && Number.isFinite(v.x) && Number.isFinite(v.z) && inBounds(v, worldHalf(s))
+  const gridPoint = (v: any): boolean => point(v) && Number.isInteger(v.x) && Number.isInteger(v.z)
   check(integer(s.nextId) && integer(s.tick) && integer(s.topology) && number(s.elapsedSeconds), 'clock/identity')
   check(integer(s.day) && s.day >= 1 && number(s.timeOfDay) && s.timeOfDay < 1 && point(s.player) && combatant(s.player, s.tick), 'time/player')
   check(inventory(s.targets) && RESOURCE_IDS.every(r => s.targets[r] <= 10_000), 'stock targets')
   check(Array.isArray(s.settlers) && s.settlers.length <= MAX_SETTLERS && s.settlers.length > 0, 'population')
   check(Array.isArray(s.families) && s.families.length <= MAX_SETTLERS, 'families')
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 120, 'buildings')
-  check(Array.isArray(s.nodes) && s.nodes.length <= 1000 && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
+  check(Array.isArray(s.nodes) && s.nodes.length <= (s.map ? MAX_MAP_NODES : 1000) && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
   check(Array.isArray(s.remains) && s.remains.length <= 256, 'battlefield remains')
   check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
@@ -123,7 +127,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     check(b.work <= constructionWorkLimit(b) + 1e-6, 'construction exceeds delivered materials')
 
     for (const p of footprint(b)) {
-      check(inBounds(p) && !occupied.has(cellKey(p)), 'overlapping footprint')
+      check(inBounds(p, worldHalf(s)) && !occupied.has(cellKey(p)), 'overlapping footprint')
       occupied.add(cellKey(p))
     }
   }
@@ -358,7 +362,7 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     }
   }
 
-  const reachable = flood({ x: 0, z: 2 }, blockedCells(s, false))
+  const reachable = regionalReachability({ x: 0, z: 2 }, blockedCells(s, false), worldHalf(s))
   check(
     [...s.settlers, s.player, ...s.buildings.map(entrance), ...s.nodes.filter(n => n.remaining > 0)]
       .every(p => reachable.has(cellKey(p))),

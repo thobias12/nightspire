@@ -1,3 +1,4 @@
+import { RegionalBackdrop } from './RegionalBackdrop'
 import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
@@ -81,7 +82,7 @@ export class SceneRenderer {
   overflowInstances = 0
   readonly canvas = document.createElement('canvas')
   readonly scene = new THREE.Scene()
-  readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 180)
+  readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1600)
   readonly focus = { x: 0, z: -1 }
 
   mode: CameraMode = 'settlement'
@@ -97,6 +98,9 @@ export class SceneRenderer {
   private readonly settlementGlow = new THREE.PointLight(0xffa65b, 0, 36, 1.65)
   private readonly grid = new THREE.GridHelper(46, 46, 0x829077, 0x68755d)
   private readonly groundMaterial = new THREE.MeshStandardMaterial({ color: 0x617248, roughness: 1 })
+  private readonly regionBackdrop = new RegionalBackdrop()
+  private readonly ground = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.groundMaterial)
+  private regionSize = 47
   private readonly roadTerrain = new RoadTerrain(MAP_SIZE + 20)
   private readonly radialGlowTexture = createRadialGlowTexture()
   private readonly matrix = new THREE.Object3D()
@@ -168,12 +172,11 @@ export class SceneRenderer {
     this.settlementGlow.position.set(0, 2.4, 0)
     this.settlementGlow.decay = 1.45
     this.settlementGlow.layers.set(1)
-    this.scene.add(this.sun, this.moon, this.ambient, this.settlementGlow)
+    this.scene.add(this.sun, this.sun.target, this.moon, this.ambient, this.settlementGlow)
 
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(MAP_SIZE + 20, MAP_SIZE + 20),
-      this.groundMaterial,
-    )
+    const ground = this.ground
+    ground.scale.set(MAP_SIZE + 20, MAP_SIZE + 20, 1)
+    this.scene.add(this.regionBackdrop)
     this.groundMaterial.map = this.roadTerrain.texture
     ground.rotation.x = -Math.PI / 2
     ground.receiveShadow = true
@@ -185,6 +188,10 @@ export class SceneRenderer {
     this.grid.visible = false
     this.scene.add(this.grid)
 
+    this.addBatch('regionalCrown', new THREE.IcosahedronGeometry(1, 1), 0x465d39, 8192)
+    this.addBatch('regionalTrunk', new THREE.CylinderGeometry(0.18, 0.3, 1, 5), 0x51402d, 4096)
+    ;(this.batches.regionalCrown.material as THREE.MeshStandardMaterial).color.setHex(0xffffff)
+    ;(this.batches.regionalTrunk.material as THREE.MeshStandardMaterial).color.setHex(0xffffff)
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 7), 0x354d36, 1600)
     this.addBatch('treeTrunk', new THREE.CylinderGeometry(0.14, 0.2, 1, 7), 0x4e3828, 1000)
     this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 1300)
@@ -2557,14 +2564,21 @@ export class SceneRenderer {
     const town = settlementTier(state)
     this.updateNightMaterialLift(night)
 
-    this.roadTerrain.update(state.roads)
+    this.regionSize = state.map?.size ?? 47
+    this.sun.position.set(this.focus.x - 20, 40, this.focus.z + 20)
+    this.sun.target.position.set(this.focus.x, 0, this.focus.z)
+    this.sun.castShadow = this.zoom < 150
+    this.ground.scale.set(this.regionSize + 20, this.regionSize + 20, 1)
+    this.regionBackdrop.update(state.map)
+    this.grid.position.x = Math.round(this.focus.x); this.grid.position.z = Math.round(this.focus.z)
+    this.roadTerrain.update(state.roads, state.map)
     this.renderRoadDressing()
     this.renderTownRoadEvolution(state, town.rank)
     this.renderFarmFields(state.fields)
 
     // Decorative outer woodland extends beyond the playable navigation square so
     // lower cameras see a landscape/forest continuation instead of a board edge.
-    for (let i = 0; i < 72; i++) {
+    for (let i = 0; !state.map && i < 72; i++) {
       const side = i % 4
       const along = -30 + ((i * 7) % 61)
       const inset = 25.2 + ((i * 11) % 6) * 0.92
@@ -2582,6 +2596,17 @@ export class SceneRenderer {
 
     for (const n of state.nodes) {
       if (n.remaining <= 0) continue
+      if (state.map && (n.x - this.focus.x) ** 2 + (n.z - this.focus.z) ** 2 > Math.max(90, this.zoom * 1.6) ** 2) continue
+      if (state.map && n.resource === 'wood') {
+        const scale = 1.3 + (n.id % 13) * 0.065
+        const far = Math.hypot(n.x - this.focus.x, n.z - this.focus.z) > 80 || this.zoom > 150
+        this.instance('regionalCrown', n.x, 2.8 * scale, n.z, 1.35 * scale, 1.6 * scale, 1.3 * scale, n.id % 3 === 0 ? 0x51643d : 0x3d5538, n.id)
+        if (!far) {
+          this.instance('regionalTrunk', n.x, 1.2 * scale, n.z, scale, 2.4 * scale, scale)
+          this.instance('regionalCrown', n.x + 0.7, 2.5 * scale, n.z + 0.35, scale, scale, scale, 0x4a603b, n.id * 0.7)
+        }
+        continue
+      }
       if (n.resource === 'wood') {
         const jitterX = Math.sin(n.id * 12.9898) * 0.3
         const jitterZ = Math.cos(n.id * 7.233) * 0.3
@@ -2873,14 +2898,15 @@ export class SceneRenderer {
     const fog = this.scene.fog
     if (fog instanceof THREE.Fog) {
       fog.color.copy(this.fogNightTint).lerp(sky, 0.18 + atmosphere.daylight * 0.68).lerp(this.fogDayTint, atmosphere.daylight * 0.08)
-      fog.near = atmosphere.fogNear
-      fog.far = atmosphere.fogFar
+      fog.near = Math.max(atmosphere.fogNear, this.regionSize > 47 ? this.zoom * 0.85 : 0)
+      fog.far = Math.max(atmosphere.fogFar, this.regionSize > 47 ? this.zoom * 1.8 + 100 : 0)
     }
     this.groundMaterial.color.copy(this.nightGround).lerp(this.dayGround, atmosphere.daylight)
     // Preserve the existing daylight tint; the map already contains day meadow albedo.
     this.groundMaterial.color.r /= this.dayGround.r
     this.groundMaterial.color.g /= this.dayGround.g
     this.groundMaterial.color.b /= this.dayGround.b
+    this.regionBackdrop.tint(this.groundMaterial.color)
 
     if (glowWeight > 0) {
       this.settlementGlow.position.set(glowX / glowWeight, 2.35, glowZ / glowWeight)

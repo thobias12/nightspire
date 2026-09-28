@@ -1,3 +1,4 @@
+import { worldHalf } from '../simulation/MapGenerator'
 import type { SceneRenderer } from '../render/SceneRenderer'
 import type { Simulation } from '../simulation/Simulation'
 
@@ -26,7 +27,7 @@ export class InputController {
     document.addEventListener('visibilitychange', () => { this.keys.clear(); this.released.clear() }, { signal })
     renderer.canvas.addEventListener('wheel', e => {
       e.preventDefault()
-      renderer.zoom = Math.max(15, Math.min(58, renderer.zoom + e.deltaY * 0.03))
+      renderer.zoom = Math.max(15, Math.min(this.simulation.state.map ? this.simulation.state.map.size * 1.25 : 58, renderer.zoom + e.deltaY * 0.002 * renderer.zoom))
     }, { signal, passive: false })
   }
 
@@ -42,8 +43,9 @@ export class InputController {
     const dx = (x * Math.cos(r.angle) + z * Math.sin(r.angle)) / length * delta
     const dz = (-x * Math.sin(r.angle) + z * Math.cos(r.angle)) / length * delta
     if (r.mode === 'settlement') {
-      r.focus.x = Math.max(-23, Math.min(23, r.focus.x + dx * 16))
-      r.focus.z = Math.max(-23, Math.min(23, r.focus.z + dz * 16))
+      const half = worldHalf(this.simulation.state), speed = Math.max(16, r.zoom * 0.55)
+      r.focus.x = Math.max(-half, Math.min(half, r.focus.x + dx * speed))
+      r.focus.z = Math.max(-half, Math.min(half, r.focus.z + dz * speed))
     } else if (!paused && this.simulation.state.player.health > 0) {
       const p = this.simulation.state.player, nav = this.simulation.navigation
       nav.sync(this.simulation.state)
