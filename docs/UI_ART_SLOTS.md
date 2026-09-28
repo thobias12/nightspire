@@ -1,5 +1,7 @@
 # Nightspire UI art slots
 
+The [current reference pass](MEDIEVAL_UI.md) uses portrait construction cards and parchment previews with these existing assets. The construction shelf is now fixed above the command row; selected-object panels remain draggable. General / People / Advanced tabs replace the four-tab layout; operation details expand under General and demolition is under Advanced. Portrait-format illustrations are the next useful art improvement.
+
 The M3.11.7 UI shell intentionally separates layout from final artwork. Astra can replace these placeholders without changing HUD structure or gameplay wiring.
 
 ## Resource icons

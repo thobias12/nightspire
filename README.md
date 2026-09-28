@@ -45,6 +45,8 @@ These mature-service concepts are planned direction only. Final gameplay, balanc
 
 ## Seeded regional maps
 
+The current [medieval HUD pass](docs/MEDIEVAL_UI.md) adds a parchment header, portrait construction shelf, square command buttons and illustrated three-tab building windows. Assign workers below the illustration, expand operation details under General, and find demolition under Advanced.
+
 New settlements now start on a seeded 257-cell region. Use **Settlement overview → New region** to choose a seed, Meadows/Woodland, and **129, 257 or 513 cells per side** (one metre per cell). Region view, zoom/pan and the clickable minimap let you explore the expanded playable land. Starting another region first saves your current settlement. The playable valley floor remains flat; distant hills are scenery. See [controls, measured timings, verification and limits](docs/REGIONAL_MAPS.md).
 
 ## Play locally

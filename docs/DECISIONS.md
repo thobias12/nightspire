@@ -1,5 +1,9 @@
 # Decisions — M1 settlement loop
 
+## Medieval UI reference pass
+
+Retain the delegated DOM HUD and asset contract. Scoped `MedievalHud.css` owns the new presentation; workplace quick controls call existing assignment actions and disclosure state remains local to the UI. No simulation/save fields change. Fix the construction shelf to the bottom to follow the supplied reference; contextual windows remain draggable. See `MEDIEVAL_UI.md` for verification and limits.
+
 ## Preserve the foundation and isolate ownership
 
 Keep the original Vite / strict TypeScript / Three.js stack and pinned versions. Game owns lifecycle and coordinates simulation, input, renderer and HUD. Renderer owns every Three.js object; simulation imports no Three.js, DOM, or renderer modules. Content definitions contain only current M1 content. The broader future catalog remains in design documents.
