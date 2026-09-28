@@ -2,7 +2,7 @@
 
 ## Medieval HUD reference pass — ready for visual review
 
-Parchment header/resource rail, portrait construction shelf and focus preview, square command buttons, illustrated three-tab building panels and quick workplace staffing controls. Simulation unchanged. Install/typecheck/188 tests/build passed; production browser checked at desktop and compact sizes. See [verification and screenshots](MEDIEVAL_UI.md). Portrait-format art and wider visual review remain follow-up work.
+Parchment header/resource rail, portrait construction shelf and focus preview, square command buttons, illustrated three-tab building panels and quick workplace staffing controls. Simulation unchanged. Install/typecheck/191 tests/build passed; production browser checked at desktop and compact sizes. See [verification and screenshots](MEDIEVAL_UI.md). Portrait-format art and wider visual review remain follow-up work.
 
 ## M0 — Foundation (complete)
 

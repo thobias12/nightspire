@@ -1,6 +1,6 @@
 # Medieval HUD reference pass
 
-Based on the three user-supplied Manor Lords screenshots. Starts from merged main `16d41a7`, including regional maps and current Nightspire artwork. No simulation, save, navigation, economy or renderer changes.
+Based on the three user-supplied Manor Lords screenshots. Starts from merged main `16d41a7`, then integrates newer economy and architecture patches through `8d2e328`. No simulation, save, navigation, economy or renderer changes.
 
 ## Layout and controls
 
@@ -17,7 +17,7 @@ Based on the three user-supplied Manor Lords screenshots. Starts from merged mai
 
 ## Verification
 
-- Install, typecheck, all **188 tests** and production build passed. Existing Three.js bundle-size warning remains.
+- Install, architecture check, typecheck, all **191 tests** and production build passed. Existing Three.js bundle-size warning remains.
 - Browser: 1280×720 and 800×600, category switching, horizontal shelf overflow, keyboard focus preview and Enter-to-select. Blacksmith selection entered placement; Inspect cancelled it.
 - Blacksmith assignment 0 → 1 → 2 (plus disabled at capacity), removal 2 → 1, People/Advanced/General tabs, demolition action in Advanced, live operation disclosure and panel dragging checked.
 - Final production screenshots captured; no console errors. Missing first-batch preview images and low-contrast text found during QA were fixed.
@@ -29,6 +29,6 @@ Based on the three user-supplied Manor Lords screenshots. Starts from merged mai
 
 ## Limits and review
 
-Screenshots use the existing staged QA town. Portrait cards crop landscape illustrations; custom portrait manuscript artwork would improve the reference match. Planned art remains subdued. Desktop is the target, not a touch/mobile conversion; the existing small-window rule hides Tasks. No foreground GPU or long-session performance claim is made.
+The workplace screenshot uses the existing staged QA town; the construction screenshot shows the latest integrated catalog. Forester, fishing and Ore Yard temporarily reuse related existing illustrations, while Mine and Pleasure House use their existing sprite artwork. Portrait cards crop landscape illustrations; custom portrait manuscript artwork would improve the reference match. Planned art remains subdued. Desktop is the target, not a touch/mobile conversion; the existing small-window rule hides Tasks. No foreground GPU or long-session performance claim is made.
 
 Next review: compare the shelf at 1280×720 and 1920×1080, inspect staffed and unfinished buildings, and inspect house/trade/stockpile detail panes. Follow with portrait-format artwork and spacing refinements.

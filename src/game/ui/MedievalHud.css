@@ -109,6 +109,19 @@
 .medieval-hud .build-card [data-art-slot="build-manor"] { background-position: 80% center; }
 .medieval-hud .build-card [data-art-slot="build-watchtower"] { background-position: 90% center; }
 .medieval-hud .build-card [data-art-slot="build-barracks"] { background-position: 100% center; }
+.medieval-hud .build-card [data-art-slot="build-mine"],
+.medieval-hud .build-card [data-art-slot="build-pleasure-house"] { background-size: 1100% 100%; }
+/* Newly integrated economy buildings reuse related artwork until dedicated art exists. */
+.medieval-hud [data-art-slot="build-foresters-lodge"],
+.medieval-hud [data-ui-asset="building-header:foresters-lodge"] { background-image: url('../../../assets/ui/building-card/farmhouse.webp'); background-size: cover; }
+.medieval-hud [data-art-slot="build-fishing-hut"],
+.medieval-hud [data-ui-asset="building-header:fishing-hut"] { background-image: url('../../../assets/ui/building-card/trading-post.webp'); background-size: cover; }
+.medieval-hud [data-art-slot="build-ore-yard"],
+.medieval-hud [data-ui-asset="building-header:ore-yard"] { background-image: url('../../../assets/ui/building-card/stockpile.webp'); background-size: cover; }
+.medieval-hud [data-ui-asset="building-header:mine"],
+.medieval-hud [data-ui-asset="building-header:pleasure-house"] { background-image: url('../../../assets/ui/building-card/planned-buildings.svg'); background-size: 1100% 100%; }
+.medieval-hud [data-ui-asset="building-header:mine"] { background-position: 30% center; }
+.medieval-hud [data-ui-asset="building-header:pleasure-house"] { background-position: 70% center; }
 .medieval-hud .build-card.is-unaffordable:not(.is-planned)::before { content: none; }
 .medieval-hud .build-name { font-size: 11px; line-height: 1.05; color: #3b3528; text-align: center; padding: 6px 0 0; white-space: normal; }
 .medieval-hud .build-card small { display: none; }
@@ -139,6 +152,8 @@
   box-shadow: inset 0 0 18px #69482f66, 0 8px 25px #0009;
 }
 .medieval-hud .build-preview-art { min-height: 0; height: 134px; border: 1px solid #76664e88; filter: saturate(.75) sepia(.1); }
+.medieval-hud .build-preview-art > span { display: none; }
+.medieval-hud .build-preview-art::after { content: none; }
 .medieval-hud .build-preview-art[data-art-slot="build-farmhouse"] { background-image: url('../../../assets/ui/building-card/farmhouse.webp'); }
 .medieval-hud .build-preview-art[data-art-slot="build-brewery"] { background-image: url('../../../assets/ui/building-card/brewery.webp'); }
 .medieval-hud .build-preview-art[data-art-slot="build-tavern"] { background-image: url('../../../assets/ui/building-card/tavern.webp'); }
