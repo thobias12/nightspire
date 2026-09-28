@@ -21,6 +21,7 @@ import { distance, entrance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
 import { processImmigrationDay } from './Population'
 import { updateProduction } from './Production'
+import { processForestryDay, updateResourceWorkplaces } from './ResourceWorkplaces'
 import { serviceAssignments, updateServices, type ServiceAssignment } from './Services'
 import { toolCoverage } from './Tools'
 import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
@@ -88,6 +89,7 @@ export class Simulation {
 
     this.navigation.sync(s)
     updateProduction(s, FIXED_STEP, phase)
+    updateResourceWorkplaces(s, FIXED_STEP, phase)
 
     if (this.profile) { this.timings.other = performance.now() - mark; mark = performance.now() }
 
@@ -200,6 +202,7 @@ export class Simulation {
       recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
     } else if (next === 'day') {
       processAgricultureDay(s)
+      processForestryDay(s)
       const upgrades = processHouseholdProgression(s)
       assignHousing(s)
       const familyDay = processFamiliesDay(s)
@@ -323,7 +326,7 @@ export class Simulation {
 
   private updateNightSchedule(settler: Settler): void {
     const phase = this.phase
-    if (settler.role !== 'guard' && (phase === 'dusk' || phase === 'dawn')) {
+    if (settler.role !== 'guard' && phase !== 'day') {
       this.servicePlan ??= serviceAssignments(this.state, phase)
     }
     const { target, status } = nightTarget(this.state, settler, phase, this.servicePlan)
