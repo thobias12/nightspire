@@ -6,10 +6,7 @@ const root = resolve('src/game')
 const violations = []
 const warnings = []
 const runtimeGraph = new Map()
-const oversizedLegacy = new Set([
-  'render/SceneRenderer.ts',
-  'ui/Hud.ts',
-])
+const oversizedLegacy = new Set()
 
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -84,7 +81,7 @@ for (const file of files) {
   if (size > 80_000) {
     const description = `${relFile} (${Math.round(size / 1024)} KiB)`
     if (oversizedLegacy.has(relFile)) warnings.push(`${description}: tracked legacy hotspot; split when touched`)
-    else violations.push(`${description}: new/expanded module exceeds the 80 KiB navigation budget`)
+    else violations.push(`${description}: module exceeds the 80 KiB navigation budget`)
   }
 
   const source = readFileSync(file, 'utf8')
