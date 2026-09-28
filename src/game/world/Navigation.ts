@@ -1,16 +1,14 @@
 import { worldHalf } from './MapGenerator'
 import { RegionalRouter } from './RegionalNavigation'
+import { cellKey, distance, inBounds } from './Grid'
 import { BUILDINGS } from '../data/buildings'
 import { PATH_BUDGET } from '../data/jobs'
-import type { Building, Enemy, Point, Settler, WorldState } from './WorldState'
+import type { Building, Enemy, Point, Settler, WorldState } from '../model/WorldState'
 
 export const MAP_MIN = -23, MAP_MAX = 23, MAP_SIZE = 47
 export const PATH_RETRY_TICKS = 40
-// Fixed key stride covers every supported region without changing keys on load.
-export const cellKey = (p: Point): number => (Math.round(p.z) + 512) * 1025 + Math.round(p.x) + 512
-export const inBounds = (p: Point, half = MAP_MAX): boolean => Math.abs(p.x) <= half && Math.abs(p.z) <= half
+export { cellKey, distance, inBounds } from './Grid'
 export const entrance = (b: Building): Point => ({ x: b.x, z: b.z + Math.floor(BUILDINGS[b.type].footprint / 2) + 1 })
-export const distance = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.z - b.z)
 
 export function footprint(b: Pick<Building, 'x' | 'z' | 'type'>): Point[] {
   const half = Math.floor(BUILDINGS[b.type].footprint / 2), cells: Point[] = []
@@ -62,12 +60,12 @@ const neighbors = (p: Point): Point[] => [
 export function flood(start: Point, blocked: Set<number>): Map<number, Point | null> {
   const origin = { x: Math.round(start.x), z: Math.round(start.z) }
   const parents = new Map<number, Point | null>()
-  if (!inBounds(origin) || blocked.has(cellKey(origin))) return parents
+  if (!inBounds(origin, MAP_MAX) || blocked.has(cellKey(origin))) return parents
   const queue = [origin]; parents.set(cellKey(origin), null)
   for (let i = 0; i < queue.length; i++) {
     for (const p of neighbors(queue[i])) {
       const key = cellKey(p)
-      if (!inBounds(p) || blocked.has(key) || parents.has(key)) continue
+      if (!inBounds(p, MAP_MAX) || blocked.has(key) || parents.has(key)) continue
       parents.set(key, queue[i]); queue.push(p)
     }
   }

@@ -1,4 +1,4 @@
-import { createInitialWorldState, type WorldState } from './WorldState'
+import { createInitialWorldState, type WorldState } from '../model/WorldState'
 
 export const MAP_SIZES = [129, 257, 513] as const
 export type MapSize = typeof MAP_SIZES[number]

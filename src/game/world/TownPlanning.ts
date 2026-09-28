@@ -1,7 +1,7 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { pointInPolygon, segmentsIntersect } from './FieldPlanning'
 import { inBounds } from './Navigation'
-import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
+import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from '../model/WorldState'
 
 export type BackyardKind = ResidentialPlot['backyard']
 

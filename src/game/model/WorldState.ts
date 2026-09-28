@@ -1,10 +1,10 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import type { JobKind } from '../data/jobs'
 import { emptyInventory, type Inventory, type ResourceId } from '../data/resources'
-import type { SettlerRole } from './Schedule'
-import type { MapDefinition } from './MapGenerator'
+import type { MapDefinition } from '../world/MapGenerator'
 
 export interface Point { x: number; z: number }
+export type SettlerRole = 'worker' | 'guard'
 export interface PlayerState extends Point {
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
 }
