@@ -1,9 +1,5 @@
+import { MAP_SIZES, type Landscape, type MapDefinition, type MapSize } from '../data/map'
 import { createInitialWorldState, type WorldState } from '../model/WorldState'
-
-export const MAP_SIZES = [129, 257, 513] as const
-export type MapSize = typeof MAP_SIZES[number]
-export type Landscape = 'meadows' | 'woodland'
-export interface MapDefinition { version: 1; seed: number; size: MapSize; landscape: Landscape }
 export const MAX_MAP_NODES = 4096
 export const worldHalf = (s: Pick<WorldState, 'map'>): number => ((s.map?.size ?? 47) - 1) / 2
 
