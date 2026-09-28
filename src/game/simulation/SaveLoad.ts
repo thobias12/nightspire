@@ -43,6 +43,13 @@ export function validateWorld(value: unknown): asserts value is WorldState {
   check(Array.isArray(s.settlers) && s.settlers.length <= MAX_SETTLERS && s.settlers.length > 0, 'population')
   check(Array.isArray(s.buildings) && s.buildings.length > 0 && s.buildings.length <= 120, 'buildings')
   check(Array.isArray(s.nodes) && s.nodes.length <= (s.map ? MAX_MAP_NODES : 1000) && Array.isArray(s.jobs) && s.jobs.length <= MAX_SETTLERS, 'entities')
+  for (const node of s.nodes) {
+    check(gridPoint(node) && RESOURCE_IDS.includes(node.resource) && integer(node.remaining), 'resource node')
+    check(node.planted === undefined || typeof node.planted === 'boolean', 'managed tree flag')
+    check(node.growth === undefined || number(node.growth) && node.growth <= 1, 'managed tree growth')
+    check(node.resource === 'wood' || (node.planted === undefined && node.growth === undefined), 'managed resource kind')
+    check(!node.planted || node.growth !== undefined, 'managed tree growth state')
+  }
   check(Array.isArray(s.enemies) && s.enemies.length <= MAX_ENEMIES, 'enemies')
   check(Array.isArray(s.roads) && s.roads.length <= 200, 'roads')
   check(Array.isArray(s.residentialPlots) && s.residentialPlots.length <= 80, 'residential plots')
