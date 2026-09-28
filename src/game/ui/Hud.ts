@@ -688,7 +688,7 @@ export class Hud {
     const services = serviceSummary(s, phase)
     const taverns = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'tavern')
     const breweries = s.buildings.filter(b => b.complete && !b.destroyed && b.type === 'brewery')
-    const suppliedTaverns = taverns.filter(serviceAvailable).length
+    const suppliedTaverns = taverns.filter(building => serviceAvailable(building, s)).length
     const needSummary = settlementNeeds(s)
     const moraleSummary = settlementHappinessEffect(s)
     const toolSummary = toolCoverage(s)
@@ -1048,7 +1048,7 @@ export class Hud {
             const assignments = serviceAssignments(s, phase)
             const visitorIds = [...assignments.entries()].filter(([, assignment]) => assignment.buildingId === b.id).map(([id]) => id)
             const visitors = visitorIds.map(id => s.settlers.find(settler => settler.id === id)).filter((settler): settler is Settler => !!settler)
-            const supplied = serviceAvailable(b)
+            const supplied = serviceAvailable(b, s)
             const supply = service.supplyResource
             const supplyText = supply
               ? '<div class="resource-meter"><div class="resource-meter-label"><span data-ui-asset="resource:' + supply + '"></span><b>' + RESOURCES[supply].label + '</b><em>' + b.inventory[supply] + ' / ' + service.supplyCapacity + '</em></div><div class="resource-meter-track"><i style="width:' + percentage(b.inventory[supply], service.supplyCapacity) + '%"></i></div></div>'
