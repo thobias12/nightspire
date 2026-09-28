@@ -108,11 +108,9 @@ const PLANNED_CATALOG_PREVIEWS: Record<string, CatalogPreview> = {
   'build-granary': { title: 'Granary', category: 'Logistics', description: 'Dedicated food storage and distribution support for larger settlements.', detail: 'Food logistics · planned progression', requirement: 'Planned feature.', art: 'build-granary', planned: true },
   'build-bakery': { title: 'Bakery', category: 'Industry', description: 'A later food-processing workplace intended to turn agricultural inputs into higher-value provisions.', detail: 'Processed food · planned production chain', requirement: 'Planned feature.', art: 'build-bakery', planned: true },
   'build-quarry': { title: 'Quarry', category: 'Industry', description: 'Extract Stone for heavier civic and defensive construction in later settlement tiers.', detail: 'Stone extraction · planned resource chain', requirement: 'Planned feature.', art: 'build-quarry', planned: true },
-  'build-mine': { title: 'Mine', category: 'Industry', description: 'A permanent Ore extraction site for a deeper Tools and metalworking economy.', detail: 'Ore extraction · planned resource chain', requirement: 'Planned feature.', art: 'build-mine', planned: true },
   'build-well': { title: 'Well', category: 'Services', description: 'A neighborhood water service intended to support household quality and future settlement needs.', detail: 'Water service · planned household need', requirement: 'Planned feature.', art: 'build-well', planned: true },
   'build-chapel': { title: 'Chapel', category: 'Services', description: 'A faith and community service building for later settlement progression.', detail: 'Faith service · planned progression', requirement: 'Planned feature.', art: 'build-chapel', planned: true },
   'build-bathhouse': { title: 'Bathhouse', category: 'Services', description: 'A higher-tier hygiene and luxury service for prosperous neighborhoods.', detail: 'Hygiene · luxury · planned service', requirement: 'Planned feature.', art: 'build-bathhouse', planned: true },
-  'build-pleasure-house': { title: 'Pleasure House', category: 'Services', description: 'A mature entertainment and luxury venue intended for later settlement prosperity and visitor income.', detail: 'Recreation · luxury · visitors · planned service', requirement: 'Planned feature.', art: 'build-pleasure-house', planned: true },
   'build-manor': { title: 'Manor', category: 'Services', description: 'A civic centerpiece for higher settlement status, administration and future progression.', detail: 'Civic progression · planned landmark', requirement: 'Planned feature.', art: 'build-manor', planned: true },
   'build-watchtower': { title: 'Watchtower', category: 'Defense', description: 'A later defensive structure intended to extend warning and ranged protection around the settlement.', detail: 'Ranged defense · planned fortification', requirement: 'Planned feature.', art: 'build-watchtower', planned: true },
   'build-barracks': { title: 'Barracks', category: 'Defense', description: 'A dedicated military building for organizing and supporting a larger permanent defense force.', detail: 'Military staffing · planned defense', requirement: 'Planned feature.', art: 'build-barracks', planned: true },
@@ -154,6 +152,7 @@ export class Hud {
   private buildMenuOpen = false
   private activeBuildTab = 'planning'
   private activeContextTab = 'general'
+  private operationDetailsOpen = false
   private lastContextId: number | null = null
   private lastFloatingSelectionId: number | null = null
   private inspectorManuallyPositioned = false
@@ -161,15 +160,14 @@ export class Hud {
   private draggedPanel: { panel: HTMLElement; pointerId: number; offsetX: number; offsetY: number } | null = null
 
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
-    this.element.className = 'hud'
+    this.element.className = 'hud medieval-hud'
     this.element.innerHTML = `
       <header class="topbar">
+        <div id="settlement-summary" class="settlement-summary" aria-label="Settlement status"></div>
         <div class="settlement-brand">
           <span class="ui-crest-slot" data-art-slot="settlement-crest" aria-hidden="true"></span>
           <div class="settlement-copy">
-            <span class="settlement-region">Oakridge</span>
             <b>NIGHTSPIRE</b>
-            <div id="settlement-summary" class="settlement-summary"></div>
           </div>
         </div>
         <div id="resources" class="resource-strip" aria-label="Settlement resources"></div>
@@ -239,8 +237,8 @@ export class Hud {
       </details>
 
       <footer class="bottom">
-        <div class="build-catalog panel floating-panel" data-draggable-panel data-panel-id="build-catalog" aria-hidden="true">
-          <div class="catalog-header" data-drag-handle>
+        <div class="build-catalog panel" aria-hidden="true">
+          <div class="catalog-header">
             <div><span class="eyebrow">CONSTRUCTION</span><strong>Choose what to place</strong></div>
             <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
           </div>
@@ -355,9 +353,18 @@ export class Hud {
       </footer>
     `
     root.append(this.element)
+    // Card details remain in the hover/focus preview; the shelf stays legible at a glance.
+    for (const card of this.element.querySelectorAll<HTMLButtonElement>('.build-card')) {
+      const name = card.querySelector('.build-name')?.textContent ?? ''
+      card.setAttribute('aria-label', name + (card.classList.contains('is-planned') ? ' (planned)' : ''))
+    }
     this.syncBuildMenu()
 
     const signal = this.abort.signal
+    this.element.addEventListener('toggle', event => {
+      const details = event.target as HTMLDetailsElement
+      if (details.matches('.operation-details')) this.operationDetailsOpen = details.open
+    }, { capture: true, signal })
     this.element.addEventListener('click', e => {
       const target = e.target as HTMLElement
       const minimap = target.closest<HTMLElement>('#minimap-map')
@@ -598,9 +605,9 @@ export class Hud {
         : '<span class="preview-state available">Available</span>'
 
     preview.innerHTML =
-      '<div class="build-preview-art" data-art-slot="' + escape(data.art) + '"><span>Artwork slot</span></div>'
+      '<div class="build-preview-heading"><span><small>' + escape(data.category) + '</small><b>' + escape(data.title) + '</b></span>' + availability + '</div>'
+      + '<div class="build-preview-art" data-art-slot="' + escape(data.art) + '"><span>Artwork slot</span></div>'
       + '<div class="build-preview-copy">'
-      + '<div class="build-preview-heading"><span><small>' + escape(data.category) + '</small><b>' + escape(data.title) + '</b></span>' + availability + '</div>'
       + '<p>' + escape(data.description) + '</p>'
       + '<div class="build-preview-meta">' + escape(data.detail) + '</div>'
       + '<div class="build-preview-requirement">' + escape(data.requirement) + '</div>'
@@ -609,11 +616,11 @@ export class Hud {
     preview.classList.add('is-visible')
     preview.setAttribute('aria-hidden', 'false')
 
-    const catalogRect = catalog.getBoundingClientRect()
     const cardRect = card.getBoundingClientRect()
     const width = preview.offsetWidth || 360
-    const desired = cardRect.left - catalogRect.left + cardRect.width / 2 - width / 2
-    preview.style.left = Math.max(0, Math.min(Math.max(0, catalogRect.width - width), desired)) + 'px'
+    const height = preview.offsetHeight
+    preview.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, cardRect.left + cardRect.width / 2 - width / 2)) + 'px'
+    preview.style.top = Math.max(8, cardRect.top - height - 12) + 'px'
   }
 
   private hideBuildPreview(): void {
@@ -643,7 +650,7 @@ export class Hud {
     const activePanel = this.element.querySelector<HTMLElement>('[data-build-panel="' + this.activeBuildTab + '"]')
     const cardCount = activePanel?.querySelectorAll('.build-card').length ?? 0
     const dividerCount = activePanel?.querySelectorAll('.planned-divider').length ?? 0
-    const desiredWidth = Math.min(940, Math.max(560, 24 + cardCount * 136 + dividerCount * 42))
+    const desiredWidth = Math.min(1120, Math.max(580, 24 + cardCount * 112 + dividerCount * 20))
     catalog.style.setProperty('--catalog-width', desiredWidth + 'px')
     if (catalog.classList.contains('is-user-positioned')) this.clampFloatingPanels()
   }
@@ -995,16 +1002,16 @@ export class Hud {
       if (this.lastContextId !== b.id) {
         this.lastContextId = b.id
         this.activeContextTab = 'general'
+        this.operationDetailsOpen = false
       }
       const buildingStatus = b.complete ? (b.destroyed ? 'Ruined' : 'Fully operational') : 'Under construction'
       const statusTone = b.destroyed ? 'danger' : !b.complete || b.health < b.maxHealth ? 'warning' : 'good'
       const hpPercent = percentage(b.health, b.maxHealth)
       const generalBody =
         '<p class="building-description">' + BUILDING_DESCRIPTIONS[b.type] + '</p>'
-        + '<div class="building-status-banner status-' + statusTone + '"><span><b>' + buildingStatus + '</b><small>Facing ' + facing + '</small></span><strong>' + hpPercent + '%</strong></div>'
+        + '<div class="building-status-banner status-' + statusTone + '"><span><b>' + buildingStatus + '</b><small>Facing ' + facing + ' · HP ' + b.health + '/' + b.maxHealth + '</small></span><strong>' + hpPercent + '%</strong></div>'
         + compoundText
-        + '<div class="context-status">' + details + '</div>'
-        + demolish
+        + (!b.complete || b.destroyed ? '<div class="context-status">' + details + '</div>' : '')
 
       const residentCards = household
         ? (() => {
@@ -1150,11 +1157,23 @@ export class Hud {
         || (def.production ? '<div class="context-control-row"><span><b>Hauling behavior</b><small>Low conserves hauling labor. High prioritizes this workplace.</small></span><button data-action="workplace-haul-priority">' + haulPriorityLabel(b.haulPriority) + '</button></div>' : '')
         || '<p class="context-empty">No advanced policies are available for this building yet.</p>'
 
+      const workerRibbon = b.complete && !b.destroyed && (def.workerSlots ?? 0) > 0
+        ? (() => {
+            const staffing = workplaceStaffing(s, b)
+            const last = staffing.workers.at(-1)
+            const slots = Array.from({ length: staffing.slots }, (_, i) => {
+              const worker = staffing.workers[i]
+              return '<span class="staff-token ' + (worker ? 'is-filled' : '') + '" title="' + escape(worker ? settlerLabel(s, worker.id) + ' · ' + worker.status : 'Unassigned slot') + '"><span aria-hidden="true">♟</span></span>'
+            }).join('')
+            return '<div class="staff-ribbon" aria-label="Workplace staffing"><button data-action="unassign-workplace" data-value="' + (last?.id ?? '') + '" aria-label="Remove one worker" title="Remove one worker" ' + (!last ? 'disabled' : '') + '>−</button>'
+              + slots + '<button data-action="assign-workplace" aria-label="Assign one laborer" title="Assign one laborer" ' + (staffing.assigned >= staffing.slots || laborers === 0 ? 'disabled' : '') + '>+</button>'
+              + '<small>' + staffing.assigned + '/' + staffing.slots + ' assigned<br>' + staffing.active + ' at work</small></div>'
+          })()
+        : ''
       const contextTabs = [
-        { id: 'general', label: 'General', body: generalBody },
+        { id: 'general', label: 'General', body: generalBody + '<details class="operation-details"' + (this.operationDetailsOpen ? ' open' : '') + '><summary>Operation & storage</summary>' + operationBody + '</details>' },
         { id: 'people', label: 'People', body: peopleBody },
-        { id: 'operations', label: def.production ? 'Production' : def.service ? 'Services' : def.storage || def.tradeStorageCapacity || def.agricultureStorageCapacity ? 'Storage' : b.type === 'house' ? 'Household' : 'Operations', body: operationBody },
-        { id: 'advanced', label: 'Advanced', body: advancedBody },
+        { id: 'advanced', label: 'Advanced', body: advancedBody + demolish },
       ]
       const contextTabsHtml = contextTabs.map(tab =>
         '<button data-context-tab="' + tab.id + '" aria-pressed="' + (this.activeContextTab === tab.id) + '">' + tab.label + '</button>'
@@ -1167,6 +1186,7 @@ export class Hud {
         + '<div class="building-panel-title" data-drag-handle><span class="ui-icon-slot" data-ui-asset="building-icon:' + b.type + '" aria-hidden="true"></span><div><span class="eyebrow">' + (def.profession ?? (def.housing ? 'Residential' : def.fortification ? 'Defense' : 'Settlement building')) + '</span><h2>' + def.label + ' <small>#' + b.id + '</small></h2></div><button class="context-close" data-action="close-inspector" title="Close">×</button></div>'
         + '<div class="building-hero" data-ui-asset="building-header:' + b.type + '"><span>Artwork slot · ' + def.label + '</span></div>'
         + '<div class="context-tabs" role="tablist">' + contextTabsHtml + '</div>'
+        + workerRibbon
         + '<div class="context-content">' + contextPanelsHtml + '</div>'
         + '</div>')
     } else if (n) {

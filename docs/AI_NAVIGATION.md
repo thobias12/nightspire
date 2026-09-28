@@ -74,7 +74,7 @@ Use the narrowest path that owns the behavior:
 | change simulation ordering | `runtime/Simulation.ts` | implementing the rule itself in runtime |
 | add economy/population/combat behavior | matching `systems/<domain>/` module | a new generic utility or simulation folder |
 | change placement/path geometry | `world/` | renderer-owned collision/game rules |
-| change HUD presentation | `ui/` | changing gameplay state from DOM code |
+| change HUD presentation | `ui/Hud.ts` + `ui/MedievalHud.css` | changing gameplay state from DOM/CSS |
 
 ## Concurrent work protocol
 
@@ -101,7 +101,7 @@ Already extracted:
 Tracked legacy hotspots:
 
 - `render/SceneRenderer.ts`: world sync + building/agent/field visuals still share one class.
-- `ui/Hud.ts`: markup, projection and panel updating still share one class.
+- `ui/Hud.ts`: markup, projection and panel updating still share one class. `MedievalHud.css` is the scoped presentation override; keep gameplay out of it.
 - `tests/simulation.test.mjs`: broad regression suite still shares one fixture/preamble.
 - `app/PlanningState.ts`: transient build/road/field planning state.
 - `app/PlanningOperations.ts`: road and field mutation/finalization.
