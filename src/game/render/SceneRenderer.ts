@@ -452,6 +452,17 @@ export class SceneRenderer {
     }
   }
 
+  private renderRoadDressing(): void {
+    const surface = this.roadTerrain.surface
+    if (!surface) return
+    for (const p of surface.grass) {
+      this.instance('roadGrass', p.x, 0.065 * p.scale, p.z, p.scale, p.scale * 0.6, p.scale, 0x64734d, p.angle)
+    }
+    for (const p of surface.stones) {
+      this.instance('roadStone', p.x, 0.035, p.z, p.scale * 0.55, p.scale * 0.28, p.scale * 0.7, 0x777468, p.angle)
+    }
+  }
+
   sync(state: WorldState, selectedId: number | null): void {
     this.overflowInstances = 0
     for (const mesh of Object.values(this.batches)) mesh.count = 0
@@ -598,7 +609,7 @@ export class SceneRenderer {
       const rotation = plot?.angle ?? b.facingAngle ?? (b.rotation ?? 0) * Math.PI / 2
       const damage = damageVisualStage(b.health, b.maxHealth, b.destroyed)
       const intactColor = this.damagedColor(def.color, damage)
-      const baseColor = hit ? 0xff705e : this.readableNightColor(intactColor, night)
+      const baseColor = hit ? 0xff705e : this.townRenderer.readableNightColor(intactColor, night)
 
       if (plot) this.townRenderer.renderResidentialPlot(plot, b, night, state.residentialPlots)
       if (!b.complete && !b.destroyed && !plot && !def.fortification) {
@@ -637,7 +648,7 @@ export class SceneRenderer {
         this.instance('campfireFire', b.x, 0.58, b.z, flicker * 1.08, 1.08 + flicker * 0.2, flicker * 1.08, hit ? 0xff705e : 0xf0a14a)
         this.instance('campfireCore', b.x, 0.66, b.z, flicker * 0.82, 0.95 + flicker * 0.16, flicker * 0.82, 0xffd06a)
         this.instance('glow', b.x, 0.56, b.z, 0.9 + night * 0.35, 0.64, 0.9 + night * 0.35, 0xffa34d)
-        this.campfireGroundPool(b.x, b.z, 4.25, Math.max(night, atmosphere.twilight * 0.85))
+        this.townRenderer.campfireGroundPool(b.x, b.z, 4.25, Math.max(night, atmosphere.twilight * 0.85))
         glowX += b.x * 1.4
         glowZ += b.z * 1.4
         glowWeight += 1.4
@@ -648,7 +659,7 @@ export class SceneRenderer {
         this.townRenderer.renderHouse(b, rotation, baseColor, occupiedNight, plot)
         if (occupiedHomes.has(b.id)) {
           const houseLight = this.rotatedOffset(0, 1.15, rotation)
-          this.warmGroundPool(b.x + houseLight.x, b.z + houseLight.z, 4.15, 0.34, occupiedNight)
+          this.townRenderer.warmGroundPool(b.x + houseLight.x, b.z + houseLight.z, 4.15, 0.34, occupiedNight)
           glowX += b.x + houseLight.x * 0.35
           glowZ += b.z
           glowWeight++
@@ -661,7 +672,7 @@ export class SceneRenderer {
         this.townRenderer.renderTavern(b, rotation, baseColor, serviceNight, time, activity)
         if (b.inventory.ale > 0) {
           const tavernLight = this.rotatedOffset(0, 1.25, rotation)
-          this.warmGroundPool(b.x + tavernLight.x, b.z + tavernLight.z, 5.1, 0.42, serviceNight)
+          this.townRenderer.warmGroundPool(b.x + tavernLight.x, b.z + tavernLight.z, 5.1, 0.42, serviceNight)
           glowX += (b.x + tavernLight.x * 0.45) * 1.8
           glowZ += (b.z + tavernLight.z * 0.45) * 1.8
           glowWeight += 1.8
