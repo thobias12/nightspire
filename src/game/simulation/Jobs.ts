@@ -1,7 +1,10 @@
 import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY, JOBS, REPAIR_HP_PER_WOOD } from '../data/jobs'
 import { RESOURCE_IDS, RESOURCES, type ResourceId } from '../data/resources'
-import { available, freeStorage, needsRepair, readyToBuild, supplyFree, stockpiles } from './Buildings'
+import { available, freeStorage, needsRepair, supplyFree, stockpiles } from './Buildings'
+import {
+  canAdvanceConstruction, constructionCrewCapacity, constructionWorkPoint,
+} from './Construction'
 import { essentialJob, happinessEffect } from './Happiness'
 import { JobReservations } from './JobReservations'
 import { marketFoodNeed } from './Markets'
@@ -55,6 +58,7 @@ export function assignJobs(state: WorldState): void {
   const producers = operating.filter(b => BUILDINGS[b.type].production)
   const farmhouses = operating.filter(b => (BUILDINGS[b.type].agricultureStorageCapacity ?? 0) > 0)
   const sites = state.buildings.filter(b => !b.complete)
+  const battlefield = state.remains
 
   for (const settler of state.settlers) {
     if (settler.jobId !== null || settler.health <= 0 || settler.arrivalTarget !== null) continue
@@ -69,6 +73,19 @@ export function assignJobs(state: WorldState): void {
       if (morale.refusesNonessential && !essentialJob(option)) return false
       options.push({ job: option, score })
       return true
+    }
+
+    for (const remains of battlefield) {
+      if (index.cleanupTargets.has(remains.id)) continue
+      offer({
+        kind: 'cleanup',
+        sourceId: remains.id,
+        targetId: remains.id,
+        resource: 'wood',
+        amount: 0,
+        stage: 'source',
+        progress: 0,
+      }, remains.heavy ? 275 : 235)
     }
 
     for (const building of repairs) {
@@ -236,11 +253,11 @@ export function assignJobs(state: WorldState): void {
           })
         }
       }
-      if (readyToBuild(b) && !index.constructTargets.has(b.id)) {
+      if (canAdvanceConstruction(b) && index.constructCount(b.id) < constructionCrewCapacity(b)) {
         offer({
           kind: 'construct', sourceId: b.id, targetId: b.id,
           resource: 'wood', amount: 0, stage: 'source', progress: 0,
-        })
+        }, 325)
       }
     }
 
@@ -304,6 +321,11 @@ export function assignJobs(state: WorldState): void {
 
 export function jobDestination(state: WorldState, job: Job) {
   if (job.kind === 'gather' && job.stage !== 'target') return state.nodes.find(n => n.id === job.sourceId)!
+  if (job.kind === 'cleanup') return state.remains.find(remains => remains.id === job.targetId)!
+  if (job.kind === 'construct') {
+    const site = state.buildings.find(b => b.id === job.targetId)!
+    return constructionWorkPoint(site, job.settlerId)
+  }
   const id = job.stage === 'target' || job.stage === 'work' ? job.targetId : job.sourceId
   return entrance(state.buildings.find(b => b.id === id)!)
 }
