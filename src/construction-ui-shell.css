@@ -583,3 +583,172 @@
     height: var(--build-card-art-height);
   }
 }
+
+
+/* --------------------------------------------------------------------------
+   Construction catalog responsive layout authority
+   Keep card geometry fixed. The HUD sets --catalog-width from the exact number
+   of cards/dividers; CSS caps it to the viewport and wraps only when necessary.
+   -------------------------------------------------------------------------- */
+.build-catalog {
+  container-type: inline-size;
+  width: min(var(--catalog-width, 600px), calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+  max-height: none !important;
+  height: auto;
+}
+
+/* The content row owns exactly the inner parchment width. Fixed cards never
+   stretch or shrink; a viewport cap simply creates a clean second row. */
+.build-catalog .build-panel,
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+  flex: 0 0 auto;
+  flex-wrap: wrap !important;
+  align-content: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  gap: 6px;
+  padding: 3px 3px 8px;
+}
+
+.build-catalog .build-card,
+.build-catalog:has([data-build-tab][aria-pressed="true"]) .build-card {
+  flex: 0 0 var(--build-card-width) !important;
+  width: var(--build-card-width) !important;
+  min-width: var(--build-card-width) !important;
+  max-width: var(--build-card-width) !important;
+}
+
+.build-catalog .planned-divider {
+  flex: 0 0 22px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+}
+
+/* Real bottom navigation layout: category tabs and Grid Snap occupy separate
+   columns, so neither can overlap or escape the frame. */
+.build-catalog .catalog-nav {
+  order: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  width: calc(100% + 92px);
+  min-width: 0;
+  margin: 0 -46px;
+  border-top: 1px solid rgba(80,58,35,.7);
+  background: linear-gradient(180deg, rgba(42,39,34,.985), rgba(24,24,22,.995));
+  box-shadow: inset 0 1px rgba(216,187,131,.08);
+  overflow: hidden;
+}
+
+.build-catalog .build-tabs {
+  order: initial;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100% !important;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+.build-catalog .build-tabs button {
+  width: auto;
+  min-width: 0 !important;
+  max-width: none;
+  min-height: 46px;
+  padding: 4px 6px;
+  gap: 6px;
+  overflow: hidden;
+  border-left: 0 !important;
+  border-right: 1px solid rgba(129,106,72,.24);
+}
+
+.build-catalog .build-tabs button > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-catalog .catalog-tools {
+  order: initial;
+  position: static !important;
+  inset: auto !important;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 48px;
+  min-width: 48px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.build-catalog .catalog-tool {
+  width: 48px !important;
+  height: 46px !important;
+  min-width: 48px;
+  min-height: 46px !important;
+  padding: 0 !important;
+  border: 0;
+  border-left: 1px solid rgba(129,106,72,.3);
+  border-radius: 0;
+  background: rgba(42,37,29,.35);
+}
+
+.build-catalog .catalog-tool .category-icon {
+  width: 21px;
+  height: 21px;
+}
+
+/* The old tab/tool elements no longer participate in catalog flex ordering. */
+.build-catalog > .build-tabs,
+.build-catalog > .catalog-tools {
+  order: initial;
+}
+
+/* When a category wraps, maintain symmetric breathing room against both rails. */
+.build-catalog .build-panel::after {
+  content: '';
+  flex: 0 0 0;
+}
+
+/* At genuinely narrow catalog widths, icons remain and labels disappear before
+   they can collide. This is based on the catalog itself, not viewport width. */
+@container (max-width: 540px) {
+  .build-catalog .build-tabs button {
+    gap: 0;
+    padding-inline: 2px;
+  }
+  .build-catalog .build-tabs button > span:last-child {
+    display: none;
+  }
+  .build-catalog .build-tabs .category-icon {
+    width: 25px;
+    height: 25px;
+  }
+}
+
+/* The outer parchment padding remains symmetric even when the viewport caps the
+   computed width. */
+@media (max-width: 620px) {
+  .build-catalog {
+    width: calc(100vw - 12px) !important;
+    max-width: calc(100vw - 12px);
+    padding-left: 38px;
+    padding-right: 38px;
+  }
+  .build-catalog .catalog-nav {
+    width: calc(100% + 76px);
+    margin-left: -38px;
+    margin-right: -38px;
+  }
+}
