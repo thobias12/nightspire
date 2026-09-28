@@ -1,4 +1,5 @@
-import { createGeneratedWorld, worldHalf, type MapSize, type Landscape } from '../world/MapGenerator'
+import type { Landscape, MapSize } from '../data/map'
+import { createGeneratedWorld, worldHalf } from '../world/MapGenerator'
 import { FIXED_STEP } from '../data/jobs'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, type ResourceId } from '../data/resources'
