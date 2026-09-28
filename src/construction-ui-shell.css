@@ -184,3 +184,106 @@
   .build-catalog .catalog-tools { right: 33px; }
   .build-catalog .build-tabs { padding-right: 36px; }
 }
+
+
+/* 2026-09-28 shelf sizing + availability polish */
+
+/* Slight translucency: keep the parchment readable while allowing a hint of the world through. */
+.build-catalog {
+  width: min(1020px, calc(100vw - 72px));
+  max-height: none;
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgba(213,194,151,.91), rgba(187,162,116,.89)),
+    repeating-linear-gradient(0deg, rgba(84,61,35,.025) 0 1px, transparent 1px 5px);
+  -webkit-backdrop-filter: blur(1.5px) saturate(.88);
+  backdrop-filter: blur(1.5px) saturate(.88);
+}
+
+/* Shrink the shelf to match the amount of content in the current category.
+   This removes the huge unused parchment area on the common 3-card views. */
+.build-catalog:has([data-build-tab="planning"][aria-pressed="true"]),
+.build-catalog:has([data-build-tab="logistics"][aria-pressed="true"]) {
+  width: min(650px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="industry"][aria-pressed="true"]) {
+  width: min(930px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+  width: min(1080px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="defense"][aria-pressed="true"]) {
+  width: min(900px, calc(100vw - 72px));
+}
+
+/* Keep active cards compact and consistent at desktop sizes. */
+.build-catalog .build-card {
+  flex-basis: 146px;
+  width: 146px;
+  min-width: 146px;
+  min-height: 178px;
+  grid-template-rows: 116px 29px 31px auto;
+}
+.build-catalog .build-art-slot {
+  height: 114px;
+}
+.build-catalog .build-panel {
+  min-height: 188px;
+  gap: 6px;
+  padding-bottom: 5px;
+}
+
+/* No warning label: resource shortage is communicated only through the card state. */
+.build-catalog .build-card.is-unaffordable:not(.is-planned)::before {
+  content: none !important;
+  display: none !important;
+}
+.build-catalog .build-card.is-unaffordable:not(.is-planned) {
+  filter: saturate(.42) brightness(.63);
+  border-color: rgba(78,62,46,.78);
+  box-shadow:
+    inset 0 0 0 1px rgba(44,38,31,.28),
+    0 1px 2px rgba(0,0,0,.18);
+}
+.build-catalog .build-card.is-unaffordable:not(.is-planned):hover {
+  filter: saturate(.5) brightness(.7);
+  border-color: rgba(135,103,61,.82);
+}
+
+/* The active-tab pointer used to create a tiny native scrollbar at the right edge.
+   Keep horizontal scrolling functional on genuinely crowded categories, but hide
+   the browser chrome completely. */
+.build-catalog .build-tabs {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.build-catalog .build-tabs::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+.build-catalog .build-panel {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.build-catalog .build-panel::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Side rails follow the softer parchment opacity instead of reading like opaque planks. */
+.build-catalog::before,
+.build-catalog::after {
+  opacity: .78;
+}
+
+/* Keep the narrow layouts safe on smaller viewports. */
+@media (max-width: 760px) {
+  .build-catalog,
+  .build-catalog:has([data-build-tab][aria-pressed="true"]) {
+    width: calc(100vw - 18px);
+  }
+}
