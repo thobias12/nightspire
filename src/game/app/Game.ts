@@ -9,7 +9,6 @@ import {
   demolishBuilding,
   placeBuilding,
   placeBuildingBatch,
-  placementBatchError,
   placementError,
   wallLinePoints,
 } from '../systems/construction/Buildings'
@@ -21,20 +20,15 @@ import {
   buildingPlacementPreview,
   buildingRequiresRoadFrontage,
   buildingRoadPlacementError,
-  insertRoadJunctionPoint,
-  roadLength,
   sampleRoadCurve,
   residentialPlotBuildingError,
   residentialPlotError,
   residentialPlotPreview,
   residentialPlotResourceError,
-  roadPlacementError,
   snapPointToGrid,
   snapRoadControlPoint
 } from '../world/TownPlanning'
-import {
-  createField, fieldArea, fieldPlacementError, nearestFarmhouseForField, pointInField, residentialPlotFieldError,
-} from '../world/FieldPlanning'
+import { pointInField, residentialPlotFieldError } from '../world/FieldPlanning'
 import { createInitialWorldState } from '../model/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../systems/population/Workforce'
 import { nextStockpilePriority, stockpilePriorityLabel } from '../systems/economy/StockpileLogistics'
