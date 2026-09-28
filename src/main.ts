@@ -8,7 +8,7 @@ import { BenchmarkApp } from './game/benchmark/BenchmarkApp'
 import { Game } from './game/core/Game'
 import { SAVE_KEY } from './game/simulation/SaveLoad'
 
-const root = document.querySelector<HTMLDivElement>('#app')
+const root = document.querySelector<HTMLDivElement>('#app')!
 
 if (!root) {
   throw new Error('Missing #app root')
