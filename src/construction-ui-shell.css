@@ -1,0 +1,186 @@
+/* UI-first construction shell.
+   Building illustrations are intentionally absent in this layer. The final art
+   pass can later populate the existing data-art-slot hooks one file at a time. */
+
+/* Neutral illustration wells: no current/generated building scene is allowed
+   to leak into the construction shelf while the UI structure is reviewed. */
+.build-catalog .build-art-slot,
+.build-catalog .build-preview-art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image: none !important;
+  background-color: #b9a477 !important;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(83,68,47,.12) 0 18%, transparent 19%),
+    linear-gradient(165deg, rgba(246,226,184,.34), rgba(113,91,59,.08)),
+    repeating-linear-gradient(0deg, rgba(78,59,37,.035) 0 1px, transparent 1px 6px) !important;
+  filter: none !important;
+}
+
+.build-catalog .build-art-slot::before,
+.build-catalog .build-preview-art::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  z-index: 0;
+  border: 1px solid rgba(76,55,34,.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(247,229,190,.2),
+    inset 0 0 20px rgba(75,55,34,.06);
+  pointer-events: none;
+}
+
+.build-catalog .build-art-slot::after,
+.build-catalog .build-preview-art::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 38px;
+  height: 38px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid rgba(74,56,38,.13);
+  box-shadow:
+    inset 0 0 0 5px rgba(235,216,175,.08),
+    0 0 0 6px rgba(91,70,45,.025);
+  pointer-events: none;
+}
+
+/* Keep planned cards structurally visible without pretending their art exists. */
+.build-catalog .build-card.is-planned .build-art-slot {
+  background:
+    linear-gradient(165deg, rgba(202,190,161,.34), rgba(93,88,76,.08)),
+    repeating-linear-gradient(135deg, rgba(78,70,57,.04) 0 1px, transparent 1px 8px) !important;
+  filter: none !important;
+}
+
+/* More deliberate card anatomy: illustration, title parchment, dark facts strip. */
+.build-catalog .build-card {
+  grid-template-rows: 121px 29px 31px auto;
+}
+.build-catalog .build-name {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(111,80,43,.18);
+  background:
+    linear-gradient(180deg, rgba(231,215,181,.94), rgba(211,190,149,.94));
+  color: #33281e;
+  text-shadow: 0 1px rgba(255,244,214,.3);
+}
+.build-catalog .build-card small {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(206,180,126,.08);
+  border-bottom: 1px solid rgba(10,10,9,.5);
+  background:
+    linear-gradient(180deg, rgba(48,45,39,.99), rgba(28,28,25,.99));
+  color: #cfc2a6;
+}
+
+/* A tiny medieval divider mark between cards keeps the shelf from reading as
+   modern tiles, without requiring decorative image assets. */
+.build-catalog .build-card + .build-card::before {
+  box-shadow: none;
+}
+.build-catalog .build-panel > .build-card:not(:first-child) {
+  margin-left: 2px;
+}
+
+/* Shelf framing refinement. */
+.build-catalog {
+  padding-top: 12px;
+  border-color: rgba(79,55,31,.9);
+}
+.build-catalog::before,
+.build-catalog::after {
+  opacity: .9;
+}
+.build-catalog .build-panel {
+  min-height: 194px;
+  padding-top: 3px;
+}
+.build-catalog .build-tabs {
+  min-height: 46px;
+}
+.build-catalog .build-tabs button {
+  min-height: 46px;
+}
+.build-catalog .build-tabs .category-icon {
+  flex: 0 0 24px;
+}
+
+/* Grid snap becomes a small utility seal on the right side of the category bar. */
+.build-catalog .catalog-tools {
+  left: auto;
+  right: 49px;
+  bottom: 11px;
+}
+.build-catalog .catalog-tool {
+  width: 30px;
+  height: 26px;
+  min-height: 26px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 0;
+}
+.build-catalog .catalog-tool .category-icon {
+  width: 18px;
+  height: 18px;
+}
+.build-catalog .catalog-tool-label,
+.build-catalog .catalog-tool small {
+  display: none;
+}
+
+/* Let the category row breathe around the utility seal. */
+.build-catalog .build-tabs {
+  padding-right: 42px;
+}
+
+/* Keep the detached medallion row visually centered under the shelf. */
+.command-dock {
+  margin-top: 2px;
+}
+.dock-main-group {
+  padding: 3px 4px;
+  border-radius: 28px;
+  background: rgba(18,18,16,.12);
+}
+.dock-utility-group {
+  margin-left: 2px;
+}
+
+/* Hover tooltip is useful now even without final art. */
+.build-preview .build-preview-art {
+  min-height: 156px;
+}
+.build-preview .build-preview-art::after {
+  width: 48px;
+  height: 48px;
+}
+
+/* Selection/keyboard affordances. */
+.build-catalog .build-card:focus-visible,
+.build-catalog .build-tabs button:focus-visible,
+.command-dock button:focus-visible {
+  outline: 2px solid rgba(226,184,101,.85);
+  outline-offset: 2px;
+}
+
+/* Reduce visual motion in the shell itself. */
+@media (prefers-reduced-motion: reduce) {
+  .build-catalog .build-card,
+  .command-dock button {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .build-catalog .catalog-tools { right: 40px; }
+}
+@media (max-width: 620px) {
+  .build-catalog .catalog-tools { right: 33px; }
+  .build-catalog .build-tabs { padding-right: 36px; }
+}
