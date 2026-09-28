@@ -90,21 +90,21 @@ export class TownBuildingRenderer {
     }
   }
 
-  private warmGroundPool(x: number, z: number, radius: number, strength: number, night: number): void {
+  warmGroundPool(x: number, z: number, radius: number, strength: number, night: number): void {
     if (night < 0.06 || strength <= 0) return
     const scale = radius * (0.94 + night * 0.06)
     const color = this.scratchColor.copy(this.warmGlow).multiplyScalar(0.66 + Math.min(1, strength) * 0.18).getHex()
     this.instanceFn('warmPool', x, 0.05, z, scale, 1, scale, color)
   }
 
-  private campfireGroundPool(x: number, z: number, radius: number, night: number): void {
+  campfireGroundPool(x: number, z: number, radius: number, night: number): void {
     if (night < 0.06) return
     const scale = radius * (0.94 + night * 0.06)
     const color = this.scratchColor.copy(this.warmGlow).multiplyScalar(0.82 + night * 0.18).getHex()
     this.instanceFn('campfirePool', x, 0.052, z, scale, 1, scale, color)
   }
 
-  private readableNightColor(color: number, night: number): number {
+  readableNightColor(color: number, night: number): number {
     return this.scratchColor.setHex(color).lerp(this.nightSurfaceLift, night * 0.44).getHex()
   }
 
@@ -399,7 +399,7 @@ export class TownBuildingRenderer {
     const width = profile?.houseWidth ?? 2.48
     const depth = profile?.houseDepth ?? 2.22
     const wallHeight = profile?.wallHeight ?? 1.86
-    const residentialPlacement = plot && profile ? this.residentialVisualPlacement(b, plot, profile) : null
+    const residentialPlacement = plot && profile ? this.residentialRenderer.residentialVisualPlacement(b, plot, profile) : null
     const visualB: Building = residentialPlacement?.visualB ?? b
 
     const plaster = plot
@@ -428,7 +428,7 @@ export class TownBuildingRenderer {
 
     const seed = plot?.id ?? b.id
     const doorX = profile
-      ? residentialPlacement?.doorX ?? this.residentialDoorOffset(profile, seed, width)
+      ? residentialPlacement?.doorX ?? this.residentialRenderer.residentialDoorOffset(profile, seed, width)
       : ((seed % 3) - 1) * Math.min(0.48, width * 0.16)
 
     const front = this.rotateOffset(doorX, depth / 2 + 0.08, rotation)
