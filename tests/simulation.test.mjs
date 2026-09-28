@@ -2,63 +2,63 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
-const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_NEEDS, DEFAULT_TARGETS, MAX_SETTLERS } = require('../.test-build/game/simulation/WorldState.js')
-const { Simulation } = require('../.test-build/game/simulation/Simulation.js')
+const { createInitialWorldState, createBuilding, spawnSettler, DEFAULT_NEEDS, DEFAULT_TARGETS, MAX_SETTLERS } = require('../.test-build/game/domain/world/WorldState.js')
+const { Simulation } = require('../.test-build/game/runtime/Simulation.js')
 const {
   assignHousing, cancelBuilding, demolishBuilding, placeBuilding, placeBuildingBatch,
   placementBatchError, placementError, stockpiles, available, freeStorage, wallLinePoints,
-} = require('../.test-build/game/simulation/Buildings.js')
-const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
-const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
-const { blockedCells, cellKey, entrance } = require('../.test-build/game/simulation/Navigation.js')
+} = require('../.test-build/game/domain/construction/Buildings.js')
+const { assignJobs } = require('../.test-build/game/domain/economy/Jobs.js')
+const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/domain/persistence/SaveLoad.js')
+const { blockedCells, cellKey, entrance } = require('../.test-build/game/domain/world/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
-const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
-const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
-const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
-const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
-const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
-const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
-const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.test-build/game/simulation/Tools.js')
-const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/simulation/Population.js')
-const { updateProduction } = require('../.test-build/game/simulation/Production.js')
+const { phaseForTime } = require('../.test-build/game/domain/world/DayNight.js')
+const { assignedGuardPost } = require('../.test-build/game/domain/population/Schedule.js')
+const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/domain/combat/Raid.js')
+const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/domain/combat/Combat.js')
+const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/domain/population/Needs.js')
+const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/domain/population/Happiness.js')
+const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.test-build/game/domain/economy/Tools.js')
+const { IMMIGRATION_REQUIRED_DAYS, forceImmigrationIfEligible, populationAttraction, processImmigrationDay } = require('../.test-build/game/domain/population/Population.js')
+const { updateProduction } = require('../.test-build/game/domain/economy/Production.js')
 const {
   FORESTER_TREE_TARGET, SAPLING_GROWTH_PER_DAY, processForestryDay, updateResourceWorkplaces,
-} = require('../.test-build/game/simulation/ResourceWorkplaces.js')
+} = require('../.test-build/game/domain/economy/ResourceWorkplaces.js')
 const {
   assignWorkerToWorkplace, professionLabel, workplaceStaffing,
-} = require('../.test-build/game/simulation/Workforce.js')
+} = require('../.test-build/game/domain/population/Workforce.js')
 const {
   nextHaulPriority, workplaceHaulScore, workplaceInputNeed, workplaceInputTarget,
   workplaceOutputReady, workplaceOutputThreshold,
-} = require('../.test-build/game/simulation/WorkplaceLogistics.js')
+} = require('../.test-build/game/domain/economy/WorkplaceLogistics.js')
 const {
   compareStockpileDestinations, nextStockpilePriority, stockpileAccepts,
-} = require('../.test-build/game/simulation/StockpileLogistics.js')
+} = require('../.test-build/game/domain/economy/StockpileLogistics.js')
 const {
   completedMarkets, marketFoodNeed, marketFoodTarget, marketMealCapacity, marketMealsRemaining, marketSummary,
   MARKET_COVERAGE_RADIUS,
-} = require('../.test-build/game/simulation/Markets.js')
+} = require('../.test-build/game/domain/economy/Markets.js')
 const {
   householdStatus, householdSummary, RECREATION_COVERAGE_RADIUS,
-} = require('../.test-build/game/simulation/Households.js')
+} = require('../.test-build/game/domain/population/Households.js')
 const {
   houseBedCapacity, houseProgressionStatus, processHouseholdProgression,
-} = require('../.test-build/game/simulation/HouseProgression.js')
+} = require('../.test-build/game/domain/population/HouseProgression.js')
 const {
   MERCHANT_UNIT_LIMIT, TRADE_PRICES, adjustTradeReserve, merchantIntervalDays, merchantPresent,
   processMerchantTrade, scheduleMerchantVisit, tradeExportStagingNeed, tradeFreeStorage,
   tradeReputation,
-} = require('../.test-build/game/simulation/Trading.js')
+} = require('../.test-build/game/domain/economy/Trading.js')
 const {
   createField, fieldArea, fieldCentroid, fieldPlacementError, nearestFarmhouseForField, pointInPolygon,
-} = require('../.test-build/game/simulation/FieldPlanning.js')
+} = require('../.test-build/game/domain/agriculture/FieldPlanning.js')
 const {
   FIELD_GROWTH_DAYS, agricultureSummary, assignFieldsToFarmhouses, farmerFieldAssignment,
   fieldHarvestWork, fieldSowWork, processAgricultureDay, workField,
-} = require('../.test-build/game/simulation/Agriculture.js')
+} = require('../.test-build/game/domain/agriculture/Agriculture.js')
 const {
   serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, updateServices, SERVICE_COVERAGE_RADIUS,
-} = require('../.test-build/game/simulation/Services.js')
+} = require('../.test-build/game/domain/population/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
 const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
@@ -67,7 +67,7 @@ const {
   insertRoadJunctionPoint, normalizeRoadPoints, residentialPlotBuildingError, residentialPlotError,
   residentialPlotPreview, residentialPlotResourceError, roadLength, roadPlacementError, sampleRoadCurve,
   snapPointToGrid, snapRoadControlPoint,
-} = require('../.test-build/game/simulation/TownPlanning.js')
+} = require('../.test-build/game/domain/construction/TownPlanning.js')
 const advance = (sim, seconds) => {
   for (let i = 0; i < seconds * 20; i++) {
     sim.step()
