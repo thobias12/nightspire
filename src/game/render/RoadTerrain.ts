@@ -1,3 +1,4 @@
+import type { MapDefinition } from '../simulation/MapGenerator'
 import * as THREE from 'three'
 import type { RoadPath } from '../simulation/WorldState'
 import { createMeadowField, createRoadSurface, ROAD_SURFACE_SIZE, type MeadowField, type RoadSurface } from './RoadSurface'
@@ -7,6 +8,8 @@ export class RoadTerrain {
   readonly texture = new THREE.DataTexture(new Uint8Array(4), 1, 1)
   surface: RoadSurface | null = null
   private snapshot: number[] = []
+  private mapKey = ''
+  private size = ROAD_SURFACE_SIZE
   private meadow: MeadowField | undefined
 
   constructor(private extent: number) {
@@ -26,11 +29,16 @@ export class RoadTerrain {
     }
     return i === this.snapshot.length
   }
-  update(roads: readonly RoadPath[]): void {
+  update(roads: readonly RoadPath[], map?: MapDefinition): void {
+    const key = map ? map.seed + ':' + map.size + ':' + map.landscape : ''
+    if (key !== this.mapKey) {
+      this.mapKey = key; this.extent = (map?.size ?? 47) + 20
+      this.size = map ? 2048 : ROAD_SURFACE_SIZE; this.meadow = undefined; this.snapshot = []
+    }
     if (this.matches(roads)) return
-    this.meadow ??= createMeadowField(this.extent, ROAD_SURFACE_SIZE)
-    this.surface = createRoadSurface(roads, this.extent, ROAD_SURFACE_SIZE, this.meadow)
-    this.texture.image = { data: this.surface.pixels, width: ROAD_SURFACE_SIZE, height: ROAD_SURFACE_SIZE }
+    this.meadow ??= createMeadowField(this.extent, this.size, map)
+    this.surface = createRoadSurface(roads, this.extent, this.size, this.meadow)
+    this.texture.image = { data: this.surface.pixels, width: this.size, height: this.size }
     this.texture.needsUpdate = true
     this.snapshot = [roads.length]
     for (const r of roads) {

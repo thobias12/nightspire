@@ -1,3 +1,4 @@
+import { forestDensity, landscapeNoise, type MapDefinition } from '../simulation/MapGenerator'
 import type { RoadPath } from '../simulation/WorldState'
 
 export const ROAD_SURFACE_SIZE = 1024
@@ -35,7 +36,7 @@ export function roadWearProfile(width: number): { compaction: number; wheelTrack
 }
 
 /** Static meadow work is reused across road edits; no need to rebake empty land. */
-export function createMeadowField(extent: number, size: number): MeadowField {
+export function createMeadowField(extent: number, size: number, map?: MapDefinition): MeadowField {
   const coarse = new Uint8Array(size * size), fine = new Uint8Array(size * size)
   const pixels = new Uint8Array(size * size * 4), unit = extent / size, half = extent / 2
   const rgb = [97, 114, 72]
@@ -43,7 +44,8 @@ export function createMeadowField(extent: number, size: number): MeadowField {
     const i = z * size + x, wx = (x + 0.5) * unit - half, wz = (z + 0.5) * unit - half
     coarse[i] = Math.round(noise(wx * 0.65, wz * 0.65, 9) * 255)
     fine[i] = Math.round(noise(wx * 3.1, wz * 3.1, 17) * 255)
-    const tint = (coarse[i] / 255 - 0.5) * 9 + (fine[i] / 255 - 0.5) * 3
+    const regional = map ? (landscapeNoise(wx / 27, wz / 27, map.seed + 101) - 0.5) * 18 - forestDensity(wx, wz, map) * 10 : 0
+    const tint = regional + (coarse[i] / 255 - 0.5) * 9 + (fine[i] / 255 - 0.5) * 3
     for (let c = 0; c < 3; c++) pixels[i * 4 + c] = Math.round(rgb[c] + tint)
     pixels[i * 4 + 3] = 255
   }

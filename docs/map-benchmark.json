@@ -1,0 +1,74 @@
+{
+  "node": "v24.19.0",
+  "platform": "win32",
+  "samples": 30,
+  "warmups": 5,
+  "rows": [
+    {
+      "size": 129,
+      "seed": 42,
+      "landscape": "woodland",
+      "nodes": 963,
+      "generation": {
+        "medianMs": 0.448,
+        "p95Ms": 0.719
+      },
+      "localRoute": {
+        "medianMs": 0.014,
+        "p95Ms": 0.048
+      },
+      "spanningRoute": {
+        "medianMs": 0.067,
+        "p95Ms": 0.112
+      },
+      "connectivity": {
+        "medianMs": 0.324,
+        "p95Ms": 0.404
+      }
+    },
+    {
+      "size": 257,
+      "seed": 42,
+      "landscape": "woodland",
+      "nodes": 3121,
+      "generation": {
+        "medianMs": 1.408,
+        "p95Ms": 1.811
+      },
+      "localRoute": {
+        "medianMs": 0.001,
+        "p95Ms": 0.001
+      },
+      "spanningRoute": {
+        "medianMs": 0.085,
+        "p95Ms": 0.263
+      },
+      "connectivity": {
+        "medianMs": 1.337,
+        "p95Ms": 2.009
+      }
+    },
+    {
+      "size": 513,
+      "seed": 42,
+      "landscape": "woodland",
+      "nodes": 4096,
+      "generation": {
+        "medianMs": 2.711,
+        "p95Ms": 3.764
+      },
+      "localRoute": {
+        "medianMs": 0.002,
+        "p95Ms": 0.002
+      },
+      "spanningRoute": {
+        "medianMs": 0.162,
+        "p95Ms": 0.317
+      },
+      "connectivity": {
+        "medianMs": 5.081,
+        "p95Ms": 6.012
+      }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
+import { worldHalf } from './MapGenerator'
 import { BUILDINGS } from '../data/buildings'
 import {
-  MAP_MAX, MAP_MIN, blockedCells, cellKey, closestInteractionPoint,
+  blockedCells, cellKey, closestInteractionPoint,
   distance, inBounds,
 } from './Navigation'
 import type { Building, Enemy, Point, WorldState } from './WorldState'
@@ -30,24 +31,35 @@ function initialTargetId(state: WorldState): number {
   )!.id
 }
 
-function rawSpawn(side: number, offset: number): Point {
-  if (side === 0) return { x: offset, z: MAP_MIN + 1 }
-  if (side === 1) return { x: MAP_MAX - 1, z: offset }
-  if (side === 2) return { x: -offset, z: MAP_MAX - 1 }
-  return { x: MAP_MIN + 1, z: -offset }
+function rawSpawn(state: WorldState, side: number, offset: number): Point {
+  // Keep the existing opening approach time. Distant region edges otherwise
+  // make raids retreat at dawn before reaching any settlement.
+  const half = worldHalf(state), margin = 22
+  let anchor: Point = { x: 0, z: 0 }, edge = 0
+  for (const b of state.buildings) {
+    if (b.destroyed || !state.map) continue
+    const radius = Math.floor(BUILDINGS[b.type].footprint / 2)
+    const extent = (side === 0 ? -b.z : side === 1 ? b.x : side === 2 ? b.z : -b.x) + radius
+    if (extent > edge) { edge = extent; anchor = b }
+  }
+  const clamp = (v: number) => Math.max(-half + 1, Math.min(half - 1, v))
+  if (side === 0) return { x: clamp(anchor.x + offset), z: clamp(-edge - margin) }
+  if (side === 1) return { x: clamp(edge + margin), z: clamp(anchor.z + offset) }
+  if (side === 2) return { x: clamp(anchor.x - offset), z: clamp(edge + margin) }
+  return { x: clamp(-edge - margin), z: clamp(anchor.z - offset) }
 }
 
 function safeSpawn(state: WorldState, side: number, offset: number): Point {
   const blocked = blockedCells(state, true)
-  const start = rawSpawn(side, offset)
-  if (inBounds(start) && !blocked.has(cellKey(start))) return start
+  const start = rawSpawn(state, side, offset)
+  if (inBounds(start, worldHalf(state)) && !blocked.has(cellKey(start))) return start
 
   for (let inward = 1; inward <= 5; inward++) {
     const candidate = side === 0 ? { x: start.x, z: start.z + inward }
       : side === 1 ? { x: start.x - inward, z: start.z }
       : side === 2 ? { x: start.x, z: start.z - inward }
       : { x: start.x + inward, z: start.z }
-    if (inBounds(candidate) && !blocked.has(cellKey(candidate))) return candidate
+    if (inBounds(candidate, worldHalf(state)) && !blocked.has(cellKey(candidate))) return candidate
   }
   return start
 }
@@ -104,5 +116,5 @@ export function enemyTargetBuilding(state: WorldState, enemy: Enemy): Building |
 export function enemyTarget(state: WorldState, enemy: Enemy): Point {
   const target = enemyTargetBuilding(state, enemy)
   if (!target) return { x: 0, z: 2 }
-  return closestInteractionPoint(target, enemy, blockedCells(state, true))
+  return closestInteractionPoint(target, enemy, blockedCells(state, true), worldHalf(state))
 }
