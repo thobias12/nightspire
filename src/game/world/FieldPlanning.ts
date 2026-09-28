@@ -1,6 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { inBounds } from './Navigation'
-import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from './WorldState'
+import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from '../model/WorldState'
 
 const EPSILON = 1e-7
 export const FIELD_FARMHOUSE_RADIUS = 18

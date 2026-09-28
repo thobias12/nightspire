@@ -1,5 +1,5 @@
-import type { Point } from './WorldState'
-const cellKey = (p: Point): number => (Math.round(p.z) + 512) * 1025 + Math.round(p.x) + 512
+import type { Point } from '../model/WorldState'
+import { cellKey } from './Grid'
 
 /** One reusable A* workspace per shared navigation service, never per citizen. */
 export class RegionalRouter {

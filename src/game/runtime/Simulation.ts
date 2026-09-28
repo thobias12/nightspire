@@ -3,36 +3,36 @@ import {
   DECISION_TICKS, FIXED_STEP, REPAIR_HP_PER_WOOD, REPAIR_WORK_SECONDS, WALK_SPEED,
 } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
-import { assignHousing, readyToBuild } from './Buildings'
-import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processAgricultureDay, workField } from './Agriculture'
-import { constructionStageLabel, constructionWorkLimit } from './Construction'
+import { assignHousing, readyToBuild } from '../systems/construction/Buildings'
+import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processAgricultureDay, workField } from '../systems/economy/Agriculture'
+import { constructionStageLabel, constructionWorkLimit } from '../systems/construction/Construction'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
   GUARD_RANGED_COOLDOWN, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE,
   damageBuilding, damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
   playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
-} from './Combat'
+} from '../systems/combat/Combat'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
-import { essentialJob, happinessEffect } from './Happiness'
-import { processHouseholdProgression } from './HouseProgression'
-import { processFamiliesDay, synchronizeFamilies } from './Family'
-import { assignJobs, finishJob, jobDestination } from './Jobs'
-import { distance, entrance, Navigation } from './Navigation'
-import { serveDailyMeal, updateNeeds } from './Needs'
-import { processImmigrationDay } from './Population'
-import { updateProduction } from './Production'
-import { processForestryDay, updateResourceWorkplaces } from './ResourceWorkplaces'
-import { serviceAssignments, updateServices, type ServiceAssignment } from './Services'
-import { toolCoverage } from './Tools'
-import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
+import { essentialJob, happinessEffect } from '../systems/population/Happiness'
+import { processHouseholdProgression } from '../systems/population/HouseProgression'
+import { processFamiliesDay, synchronizeFamilies } from '../systems/population/Family'
+import { assignJobs, finishJob, jobDestination } from '../systems/jobs/Jobs'
+import { distance, entrance, Navigation } from '../world/Navigation'
+import { serveDailyMeal, updateNeeds } from '../systems/population/Needs'
+import { processImmigrationDay } from '../systems/population/Population'
+import { updateProduction } from '../systems/economy/Production'
+import { processForestryDay, updateResourceWorkplaces } from '../systems/economy/ResourceWorkplaces'
+import { serviceAssignments, updateServices, type ServiceAssignment } from '../systems/population/Services'
+import { toolCoverage } from '../systems/economy/Tools'
+import { processMerchantTrade, scheduleMerchantVisit } from '../systems/economy/Trading'
 import {
   enemyTarget, enemyTargetBuilding, raidPlanForWave, raiderProfile, retreatRaid, spawnNightRaid,
-} from './Raid'
-import { assignedGuardPost, guardPostTarget, nightTarget } from './Schedule'
-import { activeWorkplace } from './Workforce'
+} from '../systems/combat/Raid'
+import { assignedGuardPost, guardPostTarget, nightTarget } from '../systems/population/Schedule'
+import { activeWorkplace } from '../systems/population/Workforce'
 import {
   recordEvent, settlerLabel, type Building, type Enemy, type Job, type Point, type Settler, type WorldState,
-} from './WorldState'
+} from '../model/WorldState'
 
 type MovingAgent = Settler | Enemy
 
