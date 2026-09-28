@@ -2,8 +2,8 @@
 import { createRequire } from 'node:module'
 import { performance } from 'node:perf_hooks'
 const require = createRequire(import.meta.url)
-const { createGeneratedWorld } = require('../.test-build/game/simulation/MapGenerator.js')
-const { RegionalRouter, regionalReachability } = require('../.test-build/game/simulation/RegionalNavigation.js')
+const { createGeneratedWorld } = require('../.test-build/game/domain/world/MapGenerator.js')
+const { RegionalRouter, regionalReachability } = require('../.test-build/game/domain/world/RegionalNavigation.js')
 const measure = (work, count = 30) => {
   for (let i = 0; i < 5; i++) work()
   const times = []
