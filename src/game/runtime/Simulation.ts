@@ -1,0 +1,637 @@
+import { BUILDINGS } from '../data/buildings'
+import {
+  DECISION_TICKS, FIXED_STEP, REPAIR_HP_PER_WOOD, REPAIR_WORK_SECONDS, WALK_SPEED,
+} from '../data/jobs'
+import { RESOURCES } from '../data/resources'
+import { assignHousing, readyToBuild } from '../systems/construction/Buildings'
+import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processAgricultureDay, workField } from '../systems/economy/Agriculture'
+import { constructionStageLabel, constructionWorkLimit } from '../systems/construction/Construction'
+import {
+  GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
+  GUARD_RANGED_COOLDOWN, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE,
+  damageBuilding, damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
+  playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
+} from '../systems/combat/Combat'
+import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
+import { essentialJob, happinessEffect } from '../systems/population/Happiness'
+import { processHouseholdProgression } from '../systems/population/HouseProgression'
+import { processFamiliesDay, synchronizeFamilies } from '../systems/population/Family'
+import { assignJobs, finishJob, jobDestination } from '../systems/jobs/Jobs'
+import { distance, entrance, Navigation } from '../world/Navigation'
+import { serveDailyMeal, updateNeeds } from '../systems/population/Needs'
+import { processImmigrationDay } from '../systems/population/Population'
+import { updateProduction } from '../systems/economy/Production'
+import { processForestryDay, updateResourceWorkplaces } from '../systems/economy/ResourceWorkplaces'
+import { serviceAssignments, updateServices, type ServiceAssignment } from '../systems/population/Services'
+import { toolCoverage } from '../systems/economy/Tools'
+import { processMerchantTrade, scheduleMerchantVisit } from '../systems/economy/Trading'
+import {
+  enemyTarget, enemyTargetBuilding, raidPlanForWave, raiderProfile, retreatRaid, spawnNightRaid,
+} from '../systems/combat/Raid'
+import { assignedGuardPost, guardPostTarget, nightTarget } from '../systems/population/Schedule'
+import { activeWorkplace } from '../systems/population/Workforce'
+import {
+  recordEvent, settlerLabel, type Building, type Enemy, type Job, type Point, type Settler, type WorldState,
+} from '../model/WorldState'
+
+type MovingAgent = Settler | Enemy
+
+export class Simulation {
+  /** Optional QA instrumentation; no timing calls in ordinary gameplay. */
+  profile = false
+  readonly timings = { decisions: 0, agents: 0, needsServices: 0, navigation: 0, other: 0 }
+  readonly navigation = new Navigation()
+  private lastPhase: DayPhase
+  private servicePlan: Map<number, ServiceAssignment> | undefined
+
+  constructor(public state: WorldState) {
+    this.lastPhase = phaseForTime(state.timeOfDay)
+    if (this.lastPhase === 'night') this.beginRaid()
+  }
+
+  get phase(): DayPhase { return phaseForTime(this.state.timeOfDay) }
+
+  replace(state: WorldState): void {
+    this.state = state
+    this.navigation.reset()
+    this.lastPhase = phaseForTime(state.timeOfDay)
+    if (this.lastPhase === 'night') this.beginRaid()
+  }
+
+  playerAttack(): AttackResult {
+    return performPlayerAttack(this.state)
+  }
+
+  setTimeOfDay(timeOfDay: number): void {
+    this.state.timeOfDay = ((timeOfDay % 1) + 1) % 1
+    const next = phaseForTime(this.state.timeOfDay)
+    if (next !== this.lastPhase) this.transition(this.lastPhase, next)
+    this.lastPhase = next
+  }
+
+  step(): void {
+    let mark = this.profile ? performance.now() : 0
+    const s = this.state
+    s.tick++
+    this.servicePlan = undefined
+    s.elapsedSeconds += FIXED_STEP
+    tickCombatCooldowns(s, FIXED_STEP)
+
+    s.timeOfDay += FIXED_STEP / 360
+    if (s.timeOfDay >= 1) { s.timeOfDay -= 1; s.day++ }
+
+    const phase = phaseForTime(s.timeOfDay)
+    const toolWorkMultiplier = toolCoverage(s).workMultiplier
+    if (phase !== this.lastPhase) {
+      this.transition(this.lastPhase, phase)
+      this.lastPhase = phase
+    }
+
+    this.navigation.sync(s)
+    updateProduction(s, FIXED_STEP, phase)
+    updateResourceWorkplaces(s, FIXED_STEP, phase)
+
+    if (this.profile) { this.timings.other = performance.now() - mark; mark = performance.now() }
+
+    if (isWorkPhase(phase) && s.tick % DECISION_TICKS === 1) {
+      serveDailyMeal(s)
+      assignJobs(s)
+      assignHousing(s)
+    }
+
+    if (this.profile) { this.timings.decisions = performance.now() - mark; mark = performance.now() }
+
+    for (const settler of s.settlers) {
+      if (settler.health <= 0) {
+        settler.path = []
+        settler.pathRevision = -1
+        settler.status = 'Downed until dawn'
+        continue
+      }
+
+      if (settler.arrivalTarget) {
+        this.updateImmigrantArrival(settler)
+        continue
+      }
+
+      const job = s.jobs.find(j => j.id === settler.jobId)
+      if (job) {
+        this.updateJob(settler, job, toolWorkMultiplier)
+        // A carried delivery or completed repair can change service availability this tick.
+        this.servicePlan = undefined
+      } else if (isWorkPhase(phase)) {
+        const workplace = activeWorkplace(s, settler)
+        if (workplace) this.updateWorkplace(settler, workplace)
+        else if (
+          settler.status !== 'Needs work'
+          && settler.status !== 'Stock targets met'
+          && !settler.status.startsWith('Storage')
+          && settler.status !== 'No resources left'
+          && !settler.status.startsWith('No usable')
+        ) {
+          settler.status = 'Needs work'
+        }
+      } else {
+        if (phase === 'night' && settler.role === 'guard' && s.enemies.length > 0) this.updateGuardCombat(settler)
+        else this.updateNightSchedule(settler)
+      }
+    }
+
+    if (phase === 'night') {
+      for (const enemy of [...s.enemies]) {
+        if (s.enemies.includes(enemy)) this.updateEnemy(enemy)
+      }
+    }
+
+    processMerchantTrade(s)
+
+    if (this.profile) { this.timings.agents = performance.now() - mark; mark = performance.now() }
+    updateNeeds(s, FIXED_STEP, phase)
+    updateServices(s, FIXED_STEP, phase)
+    if (this.profile) { this.timings.needsServices = performance.now() - mark; mark = performance.now() }
+    this.navigation.process(s)
+    if (this.profile) this.timings.navigation = performance.now() - mark
+  }
+
+  private beginRaid(): void {
+    const count = spawnNightRaid(this.state)
+    if (count <= 0) return
+    const plan = raidPlanForWave(this.state.raid.wave)
+    recordEvent(
+      this.state,
+      'Raid ' + plan.wave + ': ' + count + ' attackers across ' + plan.fronts + ' front'
+      + (plan.fronts === 1 ? '' : 's') + ' — '
+      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes'
+      + (plan.rams > 0 ? ', ' + plan.rams + ' siege ram' + (plan.rams === 1 ? '' : 's') : '') + '.',
+    )
+  }
+
+  private transition(previous: DayPhase, next: DayPhase): void {
+    const s = this.state
+
+    if (previous === 'night' && next !== 'night') {
+      const retreated = retreatRaid(s)
+      restoreAtDawn(s)
+      assignHousing(s)
+      const damaged = s.buildings.filter(b => b.complete && b.health < b.maxHealth).length
+      if (retreated > 0) recordEvent(s, retreated + ' raiders retreat with the returning light.')
+      if (damaged > 0) recordEvent(s, damaged + ' damaged structures await daylight repairs.')
+    }
+
+    if (next !== 'day') {
+      this.releaseNonCarryingJobs()
+      for (const settler of s.settlers) {
+        if (settler.jobId === null) {
+          settler.path = []
+          settler.pathRevision = -1
+        }
+      }
+    }
+
+    if (next === 'dusk') {
+      const warning = raidPlanForWave(s.raid.wave + 1)
+      recordEvent(
+        s,
+        'Dusk falls. Scouts report ' + warning.size + ' attackers gathering across '
+        + warning.fronts + ' approach' + (warning.fronts === 1 ? '' : 'es') + '.',
+      )
+    } else if (next === 'night') {
+      this.beginRaid()
+      recordEvent(s, 'Night has fallen. The settlement is on alert.')
+    } else if (next === 'dawn') {
+      recordEvent(s, 'Dawn breaks. The wounded recover; repairs begin at 06:00.')
+    } else if (next === 'day') {
+      processAgricultureDay(s)
+      processForestryDay(s)
+      const upgrades = processHouseholdProgression(s)
+      assignHousing(s)
+      const familyDay = processFamiliesDay(s)
+      assignHousing(s)
+      synchronizeFamilies(s)
+      if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
+      if (familyDay.matured > 0) recordEvent(s, familyDay.matured + ' young resident' + (familyDay.matured === 1 ? '' : 's') + ' joined the workforce.')
+      scheduleMerchantVisit(s)
+      const immigration = processImmigrationDay(s)
+      if (immigration.arrived) assignHousing(s)
+      serveDailyMeal(s, true)
+      for (const settler of s.settlers) {
+        if (settler.jobId === null) {
+          settler.path = []
+          settler.pathRevision = -1
+          settler.status = 'Needs work'
+        }
+      }
+      this.navigation.reset()
+      recordEvent(s, previous === 'dawn' ? 'Day begins. Repairs and normal work resume.' : 'Daylight returns. Repairs and normal work resume.')
+    }
+  }
+
+  private releaseNonCarryingJobs(): void {
+    const s = this.state
+    const keep = new Set<number>()
+
+    for (const job of s.jobs) {
+      const settler = s.settlers.find(a => a.id === job.settlerId)
+      if (!settler) continue
+
+      const carrying = Object.values(settler.cargo).some(amount => amount > 0)
+      if (carrying) {
+        keep.add(job.id)
+        continue
+      }
+
+      settler.jobId = null
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = 'Leaving work for dusk'
+    }
+
+    s.jobs = s.jobs.filter(job => keep.has(job.id))
+  }
+
+  private updateJob(settler: Settler, job: Job, toolWorkMultiplier: number): void {
+    const s = this.state
+    const morale = happinessEffect(settler)
+
+    if (job.stage !== 'target' && morale.refusesNonessential && !essentialJob(job)) {
+      finishJob(s, settler, job)
+      settler.status = morale.label + ' — essentials only'
+      return
+    }
+
+    if (job.stage === 'work') {
+      this.work(settler, job, morale.workRate * toolWorkMultiplier)
+      return
+    }
+
+    const target = jobDestination(s, job)
+    if (distance(settler, target) < 0.01) {
+      this.arrive(settler, job)
+      return
+    }
+
+    const status = job.stage === 'target'
+      ? job.kind === 'repair'
+        ? 'Carrying repair timber'
+        : job.kind === 'supply'
+          ? 'Supplying ' + BUILDINGS[s.buildings.find(b => b.id === job.targetId)!.type].label
+          : 'Carrying ' + job.amount + ' ' + job.resource
+      : 'Travel to ' + job.kind
+    this.move(settler, target, status, WALK_SPEED)
+  }
+
+  private updateWorkplace(settler: Settler, building: Building): void {
+    if (building.type === 'farmhouse') {
+      const field = farmerFieldAssignment(this.state, building, settler)
+      if (field) {
+        const target = fieldWorkPoint(field)
+        if (distance(settler, target) < 0.15) {
+          settler.path = []
+          settler.pathRevision = -1
+          settler.status = workField(this.state, building, field, FIXED_STEP, happinessEffect(settler).workRate)
+          return
+        }
+        this.move(settler, target, agricultureActionLabel(field) + ' field ' + field.id, WALK_SPEED)
+        return
+      }
+    }
+
+    const target = entrance(building)
+    const profession = BUILDINGS[building.type].profession ?? 'Worker'
+    const label = BUILDINGS[building.type].label
+    if (distance(settler, target) < 0.01) {
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = 'Working as ' + profession + ' at ' + label
+      return
+    }
+    this.move(settler, target, 'Reporting to ' + label, WALK_SPEED)
+  }
+
+  private updateImmigrantArrival(settler: Settler): void {
+    const target = settler.arrivalTarget
+    if (!target) return
+
+    if (distance(settler, target) < 0.01) {
+      settler.arrivalTarget = null
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = 'Arrived — needs work'
+      recordEvent(this.state, settlerLabel(this.state, settler.id) + ' arrived in Nightspire.')
+      return
+    }
+
+    this.move(settler, target, 'Arriving in Nightspire', WALK_SPEED)
+  }
+
+  private updateNightSchedule(settler: Settler): void {
+    const phase = this.phase
+    if (settler.role !== 'guard' && phase !== 'day') {
+      this.servicePlan ??= serviceAssignments(this.state, phase)
+    }
+    const { target, status } = nightTarget(this.state, settler, phase, this.servicePlan)
+
+    if (distance(settler, target) < 0.01) {
+      settler.path = []
+      settler.pathRevision = -1
+      settler.status = status
+      return
+    }
+
+    const moving = settler.role === 'guard'
+      ? (status.startsWith('Guard reserve') ? 'Guard reserve — seeking shelter' : 'Reporting to guard post')
+      : 'Seeking shelter'
+    this.move(settler, target, moving, WALK_SPEED)
+  }
+
+  private updateGuardCombat(guard: Settler): void {
+    const s = this.state
+    const assignment = assignedGuardPost(s, guard)
+    const postTarget = assignment ? guardPostTarget(s, guard) : null
+    const post = assignment ? s.buildings.find(building => building.id === assignment.buildingId) : undefined
+
+    if (postTarget && post) {
+      if (distance(guard, postTarget) > 0.08) {
+        this.move(guard, postTarget, 'Manning Guard Post ' + post.id, WALK_SPEED)
+        return
+      }
+
+      const rangedEnemy = nearestEnemy(s, post, GUARD_RANGED_RANGE)
+      guard.path = []
+      guard.pathRevision = -1
+      if (!rangedEnemy) {
+        guard.status = 'Watching from Guard Post ' + post.id
+        return
+      }
+
+      guard.status = 'Firing from Guard Post ' + post.id
+      if (guard.attackCooldown <= 0) {
+        guard.attackCooldown = GUARD_RANGED_COOLDOWN
+        const killed = damageEnemy(s, rangedEnemy, GUARD_RANGED_DAMAGE, settlerLabel(s, guard.id))
+        if (killed) guard.status = 'Dropped raider from Guard Post ' + post.id
+      }
+      return
+    }
+
+    const enemy = nearestEnemy(s, guard, GUARD_AGGRO_RANGE)
+    if (!enemy) {
+      this.updateNightSchedule(guard)
+      return
+    }
+
+    const d = distance(guard, enemy)
+    if (d <= GUARD_ATTACK_RANGE) {
+      guard.path = []
+      guard.pathRevision = -1
+      guard.status = 'Fighting raider'
+      if (guard.attackCooldown <= 0) {
+        guard.attackCooldown = GUARD_ATTACK_COOLDOWN
+        const killed = damageEnemy(s, enemy, GUARD_DAMAGE, settlerLabel(s, guard.id))
+        if (killed) guard.status = 'Defeated raider'
+      }
+      return
+    }
+
+    this.move(guard, enemy, 'Intercepting raider', WALK_SPEED)
+  }
+
+  private updateEnemy(enemy: Enemy): void {
+    const s = this.state
+    const profile = raiderProfile(enemy)
+
+    const defenders: Array<{ point: Point; label: string; settler: Settler | null }> = livingGuards(s)
+      .filter(guard => distance(enemy, guard) <= profile.defenderAggroRange)
+      .map(guard => ({ point: guard, label: settlerLabel(s, guard.id), settler: guard }))
+    if (s.player.health > 0 && distance(enemy, s.player) <= profile.defenderAggroRange) {
+      defenders.push({ point: s.player, label: 'player', settler: null })
+    }
+    defenders.sort((a, b) => distance(enemy, a.point) - distance(enemy, b.point))
+
+    const defender = defenders[0]
+    if (defender) {
+      const defenderDistance = distance(enemy, defender.point)
+      if (defenderDistance <= profile.attackRange) {
+        enemy.path = []
+        enemy.pathRevision = -1
+        enemy.status = 'Attacking ' + defender.label + ' — ' + profile.label
+        if (enemy.attackCooldown <= 0) {
+          enemy.attackCooldown = profile.attackCooldown
+          if (defender.settler) damageSettler(s, defender.settler, profile.damage)
+          else damagePlayer(s, profile.damage)
+        }
+      } else {
+        this.move(enemy, defender.point, 'Engaging ' + defender.label + ' — ' + profile.label, profile.walkSpeed)
+      }
+      return
+    }
+
+    const targetBuilding = enemyTargetBuilding(s, enemy)
+    if (!targetBuilding) {
+      enemy.status = 'No settlement target'
+      enemy.path = []
+      return
+    }
+
+    const target = enemyTarget(s, enemy)
+    if (distance(enemy, target) < 0.08) {
+      enemy.path = []
+      enemy.pathRevision = -1
+      enemy.status = 'Attacking ' + BUILDINGS[targetBuilding.type].label
+
+      if (enemy.attackCooldown <= 0) {
+        enemy.attackCooldown = profile.attackCooldown
+        const destroyed = damageBuilding(s, targetBuilding, profile.structureDamage)
+        if (destroyed) {
+          enemy.path = []
+          enemy.pathRevision = -1
+          assignHousing(s)
+        }
+      }
+      return
+    }
+
+    this.move(enemy, target, 'Advancing on ' + BUILDINGS[targetBuilding.type].label + ' — ' + profile.label, profile.walkSpeed)
+  }
+
+  private move(agent: MovingAgent, target: Point, status: string, speed: number): void {
+    const s = this.state
+    agent.status = status
+
+    if (agent.pathRevision !== s.topology || agent.path.length === 0) {
+      if (!this.navigation.request(agent.id, target, s.tick) && this.navigation.isRetrying(agent.id, s.tick)) {
+        agent.status = 'Route blocked — retrying'
+      }
+      return
+    }
+
+    let budget = speed * FIXED_STEP
+    while (budget > 0 && agent.path.length) {
+      const next = agent.path[0]
+      const length = distance(agent, next)
+      if (length <= budget) {
+        agent.x = next.x
+        agent.z = next.z
+        agent.path.shift()
+        budget -= length
+      } else {
+        agent.x += (next.x - agent.x) / length * budget
+        agent.z += (next.z - agent.z) / length * budget
+        budget = 0
+      }
+    }
+  }
+
+  private arrive(settler: Settler, job: Job): void {
+    const s = this.state
+    settler.path = []
+    settler.pathRevision = -1
+
+    if (job.stage === 'target') {
+      const target = s.buildings.find(b => b.id === job.targetId)
+      if (!target) {
+        finishJob(s, settler, job)
+        return
+      }
+
+      if (job.kind === 'repair') {
+        job.stage = 'work'
+        job.progress = 0
+        settler.status = 'Repairing ' + BUILDINGS[target.type].label
+        return
+      }
+
+      if (job.kind === 'supply') {
+        target.inventory[job.resource] += job.amount
+        recordEvent(s, job.amount + ' ' + job.resource + ' supplied to ' + BUILDINGS[target.type].label + '.')
+      } else if (job.kind === 'gather') {
+        if (target.destroyed) {
+          finishJob(s, settler, job)
+          return
+        }
+        target.inventory[job.resource] += job.amount
+        s.totals.deposited[job.resource] += job.amount
+        recordEvent(s, settlerLabel(s, settler.id) + ' deposited ' + job.amount + ' ' + job.resource + '.')
+      } else {
+        target.delivered[job.resource] += job.amount
+        s.totals.delivered[job.resource] += job.amount
+        recordEvent(s, job.amount + ' ' + job.resource + ' delivered to ' + BUILDINGS[target.type].label + '.')
+      }
+
+      settler.cargo[job.resource] = 0
+      finishJob(s, settler, job)
+      return
+    }
+
+    if (job.kind === 'deliver' || job.kind === 'repair' || job.kind === 'supply') {
+      const source = s.buildings.find(b => b.id === job.sourceId)
+      if (!source || source.inventory[job.resource] < job.amount) {
+        finishJob(s, settler, job)
+        return
+      }
+      source.inventory[job.resource] -= job.amount
+      settler.cargo[job.resource] = job.amount
+      job.stage = 'target'
+      return
+    }
+
+    job.stage = 'work'
+    job.progress = 0
+  }
+
+  private work(settler: Settler, job: Job, workRate: number): void {
+    const s = this.state
+    const workDelta = FIXED_STEP * workRate
+    job.progress += workDelta
+
+    if (job.kind === 'cleanup') {
+      settler.status = 'Clearing battlefield'
+      if (job.progress + 1e-8 < 1.5) return
+      const index = s.remains.findIndex(remains => remains.id === job.targetId)
+      if (index >= 0) s.remains.splice(index, 1)
+      recordEvent(s, settlerLabel(s, settler.id) + ' cleared battlefield remains.')
+      finishJob(s, settler, job)
+      return
+    }
+
+    if (job.kind === 'gather') {
+      settler.status = 'Gathering ' + job.resource
+      if (job.progress + 1e-8 < RESOURCES[job.resource].workSeconds) return
+
+      const node = s.nodes.find(n => n.id === job.sourceId)
+      if (!node || node.remaining < job.amount) {
+        finishJob(s, settler, job)
+        return
+      }
+
+      node.remaining -= job.amount
+      settler.cargo[job.resource] = job.amount
+      s.totals.gathered[job.resource] += job.amount
+      job.stage = 'target'
+      settler.pathRevision = -1
+      return
+    }
+
+    const building = s.buildings.find(b => b.id === job.targetId)
+    if (!building) {
+      for (const resource of Object.keys(settler.cargo) as Array<keyof typeof settler.cargo>) settler.cargo[resource] = 0
+      finishJob(s, settler, job)
+      return
+    }
+
+    if (job.kind === 'repair') {
+      settler.status = 'Repairing ' + BUILDINGS[building.type].label
+      if (job.progress + 1e-8 < REPAIR_WORK_SECONDS) return
+
+      const missing = Math.max(0, building.maxHealth - building.health)
+      const heal = Math.min(missing, job.amount * REPAIR_HP_PER_WOOD)
+      const woodUsed = Math.min(job.amount, Math.ceil(heal / REPAIR_HP_PER_WOOD))
+      const unused = job.amount - woodUsed
+      const wasDestroyed = building.destroyed
+
+      building.health = Math.min(building.maxHealth, building.health + heal)
+      if (building.health > 0) building.destroyed = false
+      building.lastHitTick = 0
+      s.totals.repairedHealth += heal
+      s.totals.repairWoodUsed += woodUsed
+      settler.cargo.wood = 0
+
+      if (unused > 0) {
+        const source = s.buildings.find(b => b.id === job.sourceId)
+        if (source) source.inventory.wood += unused
+      }
+
+      if (wasDestroyed !== building.destroyed) s.topology++
+      recordEvent(s, BUILDINGS[building.type].label + ' repaired +' + heal + ' HP.')
+      assignHousing(s)
+      finishJob(s, settler, job)
+      return
+    }
+
+    if (building.complete) {
+      finishJob(s, settler, job)
+      return
+    }
+
+    const workLimit = constructionWorkLimit(building)
+    if (building.work + 1e-8 >= workLimit && !readyToBuild(building)) {
+      finishJob(s, settler, job)
+      settler.status = 'Waiting for materials at ' + BUILDINGS[building.type].label
+      return
+    }
+
+    settler.status = constructionStageLabel(building) + ' — ' + BUILDINGS[building.type].label
+    building.work = Math.min(BUILDINGS[building.type].constructionWork, workLimit, building.work + workDelta)
+    if (building.work + 1e-8 < BUILDINGS[building.type].constructionWork) return
+
+    building.work = BUILDINGS[building.type].constructionWork
+    building.complete = true
+    building.destroyed = false
+    building.health = building.maxHealth
+    building.lastHitTick = 0
+    s.totals.constructed++
+    s.topology++
+    recordEvent(s, BUILDINGS[building.type].label + ' completed.')
+    assignHousing(s)
+    finishJob(s, settler, job)
+  }
+}

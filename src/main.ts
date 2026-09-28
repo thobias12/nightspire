@@ -5,8 +5,8 @@ import './construction-ui-shell.css'
 import './manor-reference-ui.css'
 import './main-menu.css'
 import { BenchmarkApp } from './game/benchmark/BenchmarkApp'
-import { Game } from './game/core/Game'
-import { SAVE_KEY } from './game/simulation/SaveLoad'
+import { Game } from './game/app/Game'
+import { SAVE_KEY } from './game/persistence/SaveLoad'
 
 const root = document.querySelector<HTMLDivElement>('#app')!
 
