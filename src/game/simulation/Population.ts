@@ -1,5 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
 import { assignHousing, available, stockpiles } from './Buildings'
+import { dependentCount, settlementPopulation } from './Family'
 import { houseBedCapacity } from './HouseProgression'
 import { householdSummary } from './Households'
 import { completedMarkets } from './Markets'
@@ -14,6 +15,7 @@ export const IMMIGRATION_REQUIRED_DAYS = 2
 export const IMMIGRATION_MIN_HAPPINESS = 65
 export const IMMIGRATION_MIN_SAFETY = 55
 export const IMMIGRATION_FOOD_PER_SETTLER = 2
+export const IMMIGRATION_FOOD_PER_DEPENDENT = 1
 export const IMMIGRATION_SCORE_THRESHOLD = 70
 
 export interface AttractionBreakdown {
@@ -62,9 +64,10 @@ function raidReady(state: WorldState): boolean {
 export function populationAttraction(state: WorldState): AttractionBreakdown {
   const needs = settlementNeeds(state)
   const beds = totalBeds(state)
-  const spareBeds = Math.max(0, beds - state.settlers.length)
+  const spareBeds = Math.max(0, beds - settlementPopulation(state))
   const food = storedFood(state)
   const foodRequired = state.settlers.length * IMMIGRATION_FOOD_PER_SETTLER
+    + dependentCount(state) * IMMIGRATION_FOOD_PER_DEPENDENT
   const safeAfterRaid = raidReady(state)
   const households = householdSummary(state)
   const formalMarketEconomy = completedMarkets(state).length > 0

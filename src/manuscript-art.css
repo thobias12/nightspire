@@ -1,0 +1,19 @@
+/* Nightspire manuscript artwork: ordinary repository image files only. No data URIs or sprite atlas. */
+
+[data-art-slot="build-residential-plot"],
+.build-preview-art[data-art-slot="build-residential-plot"],
+[data-ui-asset="building-header:house"],
+[data-ui-asset="building-icon:house"] {
+  background-image: url("../assets/ui/building-card/house.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+[data-art-slot="build-bakery"],
+.build-preview-art[data-art-slot="build-bakery"] {
+  background-image: url("../assets/ui/building-card/bakery.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}

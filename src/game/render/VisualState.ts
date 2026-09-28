@@ -1,4 +1,4 @@
-export type ConstructionVisualStage = 'foundation' | 'frame' | 'shell' | 'complete'
+export type ConstructionVisualStage = 'site' | 'foundation' | 'frame' | 'scaffold' | 'shell' | 'finishing' | 'complete'
 export type DamageVisualStage = 'intact' | 'worn' | 'damaged' | 'critical' | 'ruin'
 
 export interface AtmosphereState {
@@ -17,9 +17,12 @@ const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 export function constructionVisualStage(work: number, total: number, complete: boolean): ConstructionVisualStage {
   if (complete) return 'complete'
   const ratio = total > 0 ? clamp01(work / total) : 0
-  if (ratio < 0.25) return 'foundation'
-  if (ratio < 0.7) return 'frame'
-  return 'shell'
+  if (ratio <= 1e-8) return 'site'
+  if (ratio < 0.2) return 'foundation'
+  if (ratio < 0.45) return 'frame'
+  if (ratio < 0.65) return 'scaffold'
+  if (ratio < 0.85) return 'shell'
+  return 'finishing'
 }
 
 export function damageVisualStage(health: number, maxHealth: number, destroyed: boolean): DamageVisualStage {

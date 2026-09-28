@@ -9,13 +9,22 @@ const {
   placementBatchError, placementError, stockpiles, available, freeStorage, wallLinePoints,
 } = require('../.test-build/game/simulation/Buildings.js')
 const { assignJobs } = require('../.test-build/game/simulation/Jobs.js')
+const {
+  canAdvanceConstruction, constructionCrewCapacity, constructionMaterialRatio,
+  constructionStage, constructionWorkLimit, constructionWorkPoint,
+} = require('../.test-build/game/simulation/Construction.js')
 const { serializeWorld, deserializeWorld, validateWorld } = require('../.test-build/game/simulation/SaveLoad.js')
 const { blockedCells, cellKey, entrance } = require('../.test-build/game/simulation/Navigation.js')
 const { PATH_BUDGET } = require('../.test-build/game/data/jobs.js')
 const { phaseForTime } = require('../.test-build/game/simulation/DayNight.js')
-const { assignedGuardPost } = require('../.test-build/game/simulation/Schedule.js')
-const { RAID_SIZE, RAID_MAX_SIZE, raidSizeForWave, enemyTarget, enemyTargetBuilding } = require('../.test-build/game/simulation/Raid.js')
-const { PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, damageBuilding } = require('../.test-build/game/simulation/Combat.js')
+const { assignedGuardPost, guardPostTarget } = require('../.test-build/game/simulation/Schedule.js')
+const {
+  RAID_SIZE, RAID_MAX_SIZE, RAID_GROWTH, RAIDER_PROFILES, enemyTarget, enemyTargetBuilding,
+  raidArchetypeForSpawn, raidFrontCountForWave, raidPlanForWave, raidSizeForWave, raiderArchetype,
+} = require('../.test-build/game/simulation/Raid.js')
+const {
+  PLAYER_DAMAGE, PLAYER_ATTACK_RANGE, RAIDER_DAMAGE, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE, damageBuilding, damageEnemy,
+} = require('../.test-build/game/simulation/Combat.js')
 const { happinessOf, serveDailyMeal, settlementNeeds, updateNeeds } = require('../.test-build/game/simulation/Needs.js')
 const { canAcceptJob, happinessEffect, settlementHappinessEffect, workRateFor } = require('../.test-build/game/simulation/Happiness.js')
 const { SETTLERS_PER_TOOL, TOOL_WORK_BONUS_MAX, toolCoverage } = require('../.test-build/game/simulation/Tools.js')
@@ -42,6 +51,10 @@ const {
   houseBedCapacity, houseProgressionStatus, processHouseholdProgression,
 } = require('../.test-build/game/simulation/HouseProgression.js')
 const {
+  CHILD_DAYS_PER_YEAR, FAMILY_CHILD_INTERVAL_DAYS, dependentCount, dependentCountAtHome, familySummary,
+  processFamiliesDay, settlementPopulation, synchronizeFamilies,
+} = require('../.test-build/game/simulation/Family.js')
+const {
   MERCHANT_UNIT_LIMIT, TRADE_PRICES, adjustTradeReserve, merchantIntervalDays, merchantPresent,
   processMerchantTrade, scheduleMerchantVisit, tradeExportStagingNeed, tradeFreeStorage,
   tradeReputation,
@@ -58,6 +71,7 @@ const {
 } = require('../.test-build/game/simulation/Services.js')
 const { atmosphereForTime, constructionVisualStage, damageVisualStage } = require('../.test-build/game/render/VisualState.js')
 const { visualRoadStrip } = require('../.test-build/game/render/TownPresentation.js')
+const { settlementMetrics, settlementTier, settlementTierStatus } = require('../.test-build/game/simulation/TownProgression.js')
 const { residentialPresentationProfile } = require('../.test-build/game/render/ResidentialPresentation.js')
 const {
   backyardForPlot, buildingPlacementPreview, buildingRequiresRoadFrontage, buildingRoadPlacementError,
@@ -399,11 +413,79 @@ test('visual atmosphere is bright by day, cold/dense at night and warmest near t
   assert.ok(dusk.twilight>0.95)
 })
 
-test('construction presentation advances deterministically from foundation to frame to shell', () => {
-  assert.equal(constructionVisualStage(0,10,false),'foundation')
+test('construction presentation advances through a full physical build sequence', () => {
+  assert.equal(constructionVisualStage(0,10,false),'site')
+  assert.equal(constructionVisualStage(1,10,false),'foundation')
   assert.equal(constructionVisualStage(3,10,false),'frame')
-  assert.equal(constructionVisualStage(8,10,false),'shell')
+  assert.equal(constructionVisualStage(5,10,false),'scaffold')
+  assert.equal(constructionVisualStage(7,10,false),'shell')
+  assert.equal(constructionVisualStage(9,10,false),'finishing')
   assert.equal(constructionVisualStage(0,10,true),'complete')
+})
+
+test('construction work is capped by materials physically delivered to the site', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  s.nodes.forEach(node => { node.remaining=0 })
+  s.buildings[0].inventory.wood=0
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=10
+  s.buildings.push(site); s.topology++
+
+  assert.equal(constructionMaterialRatio(site),0.5)
+  assert.equal(constructionWorkLimit(site),6)
+  assert.equal(canAdvanceConstruction(site),true)
+  assert.equal(constructionStage(site),'site')
+
+  const sim=new Simulation(s)
+  advance(sim,12)
+  assert.ok(Math.abs(site.work-6)<1e-8)
+  assert.equal(site.complete,false)
+  assert.equal(canAdvanceConstruction(site),false)
+  assert.ok(!s.jobs.some(job=>job.kind==='construct' && job.targetId===site.id))
+  validateWorld(s)
+})
+
+test('large construction sites use parallel builders while other settlers keep hauling', () => {
+  const s=createInitialWorldState()
+  s.nodes.forEach(node => { node.remaining=0 })
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  s.buildings[0].inventory.wood=10
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=10
+  s.buildings.push(site); s.topology++
+
+  assert.equal(constructionCrewCapacity(site),2)
+  assignJobs(s)
+  const builders=s.jobs.filter(job=>job.kind==='construct' && job.targetId===site.id)
+  const haulers=s.jobs.filter(job=>job.kind==='deliver' && job.targetId===site.id)
+  assert.equal(builders.length,2)
+  assert.equal(haulers.reduce((sum,job)=>sum+job.amount,0),10)
+  assert.notDeepEqual(
+    constructionWorkPoint(site,builders[0].settlerId),
+    constructionWorkPoint(site,builders[1].settlerId),
+  )
+  validateWorld(s)
+})
+
+test('parallel builders complete one construction site exactly once', () => {
+  const s=createInitialWorldState()
+  s.nodes.forEach(node => { node.remaining=0 })
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const site=createBuilding(s.nextId++,'house',7,0,false)
+  site.delivered.wood=20
+  s.buildings.push(site); s.topology++
+  assignJobs(s)
+  assert.equal(s.jobs.filter(job=>job.kind==='construct' && job.targetId===site.id).length,2)
+
+  const sim=new Simulation(s)
+  advance(sim,15)
+  assert.equal(site.complete,true)
+  assert.equal(site.work,12)
+  assert.equal(s.totals.constructed,1)
+  assert.ok(!s.jobs.some(job=>job.kind==='construct' && job.targetId===site.id))
+  validateWorld(s)
 })
 
 test('damage presentation maps health bands to readable world states', () => {
@@ -782,7 +864,74 @@ test('night spawns one deterministic raid per day and does not duplicate it', ()
 test('raid pressure scales from 20 to 40 and caps deterministically', () => {
   assert.deepEqual([1,2,3,4,5,6,7].map(raidSizeForWave),[20,24,28,32,36,40,40])
   assert.equal(RAID_SIZE,20)
+  assert.equal(RAID_GROWTH,4)
   assert.equal(RAID_MAX_SIZE,40)
+})
+
+test('raid plans add deterministic skirmishers, brutes and a second attack front', () => {
+  assert.deepEqual(raidPlanForWave(1),{
+    wave:1,size:20,fronts:1,skirmishers:5,raiders:15,brutes:0,rams:0,
+  })
+  assert.deepEqual(raidPlanForWave(2),{
+    wave:2,size:24,fronts:2,skirmishers:5,raiders:16,brutes:3,rams:0,
+  })
+  assert.ok(raidPlanForWave(3).rams>=1)
+  assert.equal(raidFrontCountForWave(1),1)
+  assert.equal(raidFrontCountForWave(6),2)
+  assert.equal(raidArchetypeForSpawn(1,3),'skirmisher')
+  assert.equal(raidArchetypeForSpawn(2,5),'brute')
+})
+
+test('second-wave raid physically enters from opposite map fronts with encoded archetypes', () => {
+  const s=createInitialWorldState()
+  s.raid.wave=1
+  s.day=2
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+
+  const plan=raidPlanForWave(2)
+  assert.equal(s.enemies.length,plan.size)
+  const edgeXs=new Set(s.enemies.filter(e=>Math.abs(e.x)>=21).map(e=>Math.sign(e.x)))
+  assert.deepEqual([...edgeXs].sort(),[-1,1])
+  const counts={skirmisher:0,raider:0,brute:0}
+  for(const enemy of s.enemies) counts[raiderArchetype(enemy)]++
+  assert.deepEqual(counts,{
+    skirmisher:plan.skirmishers,
+    raider:plan.raiders,
+    brute:plan.brutes,
+  })
+  assert.ok(s.enemies.some(e=>e.maxHealth===RAIDER_PROFILES.brute.maxHealth))
+  validateWorld(s)
+})
+
+test('raider archetypes pressure different settlement targets', () => {
+  const s=createInitialWorldState()
+  const guard=createBuilding(s.nextId++,'guard-post',0,7,true)
+  const wall=createBuilding(s.nextId++,'wood-wall',0,9,true)
+  s.buildings.push(guard,wall); s.topology++
+
+  const skirmisher={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:28,maxHealth:28,attackCooldown:0,lastHitTick:0,
+    x:0,z:11,path:[],pathRevision:-1,status:'test',
+  }
+  const brute={...skirmisher,id:s.nextId++,health:72,maxHealth:72}
+  assert.equal(enemyTargetBuilding(s,skirmisher).id,guard.id)
+  assert.equal(enemyTargetBuilding(s,brute).id,wall.id)
+})
+
+test('raiders actively break from structure pressure to engage nearby defenders', () => {
+  const s=createInitialWorldState()
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const enemy=s.enemies[0]
+  enemy.x=0; enemy.z=5; enemy.path=[]; enemy.pathRevision=-1
+  s.player.x=4; s.player.z=5
+  const beforeX=enemy.x
+  for(let i=0;i<80;i++) sim.step()
+  assert.ok(enemy.x>beforeX)
+  assert.ok(enemy.status.includes('player') || s.player.health<s.player.maxHealth)
+  validateWorld(s)
 })
 
 test('a capped 40-raider wave stays inside the shared path budget', () => {
@@ -2484,6 +2633,279 @@ test('M3.11.4 empty or unstaffed Markets do not count as household Food access',
   validateWorld(s)
 })
 
+
+test('M2.7 defeated attackers leave remains that laborers physically clear', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,1)
+  s.nodes.forEach(node=>{node.remaining=0})
+  s.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  s.settlers[0].lastMealDay=s.day
+  s.settlers[0].needs={food:100,housing:100,safety:100,recreation:100}
+
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:5,z:5,path:[],pathRevision:-1,status:'test',
+  }
+  s.enemies.push(enemy)
+  s.raid.totalSpawned=1
+  assert.equal(damageEnemy(s,enemy,999,'Test guard'),true)
+  assert.equal(s.enemies.length,0)
+  assert.equal(s.remains.length,1)
+  assert.equal(s.remains[0].heavy,false)
+
+  assignJobs(s)
+  const cleanup=s.jobs.find(job=>job.kind==='cleanup')
+  assert.ok(cleanup)
+  assert.equal(cleanup.targetId,s.remains[0].id)
+
+  const sim=new Simulation(s)
+  advance(sim,8)
+  assert.equal(s.remains.length,0)
+  assert.ok(!s.jobs.some(job=>job.kind==='cleanup'))
+  validateWorld(s)
+})
+
+test('M2.6 later raid waves include deterministic siege rams that prioritize fortifications', () => {
+  const plan=raidPlanForWave(3)
+  assert.ok(plan.rams>=1)
+  const index=Array.from({length:plan.size},(_,i)=>i).find(i=>raidArchetypeForSpawn(3,i)==='ram')
+  assert.ok(index!==undefined)
+
+  const s=createInitialWorldState()
+  const gate=createBuilding(s.nextId++,'wood-gate',0,8,true)
+  const house=createBuilding(s.nextId++,'house',0,5,true)
+  s.buildings.push(house,gate); s.topology++
+  const ram={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:RAIDER_PROFILES.ram.maxHealth,maxHealth:RAIDER_PROFILES.ram.maxHealth,
+    attackCooldown:0,lastHitTick:0,x:0,z:12,path:[],pathRevision:-1,status:'test',
+  }
+  assert.equal(raiderArchetype(ram),'ram')
+  assert.equal(enemyTargetBuilding(s,ram).id,gate.id)
+  assert.equal(RAIDER_PROFILES.ram.structureDamage,38)
+})
+
+test('M2.6 guards assigned to posts hold position and fire at range', () => {
+  const s=createInitialWorldState()
+  const post=createBuilding(s.nextId++,'guard-post',7,0,true)
+  s.buildings.push(post); s.topology++
+  const guard=s.settlers[0]
+  guard.role='guard'
+  const target=guardPostTarget(s,guard)
+  assert.ok(target)
+  guard.x=target.x; guard.z=target.z
+
+  const enemy={
+    id:s.nextId++,kind:'raider',targetId:s.buildings[0].id,
+    health:40,maxHealth:40,attackCooldown:0,lastHitTick:0,
+    x:post.x+Math.min(6,GUARD_RANGED_RANGE-1),z:post.z,path:[],pathRevision:-1,status:'test',
+  }
+  s.enemies.push(enemy)
+  s.raid.lastSpawnDay=s.day
+  s.raid.wave=1
+  s.raid.totalSpawned=1
+
+  const sim=new Simulation(s)
+  sim.setTimeOfDay(21/24)
+  const before=enemy.health
+  advance(sim,2)
+  assert.ok(enemy.health<=before-GUARD_RANGED_DAMAGE)
+  assert.ok(Math.hypot(guard.x-target.x,guard.z-target.z)<0.1)
+  assert.match(guard.status,/Guard Post|raider/i)
+})
+
+test('M3.13 settlement progression derives Camp through Stronghold from real settlement state', () => {
+  const s=createInitialWorldState()
+  assert.equal(settlementTier(s).id,'camp')
+
+  const h1=createBuilding(s.nextId++,'house',-7,0,true)
+  s.buildings.push(h1)
+  assert.equal(settlementTier(s).id,'hamlet')
+
+  const h2=createBuilding(s.nextId++,'house',7,0,true)
+  const market=createBuilding(s.nextId++,'market',0,7,true)
+  s.buildings.push(h2,market)
+  s.roads.push({id:s.nextId++,points:[{x:-8,z:4},{x:8,z:4}],width:2})
+  assert.equal(settlementTier(s).id,'village')
+
+  h1.houseLevel=2
+  s.buildings.push(
+    createBuilding(s.nextId++,'blacksmith',-7,7,true),
+    createBuilding(s.nextId++,'trading-post',7,7,true),
+  )
+  assert.equal(settlementTier(s).id,'town')
+
+  h1.houseLevel=3
+  s.buildings.push(createBuilding(s.nextId++,'guard-post',0,-7,true))
+  for(let i=0;i<8;i++) s.buildings.push(createBuilding(s.nextId++,'wood-wall',-10+i,-10,true))
+  s.raid.wave=2
+  s.raid.lastClearedWave=2
+  assert.equal(settlementTier(s).id,'stronghold')
+
+  const metrics=settlementMetrics(s)
+  assert.equal(metrics.prosperousHomes,1)
+  assert.equal(metrics.fortifications,8)
+  assert.equal(metrics.guardPosts,1)
+  assert.ok(metrics.roadLength>=14)
+})
+
+test('M3.13 tier status explains the next concrete settlement requirements', () => {
+  const s=createInitialWorldState()
+  const status=settlementTierStatus(s)
+  assert.equal(status.id,'camp')
+  assert.equal(status.next.id,'hamlet')
+  assert.ok(status.blockers.some(blocker=>blocker.includes('House')))
+})
+
+test('M3.12 housed residents form persistent named family records', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  const agents=s.settlers.length
+
+  synchronizeFamilies(s)
+  assert.equal(s.families.length,1)
+  const family=s.families[0]
+  assert.equal(family.adultIds.length,2)
+  assert.equal(family.homeId,house.id)
+  assert.equal(s.settlers.length,agents)
+  const [a,b]=s.settlers
+  assert.equal(a.partnerId,b.id)
+  assert.equal(b.partnerId,a.id)
+  assert.equal(a.familyId,family.id)
+  assert.equal(b.familyId,family.id)
+  assert.equal(a.familyName,family.surname)
+  assert.equal(b.familyName,family.surname)
+  assert.ok(a.givenName.length>0 && b.givenName.length>0)
+  validateWorld(s)
+})
+
+test('M3.12 family identities and dependents survive save load', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families[0]
+  if(family.children.length===0) family.children.push({givenName:'Mira',ageYears:8,ageDays:2})
+
+  const loaded=deserializeWorld(serializeWorld(s))
+  assert.deepEqual(loaded.families,s.families)
+  assert.deepEqual(
+    loaded.settlers.map(a=>[a.givenName,a.familyName,a.ageYears,a.familyId,a.partnerId]),
+    s.settlers.map(a=>[a.givenName,a.familyName,a.ageYears,a.familyId,a.partnerId]),
+  )
+  assert.equal(familySummary(loaded).families,1)
+  assert.ok(familySummary(loaded).children>=1)
+  validateWorld(loaded)
+})
+
+test('M3.12 dependents consume housing headroom and prevent household overfill', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families[0]
+  family.children=[
+    {givenName:'Mira',ageYears:5,ageDays:0},
+    {givenName:'Edric',ageYears:8,ageDays:0},
+  ]
+
+  assert.equal(dependentCount(s),2)
+  assert.equal(dependentCountAtHome(s,house.id),2)
+  assert.equal(settlementPopulation(s),4)
+  assert.equal(populationAttraction(s).spareBeds,0)
+
+  family.lastChildDay=1
+  s.day=FAMILY_CHILD_INTERVAL_DAYS+1
+  const result=processFamiliesDay(s)
+  assert.equal(result.births,0)
+  assert.equal(family.children.length,2)
+  validateWorld(s)
+})
+
+test('M3.12 a dependent reaching working age replaces household dependency with a worker', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,2)
+  const house=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(house); s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families[0]
+  family.children=[{givenName:'Edric',ageYears:15,ageDays:CHILD_DAYS_PER_YEAR-1}]
+  const beforePopulation=settlementPopulation(s)
+  const beforeWorkers=s.settlers.length
+
+  s.day++
+  const result=processFamiliesDay(s)
+  assert.equal(result.matured,1)
+  assert.equal(s.settlers.length,beforeWorkers+1)
+  assert.equal(settlementPopulation(s),beforePopulation)
+  const adult=s.settlers.find(settler=>settler.givenName==='Edric')
+  assert.ok(adult)
+  assert.equal(adult.ageYears,16)
+  assert.equal(adult.familyId,family.id)
+  assert.equal(adult.homeId,house.id)
+  validateWorld(s)
+})
+
+test('M3.12 dependents reserve real beds when housing new adults', () => {
+  const s=createInitialWorldState()
+  s.settlers=s.settlers.slice(0,3)
+  const h1=createBuilding(s.nextId++,'house',-7,0,true)
+  const h2=createBuilding(s.nextId++,'house',7,0,true)
+  s.buildings.push(h1,h2); s.topology++
+  s.settlers[0].homeId=h1.id
+  s.settlers[1].homeId=h1.id
+  s.settlers[2].homeId=null
+  synchronizeFamilies(s)
+  const family=s.families.find(f=>f.homeId===h1.id)
+  assert.ok(family)
+  family.children=[
+    {givenName:'Mira',ageYears:4,ageDays:0},
+    {givenName:'Edric',ageYears:7,ageDays:0},
+  ]
+
+  assignHousing(s)
+  assert.equal(s.settlers[2].homeId,h2.id)
+  assert.equal(
+    s.settlers.filter(a=>a.homeId===h1.id).length + dependentCountAtHome(s,h1.id),
+    4,
+  )
+  validateWorld(s)
+})
+
+test('M3.12 capped adolescents remain save-valid until a worker slot opens', () => {
+  const s=createInitialWorldState()
+  pop10(s)
+  const houses=[
+    createBuilding(s.nextId++,'house',-7,0,true),
+    createBuilding(s.nextId++,'house',7,0,true),
+    createBuilding(s.nextId++,'house',0,7,true),
+  ]
+  for(const house of houses) { house.houseLevel=3; s.buildings.push(house) }
+  s.topology++
+  assignHousing(s)
+  synchronizeFamilies(s)
+  const family=s.families.find(f=>f.homeId===houses[1].id)
+  assert.ok(family)
+  family.children=[{givenName:'Bryn',ageYears:15,ageDays:CHILD_DAYS_PER_YEAR-1}]
+  const workers=s.settlers.length
+
+  s.day++
+  const result=processFamiliesDay(s)
+  assert.equal(result.matured,0)
+  assert.equal(s.settlers.length,workers)
+  assert.equal(family.children[0].ageYears,15)
+  assert.equal(family.children[0].ageDays,CHILD_DAYS_PER_YEAR-1)
+  validateWorld(s)
+})
 
 test('M3.11.5 sustained household services promote Cottage to Established and Prosperous homes', () => {
   const s=createInitialWorldState()

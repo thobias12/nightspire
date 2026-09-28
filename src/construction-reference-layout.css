@@ -1,0 +1,424 @@
+/* Construction shelf layout master.
+   Structure inspired by late-medieval manuscript UI references, while keeping
+   Nightspire's own art, labels, interactions and gameplay semantics. */
+
+.build-catalog {
+  position: relative;
+  width: min(1220px, calc(100vw - 28px));
+  max-height: 305px;
+  display: none;
+  flex-direction: column;
+  overflow: visible;
+  margin: 0 0 5px;
+  padding: 14px 46px 0;
+  border: 2px solid rgba(78,55,32,.92);
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgba(213,194,151,.995), rgba(187,162,116,.995)),
+    repeating-linear-gradient(0deg, rgba(84,61,35,.025) 0 1px, transparent 1px 5px);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.38),
+    inset 0 0 0 2px rgba(245,227,185,.24),
+    inset 0 0 22px rgba(86,61,33,.16);
+  color: #3c3023;
+}
+.build-catalog.is-open { display: flex; }
+
+/* Abstract illuminated-manuscript side rails; deliberately original rather than copied artwork. */
+.build-catalog::before,
+.build-catalog::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 48px;
+  width: 29px;
+  pointer-events: none;
+  border: 1px solid rgba(87,58,31,.58);
+  background:
+    radial-gradient(circle at 50% 16%, rgba(160,67,50,.88) 0 3px, transparent 4px),
+    radial-gradient(circle at 50% 36%, rgba(56,85,100,.82) 0 3px, transparent 4px),
+    radial-gradient(circle at 50% 58%, rgba(160,67,50,.82) 0 3px, transparent 4px),
+    radial-gradient(circle at 50% 79%, rgba(56,85,100,.78) 0 3px, transparent 4px),
+    repeating-linear-gradient(135deg, rgba(115,76,38,.16) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, rgba(193,166,114,.96), rgba(151,121,77,.96));
+  box-shadow: inset 0 0 0 2px rgba(236,211,157,.28);
+}
+.build-catalog::before { left: 8px; }
+.build-catalog::after { right: 8px; transform: scaleX(-1); }
+
+.catalog-header {
+  position: absolute;
+  z-index: 5;
+  top: -28px;
+  right: 0;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.catalog-header > div { display: none; }
+.catalog-close {
+  width: 25px;
+  height: 25px;
+  min-height: 25px;
+  padding: 0;
+  border: 1px solid rgba(137,106,61,.78);
+  border-radius: 50%;
+  background: rgba(27,25,21,.94);
+  color: #d8c39c;
+  box-shadow: 0 2px 7px rgba(0,0,0,.36);
+}
+.catalog-close:hover { border-color: #d0a75f; color: #f2ddb5; }
+
+/* Cards are the dominant surface. */
+.build-panel {
+  order: 1;
+  display: none;
+  align-items: stretch;
+  gap: 7px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 3px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(126,93,52,.62) rgba(111,83,48,.14);
+}
+.build-panel.is-active { display: flex; }
+.build-panel::-webkit-scrollbar { height: 5px; }
+.build-panel::-webkit-scrollbar-track { background: rgba(90,65,35,.12); }
+.build-panel::-webkit-scrollbar-thumb { background: rgba(126,93,52,.62); }
+
+.build-card {
+  position: relative;
+  flex: 0 0 154px;
+  width: 154px;
+  min-width: 154px;
+  min-height: 184px;
+  display: grid;
+  grid-template-rows: 122px 27px 31px auto;
+  padding: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(91,65,38,.66);
+  border-radius: 0;
+  background: rgba(225,207,169,.93);
+  color: #30261d;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,243,210,.38),
+    0 1px 2px rgba(52,37,21,.15);
+  transform: none;
+}
+.build-card:hover {
+  border-color: #ba8c45;
+  transform: none;
+  box-shadow:
+    0 0 0 2px rgba(197,147,67,.28),
+    inset 0 0 0 1px rgba(255,241,199,.46);
+}
+.build-card[aria-pressed="true"] {
+  border-color: #d1a04c;
+  background: rgba(231,212,171,.98);
+  box-shadow:
+    0 0 0 2px rgba(214,167,82,.55),
+    0 0 16px rgba(206,154,68,.24),
+    inset 0 0 0 1px rgba(255,244,205,.6);
+}
+.build-card[aria-pressed="true"]::after {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #c99444;
+  border: 1px solid #6f4f2b;
+  box-shadow: 0 0 7px rgba(215,170,87,.4);
+}
+
+.build-art-slot {
+  width: 100%;
+  height: 120px;
+  margin: 0;
+  border: 1px solid rgba(95,68,39,.34);
+  border-radius: 0;
+  background-color: #c9b688;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255,242,207,.25);
+}
+.build-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 4px 5px 2px;
+  overflow: hidden;
+  color: #372b20;
+  font: normal 12px/1.1 Georgia, 'Times New Roman', serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.build-card small {
+  min-width: 0;
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 4px 7px;
+  overflow: hidden;
+  border-top: 1px solid rgba(86,63,39,.32);
+  background: linear-gradient(180deg, rgba(39,36,31,.98), rgba(24,24,22,.99));
+  color: #d6c7a9;
+  font: 7px/1.25 Inter, system-ui, sans-serif;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: .01em;
+}
+.build-card.is-unaffordable:not(.is-planned) {
+  filter: saturate(.72) brightness(.9);
+  border-color: rgba(125,73,52,.72);
+}
+.build-card.is-unaffordable:not(.is-planned)::before {
+  top: 8px;
+  left: 8px;
+  padding: 2px 5px;
+  border: 1px solid rgba(122,65,45,.58);
+  background: rgba(76,42,31,.88);
+  color: #edd0b4;
+  font-size: 6px;
+}
+.build-card.is-unaffordable:not(.is-planned)::after { grid-row: auto; }
+
+.planned-divider {
+  flex: 0 0 24px;
+  width: 24px;
+  min-width: 24px;
+  margin: 0;
+  border-left: 1px solid rgba(99,72,43,.3);
+  border-right: 1px solid rgba(238,217,177,.23);
+}
+.planned-divider span { color: #766a57; font-size: 6px; }
+.build-card.is-planned {
+  opacity: .48;
+  filter: grayscale(.6) sepia(.08) saturate(.45);
+}
+.build-card.is-planned::after {
+  top: 8px;
+  right: 7px;
+  padding: 2px 5px;
+  border: 1px solid rgba(78,69,55,.46);
+  background: rgba(55,52,45,.8);
+  color: #c5bba6;
+}
+
+/* Category navigation now sits under the card shelf as one dark toolbar. */
+.build-tabs {
+  order: 2;
+  width: calc(100% + 92px);
+  margin: 0 -46px;
+  min-height: 44px;
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  overflow-x: auto;
+  border: 0;
+  border-top: 1px solid rgba(80,58,35,.7);
+  background: linear-gradient(180deg, rgba(42,39,34,.985), rgba(24,24,22,.995));
+  box-shadow: inset 0 1px rgba(216,187,131,.08);
+}
+.build-tabs button {
+  min-width: 128px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 13px;
+  border: 0;
+  border-right: 1px solid rgba(129,106,72,.24);
+  border-radius: 0;
+  background: transparent;
+  color: #8e8a80;
+  font: normal 9px/1 Georgia, 'Times New Roman', serif;
+  text-transform: none;
+  letter-spacing: .01em;
+}
+.build-tabs button:first-child { border-left: 1px solid rgba(129,106,72,.24); }
+.build-tabs button:hover { background: rgba(117,91,51,.14); color: #d9d0bf; }
+.build-tabs button[aria-pressed="true"] {
+  position: relative;
+  color: #eee0c4;
+  background: rgba(72,57,37,.25);
+  box-shadow: inset 0 -2px #c79b50;
+}
+.build-tabs button[aria-pressed="true"]::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, 50%) rotate(45deg);
+  background: #c79b50;
+  border-right: 1px solid #6f4e28;
+  border-bottom: 1px solid #6f4e28;
+}
+.build-tabs .category-icon {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background-color: transparent;
+  filter: saturate(.72) brightness(.92);
+}
+.build-tabs button[aria-pressed="true"] .category-icon { filter: saturate(.95) brightness(1.13); }
+
+/* Grid snap remains available but no longer competes with the construction cards. */
+.catalog-tools {
+  order: 3;
+  min-height: 0;
+  position: absolute;
+  left: 48px;
+  bottom: 10px;
+  z-index: 3;
+  padding: 0;
+  border: 0;
+  pointer-events: auto;
+}
+.catalog-tool {
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid rgba(143,116,76,.36);
+  background: rgba(28,28,25,.78);
+  color: #a9a292;
+  font-size: 7px;
+}
+.catalog-tool-note { display: none; }
+.catalog-help { display: none; }
+
+/* Hover information remains a parchment tooltip above the shelf. */
+.build-preview {
+  bottom: calc(100% + 10px);
+  width: 410px;
+  min-height: 156px;
+  grid-template-columns: 145px 1fr;
+  border: 1px solid rgba(82,57,32,.95);
+  background:
+    linear-gradient(180deg, rgba(225,207,167,.995), rgba(195,169,120,.995));
+  box-shadow: 0 14px 36px rgba(0,0,0,.46), inset 0 0 0 2px rgba(255,238,197,.18);
+}
+.build-preview-art {
+  min-height: 156px;
+  border-right-color: rgba(78,55,33,.42);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.build-preview-copy { padding: 11px 13px 10px; }
+
+/* Command row becomes detached circular medallions like the chosen structure. */
+.command-dock {
+  gap: 8px;
+  padding: 3px 7px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.dock-main-group,
+.dock-utility-group {
+  align-items: center;
+  gap: 6px;
+}
+.dock-utility-group {
+  padding-left: 5px;
+  border-left: 1px solid rgba(126,104,73,.26);
+}
+.dock-button {
+  width: 48px;
+  min-height: 49px;
+  padding: 0;
+  gap: 0;
+  color: #a8a297;
+}
+.dock-button .dock-icon-slot {
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgba(122,98,65,.78);
+  border-radius: 50%;
+  background-color: #37352f;
+  box-shadow:
+    inset 0 0 0 2px rgba(17,17,15,.82),
+    inset 0 0 9px rgba(0,0,0,.34),
+    0 2px 7px rgba(0,0,0,.38);
+}
+.dock-button > span:last-of-type,
+.dock-button > small,
+.dock-utility > span:last-child { display: none; }
+.dock-button:hover .dock-icon-slot,
+.dock-button[aria-pressed="true"] .dock-icon-slot {
+  border-color: #cda35f;
+  box-shadow:
+    inset 0 0 0 2px rgba(30,24,17,.88),
+    0 0 0 2px rgba(197,151,75,.18),
+    0 2px 9px rgba(0,0,0,.44);
+}
+.dock-button.primary .dock-icon-slot {
+  border-color: #cfaa68;
+  box-shadow:
+    inset 0 0 0 2px rgba(30,24,17,.88),
+    0 0 0 2px rgba(203,157,78,.16),
+    0 2px 9px rgba(0,0,0,.44);
+}
+.dock-utility {
+  width: 38px;
+  min-height: 40px;
+  padding: 0;
+}
+.dock-utility .dock-icon-slot {
+  width: 34px;
+  height: 34px;
+  border: 2px solid rgba(112,91,63,.66);
+  border-radius: 50%;
+  background-color: #302f2b;
+  box-shadow: inset 0 0 0 2px rgba(17,17,15,.76), 0 2px 6px rgba(0,0,0,.32);
+}
+
+@media (max-width: 900px) {
+  .build-catalog {
+    width: calc(100vw - 18px);
+    padding-inline: 38px;
+  }
+  .build-catalog::before,
+  .build-catalog::after { width: 23px; }
+  .build-catalog::before { left: 7px; }
+  .build-catalog::after { right: 7px; }
+  .build-tabs {
+    width: calc(100% + 76px);
+    margin-inline: -38px;
+    justify-content: flex-start;
+  }
+  .build-tabs button { min-width: 106px; }
+  .build-card {
+    flex-basis: 142px;
+    width: 142px;
+    min-width: 142px;
+  }
+}
+@media (max-width: 620px) {
+  .build-catalog { padding-inline: 31px; }
+  .build-tabs {
+    width: calc(100% + 62px);
+    margin-inline: -31px;
+  }
+  .build-card {
+    flex-basis: 132px;
+    width: 132px;
+    min-width: 132px;
+    grid-template-rows: 106px 26px 30px auto;
+    min-height: 166px;
+  }
+  .build-art-slot { height: 104px; }
+}

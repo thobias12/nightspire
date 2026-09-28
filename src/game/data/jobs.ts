@@ -4,6 +4,7 @@ export const JOBS = {
   supply: { label: 'Supply service', priority: 3 },
   construct: { label: 'Construct', priority: 2 },
   repair: { label: 'Repair structure', priority: 4 },
+  cleanup: { label: 'Clear battlefield', priority: 2 },
 } as const
 export type JobKind = keyof typeof JOBS
 export const CARRY_CAPACITY = 5

@@ -10,8 +10,11 @@ export const PLAYER_ATTACK_RANGE = 2.2
 export const PLAYER_ATTACK_COOLDOWN = 0.45
 export const GUARD_DAMAGE = 10
 export const GUARD_ATTACK_RANGE = 1.5
-export const GUARD_AGGRO_RANGE = 8
+export const GUARD_AGGRO_RANGE = 10
 export const GUARD_ATTACK_COOLDOWN = 0.8
+export const GUARD_RANGED_DAMAGE = 7
+export const GUARD_RANGED_RANGE = 9
+export const GUARD_RANGED_COOLDOWN = 1.15
 export const RAIDER_DAMAGE = 8
 export const RAIDER_STRUCTURE_DAMAGE = 12
 export const RAIDER_ATTACK_RANGE = 1.35
@@ -50,6 +53,13 @@ export function damageEnemy(state: WorldState, enemy: Enemy, damage: number, sou
   if (enemy.health > 0) return false
 
   const label = enemyLabel(state, enemy.id)
+  state.remains.push({
+    id: state.nextId++,
+    x: enemy.x,
+    z: enemy.z,
+    heavy: enemy.maxHealth >= 72,
+    createdDay: state.day,
+  })
   const index = state.enemies.findIndex(e => e.id === enemy.id)
   if (index >= 0) state.enemies.splice(index, 1)
   state.raid.totalDefeated++

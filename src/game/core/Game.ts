@@ -517,6 +517,19 @@ export class Game {
     this.updateHud()
   }
   start(): void { if (!this.animationFrame) this.animationFrame = requestAnimationFrame(this.tick) }
+  loadPrimarySave(): boolean {
+    const saved = localStorage.getItem(SAVE_KEY)
+    if (!saved) return false
+    try {
+      this.replaceWorld(saved)
+      this.message = 'Loaded local settlement.'
+      this.updateHud()
+      return true
+    } catch (error) {
+      console.error('Failed to load Nightspire save from main menu.', error)
+      return false
+    }
+  }
   stop(): void {
     cancelAnimationFrame(this.animationFrame); this.animationFrame = 0
     this.abort.abort(); this.resizeObserver.disconnect(); this.input.dispose(); this.hud.dispose(); this.renderer.dispose()
@@ -754,6 +767,41 @@ export class Game {
             ? 'ON · road control points join nearby endpoints and centerlines. Building frontage remains mandatory.'
             : 'OFF · road control points stay where placed. Building frontage remains mandatory.')
           this.refreshRoadDraft()
+          break
+        case 'select-object': {
+          const id = Number(value)
+          if (!Number.isSafeInteger(id)) { this.message = 'That object is no longer available.'; break }
+          const exists = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.fields].some(candidate => candidate.id === id)
+          if (!exists) { this.message = 'That object is no longer available.'; break }
+          this.selectedId = id
+          this.buildType = null
+          this.planningTool = null
+          this.message = ''
+          break
+        }
+        case 'close-inspector':
+          if (this.selectedId !== null) {
+            this.selectedId = null
+            this.message = ''
+            break
+          }
+          this.buildType = null
+          this.planningTool = null
+          this.planningStart = null
+          this.roadControlPoints = []
+          this.roadDraft = []
+          this.fieldControlPoints = []
+          this.fieldDraft = []
+          this.fieldCloseReady = false
+          this.roadAngleSnap = false
+          this.plotDraft = null
+          this.dragStart = null
+          this.dragPoints = []
+          this.message = ''
+          break
+        case 'close-selection':
+          this.selectedId = null
+          this.message = ''
           break
         case 'cancel':
           this.buildType = null
@@ -1235,7 +1283,19 @@ export class Game {
     this.animationFrame = requestAnimationFrame(this.tick)
   }
   private updateHud(): void {
-    this.hud.update(this.simulation.state, {
+    const state = this.simulation.state
+    const selectedBuilding = state.buildings.find(candidate => candidate.id === this.selectedId)
+    const selectedWorldObject = selectedBuilding
+      ?? state.settlers.find(candidate => candidate.id === this.selectedId)
+      ?? state.enemies.find(candidate => candidate.id === this.selectedId)
+      ?? state.nodes.find(candidate => candidate.id === this.selectedId)
+      ?? state.fields.find(candidate => candidate.id === this.selectedId)
+      ?? null
+    const selectionAnchor = selectedWorldObject
+      ? this.renderer.screenPoint(selectedWorldObject, selectedBuilding ? Math.max(1.6, BUILDINGS[selectedBuilding.type].fortification ? 1.35 : 2.0) : 1.15)
+      : null
+
+    this.hud.update(state, {
       paused: this.paused,
       selectedId: this.selectedId,
       buildType: this.buildType,
@@ -1252,6 +1312,7 @@ export class Game {
       message: this.message,
       camera: this.renderer.mode,
       cinematic: this.renderer.cinematic,
+      selectionAnchor,
       metrics: this.metrics,
     })
   }

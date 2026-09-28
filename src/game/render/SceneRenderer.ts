@@ -3,6 +3,8 @@ import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/bui
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { pointInPolygon } from '../simulation/FieldPlanning'
 import { MAP_SIZE } from '../simulation/Navigation'
+import { raiderArchetype } from '../simulation/Raid'
+import { settlementTier } from '../simulation/TownProgression'
 import { plotCorners, residentialPlotWidth, type ResidentialPlotPreview } from '../simulation/TownPlanning'
 import type { Building, FieldPlot, Point, ResidentialPlot, WorldState } from '../simulation/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
@@ -190,6 +192,7 @@ export class SceneRenderer {
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, Math.max(360, agentCapacity))
     this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 1200, 0.12)
+    this.addBasicBatch('roadCobble', new THREE.BoxGeometry(1, 1, 1), 0x77736b, 5200, 0.86)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, ROAD_STONE_LIMIT)
     this.addBatch('roadGrass', new THREE.ConeGeometry(0.11, 0.22, 3), 0x64734d, ROAD_GRASS_LIMIT)
     this.addBasicBatch('plotGround', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0x675940, 160, 0.035)
@@ -379,7 +382,7 @@ export class SceneRenderer {
   private finishBatch(name: string, mesh: THREE.InstancedMesh, color: number): void {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     mesh.count = 0
-    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundWear', 'roadShoulder', 'roadGrass', 'roadStone', 'plotGround', 'planningFill', 'planningGuide', 'planningMarker', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
+    const noCastShadow = ['treeMoon', 'campfireCore', 'windowHalo', 'windowGlow', 'warmPool', 'campfirePool', 'glow', 'smoke', 'groundWear', 'roadShoulder', 'roadCobble', 'roadGrass', 'roadStone', 'plotGround', 'planningFill', 'planningGuide', 'planningMarker', 'fieldFurrow', 'fieldCrop', 'fieldEdgeGrass', 'fieldSoilPatch', 'yardPatch', 'gableRoofs']
     const noReceiveShadow = [...noCastShadow]
     mesh.castShadow = !name.startsWith('health') && !noCastShadow.includes(name)
     mesh.receiveShadow = !name.startsWith('health') && !noReceiveShadow.includes(name)
@@ -677,30 +680,85 @@ export class SceneRenderer {
 
   private constructionVisual(b: Building, def: BuildingDefinition, rotation: number): void {
     const stage = constructionVisualStage(b.work, def.constructionWork, b.complete)
+    const cost = RESOURCE_IDS.reduce((sum, resource) => sum + def.buildCost[resource], 0)
+    const delivered = RESOURCE_IDS.reduce((sum, resource) => sum + b.delivered[resource], 0)
+    const materialRatio = Math.min(1, delivered / Math.max(1, cost))
+    const workRatio = Math.min(1, b.work / Math.max(0.01, def.constructionWork))
     const size = def.fortification ? 0.9 : Math.max(1, def.footprint * 0.86)
-    this.instance('foundation', b.x, 0.07, b.z, size, 0.14, size, 0x746b57, rotation)
+    const half = def.fortification ? 0.32 : Math.max(0.35, def.footprint * 0.34)
+
+    // Delivered material remains visibly staged beside the footprint until completion.
+    const pileCount = Math.min(5, Math.ceil(materialRatio * 5))
+    for (let i = 0; i < pileCount; i++) {
+      const lane = this.rotatedOffset(-half + i * Math.max(0.28, half * 0.36), half + 0.62, rotation)
+      this.instance('logs', b.x + lane.x, 0.18 + (i % 2) * 0.07, b.z + lane.z, 0.58, 0.48, 0.58, 0x6d4a31, rotation + (i % 2) * Math.PI / 2)
+    }
+
+    // Survey stakes make a fresh blueprint read as a real work site before the first hammer swing.
+    if (stage === 'site') {
+      for (const [lx, lz] of [[-half, -half], [half, -half], [-half, half], [half, half]] as const) {
+        const o = this.rotatedOffset(lx, lz, rotation)
+        this.instance('scaffold', b.x + o.x, 0.22, b.z + o.z, 0.07, 0.44, 0.07, 0x7d6043, rotation)
+      }
+      return
+    }
+
+    // Foundation grows first instead of appearing at full strength instantly.
+    const foundationScale = Math.max(0.2, Math.min(1, workRatio / 0.2))
+    this.instance('foundation', b.x, 0.07, b.z, size * foundationScale, 0.14, size, 0x746b57, rotation)
     if (stage === 'foundation') return
 
-    const half = def.fortification ? 0.32 : Math.max(0.35, def.footprint * 0.34)
-    const postHeight = stage === 'frame' ? 1.35 : 1.9
+    const frameProgress = Math.max(0, Math.min(1, (workRatio - 0.2) / 0.25))
+    const postHeight = 0.7 + frameProgress * 1.25
     for (const [lx, lz] of [[-half, -half], [half, -half], [-half, half], [half, half]] as const) {
       const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('scaffold', b.x + o.x, postHeight / 2, b.z + o.z, 0.12, postHeight, 0.12, 0x9b7750, rotation)
+      this.instance('scaffold', b.x + o.x, postHeight / 2, b.z + o.z, 0.12, postHeight, 0.12, 0x815d3e, rotation)
     }
-    this.instance('scaffold', b.x, postHeight, b.z, Math.max(0.7, half * 2.25), 0.12, 0.12, 0xa07a4f, rotation)
-    this.instance('scaffold', b.x, postHeight, b.z, 0.12, 0.12, Math.max(0.7, half * 2.25), 0xa07a4f, rotation)
+    this.instance('scaffold', b.x, postHeight, b.z, Math.max(0.7, half * 2.25), 0.12, 0.12, 0x8b6542, rotation)
+    this.instance('scaffold', b.x, postHeight, b.z, 0.12, 0.12, Math.max(0.7, half * 2.25), 0x8b6542, rotation)
+    if (stage === 'frame') return
 
-    if (stage === 'shell') {
-      const shellHeight = def.fortification ? 0.9 : 1.15
+    // Exterior scaffolding grows upward as the crew advances through this stage.
+    const scaffoldProgress = Math.max(0, Math.min(1, (workRatio - 0.45) / 0.2))
+    const fullScaffoldHeight = def.fortification ? 1.15 : 2.15
+    const scaffoldHeight = fullScaffoldHeight * (0.3 + scaffoldProgress * 0.7)
+    for (const side of [-1, 1] as const) {
+      const a = this.rotatedOffset(side * (half + 0.36), 0, rotation)
+      this.instance('scaffold', b.x + a.x, scaffoldHeight / 2, b.z + a.z, 0.08, scaffoldHeight, 0.08, 0x9b7750, rotation)
+      const bSide = this.rotatedOffset(0, side * (half + 0.36), rotation)
+      this.instance('scaffold', b.x + bSide.x, scaffoldHeight / 2, b.z + bSide.z, 0.08, scaffoldHeight, 0.08, 0x9b7750, rotation)
+    }
+    const scaffoldDeckY = Math.max(0.25, scaffoldHeight * 0.55)
+    this.instance('scaffold', b.x, scaffoldDeckY, b.z, Math.max(0.8, half * 2.65), 0.08, 0.08, 0xa07a4f, rotation)
+    if (stage === 'scaffold') return
+
+    const shellProgress = Math.max(0.18, Math.min(1, (workRatio - 0.65) / 0.2))
+    const shellHeight = (def.fortification ? 1.15 : 1.7) * shellProgress
+    this.instance(
+      def.fortification ? 'fortifications' : 'buildings',
+      b.x,
+      shellHeight / 2,
+      b.z,
+      def.fortification ? 0.78 : Math.max(1, def.footprint * 0.68),
+      shellHeight,
+      def.fortification ? 0.66 : Math.max(1, def.footprint * 0.68),
+      0x7b7468,
+      rotation,
+    )
+    if (stage === 'shell') return
+
+    // Final work visibly closes the roof while scaffolds remain until completion.
+    if (!def.fortification) {
+      const roofProgress = Math.max(0.15, Math.min(1, (workRatio - 0.85) / 0.15))
       this.instance(
-        def.fortification ? 'fortifications' : 'buildings',
+        'gableRoofs',
         b.x,
-        shellHeight / 2,
+        1.58 + roofProgress * 0.25,
         b.z,
-        def.fortification ? 0.78 : Math.max(1, def.footprint * 0.68),
-        shellHeight,
-        def.fortification ? 0.66 : Math.max(1, def.footprint * 0.68),
-        0x7b7468,
+        Math.max(1.15, def.footprint * 0.74) * roofProgress,
+        0.72,
+        Math.max(1.15, def.footprint * 0.74),
+        0x5b4b40,
         rotation,
       )
     }
@@ -1130,6 +1188,37 @@ export class SceneRenderer {
     }
     for (const p of surface.stones) {
       this.instance('roadStone', p.x, 0.035, p.z, p.scale * 0.55, p.scale * 0.28, p.scale * 0.7, 0x777468, p.angle)
+    }
+  }
+
+  private renderTownRoadEvolution(state: WorldState, tierRank: number): void {
+    if (tierRank < 3) return
+    let budget = tierRank >= 4 ? 3000 : 1900
+    for (const road of state.roads) {
+      for (let i = 1; i < road.points.length && budget > 0; i++) {
+        const a = road.points[i - 1]
+        const b = road.points[i]
+        const dx = b.x - a.x
+        const dz = b.z - a.z
+        const length = Math.hypot(dx, dz)
+        if (length < 0.1) continue
+        const angle = Math.atan2(dx, dz)
+        const steps = Math.max(1, Math.floor(length / 0.72))
+        const nx = -dz / length
+        const nz = dx / length
+        const lanes = tierRank >= 4 ? [-0.52, 0, 0.52] : [-0.38, 0.38]
+        for (let step = 0; step <= steps && budget > 0; step++) {
+          const t = step / steps
+          for (const lane of lanes) {
+            if (budget-- <= 0) break
+            const jitter = ((road.id + i * 13 + step * 7) % 5 - 2) * 0.035
+            const x = a.x + dx * t + nx * (lane * Math.min(1.4, road.width / 2) + jitter)
+            const z = a.z + dz * t + nz * (lane * Math.min(1.4, road.width / 2) - jitter)
+            const shade = (road.id + step + Math.round(lane * 10)) % 3
+            this.instance('roadCobble', x, 0.045, z, 0.46, 0.06, 0.62, shade === 0 ? 0x77736b : shade === 1 ? 0x6c6963 : 0x817c72, angle)
+          }
+        }
+      }
     }
   }
   private samePlotPoint(a: Point, b: Point, epsilon = 0.08): boolean {
@@ -1907,22 +1996,27 @@ export class SceneRenderer {
 
   private renderHouse(b: Building, rotation: number, color: number, night: number, plot?: ResidentialPlot): void {
     const profile = plot ? residentialPresentationProfile(plot) : null
+    const houseLevel = Math.max(1, Math.min(3, Math.round(b.houseLevel)))
     const width = profile?.houseWidth ?? 2.48
     const depth = profile?.houseDepth ?? 2.22
-    const wallHeight = profile?.wallHeight ?? 1.86
+    const wallHeight = (profile?.wallHeight ?? 1.86) + (houseLevel - 1) * 0.18
     const residentialPlacement = plot && profile ? this.residentialVisualPlacement(b, plot, profile) : null
     const visualB: Building = residentialPlacement?.visualB ?? b
 
-    const plaster = plot
-      ? profile?.tier === 'burgage'
-        ? [0xc0ad8d, 0xb7a584, 0xc6b393][plot.id % 3]
-        : [0xb4a486, 0xa89b80, 0xc0ad8d, 0x9e9782][plot.id % 4]
-      : b.id % 3 === 0 ? 0xa99d83 : color
-    const roof = plot
-      ? profile?.tier === 'burgage'
-        ? [TOWN_PALETTE.roofBrown, 0x6c5542, TOWN_PALETTE.roofDark][plot.id % 3]
-        : [TOWN_PALETTE.thatch, TOWN_PALETTE.roofBrown, 0x66533d][plot.id % 3]
-      : b.id % 2 ? TOWN_PALETTE.roofBrown : TOWN_PALETTE.thatch
+    const plaster = houseLevel >= 3
+      ? [0xc7b899, 0xbdae91, 0xd0bea0][(plot?.id ?? b.id) % 3]
+      : plot
+        ? profile?.tier === 'burgage'
+          ? [0xc0ad8d, 0xb7a584, 0xc6b393][plot.id % 3]
+          : [0xb4a486, 0xa89b80, 0xc0ad8d, 0x9e9782][plot.id % 4]
+        : b.id % 3 === 0 ? 0xa99d83 : color
+    const roof = houseLevel >= 3
+      ? [TOWN_PALETTE.roofDark, 0x58453a, 0x645044][(plot?.id ?? b.id) % 3]
+      : plot
+        ? profile?.tier === 'burgage'
+          ? [TOWN_PALETTE.roofBrown, 0x6c5542, TOWN_PALETTE.roofDark][plot.id % 3]
+          : [TOWN_PALETTE.thatch, TOWN_PALETTE.roofBrown, 0x66533d][plot.id % 3]
+        : b.id % 2 ? TOWN_PALETTE.roofBrown : TOWN_PALETTE.thatch
 
     if (!plot) this.renderYard(visualB, rotation, 2.65, b.id % 2 ? 0x655740 : 0x6b5a40)
     this.timberFrame(
@@ -1933,9 +2027,23 @@ export class SceneRenderer {
       wallHeight,
       plaster,
       this.readableNightColor(roof, night),
-      profile?.roofHeight ?? 1.02 + (plot?.id ?? b.id) % 3 * 0.08,
+      (profile?.roofHeight ?? 1.02 + (plot?.id ?? b.id) % 3 * 0.08) + (houseLevel >= 3 ? 0.1 : 0),
       profile?.roofFront ?? 'gable',
     )
+
+    if (houseLevel >= 2) {
+      this.instance('stone', visualB.x, 0.18, visualB.z, width + 0.18, 0.34, depth + 0.18, houseLevel >= 3 ? 0x77736b : 0x6c685f, rotation)
+    }
+    if (houseLevel >= 3) {
+      const upper = this.rotatedOffset(0, depth / 2 + 0.055, rotation)
+      this.instance('timber', visualB.x + upper.x, 1.72, visualB.z + upper.z, width * 0.88, 0.09, 0.08, 0x4b3528, rotation)
+      for (const lx of [-width * 0.27, width * 0.27]) {
+        const win = this.rotatedOffset(lx, depth / 2 + 0.08, rotation)
+        this.framedWindow(visualB.x + win.x, 1.72, visualB.z + win.z, rotation, night, 0.34, 0.38, b.id + Math.round(lx * 10) + 71)
+      }
+      const chimney = this.rotatedOffset(width * 0.3, -depth * 0.2, rotation)
+      this.instance('stone', visualB.x + chimney.x, wallHeight + 0.82, visualB.z + chimney.z, 0.32, 1.35, 0.32, 0x696660, rotation)
+    }
 
     const seed = plot?.id ?? b.id
     const doorX = profile
@@ -2182,7 +2290,7 @@ export class SceneRenderer {
     }
   }
 
-  private renderGuardPost(b: Building, rotation: number, color: number, night: number): void {
+  private renderGuardPost(b: Building, rotation: number, color: number, night: number, tierRank = 0): void {
     this.renderYard(b, rotation, 2.45, 0x5d503d)
     this.instance('stone', b.x, 0.18, b.z, 2.2, 0.36, 2.2, 0x66655f, rotation)
     for (const [lx, lz] of [[-0.82, -0.82], [0.82, -0.82], [-0.82, 0.82], [0.82, 0.82]] as const) {
@@ -2208,6 +2316,11 @@ export class SceneRenderer {
     }
     const bench = this.rotatedOffset(0.2, 1.25, rotation)
     this.instance('timber', b.x + bench.x, 0.34, b.z + bench.z, 1.0, 0.12, 0.34, 0x65472f, rotation)
+    if (tierRank >= 3) {
+      const banner = this.rotatedOffset(0.92, 0.02, rotation)
+      this.instance('timber', b.x + banner.x, 2.35, b.z + banner.z, 0.07, 1.25, 0.07, 0x4c3427, rotation)
+      this.instance('cloth', b.x + banner.x, 2.45, b.z + banner.z, 0.58, 0.76, 0.06, tierRank >= 4 ? 0x6f2837 : 0x68404a, rotation)
+    }
     this.frontageClutter(b, rotation, b.id + 17, 0.86)
   }
 
@@ -2397,7 +2510,7 @@ export class SceneRenderer {
     this.frontageClutter(b, rotation, b.id + 37, 0.94)
   }
 
-  private renderFortification(b: Building, rotation: number, color: number): void {
+  private renderFortification(b: Building, rotation: number, color: number, tierRank = 0): void {
     if (b.type === 'wood-wall') {
       // Vertical sharpened palisade stakes replace the old horizontal log-kit look.
       for (const [index, localX] of [-0.4, -0.2, 0, 0.2, 0.4].entries()) {
@@ -2408,6 +2521,10 @@ export class SceneRenderer {
       }
       for (const y of [0.52, 0.98]) {
         this.instance('timber', b.x, y, b.z, 0.96, 0.1, 0.11, 0x513927, rotation)
+      }
+      if (tierRank >= 4) {
+        this.instance('timber', b.x, 1.14, b.z, 0.94, 0.12, 0.48, 0x5b402d, rotation)
+        this.instance('timber', b.x, 1.42, b.z, 0.08, 0.52, 0.08, 0x4b3528, rotation)
       }
       return
     }
@@ -2424,6 +2541,10 @@ export class SceneRenderer {
     this.instance('braceL', b.x - Math.cos(rotation) * 0.16, 0.94, b.z + Math.sin(rotation) * 0.16, 0.72, 0.1, 0.11, 0x5b402e, rotation)
     this.instance('braceR', b.x + Math.cos(rotation) * 0.16, 0.94, b.z - Math.sin(rotation) * 0.16, 0.72, 0.1, 0.11, 0x5b402e, rotation)
     this.instance('metal', b.x, 1.1, b.z, 0.82, 0.08, 0.08, 0x596066, rotation)
+    if (tierRank >= 4) {
+      const banner = this.rotatedOffset(0, 0.2, rotation)
+      this.instance('cloth', b.x + banner.x, 2.05, b.z + banner.z, 0.62, 0.72, 0.06, 0x6f2837, rotation)
+    }
   }
 
   sync(state: WorldState, selectedId: number | null): void {
@@ -2433,10 +2554,12 @@ export class SceneRenderer {
     const atmosphere = atmosphereForTime(state.timeOfDay)
     const night = atmosphere.night
     const time = state.elapsedSeconds
+    const town = settlementTier(state)
     this.updateNightMaterialLift(night)
 
     this.roadTerrain.update(state.roads)
     this.renderRoadDressing()
+    this.renderTownRoadEvolution(state, town.rank)
     this.renderFarmFields(state.fields)
 
     // Decorative outer woodland extends beyond the playable navigation square so
@@ -2510,7 +2633,15 @@ export class SceneRenderer {
     for (const a of state.settlers) {
       const hit = this.recentlyHit(a.lastHitTick, state.tick)
       const color = hit ? 0xa9524a : a.health <= 0 ? 0x555555 : undefined
-      const facing = a.path.length ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z) : (a.id % 8) * Math.PI / 4
+      const activeJob = a.jobId === null ? undefined : state.jobs.find(job => job.id === a.jobId)
+      const buildTarget = activeJob?.kind === 'construct' && activeJob.stage === 'work'
+        ? state.buildings.find(building => building.id === activeJob.targetId)
+        : undefined
+      const facing = buildTarget
+        ? Math.atan2(buildTarget.x - a.x, buildTarget.z - a.z)
+        : a.path.length
+          ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z)
+          : (a.id % 8) * Math.PI / 4
       this.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing)
       this.healthBar(a.x, 1.62, a.z, a.health, a.maxHealth, 0.8)
 
@@ -2518,13 +2649,65 @@ export class SceneRenderer {
       if (resource) {
         this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
       }
+
+      if (buildTarget) {
+        const hammerLift = 0.08 + (Math.sin(time * 9 + a.id * 0.7) + 1) * 0.09
+        const tool = this.rotatedOffset(0.34, 0.05, facing)
+        this.instance('timber', a.x + tool.x, 0.82 + hammerLift, a.z + tool.z, 0.055, 0.52, 0.055, 0x5c3d28, facing)
+        this.instance('metal', a.x + tool.x, 1.08 + hammerLift, a.z + tool.z, 0.28, 0.08, 0.11, 0x777b7d, facing)
+      }
+    }
+
+    for (const remains of state.remains) {
+      if (remains.heavy) {
+        this.instance('logs', remains.x, 0.24, remains.z, 1.7, 0.68, 0.68, 0x4a3528, Math.PI / 2 + remains.id * 0.11)
+        this.instance('cartWheel', remains.x - 0.48, 0.18, remains.z + 0.32, 0.56, 0.56, 0.56, 0x342820, remains.id * 0.17)
+        this.instance('cartWheel', remains.x + 0.48, 0.18, remains.z - 0.28, 0.56, 0.56, 0.56, 0x342820, remains.id * 0.21)
+        this.instance('debris', remains.x + 0.18, 0.12, remains.z + 0.18, 0.72, 0.18, 0.38, 0x40362e, remains.id * 0.31)
+      } else {
+        this.instance('debris', remains.x, 0.08, remains.z, 0.78, 0.12, 0.34, 0x40332f, remains.id * 0.23)
+        this.instance('cloth', remains.x + 0.12, 0.09, remains.z - 0.1, 0.52, 0.06, 0.26, 0x5b2d34, remains.id * 0.19)
+      }
     }
 
     for (const e of state.enemies) {
+      const archetype = raiderArchetype(e)
       const hit = this.recentlyHit(e.lastHitTick, state.tick)
-      const color = hit ? 0xff6558 : e.health <= e.maxHealth * 0.5 ? 0x8f3333 : undefined
-      this.instance('enemies', e.x, 0.56, e.z, 1, 1, 1, color)
-      this.healthBar(e.x, 1.3, e.z, e.health, e.maxHealth, 0.9)
+      const facing = e.path.length ? Math.atan2(e.path[0].x - e.x, e.path[0].z - e.z) : (e.id % 8) * Math.PI / 4
+      const scale = archetype === 'brute' ? 1.34 : archetype === 'skirmisher' ? 0.84 : 1
+      const baseColor = archetype === 'brute' ? 0x552b2d : archetype === 'skirmisher' ? 0x9b4d3d : 0x6f2525
+      const color = hit ? 0xff6558 : e.health <= e.maxHealth * 0.5 ? 0x8f3333 : baseColor
+
+      if (archetype === 'ram') {
+        // A low, heavy wheeled timber frame reads very differently from foot raiders.
+        const forward = this.rotatedOffset(0, 0.2, facing)
+        this.instance('logs', e.x + forward.x, 0.66, e.z + forward.z, 2.35, 1.25, 1.25, hit ? 0xff6558 : 0x60432f, facing + Math.PI / 2)
+        for (const side of [-0.62, 0.62]) {
+          const leftWheel = this.rotatedOffset(side, -0.65, facing)
+          const rightWheel = this.rotatedOffset(side, 0.72, facing)
+          this.instance('cartWheel', e.x + leftWheel.x, 0.38, e.z + leftWheel.z, 0.72, 0.72, 0.72, 0x3d2b22, facing)
+          this.instance('cartWheel', e.x + rightWheel.x, 0.38, e.z + rightWheel.z, 0.72, 0.72, 0.72, 0x3d2b22, facing)
+        }
+        const roof = this.rotatedOffset(0, 0.05, facing)
+        this.instance('timber', e.x + roof.x, 1.2, e.z + roof.z, 1.65, 0.12, 2.35, 0x4b372a, facing)
+      } else {
+        this.instance('enemies', e.x, 0.56 * scale, e.z, scale, scale, scale, color)
+
+        const hand = this.rotatedOffset(0.3 * scale, 0.08, facing)
+        if (archetype === 'brute') {
+          this.instance('timber', e.x + hand.x, 0.72 * scale, e.z + hand.z, 0.15, 0.95 * scale, 0.15, 0x4c3224, facing)
+        } else {
+          this.instance('metal', e.x + hand.x, 0.7 * scale, e.z + hand.z, 0.07, 0.58 * scale, 0.08, archetype === 'skirmisher' ? 0x8e969a : 0x73797d, facing)
+        }
+        if (archetype === 'raider') {
+          const shield = this.rotatedOffset(-0.27, 0.04, facing)
+          this.instance('props', e.x + shield.x, 0.72, e.z + shield.z, 0.42, 0.54, 0.1, 0x604434, facing)
+        }
+      }
+
+      const healthY = archetype === 'ram' ? 1.72 : archetype === 'brute' ? 1.72 : archetype === 'skirmisher' ? 1.15 : 1.3
+      const healthWidth = archetype === 'ram' ? 1.5 : archetype === 'brute' ? 1.15 : 0.9
+      this.healthBar(e.x, healthY, e.z, e.health, e.maxHealth, healthWidth)
     }
 
     const playerHit = this.recentlyHit(state.player.lastHitTick, state.tick)
@@ -2573,7 +2756,7 @@ export class SceneRenderer {
       } else if (!b.complete) {
         this.constructionVisual(b, def, rotation)
       } else if (def.fortification) {
-        this.renderFortification(b, rotation, baseColor)
+        this.renderFortification(b, rotation, baseColor, town.rank)
       } else if (b.type === 'campfire') {
         this.renderYard(b, rotation, 1.75, 0x5e503a)
         for (let i = 0; i < 8; i++) {
@@ -2603,7 +2786,7 @@ export class SceneRenderer {
           glowWeight++
         }
       } else if (b.type === 'guard-post') {
-        this.renderGuardPost(b, rotation, baseColor, night)
+        this.renderGuardPost(b, rotation, baseColor, night, town.rank)
       } else if (b.type === 'tavern') {
         const serviceNight = b.inventory.ale > 0 ? night : night * 0.35
         const activity = state.enemies.length === 0 ? Math.max(atmosphere.twilight, night * 0.46) : 0
@@ -3123,6 +3306,16 @@ export class SceneRenderer {
   worldPoint(clientX: number, clientY: number): Point | null {
     const hit = this.worldPointPrecise(clientX, clientY)
     return hit ? { x: Math.round(hit.x), z: Math.round(hit.z) } : null
+  }
+
+  screenPoint(point: Point, height = 1.2): { x: number; y: number } | null {
+    const projected = new THREE.Vector3(point.x, height, point.z).project(this.camera)
+    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z < -1 || projected.z > 1) return null
+    const rect = this.canvas.getBoundingClientRect()
+    return {
+      x: rect.left + (projected.x + 1) * 0.5 * rect.width,
+      y: rect.top + (1 - projected.y) * 0.5 * rect.height,
+    }
   }
 
   resize(width: number, height: number): void {

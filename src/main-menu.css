@@ -1,0 +1,198 @@
+/* Nightspire main menu — composition inspired by the approved medieval menu reference. */
+
+.main-menu-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #080806 url("../assets/ui/menu/nightspire-main-menu.avif") center / cover no-repeat;
+  color: #e9dfca;
+  font-family: Georgia, "Times New Roman", serif;
+  image-rendering: auto;
+}
+
+.main-menu-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(90deg, rgba(4,4,4,.98) 0%, rgba(5,5,5,.96) 27%, rgba(5,5,5,.78) 42%, rgba(5,5,5,.2) 64%, rgba(5,5,5,.08) 100%),
+    linear-gradient(180deg, rgba(0,0,0,.18), transparent 30%, transparent 72%, rgba(0,0,0,.38));
+}
+
+.main-menu-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 160px 40px rgba(0,0,0,.58);
+}
+
+.main-menu {
+  position: absolute;
+  z-index: 2;
+  left: clamp(58px, 17vw, 300px);
+  top: 50%;
+  width: min(430px, 38vw);
+  transform: translateY(-52%);
+}
+
+.main-menu-brand {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  margin-bottom: 40px;
+}
+
+.main-menu-crest {
+  width: 82px;
+  height: 82px;
+  margin-bottom: -12px;
+  background: url("../assets/ui/crest/nightspire.webp") center / contain no-repeat;
+  filter: sepia(.18) saturate(.72) brightness(1.12);
+}
+
+.main-menu-title {
+  margin: 0;
+  color: #efe5d2;
+  font-size: clamp(46px, 4.6vw, 76px);
+  font-weight: 600;
+  line-height: .95;
+  letter-spacing: .075em;
+  text-transform: uppercase;
+  text-shadow: 0 3px 12px rgba(0,0,0,.65);
+}
+
+.main-menu-rule {
+  width: 100%;
+  height: 18px;
+  margin: 19px 0 12px;
+  position: relative;
+}
+
+.main-menu-rule::before,
+.main-menu-rule::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  width: calc(50% - 15px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(189,164,119,.58));
+}
+
+.main-menu-rule::before { left: 0; }
+.main-menu-rule::after { right: 0; transform: scaleX(-1); }
+
+.main-menu-rule i {
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  border: 1px solid rgba(195,168,119,.7);
+}
+
+.main-menu-actions {
+  display: grid;
+  gap: 1px;
+  justify-items: center;
+}
+
+.main-menu-action {
+  min-width: 270px;
+  padding: 8px 22px;
+  border: 0;
+  background: transparent;
+  color: #e7decb;
+  font: 400 clamp(22px, 1.65vw, 30px)/1.15 Georgia, "Times New Roman", serif;
+  letter-spacing: .01em;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0,0,0,.85);
+  cursor: pointer;
+  transition: color 100ms ease, transform 100ms ease, text-shadow 100ms ease;
+}
+
+.main-menu-action:hover,
+.main-menu-action:focus-visible {
+  color: #c7a56c;
+  transform: translateX(4px);
+  background: transparent;
+  outline: none;
+  text-shadow: 0 0 16px rgba(192,151,88,.24), 0 2px 8px rgba(0,0,0,.9);
+}
+
+.main-menu-action:disabled {
+  color: #756f63;
+  cursor: default;
+  transform: none;
+}
+
+.main-menu-note {
+  min-height: 18px;
+  margin-top: 14px;
+  color: #b7aa94;
+  font: 12px/1.35 Georgia, "Times New Roman", serif;
+  text-align: center;
+}
+
+.main-menu-version {
+  position: absolute;
+  z-index: 2;
+  right: 26px;
+  bottom: 18px;
+  color: rgba(211,202,187,.56);
+  font: 12px/1 Georgia, "Times New Roman", serif;
+  letter-spacing: .03em;
+}
+
+.main-menu-dialog {
+  position: absolute;
+  z-index: 4;
+  inset: 50% auto auto 50%;
+  width: min(520px, calc(100vw - 42px));
+  transform: translate(-50%, -50%);
+  padding: 26px 30px 24px;
+  border: 1px solid rgba(171,142,92,.62);
+  background: linear-gradient(180deg, rgba(29,27,23,.985), rgba(14,14,13,.99));
+  color: #ddd3bf;
+  box-shadow: 0 18px 50px rgba(0,0,0,.72), inset 0 0 0 1px rgba(232,209,165,.05);
+}
+
+.main-menu-dialog[hidden] { display: none; }
+.main-menu-dialog h2 {
+  margin: 0 0 15px;
+  color: #e9dfca;
+  font: 400 27px/1 Georgia, "Times New Roman", serif;
+}
+.main-menu-dialog p {
+  margin: 8px 0 18px;
+  color: #aaa08e;
+  font: 14px/1.55 Georgia, "Times New Roman", serif;
+}
+.main-menu-dialog .dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.main-menu-dialog button {
+  border: 1px solid rgba(164,135,87,.52);
+  background: rgba(67,56,42,.36);
+  color: #ddd0b7;
+  font: 14px/1 Georgia, "Times New Roman", serif;
+}
+
+@media (max-width: 820px) {
+  .main-menu {
+    left: 50%;
+    top: 52%;
+    width: min(430px, calc(100vw - 46px));
+    transform: translate(-50%, -50%);
+  }
+  .main-menu-shell::before {
+    background: rgba(5,5,5,.82);
+  }
+  .main-menu-title { font-size: clamp(42px, 12vw, 66px); }
+  .main-menu-version { right: 12px; bottom: 10px; font-size: 9px; }
+}

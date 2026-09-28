@@ -3,17 +3,19 @@ import {
   DECISION_TICKS, FIXED_STEP, REPAIR_HP_PER_WOOD, REPAIR_WORK_SECONDS, WALK_SPEED,
 } from '../data/jobs'
 import { RESOURCES } from '../data/resources'
-import { assignHousing } from './Buildings'
+import { assignHousing, readyToBuild } from './Buildings'
 import { agricultureActionLabel, farmerFieldAssignment, fieldWorkPoint, processAgricultureDay, workField } from './Agriculture'
+import { constructionStageLabel, constructionWorkLimit } from './Construction'
 import {
   GUARD_AGGRO_RANGE, GUARD_ATTACK_COOLDOWN, GUARD_ATTACK_RANGE, GUARD_DAMAGE,
-  RAIDER_ATTACK_COOLDOWN, RAIDER_ATTACK_RANGE, RAIDER_DAMAGE, RAIDER_STRUCTURE_DAMAGE,
+  GUARD_RANGED_COOLDOWN, GUARD_RANGED_DAMAGE, GUARD_RANGED_RANGE,
   damageBuilding, damageEnemy, damagePlayer, damageSettler, livingGuards, nearestEnemy,
   playerAttack as performPlayerAttack, restoreAtDawn, tickCombatCooldowns, type AttackResult,
 } from './Combat'
 import { isWorkPhase, phaseForTime, type DayPhase } from './DayNight'
 import { essentialJob, happinessEffect } from './Happiness'
 import { processHouseholdProgression } from './HouseProgression'
+import { processFamiliesDay, synchronizeFamilies } from './Family'
 import { assignJobs, finishJob, jobDestination } from './Jobs'
 import { distance, entrance, Navigation } from './Navigation'
 import { serveDailyMeal, updateNeeds } from './Needs'
@@ -22,8 +24,10 @@ import { updateProduction } from './Production'
 import { serviceAssignments, updateServices, type ServiceAssignment } from './Services'
 import { toolCoverage } from './Tools'
 import { processMerchantTrade, scheduleMerchantVisit } from './Trading'
-import { ENEMY_WALK_SPEED, enemyTarget, enemyTargetBuilding, retreatRaid, spawnNightRaid } from './Raid'
-import { nightTarget } from './Schedule'
+import {
+  enemyTarget, enemyTargetBuilding, raidPlanForWave, raiderProfile, retreatRaid, spawnNightRaid,
+} from './Raid'
+import { assignedGuardPost, guardPostTarget, nightTarget } from './Schedule'
 import { activeWorkplace } from './Workforce'
 import {
   recordEvent, settlerLabel, type Building, type Enemy, type Job, type Point, type Settler, type WorldState,
@@ -149,7 +153,15 @@ export class Simulation {
 
   private beginRaid(): void {
     const count = spawnNightRaid(this.state)
-    if (count > 0) recordEvent(this.state, 'Raid wave ' + this.state.raid.wave + ': ' + count + ' raiders enter from the wilds.')
+    if (count <= 0) return
+    const plan = raidPlanForWave(this.state.raid.wave)
+    recordEvent(
+      this.state,
+      'Raid ' + plan.wave + ': ' + count + ' attackers across ' + plan.fronts + ' front'
+      + (plan.fronts === 1 ? '' : 's') + ' — '
+      + plan.skirmishers + ' skirmishers, ' + plan.raiders + ' raiders, ' + plan.brutes + ' brutes'
+      + (plan.rams > 0 ? ', ' + plan.rams + ' siege ram' + (plan.rams === 1 ? '' : 's') : '') + '.',
+    )
   }
 
   private transition(previous: DayPhase, next: DayPhase): void {
@@ -175,7 +187,12 @@ export class Simulation {
     }
 
     if (next === 'dusk') {
-      recordEvent(s, 'Dusk falls. Work stops; civilians seek shelter and guards report to posts.')
+      const warning = raidPlanForWave(s.raid.wave + 1)
+      recordEvent(
+        s,
+        'Dusk falls. Scouts report ' + warning.size + ' attackers gathering across '
+        + warning.fronts + ' approach' + (warning.fronts === 1 ? '' : 'es') + '.',
+      )
     } else if (next === 'night') {
       this.beginRaid()
       recordEvent(s, 'Night has fallen. The settlement is on alert.')
@@ -185,7 +202,11 @@ export class Simulation {
       processAgricultureDay(s)
       const upgrades = processHouseholdProgression(s)
       assignHousing(s)
+      const familyDay = processFamiliesDay(s)
+      assignHousing(s)
+      synchronizeFamilies(s)
       if (upgrades > 0) recordEvent(s, upgrades + ' household' + (upgrades === 1 ? '' : 's') + ' advanced after sustained local services.')
+      if (familyDay.matured > 0) recordEvent(s, familyDay.matured + ' young resident' + (familyDay.matured === 1 ? '' : 's') + ' joined the workforce.')
       scheduleMerchantVisit(s)
       const immigration = processImmigrationDay(s)
       if (immigration.arrived) assignHousing(s)
@@ -322,6 +343,33 @@ export class Simulation {
 
   private updateGuardCombat(guard: Settler): void {
     const s = this.state
+    const assignment = assignedGuardPost(s, guard)
+    const postTarget = assignment ? guardPostTarget(s, guard) : null
+    const post = assignment ? s.buildings.find(building => building.id === assignment.buildingId) : undefined
+
+    if (postTarget && post) {
+      if (distance(guard, postTarget) > 0.08) {
+        this.move(guard, postTarget, 'Manning Guard Post ' + post.id, WALK_SPEED)
+        return
+      }
+
+      const rangedEnemy = nearestEnemy(s, post, GUARD_RANGED_RANGE)
+      guard.path = []
+      guard.pathRevision = -1
+      if (!rangedEnemy) {
+        guard.status = 'Watching from Guard Post ' + post.id
+        return
+      }
+
+      guard.status = 'Firing from Guard Post ' + post.id
+      if (guard.attackCooldown <= 0) {
+        guard.attackCooldown = GUARD_RANGED_COOLDOWN
+        const killed = damageEnemy(s, rangedEnemy, GUARD_RANGED_DAMAGE, settlerLabel(s, guard.id))
+        if (killed) guard.status = 'Dropped raider from Guard Post ' + post.id
+      }
+      return
+    }
+
     const enemy = nearestEnemy(s, guard, GUARD_AGGRO_RANGE)
     if (!enemy) {
       this.updateNightSchedule(guard)
@@ -346,29 +394,30 @@ export class Simulation {
 
   private updateEnemy(enemy: Enemy): void {
     const s = this.state
+    const profile = raiderProfile(enemy)
 
-    const guards = livingGuards(s)
-      .filter(guard => distance(enemy, guard) <= RAIDER_ATTACK_RANGE)
-      .sort((a, b) => distance(enemy, a) - distance(enemy, b))
-
-    if (guards[0]) {
-      enemy.path = []
-      enemy.pathRevision = -1
-      enemy.status = 'Attacking ' + settlerLabel(s, guards[0].id)
-      if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
-        damageSettler(s, guards[0], RAIDER_DAMAGE)
-      }
-      return
+    const defenders: Array<{ point: Point; label: string; settler: Settler | null }> = livingGuards(s)
+      .filter(guard => distance(enemy, guard) <= profile.defenderAggroRange)
+      .map(guard => ({ point: guard, label: settlerLabel(s, guard.id), settler: guard }))
+    if (s.player.health > 0 && distance(enemy, s.player) <= profile.defenderAggroRange) {
+      defenders.push({ point: s.player, label: 'player', settler: null })
     }
+    defenders.sort((a, b) => distance(enemy, a.point) - distance(enemy, b.point))
 
-    if (s.player.health > 0 && distance(enemy, s.player) <= RAIDER_ATTACK_RANGE) {
-      enemy.path = []
-      enemy.pathRevision = -1
-      enemy.status = 'Attacking player'
-      if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
-        damagePlayer(s, RAIDER_DAMAGE)
+    const defender = defenders[0]
+    if (defender) {
+      const defenderDistance = distance(enemy, defender.point)
+      if (defenderDistance <= profile.attackRange) {
+        enemy.path = []
+        enemy.pathRevision = -1
+        enemy.status = 'Attacking ' + defender.label + ' — ' + profile.label
+        if (enemy.attackCooldown <= 0) {
+          enemy.attackCooldown = profile.attackCooldown
+          if (defender.settler) damageSettler(s, defender.settler, profile.damage)
+          else damagePlayer(s, profile.damage)
+        }
+      } else {
+        this.move(enemy, defender.point, 'Engaging ' + defender.label + ' — ' + profile.label, profile.walkSpeed)
       }
       return
     }
@@ -387,8 +436,8 @@ export class Simulation {
       enemy.status = 'Attacking ' + BUILDINGS[targetBuilding.type].label
 
       if (enemy.attackCooldown <= 0) {
-        enemy.attackCooldown = RAIDER_ATTACK_COOLDOWN
-        const destroyed = damageBuilding(s, targetBuilding, RAIDER_STRUCTURE_DAMAGE)
+        enemy.attackCooldown = profile.attackCooldown
+        const destroyed = damageBuilding(s, targetBuilding, profile.structureDamage)
         if (destroyed) {
           enemy.path = []
           enemy.pathRevision = -1
@@ -398,7 +447,7 @@ export class Simulation {
       return
     }
 
-    this.move(enemy, target, 'Advancing on ' + BUILDINGS[targetBuilding.type].label, ENEMY_WALK_SPEED)
+    this.move(enemy, target, 'Advancing on ' + BUILDINGS[targetBuilding.type].label + ' — ' + profile.label, profile.walkSpeed)
   }
 
   private move(agent: MovingAgent, target: Point, status: string, speed: number): void {
@@ -491,6 +540,16 @@ export class Simulation {
     const workDelta = FIXED_STEP * workRate
     job.progress += workDelta
 
+    if (job.kind === 'cleanup') {
+      settler.status = 'Clearing battlefield'
+      if (job.progress + 1e-8 < 1.5) return
+      const index = s.remains.findIndex(remains => remains.id === job.targetId)
+      if (index >= 0) s.remains.splice(index, 1)
+      recordEvent(s, settlerLabel(s, settler.id) + ' cleared battlefield remains.')
+      finishJob(s, settler, job)
+      return
+    }
+
     if (job.kind === 'gather') {
       settler.status = 'Gathering ' + job.resource
       if (job.progress + 1e-8 < RESOURCES[job.resource].workSeconds) return
@@ -545,8 +604,20 @@ export class Simulation {
       return
     }
 
-    settler.status = 'Constructing ' + BUILDINGS[building.type].label
-    building.work = Math.min(BUILDINGS[building.type].constructionWork, building.work + workDelta)
+    if (building.complete) {
+      finishJob(s, settler, job)
+      return
+    }
+
+    const workLimit = constructionWorkLimit(building)
+    if (building.work + 1e-8 >= workLimit && !readyToBuild(building)) {
+      finishJob(s, settler, job)
+      settler.status = 'Waiting for materials at ' + BUILDINGS[building.type].label
+      return
+    }
+
+    settler.status = constructionStageLabel(building) + ' — ' + BUILDINGS[building.type].label
+    building.work = Math.min(BUILDINGS[building.type].constructionWork, workLimit, building.work + workDelta)
     if (building.work + 1e-8 < BUILDINGS[building.type].constructionWork) return
 
     building.work = BUILDINGS[building.type].constructionWork

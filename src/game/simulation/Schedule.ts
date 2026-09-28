@@ -18,7 +18,7 @@ export function assignedGuardPost(state: WorldState, settler: Settler): { buildi
   return slots[guardIndex] ?? null
 }
 
-function guardTarget(state: WorldState, settler: Settler): Point | null {
+export function guardPostTarget(state: WorldState, settler: Settler): Point | null {
   const assignment = assignedGuardPost(state, settler)
   if (!assignment) return null
   const post = state.buildings.find(b => b.id === assignment.buildingId)
@@ -40,7 +40,7 @@ export function nightTarget(
   services?: ReadonlyMap<number, ServiceAssignment>,
 ): { target: Point; status: string } {
   if (settler.role === 'guard') {
-    const target = guardTarget(state, settler)
+    const target = guardPostTarget(state, settler)
     if (target) return { target, status: 'Guarding the settlement' }
     return { target: homeTarget(state, settler), status: 'Guard reserve — no post' }
   }

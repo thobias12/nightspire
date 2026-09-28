@@ -1,0 +1,795 @@
+/* UI-first construction shell.
+   Building illustrations are intentionally absent in this layer. The final art
+   pass can later populate the existing data-art-slot hooks one file at a time. */
+
+/* Neutral illustration wells: no current/generated building scene is allowed
+   to leak into the construction shelf while the UI structure is reviewed. */
+.build-catalog .build-art-slot,
+.build-catalog .build-preview-art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-image: none !important;
+  background-color: #b9a477 !important;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(83,68,47,.12) 0 18%, transparent 19%),
+    linear-gradient(165deg, rgba(246,226,184,.34), rgba(113,91,59,.08)),
+    repeating-linear-gradient(0deg, rgba(78,59,37,.035) 0 1px, transparent 1px 6px) !important;
+  filter: none !important;
+}
+
+.build-catalog .build-art-slot::before,
+.build-catalog .build-preview-art::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  z-index: 0;
+  border: 1px solid rgba(76,55,34,.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(247,229,190,.2),
+    inset 0 0 20px rgba(75,55,34,.06);
+  pointer-events: none;
+}
+
+.build-catalog .build-art-slot::after,
+.build-catalog .build-preview-art::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 38px;
+  height: 38px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid rgba(74,56,38,.13);
+  box-shadow:
+    inset 0 0 0 5px rgba(235,216,175,.08),
+    0 0 0 6px rgba(91,70,45,.025);
+  pointer-events: none;
+}
+
+/* Keep planned cards structurally visible without pretending their art exists. */
+.build-catalog .build-card.is-planned .build-art-slot {
+  background:
+    linear-gradient(165deg, rgba(202,190,161,.34), rgba(93,88,76,.08)),
+    repeating-linear-gradient(135deg, rgba(78,70,57,.04) 0 1px, transparent 1px 8px) !important;
+  filter: none !important;
+}
+
+/* More deliberate card anatomy: illustration, title parchment, dark facts strip. */
+.build-catalog .build-card {
+  grid-template-rows: 121px 29px 31px auto;
+}
+.build-catalog .build-name {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(111,80,43,.18);
+  background:
+    linear-gradient(180deg, rgba(231,215,181,.94), rgba(211,190,149,.94));
+  color: #33281e;
+  text-shadow: 0 1px rgba(255,244,214,.3);
+}
+.build-catalog .build-card small {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(206,180,126,.08);
+  border-bottom: 1px solid rgba(10,10,9,.5);
+  background:
+    linear-gradient(180deg, rgba(48,45,39,.99), rgba(28,28,25,.99));
+  color: #cfc2a6;
+}
+
+/* A tiny medieval divider mark between cards keeps the shelf from reading as
+   modern tiles, without requiring decorative image assets. */
+.build-catalog .build-card + .build-card::before {
+  box-shadow: none;
+}
+.build-catalog .build-panel > .build-card:not(:first-child) {
+  margin-left: 2px;
+}
+
+/* Shelf framing refinement. */
+.build-catalog {
+  padding-top: 12px;
+  border-color: rgba(79,55,31,.9);
+}
+.build-catalog::before,
+.build-catalog::after {
+  opacity: .9;
+}
+.build-catalog .build-panel {
+  min-height: 194px;
+  padding-top: 3px;
+}
+.build-catalog .build-tabs {
+  min-height: 46px;
+}
+.build-catalog .build-tabs button {
+  min-height: 46px;
+}
+.build-catalog .build-tabs .category-icon {
+  flex: 0 0 24px;
+}
+
+/* Grid snap becomes a small utility seal on the right side of the category bar. */
+.build-catalog .catalog-tools {
+  left: auto;
+  right: 49px;
+  bottom: 11px;
+}
+.build-catalog .catalog-tool {
+  width: 30px;
+  height: 26px;
+  min-height: 26px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 0;
+}
+.build-catalog .catalog-tool .category-icon {
+  width: 18px;
+  height: 18px;
+}
+.build-catalog .catalog-tool-label,
+.build-catalog .catalog-tool small {
+  display: none;
+}
+
+/* Let the category row breathe around the utility seal. */
+.build-catalog .build-tabs {
+  padding-right: 42px;
+}
+
+/* Keep the detached medallion row visually centered under the shelf. */
+.command-dock {
+  margin-top: 2px;
+}
+.dock-main-group {
+  padding: 3px 4px;
+  border-radius: 28px;
+  background: rgba(18,18,16,.12);
+}
+.dock-utility-group {
+  margin-left: 2px;
+}
+
+/* Hover tooltip is useful now even without final art. */
+.build-preview .build-preview-art {
+  min-height: 156px;
+}
+.build-preview .build-preview-art::after {
+  width: 48px;
+  height: 48px;
+}
+
+/* Selection/keyboard affordances. */
+.build-catalog .build-card:focus-visible,
+.build-catalog .build-tabs button:focus-visible,
+.command-dock button:focus-visible {
+  outline: 2px solid rgba(226,184,101,.85);
+  outline-offset: 2px;
+}
+
+/* Reduce visual motion in the shell itself. */
+@media (prefers-reduced-motion: reduce) {
+  .build-catalog .build-card,
+  .command-dock button {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .build-catalog .catalog-tools { right: 40px; }
+}
+@media (max-width: 620px) {
+  .build-catalog .catalog-tools { right: 33px; }
+  .build-catalog .build-tabs { padding-right: 36px; }
+}
+
+
+/* 2026-09-28 shelf sizing + availability polish */
+
+/* Slight translucency: keep the parchment readable while allowing a hint of the world through. */
+.build-catalog {
+  width: min(1020px, calc(100vw - 72px));
+  max-height: none;
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgba(213,194,151,.91), rgba(187,162,116,.89)),
+    repeating-linear-gradient(0deg, rgba(84,61,35,.025) 0 1px, transparent 1px 5px);
+  -webkit-backdrop-filter: blur(1.5px) saturate(.88);
+  backdrop-filter: blur(1.5px) saturate(.88);
+}
+
+/* Shrink the shelf to match the amount of content in the current category.
+   This removes the huge unused parchment area on the common 3-card views. */
+.build-catalog:has([data-build-tab="planning"][aria-pressed="true"]),
+.build-catalog:has([data-build-tab="logistics"][aria-pressed="true"]) {
+  width: min(650px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="industry"][aria-pressed="true"]) {
+  width: min(930px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+  width: min(1080px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="defense"][aria-pressed="true"]) {
+  width: min(900px, calc(100vw - 72px));
+}
+
+/* Keep active cards compact and consistent at desktop sizes. */
+.build-catalog .build-card {
+  flex-basis: 146px;
+  width: 146px;
+  min-width: 146px;
+  min-height: 178px;
+  grid-template-rows: 116px 29px 31px auto;
+}
+.build-catalog .build-art-slot {
+  height: 114px;
+}
+.build-catalog .build-panel {
+  min-height: 188px;
+  gap: 6px;
+  padding-bottom: 5px;
+}
+
+/* No warning label: resource shortage is communicated only through the card state. */
+.build-catalog .build-card.is-unaffordable:not(.is-planned)::before {
+  content: none !important;
+  display: none !important;
+}
+.build-catalog .build-card.is-unaffordable:not(.is-planned) {
+  filter: saturate(.42) brightness(.63);
+  border-color: rgba(78,62,46,.78);
+  box-shadow:
+    inset 0 0 0 1px rgba(44,38,31,.28),
+    0 1px 2px rgba(0,0,0,.18);
+}
+.build-catalog .build-card.is-unaffordable:not(.is-planned):hover {
+  filter: saturate(.5) brightness(.7);
+  border-color: rgba(135,103,61,.82);
+}
+
+/* The active-tab pointer used to create a tiny native scrollbar at the right edge.
+   Keep horizontal scrolling functional on genuinely crowded categories, but hide
+   the browser chrome completely. */
+.build-catalog .build-tabs {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.build-catalog .build-tabs::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+.build-catalog .build-panel {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.build-catalog .build-panel::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Side rails follow the softer parchment opacity instead of reading like opaque planks. */
+.build-catalog::before,
+.build-catalog::after {
+  opacity: .78;
+}
+
+/* Keep the narrow layouts safe on smaller viewports. */
+@media (max-width: 760px) {
+  .build-catalog,
+  .build-catalog:has([data-build-tab][aria-pressed="true"]) {
+    width: calc(100vw - 18px);
+  }
+}
+
+
+/* Fit-to-shelf construction cards.
+   Desktop categories stay one row with no horizontal hunting. */
+.build-catalog .build-panel {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  align-items: stretch;
+}
+
+/* Cards share the available width. Sparse categories retain the larger card size
+   via max-width; crowded categories shrink together until every card is visible. */
+.build-catalog .build-card {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: 146px;
+}
+
+/* Illustration height follows the card width instead of forcing overflow. */
+.build-catalog .build-art-slot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1.23 / 1;
+}
+
+/* The planned separator stays narrow and never steals card space. */
+.build-catalog .planned-divider {
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
+}
+
+/* Slightly wider crowded-category shells, still capped to the viewport. */
+.build-catalog:has([data-build-tab="industry"][aria-pressed="true"]) {
+  width: min(940px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+  width: min(1120px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="defense"][aria-pressed="true"]) {
+  width: min(900px, calc(100vw - 72px));
+}
+
+/* Keep labels readable as cards contract. */
+.build-catalog .build-name {
+  padding-inline: 3px;
+  font-size: clamp(9px, .82vw, 12px);
+}
+.build-catalog .build-card small {
+  padding-inline: 3px;
+  font-size: clamp(6px, .48vw, 7px);
+}
+
+/* On narrower screens, still prefer one complete row over scrolling. */
+@media (max-width: 900px) {
+  .build-catalog .build-card {
+    max-width: 132px;
+  }
+  .build-catalog .build-name {
+    font-size: 9px;
+  }
+  .build-catalog .build-card small {
+    font-size: 6px;
+  }
+}
+
+@media (max-width: 700px) {
+  .build-catalog .planned-divider {
+    flex-basis: 16px;
+    width: 16px;
+    min-width: 16px;
+  }
+  .build-catalog .planned-divider span {
+    font-size: 5px;
+  }
+  .build-catalog .build-tabs button {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-inline: 4px;
+  }
+  .build-catalog .build-tabs button > span:last-child {
+    display: none;
+  }
+}
+
+
+/* Approved card anatomy: fixed card size + one semantic icon footer. */
+.build-catalog {
+  --build-card-width: 132px;
+  --build-card-art-height: 108px;
+}
+
+/* Undo category-dependent card shrinking. Every construction card now uses one size. */
+.build-catalog .build-card {
+  flex: 0 0 var(--build-card-width);
+  width: var(--build-card-width);
+  min-width: var(--build-card-width);
+  max-width: var(--build-card-width);
+  min-height: 174px;
+  grid-template-rows: var(--build-card-art-height) 30px 34px;
+}
+.build-catalog .build-art-slot {
+  width: 100%;
+  height: var(--build-card-art-height);
+  aspect-ratio: auto;
+}
+
+/* Let category shells adapt, not the cards. */
+.build-catalog:has([data-build-tab="planning"][aria-pressed="true"]),
+.build-catalog:has([data-build-tab="logistics"][aria-pressed="true"]) {
+  width: min(620px, calc(100vw - 34px));
+}
+.build-catalog:has([data-build-tab="industry"][aria-pressed="true"]) {
+  width: min(930px, calc(100vw - 34px));
+}
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+  width: min(1260px, calc(100vw - 34px));
+}
+.build-catalog:has([data-build-tab="defense"][aria-pressed="true"]) {
+  width: min(900px, calc(100vw - 34px));
+}
+
+.build-catalog .build-panel {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  min-height: 184px;
+  gap: 6px;
+  overflow: hidden;
+}
+
+/* One icon only in the dark footer. Existing text remains in the DOM for
+   tooltips/accessibility but is visually replaced by the semantic icon. */
+.build-catalog .build-card small {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0;
+  overflow: hidden;
+}
+.build-catalog .build-card small::before {
+  content: '';
+  width: 26px;
+  height: 26px;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: sepia(.18) saturate(.75) brightness(1.12);
+  opacity: .96;
+}
+
+/* Planning */
+.build-catalog [data-action="road"] small::before {
+  background-image: url("../assets/ui/category/planning.webp");
+}
+.build-catalog [data-action="residential-plot"] small::before {
+  background-image: url("../assets/ui/building-card/house.svg");
+}
+.build-catalog [data-action="field"] small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+
+/* Logistics */
+.build-catalog [data-action="stockpile"] small::before {
+  background-image: url("../assets/ui/category/logistics.webp");
+}
+.build-catalog [data-action="trading-post"] small::before {
+  background-image: url("../assets/ui/resource/gold.webp");
+}
+.build-catalog .build-card:has([data-art-slot="build-granary"]) small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+
+/* Industry */
+.build-catalog [data-action="farmhouse"] small::before,
+.build-catalog .build-card:has([data-art-slot="build-bakery"]) small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+.build-catalog [data-action="brewery"] small::before {
+  background-image: url("../assets/ui/resource/ale.webp");
+}
+.build-catalog [data-action="blacksmith"] small::before {
+  background-image: url("../assets/ui/resource/tools.webp");
+}
+.build-catalog .build-card:has([data-art-slot="build-quarry"]) small::before {
+  background-image: url("../assets/ui/resource/wood.webp");
+  filter: grayscale(1) brightness(1.45);
+}
+.build-catalog .build-card:has([data-art-slot="build-mine"]) small::before {
+  background-image: url("../assets/ui/resource/ore.webp");
+}
+
+/* Services */
+.build-catalog [data-action="campfire"] small::before {
+  background-image: url("../assets/ui/category/services.webp");
+}
+.build-catalog [data-action="tavern"] small::before {
+  background-image: url("../assets/ui/resource/ale.webp");
+}
+.build-catalog [data-action="market"] small::before {
+  background-image: url("../assets/ui/resource/food.webp");
+}
+.build-catalog .build-card:has([data-art-slot="build-well"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-bathhouse"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-chapel"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-pleasure-house"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-manor"]) small::before {
+  background-image: url("../assets/ui/category/services.webp");
+}
+
+/* Defense */
+.build-catalog [data-action="guard-post"] small::before,
+.build-catalog [data-action="wood-wall"] small::before,
+.build-catalog [data-action="wood-gate"] small::before,
+.build-catalog .build-card:has([data-art-slot="build-watchtower"]) small::before,
+.build-catalog .build-card:has([data-art-slot="build-barracks"]) small::before {
+  background-image: url("../assets/ui/category/defense.webp");
+}
+
+/* Planned items stay muted, including their semantic footer icon. */
+.build-catalog .build-card.is-planned small::before {
+  opacity: .48;
+  filter: grayscale(.75) sepia(.15) brightness(1.05);
+}
+
+/* Proper illuminated-manuscript rails rather than plain dotted wooden strips. */
+.build-catalog::before,
+.build-catalog::after {
+  top: 7px;
+  bottom: 49px;
+  width: 34px;
+  opacity: 1;
+  border: 1px solid rgba(83,55,29,.72);
+  background:
+    radial-gradient(circle at 50% 9%, rgba(151,55,43,.9) 0 3px, rgba(215,167,80,.82) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 24%, rgba(43,78,103,.92) 0 3px, rgba(209,163,75,.72) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 40%, rgba(151,55,43,.9) 0 3px, rgba(215,167,80,.82) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 57%, rgba(43,78,103,.92) 0 3px, rgba(209,163,75,.72) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 73%, rgba(151,55,43,.9) 0 3px, rgba(215,167,80,.82) 4px 5px, transparent 6px),
+    radial-gradient(circle at 50% 89%, rgba(43,78,103,.92) 0 3px, rgba(209,163,75,.72) 4px 5px, transparent 6px),
+    linear-gradient(63deg, transparent 43%, rgba(70,91,63,.7) 44% 48%, transparent 49%) 0 0 / 18px 32px,
+    linear-gradient(117deg, transparent 43%, rgba(124,63,44,.68) 44% 48%, transparent 49%) 0 16px / 18px 32px,
+    linear-gradient(180deg, rgba(206,178,126,.96), rgba(163,126,76,.97));
+  box-shadow:
+    inset 0 0 0 2px rgba(239,211,157,.4),
+    inset 0 0 0 4px rgba(93,62,34,.14);
+}
+
+/* If a viewport genuinely cannot contain a crowded category, wrap fixed-size
+   cards to a second row instead of shrinking or scrolling them. */
+@media (max-width: 1180px) {
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    max-height: 372px;
+  }
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 900px) {
+  .build-catalog .build-card {
+    flex-basis: var(--build-card-width);
+    width: var(--build-card-width);
+    min-width: var(--build-card-width);
+    max-width: var(--build-card-width);
+  }
+  .build-catalog .build-panel {
+    flex-wrap: wrap;
+    max-height: 372px;
+  }
+  .build-catalog {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 620px) {
+  .build-catalog .build-card {
+    flex-basis: var(--build-card-width);
+    width: var(--build-card-width);
+    min-width: var(--build-card-width);
+    max-width: var(--build-card-width);
+    grid-template-rows: var(--build-card-art-height) 30px 34px;
+    min-height: 174px;
+  }
+  .build-catalog .build-art-slot {
+    height: var(--build-card-art-height);
+  }
+}
+
+
+/* --------------------------------------------------------------------------
+   Construction catalog responsive layout authority
+   Keep card geometry fixed. The HUD sets --catalog-width from the exact number
+   of cards/dividers; CSS caps it to the viewport and wraps only when necessary.
+   -------------------------------------------------------------------------- */
+.build-catalog {
+  container-type: inline-size;
+  width: min(var(--catalog-width, 600px), calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+  max-height: none !important;
+  height: auto;
+}
+
+/* The content row owns exactly the inner parchment width. Fixed cards never
+   stretch or shrink; a viewport cap simply creates a clean second row. */
+.build-catalog .build-panel,
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+  flex: 0 0 auto;
+  flex-wrap: wrap !important;
+  align-content: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  gap: 6px;
+  padding: 3px 3px 8px;
+}
+
+.build-catalog .build-card,
+.build-catalog:has([data-build-tab][aria-pressed="true"]) .build-card {
+  flex: 0 0 var(--build-card-width) !important;
+  width: var(--build-card-width) !important;
+  min-width: var(--build-card-width) !important;
+  max-width: var(--build-card-width) !important;
+}
+
+.build-catalog .planned-divider {
+  flex: 0 0 22px !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+}
+
+/* Real bottom navigation layout: category tabs and Grid Snap occupy separate
+   columns, so neither can overlap or escape the frame. */
+.build-catalog .catalog-nav {
+  order: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  width: calc(100% + 92px);
+  min-width: 0;
+  margin: 0 -46px;
+  border-top: 1px solid rgba(80,58,35,.7);
+  background: linear-gradient(180deg, rgba(42,39,34,.985), rgba(24,24,22,.995));
+  box-shadow: inset 0 1px rgba(216,187,131,.08);
+  overflow: hidden;
+}
+
+.build-catalog .build-tabs {
+  order: initial;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100% !important;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+.build-catalog .build-tabs button {
+  width: auto;
+  min-width: 0 !important;
+  max-width: none;
+  min-height: 46px;
+  padding: 4px 6px;
+  gap: 6px;
+  overflow: hidden;
+  border-left: 0 !important;
+  border-right: 1px solid rgba(129,106,72,.24);
+}
+
+.build-catalog .build-tabs button > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-catalog .catalog-tools {
+  order: initial;
+  position: static !important;
+  inset: auto !important;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 48px;
+  min-width: 48px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.build-catalog .catalog-tool {
+  width: 48px !important;
+  height: 46px !important;
+  min-width: 48px;
+  min-height: 46px !important;
+  padding: 0 !important;
+  border: 0;
+  border-left: 1px solid rgba(129,106,72,.3);
+  border-radius: 0;
+  background: rgba(42,37,29,.35);
+}
+
+.build-catalog .catalog-tool .category-icon {
+  width: 21px;
+  height: 21px;
+}
+
+/* The old tab/tool elements no longer participate in catalog flex ordering. */
+.build-catalog > .build-tabs,
+.build-catalog > .catalog-tools {
+  order: initial;
+}
+
+/* When a category wraps, maintain symmetric breathing room against both rails. */
+.build-catalog .build-panel::after {
+  content: '';
+  flex: 0 0 0;
+}
+
+/* At genuinely narrow catalog widths, icons remain and labels disappear before
+   they can collide. This is based on the catalog itself, not viewport width. */
+@container (max-width: 540px) {
+  .build-catalog .build-tabs button {
+    gap: 0;
+    padding-inline: 2px;
+  }
+  .build-catalog .build-tabs button > span:last-child {
+    display: none;
+  }
+  .build-catalog .build-tabs .category-icon {
+    width: 25px;
+    height: 25px;
+  }
+}
+
+/* The outer parchment padding remains symmetric even when the viewport caps the
+   computed width. */
+@media (max-width: 620px) {
+  .build-catalog {
+    width: calc(100vw - 12px) !important;
+    max-width: calc(100vw - 12px);
+    padding-left: 38px;
+    padding-right: 38px;
+  }
+  .build-catalog .catalog-nav {
+    width: calc(100% + 76px);
+    margin-left: -38px;
+    margin-right: -38px;
+  }
+}
+
+
+/* Stable construction shelf footprint: consistent category navigation */
+.build-catalog,
+.build-catalog:has([data-build-tab][aria-pressed="true"]) {
+  /* Keep the parchment and bottom category bar physically stable when switching
+     tabs. 1260px is wide enough for the current Services row at the approved
+     fixed card size, while the viewport cap keeps smaller screens safe. */
+  width: min(1260px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+}
+
+/* Sparse categories no longer look like they accidentally stopped early at
+   the left edge. Any unused shelf room is balanced on both sides. */
+.build-catalog .build-panel,
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+  justify-content: center !important;
+}
+
+/* At desktop widths the widest current category fits as one uninterrupted row.
+   This also removes the single-card orphan row seen in Services/Industry. */
+@media (min-width: 1270px) {
+  .build-catalog .build-panel,
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+    width: max-content;
+    max-width: 100%;
+    align-self: center;
+    flex-wrap: nowrap !important;
+  }
+}
+
+/* Below the one-row threshold keep every card visible without scrolling, but
+   center each wrapped line so there is no large dead area only on the right. */
+@media (max-width: 1269px) and (min-width: 621px) {
+  .build-catalog .build-panel,
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+    width: 100%;
+    align-self: stretch;
+    flex-wrap: wrap !important;
+  }
+}

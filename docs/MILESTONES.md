@@ -27,6 +27,21 @@
 
 **Exit verified for this pass:** Ten-settler automated and browser playthroughs gathered both resources, physically delivered 70 wood, completed three houses and a stockpile, housed all ten settlers, and resumed after save/load. See [QA.md](QA.md) for evidence and limitations.
 
+## M1.2 — Physical construction overhaul (PR #42; unmerged)
+
+- [x] construction can begin after the first material tranche reaches the site
+- [x] work progress is hard-capped by the fraction of required materials physically delivered
+- [x] hauling and construction overlap instead of waiting for every material first
+- [x] larger sites support two simultaneous builders at separate perimeter work points
+- [x] builders face the structure and visibly work with a hammer/tool
+- [x] delivered timber is visibly staged beside the site
+- [x] site presentation advances through survey, foundation, frame, scaffold, shell and finishing
+- [x] construction scaffolds remain until final completion
+- [x] parallel-builder completion is accounted exactly once
+- [x] save validation rejects construction work that exceeds delivered-material progress
+
+**Review status:** implemented on the separate overnight gameplay PR. No save schema bump is required; existing unfinished buildings remain compatible.
+
 ## M1.1 — Review hardening (complete)
 
 - [x] safe blueprint cancellation with reservation/in-transit/delivered material conservation
@@ -66,6 +81,20 @@
 **M2.4 verified:** deterministic raid pressure now starts at 20 attackers, grows by four per wave, and caps at 40. A dedicated 40-raider regression keeps all hostile routing inside the shared two-paths-per-tick budget.
 
 **Full M2 technical exit:** implemented at the intended 20–40 attacker scale. Live user balance feedback can still tune HP/damage/pacing, but the next major systems milestone is M3.
+
+## M2.5 — Night raid combat expansion (PR #42; unmerged)
+
+- [x] deterministic Skirmisher / Raider / Brute wave composition
+- [x] wave 2+ attacks from two opposite fronts while preserving the 20–40 hostile cap
+- [x] archetype-specific health, speed, melee damage, structure damage and attack cadence
+- [x] nearby guards/player actively draw attackers away from structure pressure
+- [x] Skirmishers prefer exposed defenders and Guard Posts
+- [x] Brutes favor Gates/Walls and apply heavier breach pressure
+- [x] dusk scout warning reports the next wave size and number of approaches
+- [x] enemy silhouettes, scale, shields/blades/clubs make archetypes readable in-world
+- [x] existing bounded hostile path queue remains authoritative
+
+**Review status:** implemented on the separate overnight gameplay PR. It remains intentionally unmerged and awaits live balance/visual acceptance.
 
 ## M3 — Needs and production
 
@@ -543,3 +572,59 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [ ] more enemy archetypes and dark-fantasy threats
 
 **Tone:** sensual adult fantasy integrated into a functioning settlement economy; suggestive presentation is sufficient for the city-builder layer and explicit scenes are not required for progression.
+
+
+## M3.12 — Persistent households and families (stacked gameplay branch)
+
+- [x] settlers have deterministic persistent given names, surnames and adult ages
+- [x] compatible residents sharing a House can form persistent couple/family records
+- [x] family surnames and partner links survive save/load
+- [x] households can contain dependent children without adding pathfinding agents
+- [x] children age on a compressed simulation calendar
+- [x] new children can be born into established two-adult households
+- [x] children reaching working age become normal settlers when population capacity allows
+- [x] existing inspectors automatically use resident names through the shared settler label
+- [x] older current-schema saves migrate identity/family fields safely
+
+**Design constraint:** dependent children remain lightweight household state rather than pathfinding entities, preserving the current simulation-scale budget while making households persistent and generational.
+
+
+## M3.13 — Settlement evolution (stacked gameplay branch)
+
+- [x] derived Camp → Hamlet → Village → Town → Stronghold progression
+- [x] tiers depend on actual houses, prosperity, civic buildings, roads, defenses and raid success
+- [x] Established and Prosperous homes visibly gain stonework, height, windows and richer roof treatment
+- [x] Town roads visibly transition toward laid cobble without changing navigation semantics
+- [x] Town/Stronghold guard posts gain civic banners
+- [x] Stronghold palisades gain raised fighting-platform dressing
+- [x] progression remains derived rather than adding another save-state ledger
+
+**Design constraint:** settlement evolution is renderer/simulation-derived and does not alter the road topology or job scheduler.
+
+
+## M2.6 — Siege warfare expansion (stacked gameplay branch)
+
+- [x] Guard Posts become true ranged defensive positions at night
+- [x] posted guards hold their assigned position instead of abandoning it to chase attackers
+- [x] posted guards fire on attackers inside a 9m defensive radius
+- [x] later raid waves include deterministic Battering Ram siege units
+- [x] Rams are slow, durable, ignore ordinary defender bait and heavily prioritize Gates/Walls
+- [x] Rams inflict substantially higher fortification damage and can create breaches quickly
+- [x] Rams have a distinct wheeled timber-frame world silhouette
+- [x] Stronghold palisades gain raised fighting-platform dressing
+- [x] existing shared hostile path budget remains unchanged
+
+**Design constraint:** siege additions reuse the existing Enemy collection, combat cooldowns and Navigation queue rather than adding per-unit controllers or a second pathfinder.
+
+
+## M2.7 — Battlefield aftermath (stacked gameplay branch)
+
+- [x] defeated attackers leave persistent world remains rather than disappearing instantly
+- [x] heavy attackers and destroyed Battering Rams leave larger timber/wheel wreckage
+- [x] battlefield remains survive save/load
+- [x] daytime Laborers receive cleanup jobs through the normal scheduler
+- [x] cleanup requires physical travel and work at the battlefield location
+- [x] remains are reserved so multiple workers cannot claim the same wreck
+- [x] aftermath reuses existing renderer batches and the shared pathfinding budget
+
+**Design constraint:** battlefield cleanup is a normal data-driven job, not another AI loop.
