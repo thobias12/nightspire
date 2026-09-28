@@ -14,3 +14,19 @@ Read `docs/AI_NAVIGATION.md` before editing code, then read only the relevant do
 10. Avoid new runtime dependencies unless they materially simplify the game.
 
 Known large legacy hotspots are `app/Game.ts`, `ui/Hud.ts`, and `render/SceneRenderer.ts`. Extract cohesive helpers when touching them instead of adding unrelated responsibilities.
+
+## Concurrent ChatGPT / agent workflow
+
+Before editing:
+
+1. Read `docs/AI_NAVIGATION.md`.
+2. Inspect open PRs and avoid editing the same hotspot as another active branch unless the task explicitly requires integration.
+3. Branch from the current target head, not from remembered SHAs.
+4. Keep a change inside one owning domain when possible. If a shared model changes, enumerate every consumer before writing.
+5. Prefer adding a small cohesive module over extending `Game.ts`, `Hud.ts`, `SceneRenderer.ts`, or `tests/simulation.test.mjs`.
+6. Never copy a helper into a second module to avoid an import cycle. Move the primitive downward and let `npm run check:architecture` verify the runtime graph.
+7. Do not mix behavior refactors with visual redesigns in the same PR unless they are inseparable.
+8. Re-check the target branch immediately before merge/deploy; other chats may have moved it.
+
+A future chat should be able to answer “where does this change belong?” from `docs/AI_NAVIGATION.md` without scanning the whole repository.
+
