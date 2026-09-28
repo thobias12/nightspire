@@ -72,7 +72,7 @@ export const PLANNED_CATALOG_PREVIEWS: Record<string, CatalogPreview> = {
   'build-barracks': { title: 'Barracks', category: 'Defense', description: 'A dedicated military building for organizing and supporting a larger permanent defense force.', detail: 'Military staffing · planned defense', requirement: 'Planned feature.', art: 'build-barracks', planned: true },
 }
 
-const portraitAsset = (settler: Settler): string => 'portrait:settler-' + ((settler.id % 8) + 1)
+export const portraitAsset = (settler: Settler): string => 'portrait:settler-' + ((settler.id % 8) + 1)
 export const personCard = (state: WorldState, settler: Settler, role: string, action = ''): string =>
   '<div class="person-card" title="' + escape(settler.status) + '">'
   + '<span class="portrait-slot" data-ui-asset="' + portraitAsset(settler) + '" aria-hidden="true"></span>'
