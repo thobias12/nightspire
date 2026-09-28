@@ -1,6 +1,6 @@
-import { worldHalf } from '../simulation/MapGenerator'
+import { worldHalf } from '../world/MapGenerator'
 import type { SceneRenderer } from '../render/SceneRenderer'
-import type { Simulation } from '../simulation/Simulation'
+import type { Simulation } from '../runtime/Simulation'
 
 export class InputController {
   private readonly keys = new Set<string>()

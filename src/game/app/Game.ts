@@ -1,4 +1,4 @@
-import { createGeneratedWorld, worldHalf, type MapSize, type Landscape } from '../simulation/MapGenerator'
+import { createGeneratedWorld, worldHalf, type MapSize, type Landscape } from '../world/MapGenerator'
 import { FIXED_STEP } from '../data/jobs'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, type ResourceId } from '../data/resources'
@@ -14,12 +14,12 @@ import {
   placementError,
   stockpiles,
   wallLinePoints,
-} from '../simulation/Buildings'
-import { damageBuilding } from '../simulation/Combat'
-import { distance } from '../simulation/Navigation'
-import { forceImmigrationIfEligible } from '../simulation/Population'
-import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../simulation/SaveLoad'
-import { Simulation } from '../simulation/Simulation'
+} from '../systems/construction/Buildings'
+import { damageBuilding } from '../systems/combat/Combat'
+import { distance } from '../world/Navigation'
+import { forceImmigrationIfEligible } from '../systems/population/Population'
+import { BACKUP_KEY, deserializeWorld, SAVE_KEY, serializeWorld, validateWorld } from '../persistence/SaveLoad'
+import { Simulation } from '../runtime/Simulation'
 import {
   backyardForPlot,
   buildingPlacementPreview,
@@ -36,15 +36,15 @@ import {
   snapPointToGrid,
   snapRoadControlPoint,
   type ResidentialPlotPreview,
-} from '../simulation/TownPlanning'
+} from '../world/TownPlanning'
 import {
   createField, fieldArea, fieldPlacementError, nearestFarmhouseForField, pointInField, residentialPlotFieldError,
-} from '../simulation/FieldPlanning'
-import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../simulation/WorldState'
-import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../simulation/Workforce'
-import { nextStockpilePriority, stockpilePriorityLabel } from '../simulation/StockpileLogistics'
-import { haulPriorityLabel, nextHaulPriority } from '../simulation/WorkplaceLogistics'
-import { adjustTradeReserve, nextTradeMode, tradeModeLabel } from '../simulation/Trading'
+} from '../world/FieldPlanning'
+import { createBuilding, createInitialWorldState, spawnSettler, type Point } from '../model/WorldState'
+import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../systems/population/Workforce'
+import { nextStockpilePriority, stockpilePriorityLabel } from '../systems/economy/StockpileLogistics'
+import { haulPriorityLabel, nextHaulPriority } from '../systems/economy/WorkplaceLogistics'
+import { adjustTradeReserve, nextTradeMode, tradeModeLabel } from '../systems/economy/Trading'
 import { Hud, type Metrics } from '../ui/Hud'
 import { InputController } from './InputController'
 

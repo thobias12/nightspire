@@ -1,6 +1,6 @@
 import { FIXED_STEP, DECISION_TICKS, PATH_BUDGET } from '../data/jobs'
 import { SceneRenderer } from '../render/SceneRenderer'
-import { Simulation } from '../simulation/Simulation'
+import { Simulation } from '../runtime/Simulation'
 import { Hud, type Metrics } from '../ui/Hud'
 import { Measurements } from './Measurement'
 import { createBenchmarkWorld, POPULATIONS, SAMPLE_TICKS, stateDigest, TOTAL_TICKS, WARMUP_TICKS, type Workload } from './Scenarios'
