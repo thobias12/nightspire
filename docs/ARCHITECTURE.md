@@ -1,3 +1,17 @@
+# Nightspire architecture
+
+> Current source ownership is authoritative in [AI_NAVIGATION.md](AI_NAVIGATION.md). Historical milestone notes below are retained as design context.
+
+## Current module boundaries
+
+- `model/` and `data/` are dependency roots.
+- `world/` owns map/grid/navigation/planning.
+- feature logic lives under `systems/` by domain.
+- `runtime/` orchestrates systems; it should not absorb their detailed rules.
+- `app/` coordinates browser input, UI, rendering and runtime.
+- `render/` and `ui/` present state; they do not own gameplay rules.
+- direct imports are preferred over barrels because the Pages runtime is sensitive to circular module graphs.
+
 # Architecture principles
 
 ## Core rule: simulation is not the scene graph
