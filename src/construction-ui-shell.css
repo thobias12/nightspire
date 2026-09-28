@@ -752,3 +752,44 @@
     margin-right: -38px;
   }
 }
+
+
+/* Stable construction shelf footprint: consistent category navigation */
+.build-catalog,
+.build-catalog:has([data-build-tab][aria-pressed="true"]) {
+  /* Keep the parchment and bottom category bar physically stable when switching
+     tabs. 1260px is wide enough for the current Services row at the approved
+     fixed card size, while the viewport cap keeps smaller screens safe. */
+  width: min(1260px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px);
+}
+
+/* Sparse categories no longer look like they accidentally stopped early at
+   the left edge. Any unused shelf room is balanced on both sides. */
+.build-catalog .build-panel,
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+  justify-content: center !important;
+}
+
+/* At desktop widths the widest current category fits as one uninterrupted row.
+   This also removes the single-card orphan row seen in Services/Industry. */
+@media (min-width: 1270px) {
+  .build-catalog .build-panel,
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+    width: max-content;
+    max-width: 100%;
+    align-self: center;
+    flex-wrap: nowrap !important;
+  }
+}
+
+/* Below the one-row threshold keep every card visible without scrolling, but
+   center each wrapped line so there is no large dead area only on the right. */
+@media (max-width: 1269px) and (min-width: 621px) {
+  .build-catalog .build-panel,
+  .build-catalog:has([data-build-tab="services"][aria-pressed="true"]) .build-panel {
+    width: 100%;
+    align-self: stretch;
+    flex-wrap: wrap !important;
+  }
+}
