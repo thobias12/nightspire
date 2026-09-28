@@ -1,5 +1,5 @@
-import { forestDensity, landscapeNoise, type MapDefinition } from '../simulation/MapGenerator'
-import type { RoadPath } from '../simulation/WorldState'
+import { forestDensity, landscapeNoise, type MapDefinition } from '../world/MapGenerator'
+import type { RoadPath } from '../model/WorldState'
 
 export const ROAD_SURFACE_SIZE = 1024
 export const ROAD_GRASS_LIMIT = 256
