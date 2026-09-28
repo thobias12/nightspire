@@ -15,7 +15,10 @@ export function stockpilePriorityLabel(priority: StockpilePriority): string {
 }
 
 export function stockpileAccepts(building: Building, resource: ResourceId): boolean {
-  return BUILDINGS[building.type].storage > 0 && building.stockpileFilters[resource] === true
+  const def = BUILDINGS[building.type]
+  return def.storage > 0
+    && (!def.storageResources || def.storageResources.includes(resource))
+    && building.stockpileFilters[resource] === true
 }
 
 export function acceptedStockpileResources(building: Building): ResourceId[] {
