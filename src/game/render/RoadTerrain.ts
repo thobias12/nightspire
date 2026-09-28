@@ -33,7 +33,7 @@ export class RoadTerrain {
     const key = map ? map.seed + ':' + map.size + ':' + map.landscape : ''
     if (key !== this.mapKey) {
       this.mapKey = key; this.extent = (map?.size ?? 47) + 20
-      this.size = map ? 2048 : ROAD_SURFACE_SIZE; this.meadow = undefined; this.snapshot = []
+      this.size = ROAD_SURFACE_SIZE; this.meadow = undefined; this.snapshot = []
     }
     if (this.matches(roads)) return
     this.meadow ??= createMeadowField(this.extent, this.size, map)
