@@ -8,19 +8,19 @@ The image below is the current **north-star UI / presentation concept** for Nigh
 
 ![Nightspire UI and feature direction](docs/images/nightspire-ui-concept-hq.jpg)
 
-The playable game already has roads, residential plots, agriculture, physical hauling, Markets, Brewery → Ale → Tavern, Ore → Tools, Gold trade, households, Happiness, immigration, guards, wooden fortifications, raids, day/night and save/load. The roadmap grows outward from that foundation rather than replacing it.
+The playable game already has roads, residential plots, agriculture, physical hauling, Markets, Brewery → Ale → Tavern, Ore → Tools, Gold trade, households, Happiness, immigration, guards, wooden fortifications, raids, day/night and save/load. The roadmap now grows outward from that foundation rather than replacing it.
 
 **Near-term presentation work:** finish the compact Manor Lords-inspired HUD shell; replace placeholders with original Nightspire medieval-illustration icons/cards; add richer contextual building panels, worker portraits, tasks/messages, notifications, minimap/readability tools and consistent placement feedback.
 
-**Settlement/economy expansion:** deepen food storage and processing; expand resource extraction; add more agriculture and rural land uses; broaden Markets, trade, logistics, prosperity and upgrade paths.
+**Settlement/economy expansion:** deepen food storage and processing with Granary/Bakery-style chains; expand resource extraction with Quarry/Mine-style workplaces; add more agriculture and rural land uses; broaden Markets, trade, logistics, prosperity and upgrade paths.
 
-**Civic, faith and services:** add Well/Chapel/Manor-style civic progression, prestige, policies and service coverage; later grow Bathhouse, recreation, luxury and nightlife into a richer mature-city service economy.
+**Civic, faith and services:** add Well/Chapel/Manor-style civic progression, settlement prestige, policies and faith/service coverage; later grow Bathhouse, recreation, luxury and nightlife into a richer mature-city service economy.
 
 **Defense and night pressure:** extend Guard Posts, Walls and Gates toward Watchtowers/Barracks/stronger fortifications, more enemy archetypes and deeper nightly defense while keeping daytime settlement growth central.
 
 **Scale and character depth:** continue profiling toward larger populations, stronger navigation/job scaling, richer citizens and featured characters, equipment/visual progression, and more detailed household/social simulation.
 
-See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md). The concept image is a direction reference, not a promise that every pictured building or panel is already implemented.
+See [the detailed feature roadmap](docs/FEATURE_ROADMAP.md) and [UI art-slot contract](docs/UI_ART_SLOTS.md). The concept image is a direction reference, not a promise that every pictured building or panel is already implemented.
 
 ### Mature service / Pleasure House concept direction
 

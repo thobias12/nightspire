@@ -3308,6 +3308,16 @@ export class SceneRenderer {
     return hit ? { x: Math.round(hit.x), z: Math.round(hit.z) } : null
   }
 
+  screenPoint(point: Point, height = 1.2): { x: number; y: number } | null {
+    const projected = new THREE.Vector3(point.x, height, point.z).project(this.camera)
+    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || projected.z < -1 || projected.z > 1) return null
+    const rect = this.canvas.getBoundingClientRect()
+    return {
+      x: rect.left + (projected.x + 1) * 0.5 * rect.width,
+      y: rect.top + (1 - projected.y) * 0.5 * rect.height,
+    }
+  }
+
   resize(width: number, height: number): void {
     this.camera.aspect = Math.max(width, 1) / Math.max(height, 1)
     this.camera.updateProjectionMatrix()
