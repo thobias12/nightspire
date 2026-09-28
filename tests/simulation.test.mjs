@@ -3019,6 +3019,7 @@ test('Foresters, Miners and Fishers run staffed resource operations with bounded
 
 test('Foresters replant exhausted tree stands and managed saplings mature over multiple days', () => {
   const state = createInitialWorldState()
+  state.nodes = []
   const lodge = createBuilding(state.nextId++, 'foresters-lodge', 8, 8, true)
   state.buildings.push(lodge)
   const exhausted = { id: state.nextId++, x: 12, z: 8, resource: 'wood', remaining: 0 }
