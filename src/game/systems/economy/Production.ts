@@ -1,7 +1,7 @@
-import { BUILDINGS } from '../data/buildings'
-import type { DayPhase } from './DayNight'
-import { workplaceStaffing } from './Workforce'
-import { recordEvent, type Building, type WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import type { DayPhase } from '../../runtime/DayNight'
+import { workplaceStaffing } from '../population/Workforce'
+import { recordEvent, type Building, type WorldState } from '../../model/WorldState'
 
 export function productionAvailable(building: Building, phase: DayPhase): boolean {
   const production = BUILDINGS[building.type].production

@@ -1,8 +1,8 @@
-import { BUILDINGS } from '../data/buildings'
-import type { ResourceId } from '../data/resources'
-import type { JobReservations } from './JobReservations'
-import { workplaceStaffing } from './Workforce'
-import type { Building, HaulPriority, WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import type { ResourceId } from '../../data/resources'
+import type { JobReservations } from '../jobs/JobReservations'
+import { workplaceStaffing } from '../population/Workforce'
+import type { Building, HaulPriority, WorldState } from '../../model/WorldState'
 
 export const HAUL_PRIORITY_ORDER: readonly HaulPriority[] = ['low', 'normal', 'high']
 

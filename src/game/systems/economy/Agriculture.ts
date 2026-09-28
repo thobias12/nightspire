@@ -1,8 +1,8 @@
-import { BUILDINGS } from '../data/buildings'
-import { nearestFarmhouseForField, pointInPolygon } from './FieldPlanning'
-import { distance } from './Navigation'
-import { workplaceWorkers } from './Workforce'
-import { recordEvent, type Building, type FieldPlot, type Settler, type WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import { nearestFarmhouseForField, pointInPolygon } from '../../world/FieldPlanning'
+import { distance } from '../../world/Navigation'
+import { workplaceWorkers } from '../population/Workforce'
+import { recordEvent, type Building, type FieldPlot, type Settler, type WorldState } from '../../model/WorldState'
 
 export const FIELD_GROWTH_DAYS = 2
 

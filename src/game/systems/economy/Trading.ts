@@ -1,8 +1,8 @@
-import { RESOURCE_IDS, type ResourceId } from '../data/resources'
-import { available, stockpiles } from './Buildings'
-import type { JobReservations } from './JobReservations'
-import { workplaceStaffing } from './Workforce'
-import { recordEvent, type Building, type TradeMode, type WorldState } from './WorldState'
+import { RESOURCE_IDS, type ResourceId } from '../../data/resources'
+import { available, stockpiles } from '../construction/Buildings'
+import type { JobReservations } from '../jobs/JobReservations'
+import { workplaceStaffing } from '../population/Workforce'
+import { recordEvent, type Building, type TradeMode, type WorldState } from '../../model/WorldState'
 
 export const TRADE_PRICES: Record<ResourceId, { buy: number; sell: number }> = {
   wood: { buy: 2, sell: 1 },
