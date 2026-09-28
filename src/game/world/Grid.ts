@@ -4,7 +4,7 @@ import type { Point } from '../model/WorldState'
 export const cellKey = (point: Point): number =>
   (Math.round(point.z) + 512) * 1025 + Math.round(point.x) + 512
 
-export const inBounds = (point: Point, half: number): boolean =>
+export const inBounds = (point: Point, half = 23): boolean =>
   Math.abs(point.x) <= half && Math.abs(point.z) <= half
 
 export const distance = (a: Point, b: Point): number =>
