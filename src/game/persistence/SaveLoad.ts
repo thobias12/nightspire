@@ -1,4 +1,5 @@
-import { MAX_MAP_NODES, MAP_SIZES, worldHalf } from '../world/MapGenerator'
+import { MAP_SIZES } from '../data/map'
+import { MAX_MAP_NODES, worldHalf } from '../world/MapGenerator'
 import { regionalReachability } from '../world/RegionalNavigation'
 import { BUILDINGS } from '../data/buildings'
 import { CARRY_CAPACITY } from '../data/jobs'
