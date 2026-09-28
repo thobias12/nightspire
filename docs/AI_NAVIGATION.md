@@ -100,13 +100,22 @@ Already extracted:
 
 Tracked legacy hotspots:
 
-- `render/SceneRenderer.ts`: world sync + building/agent/field visuals still share one class.
-- `ui/Hud.ts`: markup, projection and panel updating still share one class. `MedievalHud.css` is the scoped presentation override; keep gameplay out of it.
+- `render/SceneRenderer.ts`: world/camera/lighting orchestration and render-batch ownership.
+- `render/PlacementGhostRenderer.ts`: transient building/road/field/plot placement ghosts.
+- `render/PlanningOverlayRenderer.ts`: persistent construction/plot blueprint overlays.
+- `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
+- `render/TownBuildingRenderer.ts`: residential compounds, procedural buildings, props, nightlife and fortifications.
+- `ui/Hud.ts`: live HUD state/update orchestration and event binding.
+- `ui/HudTemplate.ts`: static DOM shell only.
+- `ui/HudContent.ts`: labels, descriptions and reusable HTML fragments.
+- `ui/HudCatalog.ts`: build-card/catalog projection.
+- `ui/HudTypes.ts`: public HUD state/metrics contracts.
+- `ui/MedievalHud.css`: scoped presentation override; keep gameplay out of it.
 - `tests/simulation.test.mjs`: broad regression suite still shares one fixture/preamble.
 - `app/PlanningState.ts`: transient build/road/field planning state.
 - `app/PlanningOperations.ts`: road and field mutation/finalization.
 - `app/PlanningPresentation.ts`: placement ghosts, preview validation and planning messages.
 - `app/Game.ts`: browser orchestration remains; keyboard/pointer controllers are the next cohesive split.
 
-The architecture check treats new >80 KiB TypeScript modules as a failure and reports the known legacy oversized modules explicitly.
+The architecture check rejects every TypeScript module above 80 KiB. HUD and SceneRenderer no longer have exceptions.
 
