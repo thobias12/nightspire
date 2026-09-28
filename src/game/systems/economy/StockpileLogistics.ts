@@ -1,7 +1,7 @@
-import { BUILDINGS } from '../data/buildings'
-import { RESOURCE_IDS, type ResourceId } from '../data/resources'
-import { distance } from './Navigation'
-import type { Building, Point, StockpilePriority } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import { RESOURCE_IDS, type ResourceId } from '../../data/resources'
+import { distance } from '../../world/Navigation'
+import type { Building, Point, StockpilePriority } from '../../model/WorldState'
 
 export const STOCKPILE_PRIORITIES: readonly StockpilePriority[] = ['low', 'normal', 'high']
 

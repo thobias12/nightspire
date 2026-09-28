@@ -1,8 +1,8 @@
-import { BUILDINGS } from '../data/buildings'
-import type { JobReservations } from './JobReservations'
-import { distance } from './Navigation'
-import { workplaceStaffing } from './Workforce'
-import type { Building, Point, Settler, WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import type { JobReservations } from '../jobs/JobReservations'
+import { distance } from '../../world/Navigation'
+import { workplaceStaffing } from '../population/Workforce'
+import type { Building, Point, Settler, WorldState } from '../../model/WorldState'
 
 export const MARKET_COVERAGE_RADIUS = 18
 

@@ -1,9 +1,9 @@
-import { BUILDINGS } from '../data/buildings'
-import type { DayPhase } from './DayNight'
-import { MAX_MAP_NODES, mapHash, worldHalf } from './MapGenerator'
-import { distance } from './Navigation'
-import { workplaceStaffing } from './Workforce'
-import { recordEvent, type Building, type ResourceNode, type WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import type { DayPhase } from '../../runtime/DayNight'
+import { MAX_MAP_NODES, mapHash, worldHalf } from '../../world/MapGenerator'
+import { distance } from '../../world/Navigation'
+import { workplaceStaffing } from '../population/Workforce'
+import { recordEvent, type Building, type ResourceNode, type WorldState } from '../../model/WorldState'
 
 export const FORESTER_TREE_TARGET = 18
 export const SAPLING_GROWTH_PER_DAY = 0.25

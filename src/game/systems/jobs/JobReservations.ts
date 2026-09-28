@@ -1,5 +1,5 @@
-import { emptyInventory, type Inventory, type ResourceId } from '../data/resources'
-import type { Job } from './WorldState'
+import { emptyInventory, type Inventory, type ResourceId } from '../../data/resources'
+import type { Job } from '../../model/WorldState'
 
 /** Derived once per assignment pass, then extended as that pass assigns jobs.
  * Never persisted: active jobs remain the source of truth. */

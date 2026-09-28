@@ -1,7 +1,7 @@
-import { BUILDINGS } from '../data/buildings'
-import { RESOURCE_IDS } from '../data/resources'
-import { entrance, inBounds } from './Navigation'
-import type { Building, Point } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import { RESOURCE_IDS } from '../../data/resources'
+import { entrance, inBounds } from '../../world/Navigation'
+import type { Building, Point } from '../../model/WorldState'
 
 export type ConstructionStage = 'site' | 'foundation' | 'frame' | 'scaffold' | 'shell' | 'finishing' | 'complete'
 

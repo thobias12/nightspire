@@ -1,21 +1,21 @@
-import { BUILDINGS } from '../data/buildings'
-import { CARRY_CAPACITY, JOBS, REPAIR_HP_PER_WOOD } from '../data/jobs'
-import { RESOURCE_IDS, RESOURCES, type ResourceId } from '../data/resources'
-import { available, freeStorage, needsRepair, supplyFree, stockpiles } from './Buildings'
+import { BUILDINGS } from '../../data/buildings'
+import { CARRY_CAPACITY, JOBS, REPAIR_HP_PER_WOOD } from '../../data/jobs'
+import { RESOURCE_IDS, RESOURCES, type ResourceId } from '../../data/resources'
+import { available, freeStorage, needsRepair, supplyFree, stockpiles } from '../construction/Buildings'
 import {
   canAdvanceConstruction, constructionCrewCapacity, constructionWorkPoint,
-} from './Construction'
-import { essentialJob, happinessEffect } from './Happiness'
+} from '../construction/Construction'
+import { essentialJob, happinessEffect } from '../population/Happiness'
 import { JobReservations } from './JobReservations'
-import { marketFoodNeed } from './Markets'
-import { distance, entrance } from './Navigation'
-import { activeWorkplace } from './Workforce'
-import { compareStockpileDestinations, stockpileAccepts } from './StockpileLogistics'
+import { marketFoodNeed } from '../economy/Markets'
+import { distance, entrance } from '../../world/Navigation'
+import { activeWorkplace } from '../population/Workforce'
+import { compareStockpileDestinations, stockpileAccepts } from '../economy/StockpileLogistics'
 import {
   primaryTradingPost, tradeExportStagingNeed, tradeFreeStorage, tradePostPickupAvailable,
-} from './Trading'
-import { workplaceHaulScore, workplaceInputNeed, workplaceOutputReady } from './WorkplaceLogistics'
-import type { Building, Job, ResourceNode, Settler, WorldState } from './WorldState'
+} from '../economy/Trading'
+import { workplaceHaulScore, workplaceInputNeed, workplaceOutputReady } from '../economy/WorkplaceLogistics'
+import type { Building, Job, ResourceNode, Settler, WorldState } from '../../model/WorldState'
 
 const repairSources = (state: WorldState): Building[] =>
   state.buildings.filter(b => b.complete && BUILDINGS[b.type].storage > 0 && b.inventory.wood > 0)

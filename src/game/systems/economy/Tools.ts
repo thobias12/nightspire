@@ -1,5 +1,5 @@
-import { stockpiles } from './Buildings'
-import type { WorldState } from './WorldState'
+import { stockpiles } from '../construction/Buildings'
+import type { WorldState } from '../../model/WorldState'
 
 export const TOOL_WORK_BONUS_MAX = 0.1
 export const SETTLERS_PER_TOOL = 2
