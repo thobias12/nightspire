@@ -80,7 +80,7 @@ Use the narrowest path that owns the behavior:
 | change simulation ordering | `runtime/Simulation.ts` | implementing the rule itself in runtime |
 | add economy/population/combat behavior | matching `systems/<domain>/` module | a new generic utility or simulation folder |
 | change placement/path geometry | `world/` | renderer-owned collision/game rules |
-| change HUD presentation | `ui/` | changing gameplay state from DOM code |
+| change HUD presentation | `ui/Hud.ts` + `ui/MedievalHud.css` | changing gameplay state from DOM/CSS |
 
 ## Concurrent work protocol
 
@@ -108,9 +108,12 @@ Already extracted:
 Tracked legacy hotspots:
 
 - `render/SceneRenderer.ts`: world sync + building/agent/field visuals still share one class.
-- `ui/Hud.ts`: markup, projection and panel updating still share one class.
+- `ui/Hud.ts`: markup, projection and panel updating still share one class. `MedievalHud.css` is the scoped presentation override; keep gameplay out of it.
 - `tests/simulation.test.mjs`: broad regression suite still shares one fixture/preamble.
-- `app/Game.ts`: much smaller after QA extraction, but pointer/planning orchestration is still the next cohesive split.
+- `app/PlanningState.ts`: transient build/road/field planning state.
+- `app/PlanningOperations.ts`: road and field mutation/finalization.
+- `app/PlanningPresentation.ts`: placement ghosts, preview validation and planning messages.
+- `app/Game.ts`: browser orchestration remains; keyboard/pointer controllers are the next cohesive split.
 
 The architecture check treats new >80 KiB TypeScript modules as a failure and reports the known legacy oversized modules explicitly.
 
