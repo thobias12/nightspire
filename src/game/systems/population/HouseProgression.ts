@@ -1,6 +1,6 @@
-import { BUILDINGS } from '../data/buildings'
+import { BUILDINGS } from '../../data/buildings'
 import { householdStatus } from './Households'
-import { recordEvent, type Building, type WorldState } from './WorldState'
+import { recordEvent, type Building, type WorldState } from '../../model/WorldState'
 
 export type HouseLevel = 1 | 2 | 3
 

@@ -1,6 +1,6 @@
-import { BUILDINGS } from '../data/buildings'
-import { distance, entrance } from './Navigation'
-import { recordEvent, settlerLabel, type Building, type Settler, type WorldState } from './WorldState'
+import { BUILDINGS } from '../../data/buildings'
+import { distance, entrance } from '../../world/Navigation'
+import { recordEvent, settlerLabel, type Building, type Settler, type WorldState } from '../../model/WorldState'
 
 export interface WorkplaceStaffing {
   slots: number

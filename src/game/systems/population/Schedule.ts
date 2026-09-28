@@ -1,10 +1,8 @@
-import { BUILDINGS } from '../data/buildings'
-import type { DayPhase } from './DayNight'
-import { entrance } from './Navigation'
+import { BUILDINGS } from '../../data/buildings'
+import type { DayPhase } from '../../runtime/DayNight'
+import { entrance } from '../../world/Navigation'
 import { serviceAssignment, type ServiceAssignment } from './Services'
-import type { Point, Settler, WorldState } from './WorldState'
-
-export type SettlerRole = 'worker' | 'guard'
+import type { Point, Settler, WorldState, SettlerRole } from '../../model/WorldState'
 
 export function assignedGuardPost(state: WorldState, settler: Settler): { buildingId: number; slot: number } | null {
   if (settler.role !== 'guard') return null

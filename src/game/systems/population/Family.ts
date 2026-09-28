@@ -1,5 +1,5 @@
-import { entrance } from './Navigation'
-import { MAX_SETTLERS, recordEvent, spawnSettler, type FamilyState, type Settler, type WorldState } from './WorldState'
+import { entrance } from '../../world/Navigation'
+import { MAX_SETTLERS, recordEvent, spawnSettler, type FamilyState, type Settler, type WorldState } from '../../model/WorldState'
 
 export const CHILD_DAYS_PER_YEAR = 6
 export const FAMILY_CHILD_INTERVAL_DAYS = 6

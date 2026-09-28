@@ -1,16 +1,16 @@
-import { worldHalf } from './MapGenerator'
-import { BUILDINGS } from '../data/buildings'
-import { assignHousing, available, stockpiles } from './Buildings'
+import { worldHalf } from '../../world/MapGenerator'
+import { BUILDINGS } from '../../data/buildings'
+import { assignHousing, available, stockpiles } from '../construction/Buildings'
 import { dependentCount, settlementPopulation } from './Family'
 import { houseBedCapacity } from './HouseProgression'
 import { householdSummary } from './Households'
-import { completedMarkets } from './Markets'
-import { entrance } from './Navigation'
+import { completedMarkets } from '../economy/Markets'
+import { entrance } from '../../world/Navigation'
 import { settlementNeeds } from './Needs'
 import {
   MAX_SETTLERS, recordEvent, spawnSettler,
   type Point, type WorldState,
-} from './WorldState'
+} from '../../model/WorldState'
 
 export const IMMIGRATION_REQUIRED_DAYS = 2
 export const IMMIGRATION_MIN_HAPPINESS = 65

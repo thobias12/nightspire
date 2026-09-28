@@ -1,10 +1,10 @@
-import { worldHalf } from './MapGenerator'
-import { BUILDINGS } from '../data/buildings'
+import { worldHalf } from '../../world/MapGenerator'
+import { BUILDINGS } from '../../data/buildings'
 import {
   blockedCells, cellKey, closestInteractionPoint,
   distance, inBounds,
-} from './Navigation'
-import type { Building, Enemy, Point, WorldState } from './WorldState'
+} from '../../world/Navigation'
+import type { Building, Enemy, Point, WorldState } from '../../model/WorldState'
 
 export const RAID_SIZE = 20
 export const RAID_GROWTH = 4

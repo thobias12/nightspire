@@ -1,7 +1,7 @@
-import type { BuildingId } from '../data/buildings'
-import { settlementPopulation } from './Family'
-import { distance } from './Navigation'
-import type { WorldState } from './WorldState'
+import type { BuildingId } from '../../data/buildings'
+import { settlementPopulation } from '../population/Family'
+import { distance } from '../../world/Navigation'
+import type { WorldState } from '../../model/WorldState'
 
 export type SettlementTierId = 'camp' | 'hamlet' | 'village' | 'town' | 'stronghold'
 
