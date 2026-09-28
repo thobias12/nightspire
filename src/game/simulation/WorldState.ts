@@ -8,7 +8,11 @@ export interface Point { x: number; z: number }
 export interface PlayerState extends Point {
   health: number; maxHealth: number; attackCooldown: number; lastHitTick: number
 }
-export interface ResourceNode extends Point { id: number; resource: ResourceId; remaining: number }
+export interface ResourceNode extends Point {
+  id: number; resource: ResourceId; remaining: number
+  planted?: boolean
+  growth?: number
+}
 export interface RoadPath {
   id: number
   points: Point[]
@@ -210,7 +214,13 @@ export function createBuilding(
     id, type, x, z, rotation: ((Math.round(rotation) % 4) + 4) % 4, complete,
     work: complete ? def.constructionWork : 0, haulPriority: 'normal',
     stockpilePriority: 'normal',
-    stockpileFilters: { wood: true, food: true, ale: true, ore: true, tools: true },
+    stockpileFilters: {
+      wood: !def.storageResources || def.storageResources.includes('wood'),
+      food: !def.storageResources || def.storageResources.includes('food'),
+      ale: !def.storageResources || def.storageResources.includes('ale'),
+      ore: !def.storageResources || def.storageResources.includes('ore'),
+      tools: !def.storageResources || def.storageResources.includes('tools'),
+    },
     health: complete ? def.maxHealth : 0,
     maxHealth: def.maxHealth,
     destroyed: false,
