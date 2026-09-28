@@ -1,4 +1,5 @@
-import { forestDensity, landscapeNoise, type MapDefinition } from '../world/MapGenerator'
+import type { MapDefinition } from '../data/map'
+import { forestDensity, landscapeNoise } from '../world/MapGenerator'
 import type { RoadPath } from '../model/WorldState'
 
 export const ROAD_SURFACE_SIZE = 1024
