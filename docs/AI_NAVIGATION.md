@@ -104,7 +104,8 @@ Tracked legacy hotspots:
 - `render/PlacementGhostRenderer.ts`: transient building/road/field/plot placement ghosts.
 - `render/PlanningOverlayRenderer.ts`: persistent construction/plot blueprint overlays.
 - `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
-- `render/TownBuildingRenderer.ts`: residential compounds, procedural buildings, props, nightlife and fortifications.
+- `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
+- `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `ui/Hud.ts`: live HUD state/update orchestration and event binding.
 - `ui/HudTemplate.ts`: static DOM shell only.
 - `ui/HudContent.ts`: labels, descriptions and reusable HTML fragments.
