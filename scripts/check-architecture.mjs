@@ -68,7 +68,7 @@ function runtimeImports(source, file) {
 }
 
 const files = walk(root).filter(file => file.endsWith('.ts'))
-const fileSet = new Set(files.map(resolve))
+const fileSet = new Set(files.map(file => resolve(file)))
 
 for (const file of files) {
   const relFile = gameRelative(file)
@@ -121,7 +121,7 @@ for (const file of files) {
       violations.push(`${relFile}: renderer must not runtime-depend on app/UI/runtime ${targetRel}`)
     }
   }
-  runtimeGraph.set(resolve(file), edges.map(resolve))
+  runtimeGraph.set(resolve(file), edges.map(target => resolve(target)))
 }
 
 const visiting = new Set()
