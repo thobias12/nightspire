@@ -287,3 +287,88 @@
     width: calc(100vw - 18px);
   }
 }
+
+
+/* Fit-to-shelf construction cards.
+   Desktop categories stay one row with no horizontal hunting. */
+.build-catalog .build-panel {
+  overflow-x: hidden;
+  overflow-y: hidden;
+  align-items: stretch;
+}
+
+/* Cards share the available width. Sparse categories retain the larger card size
+   via max-width; crowded categories shrink together until every card is visible. */
+.build-catalog .build-card {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  max-width: 146px;
+}
+
+/* Illustration height follows the card width instead of forcing overflow. */
+.build-catalog .build-art-slot {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1.23 / 1;
+}
+
+/* The planned separator stays narrow and never steals card space. */
+.build-catalog .planned-divider {
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
+}
+
+/* Slightly wider crowded-category shells, still capped to the viewport. */
+.build-catalog:has([data-build-tab="industry"][aria-pressed="true"]) {
+  width: min(940px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="services"][aria-pressed="true"]) {
+  width: min(1120px, calc(100vw - 72px));
+}
+.build-catalog:has([data-build-tab="defense"][aria-pressed="true"]) {
+  width: min(900px, calc(100vw - 72px));
+}
+
+/* Keep labels readable as cards contract. */
+.build-catalog .build-name {
+  padding-inline: 3px;
+  font-size: clamp(9px, .82vw, 12px);
+}
+.build-catalog .build-card small {
+  padding-inline: 3px;
+  font-size: clamp(6px, .48vw, 7px);
+}
+
+/* On narrower screens, still prefer one complete row over scrolling. */
+@media (max-width: 900px) {
+  .build-catalog .build-card {
+    max-width: 132px;
+  }
+  .build-catalog .build-name {
+    font-size: 9px;
+  }
+  .build-catalog .build-card small {
+    font-size: 6px;
+  }
+}
+
+@media (max-width: 700px) {
+  .build-catalog .planned-divider {
+    flex-basis: 16px;
+    width: 16px;
+    min-width: 16px;
+  }
+  .build-catalog .planned-divider span {
+    font-size: 5px;
+  }
+  .build-catalog .build-tabs button {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-inline: 4px;
+  }
+  .build-catalog .build-tabs button > span:last-child {
+    display: none;
+  }
+}
