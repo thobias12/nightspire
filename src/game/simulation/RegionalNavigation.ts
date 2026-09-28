@@ -1,5 +1,5 @@
 import type { Point } from './WorldState'
-import { cellKey } from './Navigation'
+const cellKey = (p: Point): number => (Math.round(p.z) + 512) * 1025 + Math.round(p.x) + 512
 
 /** One reusable A* workspace per shared navigation service, never per citizen. */
 export class RegionalRouter {
