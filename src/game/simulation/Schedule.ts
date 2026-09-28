@@ -45,7 +45,7 @@ export function nightTarget(
     return { target: homeTarget(state, settler), status: 'Guard reserve — no post' }
   }
 
-  if (phase === 'dusk' || phase === 'dawn') {
+  if (phase !== 'day') {
     const service = services ? services.get(settler.id) : serviceAssignment(state, settler, phase)
     if (service) return { target: service.target, status: 'Visiting ' + service.label }
   }
