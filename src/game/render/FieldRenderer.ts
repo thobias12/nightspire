@@ -307,32 +307,6 @@ export class FieldRenderer {
     }
   }
 
-  private renderRoadDressing(): void {
-    const surface = this.roadTerrain.surface
-    if (!surface) return
-    for (const p of surface.grass) {
-      this.instanceFn('roadGrass', p.x, 0.065 * p.scale, p.z, p.scale, p.scale * 0.6, p.scale, 0x64734d, p.angle)
-    }
-    for (const p of surface.stones) {
-      this.instanceFn('roadStone', p.x, 0.035, p.z, p.scale * 0.55, p.scale * 0.28, p.scale * 0.7, 0x777468, p.angle)
-    }
-  }
-  private samePlotPoint(a: Point, b: Point, epsilon = 0.08): boolean {
-    return Math.hypot(a.x - b.x, a.z - b.z) <= epsilon
-  }
-
-  private sharedSideNeighbor(plot: ResidentialPlot, endpoint: Point, plots: ResidentialPlot[]): ResidentialPlot | null {
-    return plots
-      .filter(candidate =>
-        candidate.id !== plot.id
-        && candidate.roadId === plot.roadId
-        && candidate.side === plot.side
-        && (this.samePlotPoint(candidate.frontageA, endpoint) || this.samePlotPoint(candidate.frontageB, endpoint))
-      )
-      .sort((a, b) => a.id - b.id)[0] ?? null
-  }
-
-
   updateSelection(field: FieldPlot | undefined, time: number): void {
     this.selection.visible = !!field
     if (!field) return
