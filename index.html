@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="./src/style.css?v=7991294f" />
     <link rel="stylesheet" href="./src/game/benchmark/benchmark.css" />
     <link rel="stylesheet" href="./src/manuscript-art.css?v=77b21371" />
+    <link rel="stylesheet" href="./src/construction-reference-layout.css?v=9fd5c01b" />
   </head>
   <body>
     <div id="app"></div>
@@ -65,7 +66,7 @@
 
       try {
         const entryUrl = new URL('./src/main.ts', location.href)
-        entryUrl.searchParams.set('runtime', 'all-features-77b21371')
+        entryUrl.searchParams.set('runtime', 'all-features-9fd5c01b')
         const entry = await compileModule(entryUrl.href)
         await import(entry)
       } catch (error) {
