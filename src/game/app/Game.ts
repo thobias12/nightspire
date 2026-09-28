@@ -509,7 +509,7 @@ export class Game {
     this.simulation.replace(deserializeWorld(text))
     this.renderer.focus.x = 0; this.renderer.focus.z = -1
     this.renderer.zoom = this.simulation.state.map ? 55 : 31
-    this.accumulator = 0; this.selectedId = null; this.planning.buildType = null; this.planning.tool = null; this.planning.start = null; this.planning.roadControlPoints = []; this.planning.roadDraft = []; this.planning.fieldControlPoints = []; this.planning.fieldDraft = []; this.planning.roadAngleSnap = false; this.planning.plotDraft = null; this.planning.dragStart = null; this.planning.dragPoints = []; this.planning.buildRotation = 0
+    this.accumulator = 0; this.selectedId = null; resetPlanningForImport(this.planning)
   }
   private roadCurveLabel(): string {
     if (this.planning.roadCurve <= 0.05) return 'Straight'
@@ -576,7 +576,7 @@ export class Game {
     const s = this.simulation.state
     for (const control of this.planning.roadControlPoints) insertRoadJunctionPoint(s.roads, control)
     s.roads.push({ id: s.nextId++, points, width: this.planning.roadWidth })
-    this.message = 'Road placed · ' + roadLength(points).toFixed(1) + 'm · ' + this.planning.roadCurveLabel()
+    this.message = 'Road placed · ' + roadLength(points).toFixed(1) + 'm · ' + this.roadCurveLabel()
       + ' · ' + this.planning.roadWidth.toFixed(1) + 'm. Click to start another road.'
     this.planning.start = null
     this.planning.roadControlPoints = []
@@ -756,8 +756,7 @@ export class Game {
           const exists = [...s.settlers, ...s.enemies, ...s.buildings, ...s.nodes, ...s.fields].some(candidate => candidate.id === id)
           if (!exists) { this.message = 'That object is no longer available.'; break }
           this.selectedId = id
-          this.planning.buildType = null
-          this.planning.tool = null
+          clearPlanningDrafts(this.planning)
           this.message = ''
           break
         }
@@ -767,18 +766,7 @@ export class Game {
             this.message = ''
             break
           }
-          this.planning.buildType = null
-          this.planning.tool = null
-          this.planning.start = null
-          this.planning.roadControlPoints = []
-          this.planning.roadDraft = []
-          this.planning.fieldControlPoints = []
-          this.planning.fieldDraft = []
-          this.planning.fieldCloseReady = false
-          this.planning.roadAngleSnap = false
-          this.planning.plotDraft = null
-          this.planning.dragStart = null
-          this.planning.dragPoints = []
+          clearPlanningDrafts(this.planning)
           this.message = ''
           break
         case 'close-selection':
@@ -786,18 +774,7 @@ export class Game {
           this.message = ''
           break
         case 'cancel':
-          this.planning.buildType = null
-          this.planning.tool = null
-          this.planning.start = null
-          this.planning.roadControlPoints = []
-          this.planning.roadDraft = []
-          this.planning.fieldControlPoints = []
-          this.planning.fieldDraft = []
-          this.planning.fieldCloseReady = false
-          this.planning.roadAngleSnap = false
-          this.planning.plotDraft = null
-          this.planning.dragStart = null
-          this.planning.dragPoints = []
+          clearPlanningDrafts(this.planning)
           this.message = 'Inspect mode. Click a settler, raider, resource or building.'
           break
         case 'remove-field': {
@@ -922,26 +899,12 @@ export class Game {
           break
         }
         case 'camera':
-          this.planning.buildType = null
-          this.planning.tool = null
-          this.planning.start = null
-          this.planning.roadControlPoints = []
-          this.planning.roadDraft = []
-          this.planning.plotDraft = null
-          this.planning.dragStart = null
-          this.planning.dragPoints = []
+          clearPlanningDrafts(this.planning)
           this.renderer.mode = this.renderer.mode === 'settlement' ? 'follow' : 'settlement'
           if (this.renderer.mode === 'follow') this.renderer.cinematic = false
           break
         case 'cinematic':
-          this.planning.buildType = null
-          this.planning.tool = null
-          this.planning.start = null
-          this.planning.roadControlPoints = []
-          this.planning.roadDraft = []
-          this.planning.plotDraft = null
-          this.planning.dragStart = null
-          this.planning.dragPoints = []
+          clearPlanningDrafts(this.planning)
           this.renderer.mode = 'settlement'
           this.renderer.cinematic = !this.renderer.cinematic
           if (this.renderer.cinematic) this.renderer.zoom = Math.min(this.renderer.zoom, 24)
@@ -1005,7 +968,7 @@ export class Game {
           const imported = deserializeWorld(value)
           const serialized = serializeWorld(imported)
           this.storePrimary(serialized)
-          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; this.planning.buildType = null; this.planning.tool = null; this.planning.start = null; this.planning.roadControlPoints = []; this.planning.roadDraft = []; this.planning.fieldControlPoints = []; this.planning.fieldDraft = []; this.planning.plotDraft = null; this.planning.dragStart = null; this.planning.dragPoints = []; this.planning.buildRotation = 0
+          this.simulation.replace(imported); this.accumulator = 0; this.selectedId = null; resetPlanningForImport(this.planning)
           this.message = 'Imported and loaded save. The previous primary save is in the backup slot.'
           break
         }
