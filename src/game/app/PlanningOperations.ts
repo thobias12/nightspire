@@ -31,6 +31,14 @@ export function undoRoadControlPoint(planning: PlanningState, state: WorldState)
     : 'Road draft cleared. Click to place a new start point.'
 }
 
+export function undoFieldControlPoint(planning: PlanningState): string | null {
+  if (planning.tool !== 'field' || !planning.fieldControlPoints.length) return null
+  planning.fieldControlPoints.pop()
+  planning.start = planning.fieldControlPoints[0] ?? null
+  planning.fieldDraft = [...planning.fieldControlPoints]
+  return planning.fieldControlPoints.length ? 'Removed last field corner.' : 'Field draft cleared.'
+}
+
 export function adjustRoadWidth(planning: PlanningState, direction: -1 | 1): string {
   const widths = [1.2, 1.7, 2.4]
   let index = widths.findIndex(width => Math.abs(width - planning.roadWidth) < 0.05)

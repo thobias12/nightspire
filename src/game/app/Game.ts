@@ -37,6 +37,7 @@ import { adjustTradeReserve, nextTradeMode, tradeModeLabel } from '../systems/ec
 import { Hud, type Metrics } from '../ui/Hud'
 import { runQaAction } from '../qa/QaActions'
 import { InputController } from './InputController'
+import { bindGameHotkeys } from './GameHotkeys'
 import { clearPlanningDrafts, createPlanningState, resetPlanningForImport } from './PlanningState'
 import {
   adjustRoadWidth as changeRoadWidth,
@@ -45,6 +46,7 @@ import {
   refreshRoadDraft as rebuildRoadDraft,
   roadCurveLabel,
   undoRoadControlPoint as removeRoadControlPoint,
+  undoFieldControlPoint as removeFieldControlPoint,
 } from './PlanningOperations'
 import { updatePlanningGhost } from './PlanningPresentation'
 
@@ -297,16 +299,8 @@ export class Game {
       if (this.planning.tool !== 'road' && this.planning.tool !== 'field') return
       e.preventDefault()
       if (this.planning.tool === 'field') {
-        if (this.planning.fieldControlPoints.length > 0) {
-          this.planning.fieldControlPoints.pop()
-          this.planning.start = this.planning.fieldControlPoints[0] ?? null
-          this.planning.fieldDraft = [...this.planning.fieldControlPoints]
-          this.message = this.planning.fieldControlPoints.length ? 'Removed last field corner.' : 'Field draft cleared.'
-          this.updateGhost()
-          this.updateHud()
-        } else {
-          this.action('cancel')
-        }
+        if (this.planning.fieldControlPoints.length > 0) this.undoFieldControlPoint()
+        else this.action('cancel')
         return
       }
       if (this.planning.roadControlPoints.length > 0) {
@@ -366,132 +360,17 @@ export class Game {
       }
       this.updateGhost(); this.updateHud()
     }, { signal })
-    window.addEventListener('keydown', e => {
-      if ((e.target as HTMLElement).matches('input, select, textarea, button')) return
-      if (e.key === '0') {
-        e.preventDefault()
-        this.action('road')
-        return
-      }
-      if (e.key === '1') {
-        e.preventDefault()
-        this.action('residential-plot')
-        return
-      }
-      const hotkeys: Record<string, BuildingId> = {
-        '2': 'stockpile',
-        '3': 'campfire',
-        '4': 'brewery',
-        '5': 'tavern',
-        '6': 'guard-post',
-        '7': 'wood-wall',
-        '8': 'wood-gate',
-        '9': 'blacksmith',
-      }
-      const hotkey = hotkeys[e.key]
-      if (hotkey) {
-        e.preventDefault()
-        this.action(hotkey)
-        return
-      }
-      if (e.key.toLowerCase() === 'm') {
-        e.preventDefault()
-        this.action('market')
-        return
-      }
-      if (e.key.toLowerCase() === 't') {
-        e.preventDefault()
-        this.action('trading-post')
-        return
-      }
-      if (e.key.toLowerCase() === 'a') {
-        e.preventDefault()
-        this.action('farmhouse')
-        return
-      }
-      if (e.key.toLowerCase() === 'p') {
-        e.preventDefault()
-        this.action('field')
-        return
-      }
-      if (this.planning.tool === 'road' && e.key === 'Shift') {
-        if (!this.planning.roadAngleSnap) {
-          this.planning.roadAngleSnap = true
-          this.refreshRoadDraft()
-          this.updateGhost()
-          this.updateHud()
-        }
-        return
-      }
-      if (this.planning.tool === 'road' && e.key === 'Backspace') {
-        e.preventDefault()
-        this.undoRoadControlPoint()
-        return
-      }
-      if (this.planning.tool === 'field' && e.key === 'Backspace') {
-        e.preventDefault()
-        if (this.planning.fieldControlPoints.length > 0) {
-          this.planning.fieldControlPoints.pop()
-          this.planning.start = this.planning.fieldControlPoints[0] ?? null
-          this.planning.fieldDraft = [...this.planning.fieldControlPoints]
-          this.message = this.planning.fieldControlPoints.length ? 'Removed last field corner.' : 'Field draft cleared.'
-          this.updateGhost(); this.updateHud()
-        }
-        return
-      }
-      if (this.planning.tool === 'road' && e.key === 'Enter') {
-        e.preventDefault()
-        this.finalizeRoadDraft()
-        return
-      }
-      if (this.planning.tool === 'field' && e.key === 'Enter') {
-        e.preventDefault()
-        this.finalizeFieldDraft()
-        return
-      }
-      if (this.planning.tool === 'road' && e.key === '[') {
-        e.preventDefault()
-        this.adjustRoadWidth(-1)
-        return
-      }
-      if (this.planning.tool === 'road' && e.key === ']') {
-        e.preventDefault()
-        this.adjustRoadWidth(1)
-        return
-      }
-      if (this.planning.tool === 'road' && e.key.toLowerCase() === 'c') {
-        e.preventDefault()
-        this.action('road-curve')
-        return
-      }
-      if (e.key.toLowerCase() === 'g') {
-        e.preventDefault()
-        this.action('grid-snap')
-        return
-      }
-      if (e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        this.action('road-snap')
-        return
-      }
-      if (e.key.toLowerCase() === 'r' && this.planning.buildType) {
-        e.preventDefault()
-        this.action('rotate-build')
-      }
-      if (e.key.toLowerCase() === 'v' && !this.planning.buildType && !this.planning.tool) {
-        e.preventDefault()
-        this.action('cinematic')
-      }
-    }, { signal })
-    window.addEventListener('keyup', e => {
-      if (e.key !== 'Shift' || !this.planning.roadAngleSnap) return
-      this.planning.roadAngleSnap = false
-      if (this.planning.tool === 'road') {
-        this.refreshRoadDraft()
-        this.updateGhost()
-        this.updateHud()
-      }
-    }, { signal })
+    bindGameHotkeys(this.planning, signal, {
+      action: this.action,
+      refreshRoadDraft: () => this.refreshRoadDraft(),
+      updateGhost: () => this.updateGhost(),
+      updateHud: () => this.updateHud(),
+      undoRoadControlPoint: () => this.undoRoadControlPoint(),
+      undoFieldControlPoint: () => this.undoFieldControlPoint(),
+      finalizeRoadDraft: () => this.finalizeRoadDraft(),
+      finalizeFieldDraft: () => this.finalizeFieldDraft(),
+      adjustRoadWidth: direction => this.adjustRoadWidth(direction),
+    })
     document.addEventListener('visibilitychange', () => { this.lastTime = 0; this.accumulator = 0 }, { signal })
     this.resizeObserver = new ResizeObserver(() => this.renderer.resize(root.clientWidth, root.clientHeight))
     this.resizeObserver.observe(root)
@@ -533,6 +412,14 @@ export class Game {
 
   private undoRoadControlPoint(): void {
     const message = removeRoadControlPoint(this.planning, this.simulation.state)
+    if (message === null) return
+    this.message = message
+    this.updateGhost()
+    this.updateHud()
+  }
+
+  private undoFieldControlPoint(): void {
+    const message = removeFieldControlPoint(this.planning)
     if (message === null) return
     this.message = message
     this.updateGhost()
