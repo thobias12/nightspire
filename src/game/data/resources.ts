@@ -9,3 +9,10 @@ export const RESOURCES = {
   tools: { label: 'Tools', workSeconds: 0, batch: 0, color: 0xb8c4cf },
 } as const
 export const RESOURCE_IDS: ResourceId[] = ['wood', 'food', 'ale', 'ore', 'tools']
+export const WOODCUTTING = {
+  wildTreeYield: 40,
+  managedTreeYield: 18,
+  fellStart: 0.42,
+  fellEnd: 0.96,
+  trunkStageMinRatio: 0.48,
+} as const

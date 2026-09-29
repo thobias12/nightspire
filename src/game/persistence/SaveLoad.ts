@@ -230,9 +230,13 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
     if (j.kind === 'gather') {
       const node = s.nodes.find(n => n.id === j.sourceId)
+      const targetDefinition = BUILDINGS[target.type]
+      const resourceOperation = targetDefinition.resourceOperation
+      const validGatherDestination = targetDefinition.storage > 0
+        || resourceOperation?.resource === j.resource
       check(node && node.resource === j.resource && !gatherers.has(node.id) && j.amount > 0, 'gather claim')
       check(j.stage === 'target' || node.remaining >= j.amount, 'exhausted claim')
-      check(target.complete && !target.destroyed && BUILDINGS[target.type].storage > 0, 'gather destination')
+      check(target.complete && !target.destroyed && validGatherDestination, 'gather destination')
       gatherers.add(node.id)
     } else if (j.kind === 'deliver') {
       const source = s.buildings.find(b => b.id === j.sourceId)
@@ -300,6 +304,13 @@ export function validateWorld(value: unknown): asserts value is WorldState {
 
   for (const b of s.buildings) {
     const def = BUILDINGS[b.type]
+    if (def.resourceOperation) {
+      const resource = def.resourceOperation.resource
+      const incoming = s.jobs
+        .filter(job => job.kind === 'gather' && job.targetId === b.id && job.resource === resource)
+        .reduce((sum, job) => sum + job.amount, 0)
+      check(b.inventory[resource] + incoming <= def.resourceOperation.outputCapacity, 'resource workplace buffer')
+    }
     check(s.settlers.filter(a => a.homeId === b.id).length <= (b.destroyed ? 0 : houseBedCapacity(b)), 'housing capacity')
     if (b.complete) {
       for (const resource of RESOURCE_IDS) {

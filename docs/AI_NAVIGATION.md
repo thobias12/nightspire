@@ -13,6 +13,7 @@ Read this first when changing Nightspire. It describes the **current code owners
 | build/cancel/demolish | `src/game/systems/construction/` | data/buildings, HUD |
 | jobs/reservations | `src/game/systems/jobs/` | economy/construction |
 | resources/production/trade | `src/game/systems/economy/` | data/resources, HUD |
+| tree felling / forestry visuals | `src/game/systems/economy/Woodcutting.ts` | `render/TreeRenderer.ts`, jobs, runtime |
 | settlers/services/workforce | `src/game/systems/population/` | runtime, HUD |
 | raids/combat | `src/game/systems/combat/` | runtime, renderer |
 | Three.js visuals | `src/game/render/` | do not add simulation rules |
@@ -105,6 +106,7 @@ Current ownership ledger:
 - `render/PlacementGhostRenderer.ts`: transient building/road/field/plot placement ghosts.
 - `render/PlanningOverlayRenderer.ts`: persistent construction/plot blueprint overlays.
 - `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
+- `render/TreeRenderer.ts`: harvestable tree model, felling/log-breakdown stages and woodcutter axe presentation.
 - `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
 - `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `ui/Hud.ts`: live HUD state/update orchestration and panel state.
@@ -119,6 +121,7 @@ Current ownership ledger:
 - `app/GameHotkeys.ts`: delegated build/planning keyboard shortcuts; movement/camera keys stay in `InputController.ts`.
 - `app/PlanningState.ts`: transient build/road/field planning state.
 - `app/PlanningOperations.ts`: road and field mutation/finalization, including shared undo operations.
+- `systems/economy/Woodcutting.ts`: renderer-independent tree yield/stage/status projection for physical woodcutting.
 - `app/PlanningPresentation.ts`: placement ghosts, preview validation and planning messages.
 - `app/Game.ts`: browser orchestration remains; pointer placement/controller extraction is the next cohesive split.
 
