@@ -53,7 +53,7 @@ Do **not** create barrel `index.ts` files for convenience. Direct imports are in
 2. Search usages before changing a shared model field/helper.
 3. Keep state serializable and renderer-independent.
 4. Update validation whenever persisted state changes.
-5. Run `npm run verify`.
+5. Run `npm run verify`. For regression-test changes, start from the matching `tests/simulation/*.test.mjs` domain file instead of the manifest.
 6. For Pages deployment, remember `gh-pages` contains live-only work and must not be blindly replaced by `main`.
 
 ## Navigation primitives
@@ -114,7 +114,8 @@ Current ownership ledger:
 - `ui/HudCatalog.ts`: build-card/catalog projection.
 - `ui/HudTypes.ts`: public HUD state/metrics contracts.
 - `ui/MedievalHud.css`: scoped presentation override; keep gameplay out of it.
-- `tests/simulation.test.mjs`: broad regression suite still shares one fixture/preamble.
+- `tests/simulation.test.mjs`: small manifest for the domain-split regression suite under `tests/simulation/`.
+- `tests/simulation/fixture.mjs`: shared compiled-game imports and simulation test helpers.
 - `app/GameHotkeys.ts`: delegated build/planning keyboard shortcuts; movement/camera keys stay in `InputController.ts`.
 - `app/PlanningState.ts`: transient build/road/field planning state.
 - `app/PlanningOperations.ts`: road and field mutation/finalization, including shared undo operations.
