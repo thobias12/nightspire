@@ -4,9 +4,7 @@ import ts from 'typescript'
 
 const root = resolve('src/game')
 const violations = []
-const warnings = []
 const runtimeGraph = new Map()
-const oversizedLegacy = new Set()
 
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -80,8 +78,7 @@ for (const file of files) {
 
   if (size > 80_000) {
     const description = `${relFile} (${Math.round(size / 1024)} KiB)`
-    if (oversizedLegacy.has(relFile)) warnings.push(`${description}: tracked legacy hotspot; split when touched`)
-    else violations.push(`${description}: module exceeds the 80 KiB navigation budget`)
+    violations.push(`${description}: module exceeds the 80 KiB navigation budget`)
   }
 
   const source = readFileSync(file, 'utf8')
@@ -148,11 +145,6 @@ function visit(file) {
 }
 
 for (const file of runtimeGraph.keys()) visit(file)
-
-if (warnings.length) {
-  console.log('Architecture warnings:')
-  for (const warning of warnings) console.log('  -', warning)
-}
 
 if (violations.length) {
   console.error('Architecture violations:')
