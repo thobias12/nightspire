@@ -40,7 +40,7 @@ Do **not** create barrel `index.ts` files for convenience. Direct imports are in
 
 ## Important hotspots
 
-- `app/Game.ts` is still a large interaction coordinator. Put domain rules in systems/world modules instead.
+- `app/Game.ts` remains the browser interaction coordinator; V6 moves build/planning keyboard shortcuts to `app/GameHotkeys.ts`, while pointer placement remains the next cohesive split. Put domain rules in systems/world modules instead.
 - `ui/Hud.ts` remains the largest UI coordinator, but V5 moved DOM event delegation into `ui/HudEvents.ts`; add new event wiring there instead of growing the constructor.
 - `render/SceneRenderer.ts` is now a focused scene/camera/light and sync coordinator; visual-family growth belongs in the specialized renderer modules.
 - `runtime/Simulation.ts` owns ordering only; detailed rules belong to domain systems.
@@ -75,6 +75,7 @@ Use the narrowest path that owns the behavior:
 | add economy/population/combat behavior | matching `systems/<domain>/` module | a new generic utility or simulation folder |
 | change placement/path geometry | `world/` | renderer-owned collision/game rules |
 | change HUD presentation | `ui/Hud.ts` + `ui/MedievalHud.css` | changing gameplay state from DOM/CSS |
+| change build/planning hotkeys | `app/GameHotkeys.ts` | `InputController.ts` unless movement/camera input also changes |
 
 ## Concurrent work protocol
 
@@ -114,10 +115,11 @@ Current ownership ledger:
 - `ui/HudTypes.ts`: public HUD state/metrics contracts.
 - `ui/MedievalHud.css`: scoped presentation override; keep gameplay out of it.
 - `tests/simulation.test.mjs`: broad regression suite still shares one fixture/preamble.
+- `app/GameHotkeys.ts`: delegated build/planning keyboard shortcuts; movement/camera keys stay in `InputController.ts`.
 - `app/PlanningState.ts`: transient build/road/field planning state.
-- `app/PlanningOperations.ts`: road and field mutation/finalization.
+- `app/PlanningOperations.ts`: road and field mutation/finalization, including shared undo operations.
 - `app/PlanningPresentation.ts`: placement ghosts, preview validation and planning messages.
-- `app/Game.ts`: browser orchestration remains; keyboard/pointer controllers are the next cohesive split.
+- `app/Game.ts`: browser orchestration remains; pointer placement/controller extraction is the next cohesive split.
 
 The architecture check rejects every TypeScript module above 80 KiB. HUD and SceneRenderer no longer have exceptions.
 
