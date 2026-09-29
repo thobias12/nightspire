@@ -1,5 +1,5 @@
 import * as fixture from './fixture.mjs'
-const { DEFAULT_NEEDS, PATH_BUDGET, PLAYER_ATTACK_RANGE, PLAYER_DAMAGE, RAIDER_DAMAGE, RAID_MAX_SIZE, RAID_SIZE, Simulation, assert, assignHousing, assignJobs, assignedGuardPost, blockedCells, canAcceptJob, cellKey, createBuilding, createInitialWorldState, damageBuilding, deserializeWorld, enemyTarget, enemyTargetBuilding, happinessEffect, happinessOf, house, phaseForTime, placeBuilding, placementError, pop10, raidSizeForWave, serializeWorld, serveDailyMeal, serviceAssignment, settlementHappinessEffect, settlementNeeds, target, test, updateNeeds, updateServices, validateWorld, workRateFor, workers } = fixture
+const { DEFAULT_NEEDS, PATH_BUDGET, PLAYER_ATTACK_RANGE, PLAYER_DAMAGE, RAIDER_DAMAGE, RAID_MAX_SIZE, RAID_SIZE, Simulation, assert, assignHousing, assignJobs, assignedGuardPost, blockedCells, canAcceptJob, cellKey, createBuilding, createInitialWorldState, damageBuilding, deserializeWorld, enemyTarget, enemyTargetBuilding, happinessEffect, happinessOf, phaseForTime, placeBuilding, placementError, pop10, raidSizeForWave, serializeWorld, serveDailyMeal, serviceAssignment, settlementHappinessEffect, settlementNeeds, test, updateNeeds, updateServices, validateWorld, workRateFor } = fixture
 
 test('day phase boundaries are deterministic', () => {
   assert.equal(phaseForTime(5/24),'dawn')

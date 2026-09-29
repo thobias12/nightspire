@@ -1,5 +1,5 @@
 import * as fixture from './fixture.mjs'
-const { MAX_SETTLERS, SETTLERS_PER_TOOL, Simulation, TOOL_WORK_BONUS_MAX, accountedTotal, aleBalance, assert, assignHousing, assignJobs, createBuilding, createInitialWorldState, deserializeWorld, forceImmigrationIfEligible, makeAttractive, pop10, populationAttraction, processImmigrationDay, serializeWorld, serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, staffWorkplace, target, test, toolCoverage, toolsBalance, updateProduction, updateServices, validateWorld, workers } = fixture
+const { MAX_SETTLERS, SETTLERS_PER_TOOL, Simulation, TOOL_WORK_BONUS_MAX, accountedTotal, aleBalance, assert, assignHousing, assignJobs, createBuilding, createInitialWorldState, deserializeWorld, forceImmigrationIfEligible, makeAttractive, pop10, populationAttraction, processImmigrationDay, serializeWorld, serviceAssignment, serviceAssignments, serviceAvailable, serviceSummary, staffWorkplace, test, toolCoverage, toolsBalance, updateProduction, updateServices, validateWorld } = fixture
 
 test('supplied Tavern outranks Campfire and exposes the stronger service to all ten settlers', () => {
   const s=createInitialWorldState(); pop10(s)
