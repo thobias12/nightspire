@@ -14,6 +14,7 @@ Read this first when changing Nightspire. It describes the **current live code o
 | construction lifecycle | `src/game/systems/construction/Construction.ts` | jobs/runtime |
 | jobs/reservations | `src/game/systems/jobs/` | economy/construction |
 | resources/production/trade | `src/game/systems/economy/` | data/resources, HUD |
+| tree felling / forestry visuals | `src/game/systems/economy/Woodcutting.ts` | `render/TreeRenderer.ts`, jobs, runtime |
 | settlers/families/services | `src/game/systems/population/` | runtime, HUD |
 | settlement/town progression | `src/game/systems/progression/` | population/HUD |
 | raids/combat | `src/game/systems/combat/` | runtime, renderer |
@@ -112,6 +113,7 @@ Current ownership ledger:
 - `render/PlacementGhostRenderer.ts`: transient building/road/field/plot placement ghosts.
 - `render/PlanningOverlayRenderer.ts`: persistent construction/plot blueprint overlays.
 - `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
+- `render/TreeRenderer.ts`: harvestable tree model, felling/log-breakdown stages and woodcutter axe presentation.
 - `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
 - `ui/Hud.ts`: live HUD state/update orchestration and panel state.
@@ -127,6 +129,7 @@ Current ownership ledger:
 - `app/GameHotkeys.ts`: delegated build/planning keyboard shortcuts; movement/camera keys stay in `InputController.ts`.
 - `app/PlanningState.ts`: transient build/road/field planning state.
 - `app/PlanningOperations.ts`: road and field mutation/finalization, including shared undo operations.
+- `systems/economy/Woodcutting.ts`: renderer-independent tree yield/stage/status projection for physical woodcutting.
 - `app/PlanningPresentation.ts`: placement ghosts, preview validation and planning messages.
 - `app/Game.ts`: browser orchestration remains; pointer placement/controller extraction is the next cohesive split.
 

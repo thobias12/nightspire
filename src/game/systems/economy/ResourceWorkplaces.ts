@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../../data/buildings'
+import { WOODCUTTING } from '../../data/resources'
 import type { DayPhase } from '../../runtime/DayNight'
 import { MAX_MAP_NODES, mapHash, worldHalf } from '../../world/MapGenerator'
 import { distance } from '../../world/Navigation'
@@ -21,6 +22,9 @@ export function updateResourceWorkplaces(state: WorldState, delta: number, phase
   for (const building of state.buildings) {
     const operation = activeOperation(building)
     if (!operation || !building.complete || building.destroyed) continue
+    // Foresters now create ordinary gather jobs so their workers physically travel,
+    // fell the tree, return timber to the lodge buffer, and let haulers move it onward.
+    if (building.type === 'foresters-lodge') continue
     if (phase !== 'day') continue
 
     const staffing = workplaceStaffing(state, building)
@@ -94,7 +98,7 @@ export function processForestryDay(state: WorldState): void {
     if (node.resource !== 'wood' || !node.planted || node.remaining > 0) continue
     node.growth = Math.min(1, (node.growth ?? 0) + SAPLING_GROWTH_PER_DAY)
     if (node.growth >= 1) {
-      node.remaining = 18
+      node.remaining = WOODCUTTING.managedTreeYield
       matured++
     }
   }

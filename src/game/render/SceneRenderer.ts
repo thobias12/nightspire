@@ -6,7 +6,7 @@ import { MAP_SIZE } from '../world/Navigation'
 import { raiderArchetype } from '../systems/combat/Raid'
 import { settlementTier } from '../systems/progression/TownProgression'
 import { plotCorners, residentialPlotWidth, type ResidentialPlotPreview } from '../world/TownPlanning'
-import type { Building, FieldPlot, Point, ResidentialPlot, WorldState } from '../model/WorldState'
+import type { Building, FieldPlot, Job, Point, ResidentialPlot, WorldState } from '../model/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
 import { residentialPresentationProfile, type ResidentialPresentationProfile } from './ResidentialPresentation'
 import { TOWN_PALETTE } from './TownPresentation'
@@ -17,6 +17,7 @@ import { PlacementGhostRenderer } from './PlacementGhostRenderer'
 import { FieldRenderer } from './FieldRenderer'
 import { PlanningOverlayRenderer } from './PlanningOverlayRenderer'
 import { TownBuildingRenderer } from './TownBuildingRenderer'
+import { TreeRenderer } from './TreeRenderer'
 
 export type CameraMode = 'settlement' | 'follow'
 
@@ -63,6 +64,7 @@ export class SceneRenderer {
   private readonly fieldRenderer: FieldRenderer
   private readonly planningOverlays: PlanningOverlayRenderer
   private readonly townRenderer: TownBuildingRenderer
+  private readonly treeRenderer: TreeRenderer
   private readonly ray = new THREE.Raycaster()
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
   private readonly dayColor = new THREE.Color(0x9eb7c9)
@@ -147,6 +149,11 @@ export class SceneRenderer {
       this.planningOverlays,
     )
 
+    this.treeRenderer = new TreeRenderer(
+      (name, x, y, z, sx, sy, sz, color, yaw, pitch, roll) =>
+        this.instance(name, x, y, z, sx, sy, sz, color, yaw, pitch, roll),
+    )
+
     this.addBatch('regionalCrown', new THREE.IcosahedronGeometry(1, 1), 0x465d39, 8192)
     this.addBatch('regionalTrunk', new THREE.CylinderGeometry(0.18, 0.3, 1, 5), 0x51402d, 4096)
     ;(this.batches.regionalCrown.material as THREE.MeshStandardMaterial).color.setHex(0xffffff)
@@ -154,6 +161,15 @@ export class SceneRenderer {
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 7), 0x354d36, 1600)
     this.addBatch('treeTrunk', new THREE.CylinderGeometry(0.14, 0.2, 1, 7), 0x4e3828, 1000)
     this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 1300)
+    this.addBatch('treeBole', new THREE.CylinderGeometry(0.15, 0.24, 1, 8), 0x503a2a, 4600)
+    this.addBatch('treeBranch', new THREE.CylinderGeometry(0.055, 0.09, 1, 6), 0x503a2a, 5200)
+    this.addBatch('treeCrown', new THREE.IcosahedronGeometry(0.72, 1), 0x40593a, 9200)
+    this.addBatch('treeStump', new THREE.CylinderGeometry(0.22, 0.27, 0.46, 8), 0x503a2a, 4600)
+    this.addBatch('treeCut', new THREE.CylinderGeometry(0.22, 0.22, 0.08, 8), 0xc59662, 5000)
+    this.addBatch('treeChip', new THREE.TetrahedronGeometry(0.11, 0), 0xb8804c, 6200)
+    this.addBatch('treeLog', new THREE.CylinderGeometry(0.17, 0.21, 1, 8).rotateZ(Math.PI / 2), 0x5b402d, 2600)
+    this.addBatch('axeHandle', new THREE.CylinderGeometry(0.025, 0.032, 1, 6), 0x6a472f, Math.max(80, agentCapacity * 2))
+    this.addBatch('axeHead', new THREE.BoxGeometry(0.28, 0.1, 0.07), 0x707980, Math.max(80, agentCapacity * 2))
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, Math.max(360, agentCapacity))
@@ -306,7 +322,7 @@ export class SceneRenderer {
 
   private instance(
     name: string, x: number, y: number, z: number,
-    sx = 1, sy = 1, sz = 1, color?: number, rotation = 0,
+    sx = 1, sy = 1, sz = 1, color?: number, rotation = 0, pitch = 0, roll = 0,
   ): void {
     // Decorative resource undergrowth may encroach on shoulders, but not cover
     // the worn corridor. Resource trunks/bushes themselves remain inspectable.
@@ -318,7 +334,7 @@ export class SceneRenderer {
     mesh.count++
     this.matrix.position.set(x, y, z)
     this.matrix.scale.set(sx, sy, sz)
-    this.matrix.rotation.set(0, rotation, 0)
+    this.matrix.rotation.set(pitch, rotation, roll)
     this.matrix.updateMatrix()
     mesh.setMatrixAt(i, this.matrix.matrix)
     mesh.setColorAt(i, this.instanceColor.setHex(color ?? this.batchColors[name]))
@@ -595,58 +611,25 @@ export class SceneRenderer {
       }
     }
 
+    const woodJobs = new Map<number, Job>()
+    for (const job of state.jobs) {
+      if (job.kind === 'gather' && job.resource === 'wood') woodJobs.set(job.sourceId, job)
+    }
+
     for (const n of state.nodes) {
       if (state.map && (n.x - this.focus.x) ** 2 + (n.z - this.focus.z) ** 2 > Math.max(90, this.zoom * 1.6) ** 2) continue
-      if (n.resource === 'wood' && n.planted && n.remaining <= 0 && (n.growth ?? 0) < 1) {
-        const growth = Math.max(0.15, n.growth ?? 0.15)
-        const scale = 0.28 + growth * 0.72
-        this.instance('treeTrunk', n.x, 0.48 * scale, n.z, 0.48 * scale, 0.95 * scale, 0.48 * scale, 0x563d2b, n.id * 0.17)
-        this.instance('wood', n.x, 1.08 * scale, n.z, 0.82 * scale, 0.72 * scale, 0.82 * scale, 0x496447, n.id * 0.23)
+      if (n.resource === 'wood') {
+        const far = !!state.map && (Math.hypot(n.x - this.focus.x, n.z - this.focus.z) > 80 || this.zoom > 150)
+        this.treeRenderer.renderNode(n, woodJobs.get(n.id), {
+          regional: !!state.map,
+          far,
+          night,
+          time,
+        })
         continue
       }
       if (n.remaining <= 0) continue
-      if (state.map && n.resource === 'wood') {
-        const scale = 1.3 + (n.id % 13) * 0.065
-        const far = Math.hypot(n.x - this.focus.x, n.z - this.focus.z) > 80 || this.zoom > 150
-        this.instance('regionalCrown', n.x, 2.8 * scale, n.z, 1.35 * scale, 1.6 * scale, 1.3 * scale, n.id % 3 === 0 ? 0x51643d : 0x3d5538, n.id)
-        if (!far) {
-          this.instance('regionalTrunk', n.x, 1.2 * scale, n.z, scale, 2.4 * scale, scale)
-          this.instance('regionalCrown', n.x + 0.7, 2.5 * scale, n.z + 0.35, scale, scale, scale, 0x4a603b, n.id * 0.7)
-        }
-        continue
-      }
-      if (n.resource === 'wood') {
-        const jitterX = Math.sin(n.id * 12.9898) * 0.3
-        const jitterZ = Math.cos(n.id * 7.233) * 0.3
-        const scale = 0.86 + (n.id % 7) * 0.045
-        const trunkX = n.x + jitterX
-        const trunkZ = n.z + jitterZ
-        this.instance('treeTrunk', trunkX, 0.84, trunkZ, 0.86 * scale, 1.7 * scale, 0.86 * scale, 0x493527, n.id * 0.13)
-        this.instance('wood', trunkX, 1.72, trunkZ, 1.08 * scale, 0.78 * scale, 1.08 * scale, n.id % 3 === 0 ? 0x3c553a : 0x344b35, n.id * 0.11)
-        this.instance('wood', trunkX + 0.1, 2.42, trunkZ - 0.06, 0.82 * scale, 0.6 * scale, 0.82 * scale, n.id % 4 === 0 ? 0x496044 : 0x3b5239, n.id * 0.19)
-        const crownOffset = n.id % 2 === 0 ? 0.28 : -0.24
-        this.instance('wood', trunkX + crownOffset, 2.05, trunkZ + 0.16, 0.58 * scale, 0.48 * scale, 0.58 * scale, n.id % 5 === 0 ? 0x465f45 : 0x395139, n.id * 0.31)
-
-        for (let bush = 0; bush < (n.id % 3 === 0 ? 2 : 1); bush++) {
-          this.instance(
-            'underbrush',
-            trunkX + Math.sin(n.id * 0.9 + bush * 2.4) * (0.58 + bush * 0.22),
-            0.2,
-            trunkZ + Math.cos(n.id * 1.2 + bush * 1.7) * (0.52 + bush * 0.2),
-            0.68 - bush * 0.08,
-            0.4,
-            0.68 - bush * 0.08,
-            bush === 0 ? 0x4a6347 : 0x536c4b,
-            n.id * 0.29 + bush,
-          )
-        }
-        if (n.id % 7 === 0) {
-          this.instance('logs', trunkX + 0.78, 0.16, trunkZ - 0.62, 0.78, 0.65, 0.65, 0x60432f, n.id * 0.17)
-        }
-        if (night > 0.12) {
-          this.instance('treeMoon', trunkX + 0.12, 2.66, trunkZ - 0.12, 0.78 * scale, 0.64 * scale, 0.78 * scale, 0x60758a, n.id * 0.17)
-        }
-      } else if (n.resource === 'food') {
+      if (n.resource === 'food') {
         const visualX = n.x + Math.sin(n.id * 1.93) * 0.34
         const visualZ = n.z + Math.cos(n.id * 1.57) * 0.34
         const scale = 0.78 + (n.id % 5) * 0.075
@@ -670,12 +653,18 @@ export class SceneRenderer {
       const buildTarget = activeJob?.kind === 'construct' && activeJob.stage === 'work'
         ? state.buildings.find(building => building.id === activeJob.targetId)
         : undefined
+      const woodNode = activeJob?.kind === 'gather' && activeJob.resource === 'wood' && activeJob.stage === 'work'
+        ? state.nodes.find(node => node.id === activeJob.sourceId)
+        : undefined
       const facing = buildTarget
         ? Math.atan2(buildTarget.x - a.x, buildTarget.z - a.z)
-        : a.path.length
-          ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z)
-          : (a.id % 8) * Math.PI / 4
+        : woodNode
+          ? Math.atan2(woodNode.x - a.x, woodNode.z - a.z)
+          : a.path.length
+            ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z)
+            : (a.id % 8) * Math.PI / 4
       this.townRenderer.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing)
+      if (woodNode && activeJob) this.treeRenderer.renderWoodcutter(a, woodNode, activeJob, time)
       this.healthBar(a.x, 1.62, a.z, a.health, a.maxHealth, 0.8)
 
       const resource = RESOURCE_IDS.find(resource => a.cargo[resource] > 0) ?? null

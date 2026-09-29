@@ -22,6 +22,7 @@ import { serveDailyMeal, updateNeeds } from '../systems/population/Needs'
 import { processImmigrationDay } from '../systems/population/Population'
 import { updateProduction } from '../systems/economy/Production'
 import { processForestryDay, updateResourceWorkplaces } from '../systems/economy/ResourceWorkplaces'
+import { woodcuttingStatus } from '../systems/economy/Woodcutting'
 import { serviceAssignments, updateServices, type ServiceAssignment } from '../systems/population/Services'
 import { toolCoverage } from '../systems/economy/Tools'
 import { processMerchantTrade, scheduleMerchantVisit } from '../systems/economy/Trading'
@@ -554,14 +555,14 @@ export class Simulation {
     }
 
     if (job.kind === 'gather') {
-      settler.status = 'Gathering ' + job.resource
-      if (job.progress + 1e-8 < RESOURCES[job.resource].workSeconds) return
-
       const node = s.nodes.find(n => n.id === job.sourceId)
       if (!node || node.remaining < job.amount) {
         finishJob(s, settler, job)
         return
       }
+
+      settler.status = job.resource === 'wood' ? woodcuttingStatus(node) : 'Gathering ' + job.resource
+      if (job.progress + 1e-8 < RESOURCES[job.resource].workSeconds) return
 
       node.remaining -= job.amount
       settler.cargo[job.resource] = job.amount

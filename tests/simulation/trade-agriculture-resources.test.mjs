@@ -171,6 +171,7 @@ const {
   makeAttractive,
   staffWorkplace
 } = fixture
+const { woodVisualState } = require('../../.test-build/game/systems/economy/Woodcutting.js')
 
 test('M3.11.6 new settlements use Gold and default every trade policy to Keep', () => {
   const s=createInitialWorldState()
@@ -530,11 +531,26 @@ test('Foresters, Miners and Fishers run staffed resource operations with bounded
   worker.workplaceId = lodge.id
   const lodgeDoor = entrance(lodge)
   worker.x = lodgeDoor.x; worker.z = lodgeDoor.z
-  const tree = { id: state.nextId++, x: target.x + 4, z: target.z, resource: 'wood', remaining: 3 }
+  const tree = { id: state.nextId++, x: target.x + 4, z: target.z, resource: 'wood', remaining: 40 }
   state.nodes.push(tree)
+  assignJobs(state)
+  const foresterJob = state.jobs.find(job => job.settlerId === worker.id)
+  assert.ok(foresterJob)
+  assert.equal(foresterJob.kind, 'gather')
+  assert.equal(foresterJob.resource, 'wood')
+  assert.equal(foresterJob.sourceId, tree.id)
+  assert.equal(foresterJob.targetId, lodge.id)
+  assert.equal(tree.remaining, 40)
+  assert.equal(lodge.inventory.wood, 0)
+
   updateResourceWorkplaces(state, 18, 'day')
-  assert.equal(lodge.inventory.wood, 1)
-  assert.equal(tree.remaining, 2)
+  assert.equal(tree.remaining, 40)
+  assert.equal(lodge.inventory.wood, 0)
+
+  state.jobs = state.jobs.filter(job => job.settlerId !== worker.id)
+  worker.jobId = null
+  worker.path = []
+  worker.pathRevision = -1
 
   const mine = createBuilding(state.nextId++, 'mine', -8, 8, true)
   state.buildings.push(mine)
@@ -578,6 +594,69 @@ test('Foresters replant exhausted tree stands and managed saplings mature over m
   const restored = deserializeWorld(serializeWorld(state))
   assert.equal(restored.nodes.find(node => node.id === exhausted.id).planted, true)
   assert.equal(restored.nodes.find(node => node.id === exhausted.id).remaining, 18)
+})
+
+test('physical woodcutting exposes standing, falling, trunk, rounds and stump stages', () => {
+  const node={id:900,x:4,z:4,resource:'wood',remaining:40}
+  assert.equal(woodVisualState(node).stage,'standing')
+
+  const job={
+    id:901,kind:'gather',settlerId:1,sourceId:node.id,targetId:2,
+    resource:'wood',amount:5,stage:'work',progress:2.15,
+  }
+  const falling=woodVisualState(node,job)
+  assert.equal(falling.stage,'felling')
+  assert.ok(falling.fallProgress>0 && falling.fallProgress<1)
+
+  node.remaining=35
+  assert.equal(woodVisualState(node).stage,'trunk')
+  node.remaining=15
+  assert.equal(woodVisualState(node).stage,'rounds')
+  node.remaining=0
+  assert.equal(woodVisualState(node).stage,'stump')
+
+  const managed={id:902,x:5,z:5,resource:'wood',remaining:18,planted:true,growth:1}
+  assert.equal(woodVisualState(managed).stage,'standing')
+})
+
+test('Forester physically fells a reserved tree and returns a five-wood batch to the lodge', () => {
+  const state=createInitialWorldState()
+  state.nodes=[]
+  state.targets={wood:0,food:0,ale:0,ore:0,tools:0}
+  const lodge=createBuilding(state.nextId++,'foresters-lodge',8,8,true)
+  state.buildings.push(lodge)
+  const worker=state.settlers[0]
+  worker.workplaceId=lodge.id
+  const lodgeDoor=entrance(lodge)
+  worker.x=lodgeDoor.x; worker.z=lodgeDoor.z
+  const tree={id:state.nextId++,x:12,z:8,resource:'wood',remaining:40}
+  state.nodes.push(tree)
+
+  assignJobs(state)
+  const job=state.jobs.find(candidate=>candidate.settlerId===worker.id)
+  assert.ok(job)
+  assert.equal(job.kind,'gather')
+  assert.equal(job.amount,5)
+  assert.equal(job.targetId,lodge.id)
+
+  const sim=new Simulation(state)
+  worker.x=tree.x; worker.z=tree.z
+  job.stage='work'
+  job.progress=3
+  sim.step()
+  assert.equal(tree.remaining,35)
+  assert.equal(worker.cargo.wood,5)
+  assert.equal(job.stage,'target')
+  assert.equal(woodVisualState(tree).stage,'trunk')
+
+  worker.x=lodgeDoor.x; worker.z=lodgeDoor.z
+  worker.path=[]
+  worker.pathRevision=-1
+  sim.step()
+  assert.equal(lodge.inventory.wood,5)
+  assert.equal(worker.cargo.wood,0)
+  assert.equal(worker.jobId,null)
+  validateWorld(state)
 })
 
 test('Ore Yard is dedicated mineral storage and Pleasure House is a staffed safe-night service', () => {
