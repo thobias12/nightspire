@@ -11,6 +11,7 @@
 - `app/` coordinates browser input, UI, rendering and runtime.
 - `render/` and `ui/` present state; they do not own gameplay rules.
 - direct imports are preferred over barrels because the live Pages loader is sensitive to circular module graphs.
+- `npm run check:architecture` enforces an 80 KiB maximum for every TypeScript module, rejects runtime import cycles and has no legacy size exceptions.
 - the live branch additionally owns `systems/population/Family.ts`, `systems/construction/Construction.ts`, and `systems/progression/TownProgression.ts`.
 
 # Architecture principles

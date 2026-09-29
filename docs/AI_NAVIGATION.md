@@ -47,11 +47,11 @@ Do **not** create barrel `index.ts` files just for convenience. Direct imports m
 ## Hotspots
 
 - `app/Game.ts` is still a large interaction coordinator. Put domain rules in systems/world modules.
-- `ui/Hud.ts` is still oversized. Search for the panel/update method rather than reading it end-to-end.
-- `render/SceneRenderer.ts` is still oversized. Extract cohesive rendering helpers when a visual family grows.
+- `ui/Hud.ts` remains the largest UI coordinator, but V5 moved DOM event delegation into `ui/HudEvents.ts`; add new event wiring there instead of growing the constructor.
+- `render/SceneRenderer.ts` is now a focused scene/camera/light and sync coordinator; visual-family growth belongs in the specialized renderer modules.
 - `runtime/Simulation.ts` owns ordering only.
 
-`npm run check:architecture` rejects a recreated generic `simulation/` folder and forbidden upward dependencies, while reporting oversized modules for incremental cleanup.
+`npm run check:architecture` hard-fails any TypeScript module above 80 KiB, runtime import cycles, the old generic `simulation/` folder, barrel `index.ts` files and forbidden dependency directions. There are no size exceptions.
 
 ## Safe change workflow
 
@@ -105,7 +105,7 @@ Already extracted:
 - `world/Grid.ts`: low-level packed-grid helpers shared without navigation cycles.
 - `data/map.ts`: persisted region schema separated from procedural generation.
 
-Tracked legacy hotspots:
+Current ownership ledger:
 
 - `render/SceneRenderer.ts`: world/camera/lighting orchestration, shared batches, road evolution and world sync.
 - `render/PlacementGhostRenderer.ts`: transient building/road/field/plot placement ghosts.
@@ -113,7 +113,8 @@ Tracked legacy hotspots:
 - `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
 - `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
-- `ui/Hud.ts`: live HUD state/update orchestration and event binding.
+- `ui/Hud.ts`: live HUD state/update orchestration and panel state.
+- `ui/HudEvents.ts`: delegated DOM/window event wiring and transient drag gesture state.
 - `ui/HudTemplate.ts`: static DOM shell only.
 - `ui/HudContent.ts`: labels, descriptions and reusable HTML fragments.
 - `ui/HudCatalog.ts`: build-card/catalog projection.
