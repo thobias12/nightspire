@@ -37,6 +37,7 @@ import {
 } from './HudContent'
 import { createHudTemplate } from './HudTemplate'
 import { catalogPreviewFor } from './HudCatalog'
+import { bindHudEvents } from './HudEvents'
 
 export type { Metrics, HudState } from './HudTypes'
 import type { HudState } from './HudTypes'
@@ -55,8 +56,6 @@ export class Hud {
   private lastFloatingSelectionId: number | null = null
   private inspectorManuallyPositioned = false
   private inspectorAutoPositioned = false
-  private draggedPanel: { panel: HTMLElement; pointerId: number; offsetX: number; offsetY: number } | null = null
-
   constructor(root: HTMLElement, action: (action: string, value?: string) => void) {
     this.element.className = 'hud medieval-hud'
     this.element.innerHTML = createHudTemplate()
@@ -68,141 +67,29 @@ export class Hud {
     }
     this.syncBuildMenu()
 
-    const signal = this.abort.signal
-    this.element.addEventListener('toggle', event => {
-      const details = event.target as HTMLDetailsElement
-      if (details.matches('.operation-details')) this.operationDetailsOpen = details.open
-    }, { capture: true, signal })
-    this.element.addEventListener('click', e => {
-      const target = e.target as HTMLElement
-      const minimap = target.closest<HTMLElement>('#minimap-map')
-      if (minimap) {
-        const rect = minimap.getBoundingClientRect()
-        action('map-focus', ((e.clientX - rect.left) / rect.width * 2 - 1) + ',' + ((e.clientY - rect.top) / rect.height * 2 - 1))
-        return
-      }
-      if (target.closest('[data-drag-only]')) { e.preventDefault(); return }
-      const roster = target.closest<HTMLButtonElement>('button[data-roster]')
-      if (roster) { this.rosterPage = Math.max(0, this.rosterPage + Number(roster.dataset.roster)); return }
-
-      const hudToggle = target.closest<HTMLButtonElement>('button[data-hud-toggle]')
-      if (hudToggle?.dataset.hudToggle === 'build-menu') {
+    bindHudEvents(this.element, this.abort.signal, {
+      action,
+      setOperationDetailsOpen: open => { this.operationDetailsOpen = open },
+      moveRosterPage: delta => { this.rosterPage = Math.max(0, this.rosterPage + delta) },
+      toggleBuildMenu: () => {
         this.buildMenuOpen = !this.buildMenuOpen
         this.syncBuildMenu()
-        return
-      }
-
-      const buildTab = target.closest<HTMLButtonElement>('button[data-build-tab]')
-      if (buildTab?.dataset.buildTab) {
-        this.activeBuildTab = buildTab.dataset.buildTab
+      },
+      selectBuildTab: tab => {
+        this.activeBuildTab = tab
         this.buildMenuOpen = true
         this.syncBuildMenu()
-        return
-      }
-
-      const contextTab = target.closest<HTMLButtonElement>('button[data-context-tab]')
-      if (contextTab?.dataset.contextTab) {
-        this.activeContextTab = contextTab.dataset.contextTab
+      },
+      selectContextTab: tab => {
+        this.activeContextTab = tab
         this.syncContextTabs()
-        return
-      }
-
-      const plannedCard = target.closest<HTMLButtonElement>('.build-card.is-planned[aria-disabled="true"]')
-      if (plannedCard) {
-        e.preventDefault()
-        this.showBuildPreview(plannedCard)
-        return
-      }
-
-      const button = target.closest<HTMLButtonElement>('button[data-action]')
-      if (button?.dataset.action === 'new-region') {
-        const input = (id: string) => this.element.querySelector<HTMLInputElement>('#' + id)!.value
-        action('new-region', JSON.stringify({ seed: Number(input('map-seed')), size: Number(input('map-size')), landscape: input('map-landscape') }))
-      } else if (button) action(button.dataset.action!, button.dataset.value)
-    }, { signal })
-
-    this.element.addEventListener('pointerover', e => {
-      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
-      if (card) this.showBuildPreview(card)
-    }, { signal })
-
-    this.element.addEventListener('pointerout', e => {
-      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
-      if (!card) return
-      const next = e.relatedTarget as Node | null
-      if (next && card.contains(next)) return
-      this.hideBuildPreview()
-    }, { signal })
-
-    this.element.addEventListener('focusin', e => {
-      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
-      if (card) this.showBuildPreview(card)
-    }, { signal })
-
-    this.element.addEventListener('focusout', e => {
-      const card = (e.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
-      if (!card) return
-      const next = e.relatedTarget as Node | null
-      if (next && card.contains(next)) return
-      this.hideBuildPreview()
-    }, { signal })
-
-    this.element.addEventListener('change', e => {
-      const input = e.target as HTMLInputElement
-      if (!input.dataset.action) return
-      if (input.dataset.action === 'import-save') {
-        const file = input.files?.[0]
-        if (!file) return
-        file.text().then(text => action('import-save', text)).catch(error => action('import-error', String(error)))
-        input.value = ''
-        return
-      }
-      action(input.dataset.action, input.type === 'checkbox' ? String(input.checked) : input.value)
-    }, { signal })
-
-    this.element.addEventListener('pointerdown', e => {
-      if (e.button !== 0) return
-      const target = e.target as HTMLElement
-      if (target.closest('button, input, select, textarea, a')) return
-      const handle = target.closest<HTMLElement>('[data-drag-handle]')
-      const panel = handle?.closest<HTMLElement>('[data-draggable-panel]')
-      if (!handle || !panel) return
-
-      const rect = panel.getBoundingClientRect()
-      panel.classList.add('is-user-positioned', 'is-dragging')
-      panel.style.position = 'fixed'
-      panel.style.left = rect.left + 'px'
-      panel.style.top = rect.top + 'px'
-      panel.style.right = 'auto'
-      panel.style.bottom = 'auto'
-      panel.style.margin = '0'
-      panel.style.transform = 'none'
-      if (panel.dataset.panelId === 'inspector') this.inspectorManuallyPositioned = true
-      this.draggedPanel = {
-        panel,
-        pointerId: e.pointerId,
-        offsetX: e.clientX - rect.left,
-        offsetY: e.clientY - rect.top,
-      }
-      e.preventDefault()
-    }, { signal })
-
-    window.addEventListener('pointermove', e => {
-      const drag = this.draggedPanel
-      if (!drag || drag.pointerId !== e.pointerId) return
-      this.placeFloatingPanel(drag.panel, e.clientX - drag.offsetX, e.clientY - drag.offsetY)
-      e.preventDefault()
-    }, { signal })
-
-    const endPanelDrag = (e: PointerEvent) => {
-      const drag = this.draggedPanel
-      if (!drag || drag.pointerId !== e.pointerId) return
-      drag.panel.classList.remove('is-dragging')
-      this.draggedPanel = null
-    }
-    window.addEventListener('pointerup', endPanelDrag, { signal })
-    window.addEventListener('pointercancel', endPanelDrag, { signal })
-    window.addEventListener('resize', () => this.clampFloatingPanels(), { signal })
+      },
+      showBuildPreview: card => this.showBuildPreview(card),
+      hideBuildPreview: () => this.hideBuildPreview(),
+      markInspectorPositioned: () => { this.inspectorManuallyPositioned = true },
+      placeFloatingPanel: (panel, left, top) => this.placeFloatingPanel(panel, left, top),
+      clampFloatingPanels: () => this.clampFloatingPanels(),
+    })
   }
 
   private placeFloatingPanel(panel: HTMLElement, left: number, top: number): void {
