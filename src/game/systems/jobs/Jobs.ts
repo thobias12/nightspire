@@ -48,6 +48,61 @@ function gatherNeed(state: WorldState, resource: ResourceId, index: JobReservati
   return Math.max(0, state.targets[resource] + construction + repair + supply - availableStock - inbound)
 }
 
+function assignForesterHarvest(
+  state: WorldState,
+  settler: Settler,
+  lodge: Building,
+  index: JobReservations,
+): boolean {
+  const operation = BUILDINGS[lodge.type].resourceOperation
+  if (!operation || operation.resource !== 'wood') return false
+
+  const morale = happinessEffect(settler)
+  if (morale.refusesNonessential) {
+    settler.status = morale.label + ' — essentials only'
+    return false
+  }
+
+  const free = Math.max(0, operation.outputCapacity - lodge.inventory.wood - index.incoming(lodge.id))
+  if (free <= 0) {
+    settler.status = 'Forester timber yard full'
+    return false
+  }
+
+  const node = state.nodes
+    .filter(candidate =>
+      candidate.resource === 'wood'
+      && candidate.remaining > 0
+      && !index.gatherSources.has(candidate.id)
+      && distance(candidate, lodge) <= operation.radius,
+    )
+    .sort((a, b) => distance(settler, a) - distance(settler, b) || a.id - b.id)[0]
+
+  if (!node) {
+    settler.status = 'No mature trees in lodge range'
+    return false
+  }
+
+  const job: Job = {
+    id: state.nextId++,
+    kind: 'gather',
+    settlerId: settler.id,
+    sourceId: node.id,
+    targetId: lodge.id,
+    resource: 'wood',
+    amount: Math.min(CARRY_CAPACITY, node.remaining, free),
+    stage: 'source',
+    progress: 0,
+  }
+  state.jobs.push(job)
+  index.add(job)
+  settler.jobId = job.id
+  settler.path = []
+  settler.pathRevision = -1
+  settler.status = 'Walking to fell timber'
+  return true
+}
+
 // Reservations are derived from active jobs, so there is no second reservation ledger to drift.
 export function assignJobs(state: WorldState): void {
   const index = new JobReservations(state.jobs)
@@ -63,7 +118,11 @@ export function assignJobs(state: WorldState): void {
 
   for (const settler of state.settlers) {
     if (settler.jobId !== null || settler.health <= 0 || settler.arrivalTarget !== null) continue
-    if (activeWorkplace(state, settler)) continue
+    const workplace = activeWorkplace(state, settler)
+    if (workplace) {
+      if (workplace.type === 'foresters-lodge') assignForesterHarvest(state, settler, workplace, index)
+      continue
+    }
 
     const options: Array<{ job: Omit<Job, 'id' | 'settlerId'>; score: number }> = []
     const morale = happinessEffect(settler)
