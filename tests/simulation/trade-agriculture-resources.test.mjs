@@ -171,7 +171,7 @@ const {
   makeAttractive,
   staffWorkplace
 } = fixture
-const { woodVisualState } = require('../../.test-build/game/systems/economy/Woodcutting.js')
+const { activeWoodTreePoint, woodHarvestedTreeCount, woodVisualState } = require('../../.test-build/game/systems/economy/Woodcutting.js')
 
 test('M3.11.6 new settlements use Gold and default every trade policy to Keep', () => {
   const s=createInitialWorldState()
@@ -596,27 +596,39 @@ test('Foresters replant exhausted tree stands and managed saplings mature over m
   assert.equal(restored.nodes.find(node => node.id === exhausted.id).remaining, 18)
 })
 
-test('physical woodcutting exposes standing, falling, trunk, rounds and stump stages', () => {
+test('physical woodcutting treats a resource node as a small stand of individual timber trees', () => {
   const node={id:900,x:4,z:4,resource:'wood',remaining:40}
-  assert.equal(woodVisualState(node).stage,'standing')
+  const standing=woodVisualState(node)
+  assert.equal(standing.stage,'standing')
+  assert.equal(standing.treeCount,8)
+  assert.equal(standing.harvestedTrees,0)
+  const firstTree=activeWoodTreePoint(node)
 
   const job={
     id:901,kind:'gather',settlerId:1,sourceId:node.id,targetId:2,
-    resource:'wood',amount:5,stage:'work',progress:2.15,
+    resource:'wood',amount:5,stage:'work',progress:2.8,
   }
   const falling=woodVisualState(node,job)
   assert.equal(falling.stage,'felling')
   assert.ok(falling.fallProgress>0 && falling.fallProgress<1)
 
+  job.progress=4.2
+  const debranching=woodVisualState(node,job)
+  assert.equal(debranching.stage,'debranching')
+  assert.ok(debranching.debranchProgress>0)
+
   node.remaining=35
-  assert.equal(woodVisualState(node).stage,'trunk')
-  node.remaining=15
-  assert.equal(woodVisualState(node).stage,'rounds')
+  assert.equal(woodHarvestedTreeCount(node),1)
+  assert.notDeepEqual(activeWoodTreePoint(node),firstTree)
+  assert.equal(woodVisualState(node).stage,'standing')
+
   node.remaining=0
-  assert.equal(woodVisualState(node).stage,'stump')
+  const cleared=woodVisualState(node)
+  assert.equal(cleared.stage,'stump')
+  assert.equal(cleared.harvestedTrees,8)
 
   const managed={id:902,x:5,z:5,resource:'wood',remaining:18,planted:true,growth:1}
-  assert.equal(woodVisualState(managed).stage,'standing')
+  assert.equal(woodVisualState(managed).treeCount,4)
 })
 
 test('Forester physically fells a reserved tree and returns a five-wood batch to the lodge', () => {
@@ -642,12 +654,13 @@ test('Forester physically fells a reserved tree and returns a five-wood batch to
   const sim=new Simulation(state)
   worker.x=tree.x; worker.z=tree.z
   job.stage='work'
-  job.progress=3
+  job.progress=5
   sim.step()
   assert.equal(tree.remaining,35)
   assert.equal(worker.cargo.wood,5)
   assert.equal(job.stage,'target')
-  assert.equal(woodVisualState(tree).stage,'trunk')
+  assert.equal(woodHarvestedTreeCount(tree),1)
+  assert.equal(woodVisualState(tree).stage,'standing')
 
   worker.x=lodgeDoor.x; worker.z=lodgeDoor.z
   worker.path=[]
