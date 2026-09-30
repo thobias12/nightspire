@@ -18,6 +18,7 @@ import { FieldRenderer } from './FieldRenderer'
 import { PlanningOverlayRenderer } from './PlanningOverlayRenderer'
 import { TownBuildingRenderer } from './TownBuildingRenderer'
 import { TreeRenderer } from './TreeRenderer'
+import { activeWoodTreePoint } from '../systems/economy/Woodcutting'
 
 export type CameraMode = 'settlement' | 'follow'
 
@@ -55,6 +56,8 @@ export class SceneRenderer {
     'braceL', 'braceR', 'cartWheel',
     'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'adultHairLong', 'adultArm', 'adultLeg', 'adultBodice',
     'guardCoat', 'entertainer',
+    'treeBole', 'treeBranch', 'treeCrown', 'treeStump', 'treeCut', 'treeLog', 'axeHandle', 'axeHead',
+    'draftOxBody', 'draftOxHead', 'draftOxLeg', 'draftOxHorn', 'draftYoke',
     'foundation', 'scaffold', 'debris',
   ])
   private readonly geometry = new THREE.BoxGeometry(1, 1, 1)
@@ -161,15 +164,20 @@ export class SceneRenderer {
     this.addBatch('wood', new THREE.ConeGeometry(0.65, 2.8, 7), 0x354d36, 1600)
     this.addBatch('treeTrunk', new THREE.CylinderGeometry(0.14, 0.2, 1, 7), 0x4e3828, 1000)
     this.addBatch('underbrush', new THREE.DodecahedronGeometry(0.45, 0), 0x496246, 1300)
-    this.addBatch('treeBole', new THREE.CylinderGeometry(0.15, 0.24, 1, 8), 0x503a2a, 4600)
-    this.addBatch('treeBranch', new THREE.CylinderGeometry(0.055, 0.09, 1, 6), 0x503a2a, 5200)
-    this.addBatch('treeCrown', new THREE.IcosahedronGeometry(0.72, 1), 0x40593a, 9200)
-    this.addBatch('treeStump', new THREE.CylinderGeometry(0.22, 0.27, 0.46, 8), 0x503a2a, 4600)
-    this.addBatch('treeCut', new THREE.CylinderGeometry(0.22, 0.22, 0.08, 8), 0xc59662, 5000)
-    this.addBatch('treeChip', new THREE.TetrahedronGeometry(0.11, 0), 0xb8804c, 6200)
-    this.addBatch('treeLog', new THREE.CylinderGeometry(0.17, 0.21, 1, 8).rotateZ(Math.PI / 2), 0x5b402d, 2600)
-    this.addBatch('axeHandle', new THREE.CylinderGeometry(0.025, 0.032, 1, 6), 0x6a472f, Math.max(80, agentCapacity * 2))
-    this.addBatch('axeHead', new THREE.BoxGeometry(0.28, 0.1, 0.07), 0x707980, Math.max(80, agentCapacity * 2))
+    this.addBatch('treeBole', new THREE.CylinderGeometry(0.13, 0.24, 1, 9), 0x503a2a, 14000)
+    this.addBatch('treeBranch', new THREE.CylinderGeometry(0.035, 0.08, 1, 7), 0x503a2a, 18000)
+    this.addBatch('treeCrown', new THREE.DodecahedronGeometry(0.66, 1), 0x40593a, 22000)
+    this.addBatch('treeStump', new THREE.CylinderGeometry(0.2, 0.27, 0.46, 9), 0x503a2a, 12000)
+    this.addBatch('treeCut', new THREE.CylinderGeometry(0.2, 0.2, 0.08, 9), 0xc59662, 9000)
+    this.addBatch('treeChip', new THREE.TetrahedronGeometry(0.09, 0), 0xb8804c, 5000)
+    this.addBatch('treeLog', new THREE.CylinderGeometry(0.16, 0.21, 1, 9).rotateZ(Math.PI / 2), 0x5b402d, 3200)
+    this.addBatch('axeHandle', new THREE.CylinderGeometry(0.024, 0.031, 1, 6), 0x6a472f, Math.max(80, agentCapacity * 2))
+    this.addBatch('axeHead', new THREE.BoxGeometry(0.3, 0.11, 0.075), 0x707980, Math.max(80, agentCapacity * 2))
+    this.addBatch('draftOxBody', new THREE.CapsuleGeometry(0.28, 0.62, 3, 7).rotateX(Math.PI / 2), 0x72543b, Math.max(40, agentCapacity))
+    this.addBatch('draftOxHead', new THREE.BoxGeometry(0.42, 0.38, 0.5), 0x684a34, Math.max(40, agentCapacity))
+    this.addBatch('draftOxLeg', new THREE.CylinderGeometry(0.055, 0.065, 0.48, 6), 0x4c382b, Math.max(160, agentCapacity * 4))
+    this.addBatch('draftOxHorn', new THREE.ConeGeometry(0.06, 0.3, 6).rotateZ(Math.PI / 2), 0xd0c19a, Math.max(80, agentCapacity * 2))
+    this.addBatch('draftYoke', new THREE.BoxGeometry(1, 1, 1), 0x5a3e2a, Math.max(40, agentCapacity))
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
     this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, Math.max(360, agentCapacity))
@@ -656,19 +664,22 @@ export class SceneRenderer {
       const woodNode = activeJob?.kind === 'gather' && activeJob.resource === 'wood' && activeJob.stage === 'work'
         ? state.nodes.find(node => node.id === activeJob.sourceId)
         : undefined
+      const woodTarget = woodNode ? activeWoodTreePoint(woodNode) : undefined
+      const haulingTimber = !!activeJob && activeJob.kind === 'gather' && activeJob.resource === 'wood' && activeJob.stage === 'target'
       const facing = buildTarget
         ? Math.atan2(buildTarget.x - a.x, buildTarget.z - a.z)
-        : woodNode
-          ? Math.atan2(woodNode.x - a.x, woodNode.z - a.z)
+        : woodTarget
+          ? Math.atan2(woodTarget.x - a.x, woodTarget.z - a.z)
           : a.path.length
             ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z)
             : (a.id % 8) * Math.PI / 4
       this.townRenderer.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing)
       if (woodNode && activeJob) this.treeRenderer.renderWoodcutter(a, woodNode, activeJob, time)
+      if (haulingTimber && activeJob) this.treeRenderer.renderTimberHaul(a, activeJob, time, facing)
       this.healthBar(a.x, 1.62, a.z, a.health, a.maxHealth, 0.8)
 
       const resource = RESOURCE_IDS.find(resource => a.cargo[resource] > 0) ?? null
-      if (resource) {
+      if (resource && !(haulingTimber && resource === 'wood')) {
         this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
       }
 
