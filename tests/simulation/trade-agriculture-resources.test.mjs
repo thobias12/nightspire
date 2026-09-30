@@ -490,7 +490,8 @@ test('Forester physically fells a reserved tree and returns a five-wood batch to
   assert.equal(tree.remaining,35)
   assert.equal(worker.cargo.wood,5)
   assert.equal(job.stage,'target')
-  assert.equal(woodVisualState(tree).stage,'trunk')
+  assert.equal(woodHarvestedTreeCount(tree),1)
+  assert.equal(woodVisualState(tree).stage,'standing')
 
   worker.x=lodgeDoor.x; worker.z=lodgeDoor.z
   worker.path=[]
