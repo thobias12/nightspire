@@ -245,7 +245,8 @@ export class Simulation {
     }
 
     const target = jobDestination(s, job)
-    if (distance(settler, target) < 0.01) {
+    const arrivalRadius = job.kind === 'gather' && job.resource === 'wood' && job.stage !== 'target' ? 0.72 : 0.01
+    if (distance(settler, target) < arrivalRadius) {
       this.arrive(settler, job)
       return
     }
@@ -255,7 +256,9 @@ export class Simulation {
         ? 'Carrying repair timber'
         : job.kind === 'supply'
           ? 'Supplying ' + BUILDINGS[s.buildings.find(b => b.id === job.targetId)!.type].label
-          : 'Carrying ' + job.amount + ' ' + job.resource
+          : job.kind === 'gather' && job.resource === 'wood'
+            ? 'Hauling timber to ' + BUILDINGS[s.buildings.find(b => b.id === job.targetId)!.type].label
+            : 'Carrying ' + job.amount + ' ' + job.resource
       : 'Travel to ' + job.kind
     this.move(settler, target, status, WALK_SPEED)
   }
@@ -502,7 +505,7 @@ export class Simulation {
         return
       }
 
-      settler.status = job.resource === 'wood' ? woodcuttingStatus(node) : 'Gathering ' + job.resource
+      settler.status = job.resource === 'wood' ? woodcuttingStatus(node, job) : 'Gathering ' + job.resource
       if (job.progress + 1e-8 < RESOURCES[job.resource].workSeconds) return
 
       node.remaining -= job.amount

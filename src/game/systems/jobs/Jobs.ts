@@ -12,6 +12,7 @@ import {
   primaryTradingPost, tradeExportStagingNeed, tradeFreeStorage, tradePostPickupAvailable,
 } from '../economy/Trading'
 import { workplaceHaulScore, workplaceInputNeed, workplaceOutputReady } from '../economy/WorkplaceLogistics'
+import { activeWoodTreePoint } from '../economy/Woodcutting'
 import type { Building, Job, ResourceNode, Settler, WorldState } from '../../model/WorldState'
 
 const repairSources = (state: WorldState): Building[] =>
@@ -386,7 +387,10 @@ export function assignJobs(state: WorldState): void {
 }
 
 export function jobDestination(state: WorldState, job: Job) {
-  if (job.kind === 'gather' && job.stage !== 'target') return state.nodes.find(n => n.id === job.sourceId)!
+  if (job.kind === 'gather' && job.stage !== 'target') {
+    const node = state.nodes.find(n => n.id === job.sourceId)!
+    return job.resource === 'wood' ? activeWoodTreePoint(node) : node
+  }
   const id = job.stage === 'target' || job.stage === 'work' ? job.targetId : job.sourceId
   return entrance(state.buildings.find(b => b.id === id)!)
 }
