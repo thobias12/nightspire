@@ -106,7 +106,7 @@ Current ownership ledger:
 - `render/PlacementGhostRenderer.ts`: transient building/road/field/plot placement ghosts.
 - `render/PlanningOverlayRenderer.ts`: persistent construction/plot blueprint overlays.
 - `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
-- `render/TreeRenderer.ts`: harvestable tree model, felling/log-breakdown stages and woodcutter axe presentation.
+- `render/TreeRenderer.ts`: Manor-Lords-inspired forestry presentation: tree stands, felling/debranching, axes and heavy timber hauling.
 - `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
 - `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `ui/Hud.ts`: live HUD state/update orchestration and panel state.
@@ -121,7 +121,7 @@ Current ownership ledger:
 - `app/GameHotkeys.ts`: delegated build/planning keyboard shortcuts; movement/camera keys stay in `InputController.ts`.
 - `app/PlanningState.ts`: transient build/road/field planning state.
 - `app/PlanningOperations.ts`: road and field mutation/finalization, including shared undo operations.
-- `systems/economy/Woodcutting.ts`: renderer-independent tree yield/stage/status projection for physical woodcutting.
+- `systems/economy/Woodcutting.ts`: renderer-independent tree-stand slots, active-tree destination and felling/debranching projection.
 - `app/PlanningPresentation.ts`: placement ghosts, preview validation and planning messages.
 - `app/Game.ts`: browser orchestration remains; pointer placement/controller extraction is the next cohesive split.
 
