@@ -1,5 +1,9 @@
 # Decisions — M1 settlement loop
 
+## Medieval HUD reference correction — 2026-10-01
+
+Keep this correction in the existing UI domain on current main, preserving the architecture/forestry patches. Original simple inline SVG command symbols and existing illustrated assets provide the reference composition without new dependencies or changes to gameplay. Static cost seals read building definitions once. HUD HTML comparisons cache the previous source string instead of browser-serialized HTML: expanded boolean attributes otherwise caused unchanged inspectors to rebuild and lose focus. A regression verifies stable controls and changed-content updates. See [comparison, checks and art limitations](MEDIEVAL_UI.md).
+
 ## Preserve the foundation and isolate ownership
 
 Keep the original Vite / strict TypeScript / Three.js stack and pinned versions. Game owns lifecycle and coordinates simulation, input, renderer and HUD. Renderer owns every Three.js object; simulation imports no Three.js, DOM, or renderer modules. Content definitions contain only current M1 content. The broader future catalog remains in design documents.

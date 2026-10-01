@@ -36,7 +36,7 @@ import {
   portraitAsset,
 } from './HudContent'
 import { createHudTemplate } from './HudTemplate'
-import { catalogPreviewFor } from './HudCatalog'
+import { catalogPreviewFor, decorateCatalogCards } from './HudCatalog'
 import { bindHudEvents } from './HudEvents'
 
 export type { Metrics, HudState } from './HudTypes'
@@ -45,6 +45,7 @@ import type { HudState } from './HudTypes'
 export class Hud {
   readonly element = document.createElement('div')
   private readonly abort = new AbortController()
+  private readonly renderedHtml = new Map<string, string>()
   private rosterPage = 0
   private mapBackgroundKey = ''
   private mapBackground = ''
@@ -60,11 +61,7 @@ export class Hud {
     this.element.className = 'hud medieval-hud'
     this.element.innerHTML = createHudTemplate()
     root.append(this.element)
-    // Card details remain in the hover/focus preview; the shelf stays legible at a glance.
-    for (const card of this.element.querySelectorAll<HTMLButtonElement>('.build-card')) {
-      const name = card.querySelector('.build-name')?.textContent ?? ''
-      card.setAttribute('aria-label', name + (card.classList.contains('is-planned') ? ' (planned)' : ''))
-    }
+    decorateCatalogCards(this.element)
     this.syncBuildMenu()
 
     bindHudEvents(this.element, this.abort.signal, {
@@ -86,6 +83,7 @@ export class Hud {
       },
       showBuildPreview: card => this.showBuildPreview(card),
       hideBuildPreview: () => this.hideBuildPreview(),
+      syncBuildMenu: () => this.syncBuildMenu(),
       markInspectorPositioned: () => { this.inspectorManuallyPositioned = true },
       placeFloatingPanel: (panel, left, top) => this.placeFloatingPanel(panel, left, top),
       clampFloatingPanels: () => this.clampFloatingPanels(),
@@ -161,8 +159,8 @@ export class Hud {
       '<div class="build-preview-heading"><span><small>' + escape(data.category) + '</small><b>' + escape(data.title) + '</b></span>' + availability + '</div>'
       + '<div class="build-preview-art" data-art-slot="' + escape(data.art) + '"><span>Artwork slot</span></div>'
       + '<div class="build-preview-copy">'
-      + '<p>' + escape(data.description) + '</p>'
       + '<div class="build-preview-meta">' + escape(data.detail) + '</div>'
+      + '<p>' + escape(data.description) + '</p>'
       + '<div class="build-preview-requirement">' + escape(data.requirement) + '</div>'
       + '</div>'
 
@@ -170,10 +168,13 @@ export class Hud {
     preview.setAttribute('aria-hidden', 'false')
 
     const cardRect = card.getBoundingClientRect()
+    // Short windows scroll the copy instead of covering the header or shelf.
+    const headerBottom = this.element.querySelector('.topbar')!.getBoundingClientRect().bottom + 8
+    preview.style.maxHeight = Math.max(120, cardRect.top - headerBottom - 12) + 'px'
     const width = preview.offsetWidth || 360
     const height = preview.offsetHeight
     preview.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, cardRect.left + cardRect.width / 2 - width / 2)) + 'px'
-    preview.style.top = Math.max(8, cardRect.top - height - 12) + 'px'
+    preview.style.top = Math.max(headerBottom, cardRect.top - height - 12) + 'px'
   }
 
   private hideBuildPreview(): void {
@@ -203,7 +204,8 @@ export class Hud {
     const activePanel = this.element.querySelector<HTMLElement>('[data-build-panel="' + this.activeBuildTab + '"]')
     const cardCount = activePanel?.querySelectorAll('.build-card').length ?? 0
     const dividerCount = activePanel?.querySelectorAll('.planned-divider').length ?? 0
-    const desiredWidth = Math.min(1120, Math.max(580, 24 + cardCount * 112 + dividerCount * 20))
+    const cardWidth = activePanel?.querySelector('.build-card')?.getBoundingClientRect().width || 102
+    const desiredWidth = Math.min(1120, Math.max(580, 24 + cardCount * (cardWidth + 10) + dividerCount * 20))
     catalog.style.setProperty('--catalog-width', desiredWidth + 'px')
     if (catalog.classList.contains('is-user-positioned')) this.clampFloatingPanels()
   }
@@ -218,8 +220,11 @@ export class Hud {
   }
 
   private set(id: string, text: string): void {
-    const target = this.element.querySelector('#' + id)!
-    if (target.innerHTML !== text) target.innerHTML = text
+    // DOM serialization expands boolean attributes (disabled/open). Comparing
+    // it to the source string rebuilt unchanged inspectors and discarded focus.
+    if (this.renderedHtml.get(id) === text) return
+    this.element.querySelector('#' + id)!.innerHTML = text
+    this.renderedHtml.set(id, text)
   }
 
   update(s: WorldState, ui: HudState): void {
@@ -269,10 +274,10 @@ export class Hud {
       }, {} as Record<number, number>)
 
     this.set('settlement-summary',
-      '<span>Population ' + s.settlers.length + '/' + MAX_SETTLERS + '</span>'
-      + '<span>Laborers ' + laborers + '</span>'
-      + '<span>Housing ' + housed + '/' + s.settlers.length + '</span>'
-      + '<span>Approval ' + needSummary.happiness + '%</span>'
+      '<span class="settlement-stat" aria-label="Population ' + s.settlers.length + ' of ' + MAX_SETTLERS + '" title="Population · ' + s.settlers.length + '/' + MAX_SETTLERS + '"><i data-ui-asset="portrait:worker-empty"></i><b>' + s.settlers.length + '</b></span>'
+      + '<span class="settlement-stat" aria-label="Laborers ' + laborers + '" title="Available laborers"><i data-icon-slot="resource-tools"></i><b>' + laborers + '</b></span>'
+      + '<span class="settlement-stat" aria-label="Housing ' + housed + ' of ' + s.settlers.length + '" title="Housed · ' + housed + '/' + s.settlers.length + '"><i data-ui-asset="service:housing"></i><b>' + housed + '/' + s.settlers.length + '</b></span>'
+      + '<span class="settlement-stat" aria-label="Approval ' + needSummary.happiness + '%" title="Settlement approval"><i data-ui-asset="service:recreation"></i><b>' + needSummary.happiness + '%</b></span>'
     )
     this.set('resources', `
       <div class="resource-chip ${wood < 10 ? 'is-critical' : ''}" title="Wood: ${wood}/${s.targets.wood}; ${held} reserved"><span class="ui-icon-slot" data-icon-slot="resource-wood" aria-hidden="true"></span><span class="resource-label">Wood</span><strong>${wood}</strong><small>/${s.targets.wood}</small></div>
@@ -561,8 +566,7 @@ export class Hud {
       const statusTone = b.destroyed ? 'danger' : !b.complete || b.health < b.maxHealth ? 'warning' : 'good'
       const hpPercent = percentage(b.health, b.maxHealth)
       const generalBody =
-        '<p class="building-description">' + BUILDING_DESCRIPTIONS[b.type] + '</p>'
-        + '<div class="building-status-banner status-' + statusTone + '"><span><b>' + buildingStatus + '</b><small>Facing ' + facing + ' · HP ' + b.health + '/' + b.maxHealth + '</small></span><strong>' + hpPercent + '%</strong></div>'
+        '<div class="building-status-banner status-' + statusTone + '"><span><b>' + buildingStatus + '</b><small>Facing ' + facing + ' · HP ' + b.health + '/' + b.maxHealth + '</small></span><strong>' + hpPercent + '%</strong></div>'
         + compoundText
         + (!b.complete || b.destroyed ? '<div class="context-status">' + details + '</div>' : '')
 
@@ -724,7 +728,7 @@ export class Hud {
           })()
         : ''
       const contextTabs = [
-        { id: 'general', label: 'General', body: generalBody + '<details class="operation-details"' + (this.operationDetailsOpen ? ' open' : '') + '><summary>Operation & storage</summary>' + operationBody + '</details>' },
+        { id: 'general', label: 'General', body: generalBody + '<details class="operation-details"' + (this.operationDetailsOpen ? ' open' : '') + '><summary>Operation & storage</summary><p class="building-description">' + BUILDING_DESCRIPTIONS[b.type] + '</p>' + operationBody + '</details>' },
         { id: 'people', label: 'People', body: peopleBody },
         { id: 'advanced', label: 'Advanced', body: advancedBody + demolish },
       ]

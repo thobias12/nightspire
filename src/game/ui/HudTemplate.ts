@@ -1,3 +1,5 @@
+import { commandIcon } from './HudIcons'
+
 export function createHudTemplate(): string {
   return `
       <header class="topbar">
@@ -80,12 +82,13 @@ export function createHudTemplate(): string {
             <div><span class="eyebrow">CONSTRUCTION</span><strong>Choose what to place</strong></div>
             <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
           </div>
+          <div class="catalog-navigation">
           <div class="build-tabs" role="tablist" aria-label="Construction categories">
-            <button data-build-tab="planning" aria-pressed="true"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
-            <button data-build-tab="logistics" aria-pressed="false"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
-            <button data-build-tab="industry" aria-pressed="false"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
-            <button data-build-tab="services" aria-pressed="false"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
-            <button data-build-tab="defense" aria-pressed="false"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
+            <button data-build-tab="planning" aria-pressed="true" title="Planning"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
+            <button data-build-tab="logistics" aria-pressed="false" title="Logistics"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
+            <button data-build-tab="industry" aria-pressed="false" title="Industry"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
+            <button data-build-tab="services" aria-pressed="false" title="Services"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
+            <button data-build-tab="defense" aria-pressed="false" title="Defense"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
           </div>
 
           <div class="catalog-tools" aria-label="Planning utilities">
@@ -95,6 +98,7 @@ export function createHudTemplate(): string {
               <small>[G]</small>
             </button>
             <span class="catalog-tool-note">Planning tools use the same 1m grid as roads and fields.</span>
+          </div>
           </div>
 
           <div id="build-preview" class="build-preview" aria-hidden="true"></div>
@@ -161,22 +165,22 @@ export function createHudTemplate(): string {
         <div class="command-dock" aria-label="Primary controls">
           <div class="dock-main-group">
             <button class="dock-button primary" data-hud-toggle="build-menu" aria-pressed="false" title="Construction menu">
-              <span class="dock-icon-slot" data-icon-slot="command-build" aria-hidden="true"></span><span>Build</span><small></small>
+              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('build')}</span><span>Build</span><small></small>
             </button>
             <button class="dock-button" data-action="rotate-build" title="Rotate selected blueprint [R]">
-              <span class="dock-icon-slot" data-icon-slot="command-rotate" aria-hidden="true"></span><span>Rotate</span><small>R</small>
+              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('rotate')}</span><span>Rotate</span><small>R</small>
             </button>
             <button class="dock-button" data-action="cancel" title="Leave placement / inspect [Esc]">
-              <span class="dock-icon-slot" data-icon-slot="command-inspect" aria-hidden="true"></span><span>Inspect</span><small>Esc</small>
+              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('inspect')}</span><span>Inspect</span><small>Esc</small>
             </button>
             <button class="dock-button" data-action="camera" title="Toggle settlement/player camera">
-              <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span class="dock-label">Follow player</span><small></small>
+              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('camera')}</span><span class="dock-label">Follow player</span><small></small>
             </button>
             <button class="dock-button" data-action="cinematic" title="Street view [V]">
-              <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span class="dock-label">Street view</span><small>V</small>
+              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('street')}</span><span class="dock-label">Street view</span><small>V</small>
             </button>
             <button class="dock-button" data-action="center" title="Center settlement">
-              <span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Center</span><small></small>
+              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('center')}</span><span>Center</span><small></small>
             </button>
           </div>
           <div class="dock-utility-group" aria-label="Game utilities">
