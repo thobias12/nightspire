@@ -1,5 +1,16 @@
 # Milestones
 
+## Medieval HUD reference correction — 2026-10-01
+
+- [x] Compact status ribbons, portrait cost seals, shared category/grid rail and original command glyphs
+- [x] Compact illustrated three-tab building window; existing staffing and policies retained
+- [x] Correct atlas proportions and short-window preview handling
+- [x] Inspector focus stability regression; 197 tests, typecheck, architecture check and build passing
+- [x] Production browser checks for tabs, assignment/removal, catalog previews and save/reload/load
+- [ ] Final dedicated illustrations for reused/placeholder building artwork
+
+See [reference comparison and remaining limitations](MEDIEVAL_UI.md). This is a UI correction, not a new gameplay milestone.
+
 ## M0 — Foundation (complete)
 
 - [x] Vite + TypeScript + Three.js boots

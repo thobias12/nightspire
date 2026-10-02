@@ -48,3 +48,21 @@ export function catalogPreviewFor(card: HTMLButtonElement): CatalogPreview | nul
     if (art && PLANNED_CATALOG_PREVIEWS[art]) return PLANNED_CATALOG_PREVIEWS[art]
     return null
 }
+
+/** Static shelf dressing. Costs come from the same definitions as placement. */
+export function decorateCatalogCards(element: HTMLElement): void {
+  for (const card of element.querySelectorAll<HTMLButtonElement>('.build-card')) {
+    const name = card.querySelector('.build-name')?.textContent ?? ''
+    card.setAttribute('aria-label', name + (card.classList.contains('is-planned') ? ' (planned)' : ''))
+    card.title = name + (card.title ? ' · ' + card.title : '')
+    const type = card.dataset.buildingType as BuildingId | undefined
+    const cost = type ? BUILDINGS[type].buildCost.wood : card.dataset.action === 'residential-plot' ? BUILDINGS.house.buildCost.wood : null
+    const badge = document.createElement('span')
+    badge.className = 'card-seal'
+    badge.setAttribute('aria-hidden', 'true')
+    badge.innerHTML = cost !== null
+      ? '<span data-icon-slot="resource-wood"></span><b>' + cost + '</b>'
+      : '<b>' + (card.classList.contains('is-planned') ? '◇' : card.dataset.action === 'field' ? '❧' : '⌁') + '</b>'
+    card.append(badge)
+  }
+}
