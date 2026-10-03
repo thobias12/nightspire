@@ -927,10 +927,10 @@ export class TownBuildingRenderer {
     const win = this.rotateOffset(0.54, 1.27, rotation)
     this.framedWindow(b.x + win.x, 1.12, b.z + win.z, rotation, night * 0.55, 0.32, 0.38, b.id + 71)
     const shelter = this.rotateOffset(0, 1.66, rotation)
-    this.instanceFn('villageRoofs', b.x + shelter.x, 1.37, b.z + shelter.z, 1.15, 0.58, 2.9, 0x6b614d, rotation + Math.PI / 2)
+    this.instanceFn('villageRoofs', b.x + shelter.x, 1.72, b.z + shelter.z, 1.15, 0.58, 2.9, 0x6b614d, rotation + Math.PI / 2)
     for (const lx of [-1.15, 1.15]) {
       const post = this.rotateOffset(lx, 1.96, rotation)
-      this.instanceFn('timber', b.x + post.x, 0.68, b.z + post.z, 0.1, 1.36, 0.1, 0x4d382b, rotation)
+      this.instanceFn('timber', b.x + post.x, 0.86, b.z + post.z, 0.1, 1.72, 0.1, 0x4d382b, rotation)
     }
     // Output appears and disappears with the real workplace inventory.
     for (let i = 0; i < visibleStockUnits(b.inventory.wood, 5, 6); i++) {

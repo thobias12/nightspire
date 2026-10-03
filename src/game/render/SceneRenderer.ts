@@ -1,7 +1,7 @@
 import { RegionalBackdrop } from './RegionalBackdrop'
 import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
-import { RESOURCE_IDS, RESOURCES } from '../data/resources'
+import { RESOURCE_IDS } from '../data/resources'
 import { MAP_SIZE } from '../world/Navigation'
 import type { ResidentialPlotPreview } from '../world/TownPlanning'
 import type { Building, FieldPlot, Point, ResidentialPlot, WorldState } from '../model/WorldState'

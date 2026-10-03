@@ -87,6 +87,8 @@ test('Forester output/tool props and House smoke reflect current state with boun
   town.renderForestersLodge(lodge, 0, 0x6f6547, 0, 0)
   assert.equal(calls.filter(c => c[0] === 'logs').length, 0)
   assert.equal(calls.filter(c => c[0] === 'metal').length, 0)
+  const shelter = calls.find(c => c[0] === 'villageRoofs' && c[4] === 1.15)
+  assert.ok(shelter[2] > 1.6, 'entrance shelter clears worker heads')
   lodge.inventory.wood = 10000; calls.length = 0
   town.renderForestersLodge(lodge, 0, 0x6f6547, 0, 500)
   assert.equal(calls.filter(c => c[0] === 'logs').length, 6)
