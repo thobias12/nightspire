@@ -1,5 +1,18 @@
 # Milestones
 
+## Grounded model and construction foundation — 2026-10-03
+
+- [x] Actual completed building assemblies reveal foundations, framing, infill, roofing and finishing from existing work
+- [x] Zero-health blueprints no longer render as ruins; completed destruction retained
+- [x] Shared surface maps, bounded imported tree/barrel/rock instances, sewn figure silhouettes, hands/boots/helmets and pitched rafters
+- [x] Market/Trading Post replace generic cubes; no new building or gameplay rule
+- [x] Browser model/progress review screen; unloaded assets invalidate M4 render samples
+- [x] Nine new regression cases; install, architecture check, strict typecheck, all 234 tests and production build pass
+- [ ] User visual approval, extended construction/save/cancel playtest and new foreground performance measurements
+- [ ] Bespoke final buildings/characters, full vegetation replacement and smooth LOD transitions
+
+See [sources, budgets and limits](GROUNDED_MODELS.md). No final-art or larger-population support claim.
+
 ## Focused village visual pass — 2026-10-03
 
 - [x] House, Forester's Lodge and Stockpile share lightly weathered roof geometry; existing residential footprint/frontage profiles retained

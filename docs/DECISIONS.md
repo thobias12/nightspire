@@ -1,5 +1,11 @@
 # Decisions — M1 settlement loop
 
+## Construction-ready model assembly — 2026-10-03
+
+The final building-family assembly is the construction model. A renderer-only projection reveals foundation, framing, infill, roofing and details from existing work progress, without parallel phase meshes, duplicated building definitions or saved presentation state. This retains residential widths/frontage/courtyard layouts. Zero-health unfinished blueprints are distinguished from ruins. Operational effects remain completion-gated. Shared rafters make the roof structure visible before covering it.
+
+Grounded surfaces and compact CC0 source models are shared across capped instance batches. No per-agent model/controller/mixer is introduced. Models/surface maps are loaded locally and disposed with scene ownership; old shapes provide a bounded loading/detail fallback. This trades visible LOD transitions for bounded initial cost. M4 samples containing incomplete asset loading are invalid, avoiding misleading fallback-only performance reports. Final authored buildings, characters and far vegetation remain future asset work; no new scale claim is made. See [sources and exact budgets](GROUNDED_MODELS.md).
+
 ## Catalog output and service seals — 2026-10-03
 
 Replace wood-cost badges with one readable output/category pictograph in each construction card's circle. Derive live producer emblems from the existing production/resource-operation definitions; show storage, housing, trade or service functions for buildings that do not produce resources. Fishing uses a fish pictograph while retaining Food as its actual output. Planned-only symbols are UI presentation data and remain explicitly planned. Costs still appear in hover previews. Build the static seals once with the catalog; no simulation fields or per-frame processing are added. Reuse the same original wood/tool/grain icons in resource and service readouts so their meanings stay consistent. See [art budgets and browser checks](MANUSCRIPT_ART.md).

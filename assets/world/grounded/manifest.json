@@ -1,0 +1,26 @@
+[
+  {
+    "id": "island_tree_01",
+    "triangles": 24173,
+    "bytes": 2723536,
+    "source": "https://polyhaven.com/a/island_tree_01",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  },
+  {
+    "id": "wine_barrel_01",
+    "triangles": 1252,
+    "bytes": 186864,
+    "source": "https://polyhaven.com/a/wine_barrel_01",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  },
+  {
+    "id": "rock_09",
+    "triangles": 699,
+    "bytes": 118256,
+    "source": "https://polyhaven.com/a/rock_09",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  }
+]

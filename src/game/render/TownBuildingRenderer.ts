@@ -140,6 +140,16 @@ export class TownBuildingRenderer {
       this.instanceFn('timber', b.x + eave.x, baseY + 0.03, b.z + eave.z, 0.11, 0.11, depth + 0.78, 0x493326, rotation)
     }
     this.instanceFn('timber', b.x, baseY + roofHeight + 0.04, b.z, 0.13, 0.13, depth + 0.82, 0x443025, rotation)
+    const run = width / 2 + 0.24
+    const length = Math.hypot(run,roofHeight)
+    const slope = Math.atan2(roofHeight,run)
+    for (const z of [-depth/2,0,depth/2]) {
+      for (const side of [-1,1]) {
+        const rafter = this.rotateOffset(side*run/2,z,rotation)
+        this.instanceFn('roofFrame',b.x+rafter.x,baseY+roofHeight/2-0.045,b.z+rafter.z,
+          length,0.075,0.09,0x66503a,rotation,0,-side*slope)
+      }
+    }
   }
 
   private frontageClutter(b: Building, rotation: number, seed: number, spread = 1): void {
@@ -287,12 +297,12 @@ export class TownBuildingRenderer {
     const rightArmY = (carrying ? 0.92 : activity === 'build' ? 0.99 + buildLift : 0.82) + bob
 
     if (guard) {
-      this.instanceFn('guardCoat', x, 0.72 + bob, z, 1, 1, 1, 0x65504a, facing)
+      this.instanceFn('guardCoat', x, 0.72 + bob, z, 1, 1, 1, colorOverride ?? 0x65504a, facing)
       this.instanceFn('adultLeg', x + leftLeg.x, 0.27 + bob, z + leftLeg.z, 1, 0.92, 1, 0x383b3b, facing)
       this.instanceFn('adultLeg', x + rightLeg.x, 0.27 + bob, z + rightLeg.z, 1, 0.92, 1, 0x383b3b, facing)
       this.instanceFn('adultArm', x + leftArm.x, 0.82 + bob, z + leftArm.z, 0.92, 0.95, 0.92, 0x65504a, facing)
       this.instanceFn('adultArm', x + rightArm.x, rightArmY, z + rightArm.z, 0.92, 0.95, 0.92, 0x65504a, facing)
-      this.instanceFn('metal', x, 1.18 + bob, z, 0.42, 0.17, 0.42, 0x667078, facing)
+      this.instanceFn('adultHelmet', x, 1.34 + bob, z, 1.02, 1, 1.02, 0x667078, facing)
     } else if (femaleSilhouette) {
       this.instanceFn('adultSkirt', x, 0.43 + bob, z, 0.95, 1.02, 0.95, cloth, facing)
       this.instanceFn('adultBodice', x, 0.91 + bob, z, 0.96, 0.98, 0.9, cloth, facing)
@@ -309,10 +319,16 @@ export class TownBuildingRenderer {
     }
 
     this.instanceFn('adultHead', x, 1.31 + bob, z, 1, 1.06, 1, skin, facing)
-    this.instanceFn('adultHair', x, 1.42 + bob, z - 0.025, 1.04, 0.68, 1.04, hair, facing)
-    if (femaleSilhouette || id % 4 === 1) {
+    if (!guard) this.instanceFn('adultHair', x, 1.42 + bob, z - 0.025, 0.9, 0.68, 0.86, hair, facing)
+    if (!guard && (femaleSilhouette || id % 4 === 1)) {
       const back = this.rotateOffset(0, -0.12, facing)
       this.instanceFn('adultHairLong', x + back.x, 1.12 + bob, z + back.z, 0.92, femaleSilhouette ? 1.08 : 0.78, 0.78, hair, facing)
+    }
+    this.instanceFn('adultHand',x+leftArm.x,(femaleSilhouette && !guard ? 0.67 : 0.6)+bob,z+leftArm.z,1,1.12,1,skin,facing)
+    this.instanceFn('adultHand',x+rightArm.x,rightArmY-0.21+(femaleSilhouette && !guard ? 0.07 : 0),z+rightArm.z,1,1.12,1,skin,facing)
+    for (const side of [-1,1]) {
+      const foot = this.rotateOffset(side*0.11,(side < 0 ? stride : -stride)+0.05,facing)
+      this.instanceFn('adultBoot',x+foot.x,0.08,z+foot.z,1,1,1,0x493a2c,facing)
     }
   }
 

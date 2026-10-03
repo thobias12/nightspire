@@ -30,6 +30,7 @@ export class BenchmarkApp {
   private beforeDigest = ''
   private startDimensions = ''
   private cancelled = false
+  private assetsReadyDuringSample = true
   private metrics: Metrics = { frame: 0, simulation: 0, render: 0, calls: 0, triangles: 0, paths: 0, requests: 0, queue: 0, failures: 0, dropped: 0 }
   private resize = new ResizeObserver(() => this.renderer?.resize(this.root.clientWidth, this.root.clientHeight))
   private readonly visibility = () => { if (document.hidden && this.current) this.cancel('Invalidated: tab became hidden. Rerun in foreground.') }
@@ -87,6 +88,7 @@ export class BenchmarkApp {
     this.setupMs = performance.now() - started
     this.last = 0; this.accumulator = 0; this.hudClock = 0; this.solves = 0; this.dropped = 0; this.startupMax = 0; this.queuePeak = 0
     this.samples = new Measurements()
+    this.assetsReadyDuringSample = true
     this.frame = requestAnimationFrame(this.tick)
   }
   private cancel(reason: string): void {
@@ -139,6 +141,7 @@ export class BenchmarkApp {
       this.hudClock = 0
     }
     if (capture) {
+      this.assetsReadyDuringSample &&= this.renderer.stats.assetsReady
       this.samples.add('simulationFrameMs', simulationMs); this.samples.add('renderCpuMs', renderMs)
       this.samples.add('drawCalls', this.renderer.stats.calls); this.samples.add('triangles', this.renderer.stats.triangles)
       this.samples.add('instanceOverflow', this.renderer.overflowInstances)
@@ -151,7 +154,8 @@ export class BenchmarkApp {
     this.reports.push({
       presetVersion: 3, baselineHead: 'd662c1f',
       build: BUILD_COMMIT, dirty: BUILD_DIRTY, ...this.current,
-      valid: this.dimensions() === this.startDimensions && stats.instanceOverflow.max === 0, viewport: this.startDimensions, userAgent: navigator.userAgent,
+      valid: this.dimensions() === this.startDimensions && stats.instanceOverflow.max === 0 && this.assetsReadyDuringSample,
+      assetsReadyDuringSample: this.assetsReadyDuringSample, viewport: this.startDimensions, userAgent: navigator.userAgent,
       timestamp: new Date().toISOString(), fixedStep: FIXED_STEP, pathBudget: PATH_BUDGET,
       warmupTicks: WARMUP_TICKS, sampleTicks: SAMPLE_TICKS, endTick: s.tick, setupMs: this.setupMs,
       startupAndSampleTickMaxMs: this.startupMax, fps: 1000 / stats.frameMs.mean, droppedSeconds: this.dropped,

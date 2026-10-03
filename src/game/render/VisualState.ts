@@ -1,3 +1,5 @@
+import type { Building } from '../model/WorldState'
+
 export type ConstructionVisualStage = 'foundation' | 'frame' | 'shell' | 'complete'
 export type DamageVisualStage = 'intact' | 'worn' | 'damaged' | 'critical' | 'ruin'
 
@@ -29,6 +31,12 @@ export function damageVisualStage(health: number, maxHealth: number, destroyed: 
   if (ratio <= 0.5) return 'damaged'
   if (ratio <= 0.8) return 'worn'
   return 'intact'
+}
+
+/** Unfinished blueprints start with zero health; that does not make them ruins. */
+export function buildingDamageVisualStage(building: Building): DamageVisualStage {
+  return !building.complete && !building.destroyed ? 'intact'
+    : damageVisualStage(building.health,building.maxHealth,building.destroyed)
 }
 
 export function atmosphereForTime(timeOfDay: number): AtmosphereState {

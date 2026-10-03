@@ -9,3 +9,6 @@ Thumbs.db
 .env.*
 !.env.example
 .test-build/
+
+# Offline sources for the bounded model preparation pipeline
+.model-sources/
