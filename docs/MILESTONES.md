@@ -8,7 +8,8 @@
 - [x] Renderer-only frame lookup index; deterministic projections; no simulation/save/navigation/cap changes
 - [x] Eight regression tests; all 218 tests, strict typecheck, architecture check and production build pass
 - [x] Browser road-frontage Lodge placement, 35-Wood delivery/completion, staffing and partial-site reload
-- [ ] Final foreground scale comparison, output/save and visual checks
+- [x] Forestry output supplied to Stockpile; completed-town save/reload/load and state integrity check; overview/Street View captures
+- [ ] Reliable final scale comparison (browser throttling/resizing invalidated attempts; extended testing stopped at user request)
 - [ ] Final visual approval
 
 See [scope, budgets, evidence and limitations](VILLAGE_VISUALS.md). This adds no gameplay milestone or population support claim.

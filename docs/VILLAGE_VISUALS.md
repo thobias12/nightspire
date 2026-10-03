@@ -22,21 +22,27 @@ The frame index replaces per-settler job/node searches and per-House plot search
 
 ## Benchmark protocol and baseline
 
-Use the production preview at `/?benchmark=1`, Logistics at 100 and 500, each 40 warmup + 360 measured fixed steps (20 simulated seconds), 1280×720 DPR1, full detail/shadows, global budget two solves/tick. Keep the benchmark itself in the foreground. Do not start another case before the completion message/report appears.
+Use the production preview at `/?benchmark=1`, Logistics at 100 and 500, each 40 warmup + 360 measured fixed steps (20 simulated seconds), full detail/shadows, global budget two solves/tick. Keep the benchmark itself in the foreground and preserve its window dimensions throughout sampling. Do not start another case before the completion message/report appears.
 
-Baseline build is the clean exact PR #73 head above. Raw evidence: [baseline JSON](benchmarks/village-visual-baseline.json). Updated measurements are pending completion of the foreground comparison.
+Baseline build is the clean exact PR #73 head above. Raw evidence: [baseline JSON](benchmarks/village-visual-baseline.json). The 100-agent baseline used 1280×720 DPR1; the 500-agent baseline used 1888×1117 DPR1.1. They are different viewport cases, not a population-only comparison.
 
-| Logistics | Render CPU p95 | Frame p95 | Mean FPS | Max calls | Max triangles | Dropped seconds |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 100 before | 6.0 ms | 5.8 ms | 174.0 | 104 | 1,035,424 | See raw report |
-| 500 before | 12.7 ms | See raw report | 78.8 | 105 | 5,017,836 | 0.1491 |
+| Logistics baseline | Tick CPU p95 | Render CPU p95 | Frame p95 | Mean FPS | Max calls | Max triangles | Dropped seconds |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 100 | 1.3 ms | 6.0 ms | 5.8 ms | 174.0 | 104 | 1,035,424 | 0.1010 |
+| 500 | 2.3 ms | 12.7 ms | 17.2 ms | 78.8 | 105 | 5,017,836 | 0.1491 |
 
-Timing is one machine and a short synthetic workload, not GPU timing or a large-settlement guarantee. A discarded background-tab run throttled to roughly 1 FPS and accumulated dropped time even though the harness marked its dimensions/overflow valid. It is excluded from the evidence; always inspect foreground status and dropped-time counters.
+Timing is one machine and a short synthetic workload, not GPU timing or a large-settlement guarantee. Baseline navigation ended with queue 0 at 100 and 222 at 500. These are baseline observations, not claims about the changed renderer.
+
+Post-change runs on clean build `fbfe329ccb49bbc6099439f8d0b9ecae48c6db45` were interrupted by browser throttling and window/DPR changes. A completed 100-agent run retained the baseline start/end simulation hashes and had zero instance overflow, but was explicitly marked `valid: false` after its dimensions changed. Other runs accumulated substantial dropped time or remained partial. All were excluded from timing evidence. The harness can also mark a throttled run valid when dimensions/overflow pass; inspect foreground status and dropped-time counters as well.
+
+**No reliable before/after performance comparison was completed.** Extended testing stopped at the user's request; final scale and visual acceptance are handed back for manual testing. No speedup or new safe population envelope is claimed. The normal cap remains ten.
 
 ## Verification and limits
 
 `npm install` and `npm run verify` pass: architecture check (71 acyclic modules), strict typecheck, 218 tests and production build. Eight new regressions cover deterministic bounded roof geometry, index refresh/load/removal, job completion, worker work/cargo/travel/death priorities, inventory bands, actual lodge output/staff, occupied-home smoke, rotated compound geometry and bounded cargo/site staging.
 
-Browser verification so far: existing QA town, road-frontage Lodge placement, physical delivery of all 35 Wood, completion, two Forester assignments, and reload of a partially delivered construction site. Final view and output/save checks are in progress.
+Browser checks completed: existing QA town; road-frontage Lodge placement; physical delivery of all 35 Wood; completion; two Forester assignments; forestry output supplied to Stockpile (185 → 235 Wood after construction); partial-site reload; and save/reload/load retaining the completed Lodge, 235 Wood, four remaining laborers and 6/6 housed residents. The visible state integrity check passed. Overview and Street View were inspected and captured. Builder prop emission is covered by the regressions; an in-browser close-up of the hammer swing was not captured.
+
+Captured views: [overview](qa/village-overview.png), [Street View](qa/village-street.png), and [prior presentation](qa/village-before.png). The prior view has a different camera/window and is illustrative, not a matched screenshot comparison. For manual acceptance, inspect the open Stockpile and rotating compound, occupied/empty House smoke, staffed/empty Lodge tool rack and output stacks, all carried resource types, and a construction site during delivery and hammer work.
 
 Procedural graybox geometry remains the art level. Props indicate quantity bands, not exact individual units; tools indicate assignment rather than momentary work rate. No long soak, dense-building budget audit, low-end GPU test or full benchmark ladder was performed in this pass. Navigation queue latency and the large node-heavy forestry triangle load remain outside this visual pass. The existing large JavaScript chunk warning remains.
