@@ -1,5 +1,18 @@
 # Milestones
 
+## Focused village visual pass — 2026-10-03
+
+- [x] House, Forester's Lodge and Stockpile share lightly weathered roof geometry; existing residential footprint/frontage profiles retained
+- [x] Open storage/lodge timber shelters, actual inventory stacks, assigned tool racks and occupied-home hearth smoke
+- [x] Shared-batch cargo props, walking/holding poses, builder facing/hammer and delivered-site timber
+- [x] Renderer-only frame lookup index; deterministic projections; no simulation/save/navigation/cap changes
+- [x] Eight regression tests; all 218 tests, strict typecheck, architecture check and production build pass
+- [x] Browser road-frontage Lodge placement, 35-Wood delivery/completion, staffing and partial-site reload
+- [ ] Final foreground scale comparison, output/save and visual checks
+- [ ] Final visual approval
+
+See [scope, budgets, evidence and limitations](VILLAGE_VISUALS.md). This adds no gameplay milestone or population support claim.
+
 ## Manuscript UI artwork and fit correction — 2026-10-03
 
 - [x] 56 independently generated paintings: portrait card and wide scene for every one of the 28 existing/live and planned catalog entries; ten retained portraits
