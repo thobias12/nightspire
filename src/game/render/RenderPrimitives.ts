@@ -30,6 +30,26 @@ export function createRoofCourseGeometry(slope: number): THREE.BufferGeometry {
   return new THREE.BoxGeometry(1, 1, 1).rotateZ(slope)
 }
 
+/** Shared low-poly roof with a lightly settled ridge and uneven eaves. */
+export function createWeatheredGableRoofGeometry(): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry(), positions: number[] = [], indices: number[] = []
+  const sections = 6
+  for (let i = 0; i <= sections; i++) {
+    const t = i / sections, z = t - 0.5
+    const wave = Math.sin(i * 1.7) * 0.008
+    positions.push(-0.5, wave, z, 0.5, -wave, z, 0, 0.5 - Math.sin(t * Math.PI) * 0.018, z)
+    if (i === sections) continue
+    const a = i * 3, b = a + 3
+    indices.push(a, b, b + 2, a, b + 2, a + 2, a + 1, a + 2, b + 2, a + 1, b + 2, b + 1)
+  }
+  indices.push(0, 2, 1, sections * 3, sections * 3 + 1, sections * 3 + 2)
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setIndex(indices)
+  const flat = geometry.toNonIndexed()
+  geometry.dispose(); flat.computeVertexNormals()
+  return flat
+}
+
 export function createCartWheelGeometry(): THREE.BufferGeometry {
   return new THREE.TorusGeometry(0.5, 0.09, 5, 10).rotateY(Math.PI / 2)
 }
