@@ -1,21 +1,23 @@
 import { RegionalBackdrop } from './RegionalBackdrop'
 import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
-import { RESOURCE_IDS, RESOURCES } from '../data/resources'
+import { RESOURCE_IDS } from '../data/resources'
 import { MAP_SIZE } from '../world/Navigation'
 import type { ResidentialPlotPreview } from '../world/TownPlanning'
-import type { Building, FieldPlot, Job, Point, ResidentialPlot, WorldState } from '../model/WorldState'
+import type { Building, FieldPlot, Point, ResidentialPlot, WorldState } from '../model/WorldState'
 import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
 import { TOWN_PALETTE } from './TownPresentation'
 import { RoadTerrain } from './RoadTerrain'
 import { roadCoverageAt, ROAD_GRASS_LIMIT, ROAD_STONE_LIMIT } from './RoadSurface'
-import { createCartWheelGeometry, createGableRoofGeometry, createRadialGlowTexture, createRoofCourseGeometry } from './RenderPrimitives'
+import { createCartWheelGeometry, createGableRoofGeometry, createRadialGlowTexture, createRoofCourseGeometry, createWeatheredGableRoofGeometry } from './RenderPrimitives'
 import { PlacementGhostRenderer } from './PlacementGhostRenderer'
 import { FieldRenderer } from './FieldRenderer'
 import { PlanningOverlayRenderer } from './PlanningOverlayRenderer'
 import { TownBuildingRenderer } from './TownBuildingRenderer'
 import { TreeRenderer } from './TreeRenderer'
 import { activeWoodTreePoint } from '../systems/economy/Woodcutting'
+import { VillageRenderIndex, workerActivity } from './VillagePresentation'
+import { WorkerActivityRenderer } from './WorkerActivityRenderer'
 
 export type CameraMode = 'settlement' | 'follow'
 
@@ -48,7 +50,7 @@ export class SceneRenderer {
   private readonly batches: Record<string, THREE.InstancedMesh> = {}
   private readonly batchColors: Record<string, number> = {}
   private readonly settlementLitBatches = new Set([
-    'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'doors', 'trim', 'props',
+    'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'villageRoofs', 'doors', 'trim', 'props',
     'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs', 'baskets',
     'braceL', 'braceR', 'cartWheel',
     'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'adultHairLong', 'adultArm', 'adultLeg', 'adultBodice',
@@ -65,6 +67,8 @@ export class SceneRenderer {
   private readonly planningOverlays: PlanningOverlayRenderer
   private readonly townRenderer: TownBuildingRenderer
   private readonly treeRenderer: TreeRenderer
+  private readonly workerRenderer: WorkerActivityRenderer
+  private readonly villageIndex = new VillageRenderIndex()
   private readonly ray = new THREE.Raycaster()
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
   private readonly dayColor = new THREE.Color(0x9eb7c9)
@@ -141,12 +145,16 @@ export class SceneRenderer {
       (x, z, angle) => this.rotatedOffset(x, z, angle),
     )
     this.townRenderer = new TownBuildingRenderer(
-      (name, x, y, z, sx, sy, sz, color, rotation) => this.instance(name, x, y, z, sx, sy, sz, color, rotation),
+      (name, x, y, z, sx, sy, sz, color, yaw, pitch, roll) => this.instance(name, x, y, z, sx, sy, sz, color, yaw, pitch, roll),
       (x, z, angle) => this.rotatedOffset(x, z, angle),
       this.planningOverlays,
     )
 
     this.treeRenderer = new TreeRenderer(
+      (name, x, y, z, sx, sy, sz, color, yaw, pitch, roll) =>
+        this.instance(name, x, y, z, sx, sy, sz, color, yaw, pitch, roll),
+    )
+    this.workerRenderer = new WorkerActivityRenderer(
       (name, x, y, z, sx, sy, sz, color, yaw, pitch, roll) =>
         this.instance(name, x, y, z, sx, sy, sz, color, yaw, pitch, roll),
     )
@@ -174,7 +182,7 @@ export class SceneRenderer {
     this.addBatch('draftYoke', new THREE.BoxGeometry(1, 1, 1), 0x5a3e2a, Math.max(40, agentCapacity))
     this.addBasicBatch('treeMoon', new THREE.ConeGeometry(0.72, 1.35, 7), 0x60758a, 1000, 0.2)
     this.addBatch('food', new THREE.DodecahedronGeometry(0.65, 0), 0x91a95d, 1000)
-    this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, Math.max(360, agentCapacity))
+    this.addBatch('ore', new THREE.DodecahedronGeometry(0.58, 0), 0x737b86, Math.max(360, agentCapacity * 2))
     this.addBasicBatch('roadShoulder', new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), 0xa18d69, 1200, 0.12)
     this.addBasicBatch('roadStone', new THREE.DodecahedronGeometry(0.12, 0), 0x70695f, ROAD_STONE_LIMIT)
     this.addBatch('roadGrass', new THREE.ConeGeometry(0.11, 0.22, 3), 0x64734d, ROAD_GRASS_LIMIT)
@@ -192,15 +200,16 @@ export class SceneRenderer {
     this.addBatch('stone', this.geometry, TOWN_PALETTE.stone, 1200)
     this.addBatch('plaster', this.geometry, TOWN_PALETTE.plasterWarm, 700)
     this.addBatch('timber', this.geometry, TOWN_PALETTE.timberDark, 2600 + 2 * Math.max(0, agentCapacity - 10))
-    this.addBatch('metal', this.geometry, TOWN_PALETTE.iron, 520)
+    this.addBatch('metal', this.geometry, TOWN_PALETTE.iron, 520 + Math.max(0, agentCapacity - 10))
     this.addBatch('cloth', this.geometry, TOWN_PALETTE.clothWine, 420)
-    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 620)
-    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 620)
-    this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420)
-    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100)
+    this.addBatch('barrels', new THREE.CylinderGeometry(0.5, 0.5, 1, 10), 0x765033, 620 + Math.max(0, agentCapacity - 10))
+    this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 620 + Math.max(0, agentCapacity - 10))
+    this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420 + Math.max(0, agentCapacity - 10))
+    this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100 + 3 * Math.max(0, agentCapacity - 10))
     this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
-    {
-      const roofMaterial = this.batches.gableRoofs.material as THREE.MeshStandardMaterial
+    this.addBatch('villageRoofs', createWeatheredGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
+    for (const name of ['gableRoofs', 'villageRoofs']) {
+      const roofMaterial = this.batches[name].material as THREE.MeshStandardMaterial
       roofMaterial.flatShading = true
       roofMaterial.roughness = 1
       roofMaterial.metalness = 0
@@ -433,6 +442,7 @@ export class SceneRenderer {
       fortifications: 0.34,
       roofs: 0.46,
       gableRoofs: 0.42,
+      villageRoofs: 0.42,
       doors: 0.28,
       trim: 0.4,
       props: 0.42,
@@ -490,6 +500,8 @@ export class SceneRenderer {
   sync(state: WorldState, selectedId: number | null): void {
     this.overflowInstances = 0
     for (const mesh of Object.values(this.batches)) mesh.count = 0
+    const index = this.villageIndex
+    index.refresh(state)
 
     const atmosphere = atmosphereForTime(state.timeOfDay)
     const night = atmosphere.night
@@ -525,16 +537,11 @@ export class SceneRenderer {
       }
     }
 
-    const woodJobs = new Map<number, Job>()
-    for (const job of state.jobs) {
-      if (job.kind === 'gather' && job.resource === 'wood') woodJobs.set(job.sourceId, job)
-    }
-
     for (const n of state.nodes) {
       if (state.map && (n.x - this.focus.x) ** 2 + (n.z - this.focus.z) ** 2 > Math.max(90, this.zoom * 1.6) ** 2) continue
       if (n.resource === 'wood') {
         const far = !!state.map && (Math.hypot(n.x - this.focus.x, n.z - this.focus.z) > 80 || this.zoom > 150)
-        this.treeRenderer.renderNode(n, woodJobs.get(n.id), {
+        this.treeRenderer.renderNode(n, index.woodJobs.get(n.id), {
           regional: !!state.map,
           far,
           night,
@@ -563,26 +570,26 @@ export class SceneRenderer {
     for (const a of state.settlers) {
       const hit = this.recentlyHit(a.lastHitTick, state.tick)
       const color = hit ? 0xa9524a : a.health <= 0 ? 0x555555 : undefined
-      const job = a.jobId === null ? undefined : state.jobs.find(candidate => candidate.id === a.jobId)
+      const job = a.jobId === null ? undefined : index.jobs.get(a.jobId)
       const woodNode = job?.kind === 'gather' && job.resource === 'wood' && job.stage === 'work'
-        ? state.nodes.find(node => node.id === job.sourceId)
+        ? index.nodes.get(job.sourceId)
         : undefined
       const woodTarget = woodNode ? activeWoodTreePoint(woodNode) : undefined
       const haulingTimber = !!job && job.kind === 'gather' && job.resource === 'wood' && job.stage === 'target'
-      const facing = woodTarget
-        ? Math.atan2(woodTarget.x - a.x, woodTarget.z - a.z)
+      const activity = workerActivity(a, job)
+      const workTarget = woodTarget ?? (activity === 'build' && job ? index.buildings.get(job.targetId)
+        : activity === 'gather' && job ? index.nodes.get(job.sourceId) : undefined)
+      const facing = workTarget
+        ? Math.atan2(workTarget.x - a.x, workTarget.z - a.z)
         : a.path.length
           ? Math.atan2(a.path[0].x - a.x, a.path[0].z - a.z)
           : (a.id % 8) * Math.PI / 4
-      this.townRenderer.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing)
+      this.townRenderer.renderAdultFigure(a.x, a.z, a.id, a.role === 'guard', time, color, facing, activity, a.path.length > 0)
       if (woodNode && job) this.treeRenderer.renderWoodcutter(a, woodNode, job, time)
       if (haulingTimber && job) this.treeRenderer.renderTimberHaul(a, job, time, facing)
       this.healthBar(a.x, 1.62, a.z, a.health, a.maxHealth, 0.8)
 
-      const resource = RESOURCE_IDS.find(resource => a.cargo[resource] > 0) ?? null
-      if (resource && !(haulingTimber && resource === 'wood')) {
-        this.instance('cargo', a.x + 0.28, 0.85, a.z, 0.38, 0.38, 0.38, RESOURCES[resource].color)
-      }
+      this.workerRenderer.render(a, activity, facing, time, haulingTimber || !!woodNode)
     }
 
     for (const e of state.enemies) {
@@ -602,13 +609,13 @@ export class SceneRenderer {
     let glowX = 0
     let glowZ = 0
     let glowWeight = 0
-    const occupiedHomes = new Set(state.settlers.map(settler => settler.homeId).filter((id): id is number => id !== null))
+    const occupiedHomes = index.occupiedHomes
     const productionPhaseActive = state.timeOfDay >= 6 / 24 && state.timeOfDay < 18 / 24
 
     for (const b of state.buildings) {
       const def = BUILDINGS[b.type]
       const hit = this.recentlyHit(b.lastHitTick, state.tick)
-      const plot = b.type === 'house' ? state.residentialPlots.find(candidate => candidate.buildingId === b.id) : undefined
+      const plot = b.type === 'house' ? index.plots.get(b.id) : undefined
       const rotation = plot?.angle ?? b.facingAngle ?? (b.rotation ?? 0) * Math.PI / 2
       const damage = damageVisualStage(b.health, b.maxHealth, b.destroyed)
       const intactColor = this.damagedColor(def.color, damage)
@@ -637,6 +644,7 @@ export class SceneRenderer {
         this.ruinVisual(b, rotation)
       } else if (!b.complete) {
         this.constructionVisual(b, def, rotation)
+        this.workerRenderer.renderDeliveredTimber(b, rotation)
       } else if (def.fortification) {
         this.townRenderer.renderFortification(b, rotation, baseColor)
       } else if (b.type === 'campfire') {
@@ -659,7 +667,7 @@ export class SceneRenderer {
         this.townRenderer.renderStockpile(b, rotation, baseColor, night)
       } else if (b.type === 'house') {
         const occupiedNight = occupiedHomes.has(b.id) ? night : night * 0.18
-        this.townRenderer.renderHouse(b, rotation, baseColor, occupiedNight, plot)
+        this.townRenderer.renderHouse(b, rotation, baseColor, occupiedNight, plot, occupiedHomes.has(b.id), time)
         if (occupiedHomes.has(b.id)) {
           const houseLight = this.rotatedOffset(0, 1.15, rotation)
           this.townRenderer.warmGroundPool(b.x + houseLight.x, b.z + houseLight.z, 4.15, 0.34, occupiedNight)
@@ -687,7 +695,7 @@ export class SceneRenderer {
       } else if (b.type === 'farmhouse') {
         this.townRenderer.renderFarmhouse(b, rotation, baseColor, night)
       } else if (b.type === 'foresters-lodge') {
-        this.townRenderer.renderForestersLodge(b, rotation, baseColor, night)
+        this.townRenderer.renderForestersLodge(b, rotation, baseColor, night, index.staff.get(b.id) ?? 0)
       } else if (b.type === 'mine') {
         this.townRenderer.renderMine(b, rotation, baseColor, night)
       } else if (b.type === 'ore-yard') {

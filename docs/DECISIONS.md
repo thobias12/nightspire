@@ -261,3 +261,11 @@ A cached meadow field and exact road-data snapshot avoid per-frame texture gener
 ## Seeded regions: bounded land expansion, shared regional routing
 
 WorldState optionally carries a versioned numeric seed, size and landscape preset. Actual resource nodes remain authoritative saved entities. Old fixed-map fixtures stay intact for M4 reproducibility. Large regions use a shared typed-array A* workspace, retaining the global solve budget; construction/save connectivity uses packed flood arrays. The playable floor stays flat so current placement, fields and roads remain physically consistent. Hills outside the boundary are presentation only. Static minimap woodland and landscape scenery are cached per map; nearby/distant tree detail shares capped instanced batches. Raid entry uses the occupied settlement edge rather than distant region boundaries to retain a playable nighttime threat. See [scope, measurements and limits](REGIONAL_MAPS.md).
+
+## Village activity: reconstruct presentation from current state
+
+The village pass retains procedural shared batches. A single 26-triangle weathered roof geometry serves Houses, Forester's Lodges and Stockpiles; other building families retain their existing roof batch. Inventory quantities map to capped visual bands, so neither a full store nor a large carried amount creates unbounded props. Home smoke indicates occupancy, and lodge tools indicate assigned workers; neither adds a gameplay effect.
+
+`VillageRenderIndex` rebuilds reusable job/node/building/plot maps, occupied-home membership and staff counts once per frame. This replaces repeated per-settler job/node searches and per-House plot searches while feeding the new activity presentation. It is renderer-owned, contains references only, clears after removal/load, and never participates in simulation or persistence. `WorkerActivityRenderer` emits cargo, hammers and delivered timber into existing batches. There is no individual controller, animation mixer, material, scene object or navigation request per NPC.
+
+The M4 browser presets provide before/after evidence on this branch. Their synthetic node-heavy worlds are a rendering regression check, not a larger playable-population promise; the normal cap remains ten. See [measurements and remaining limits](VILLAGE_VISUALS.md).

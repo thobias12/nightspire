@@ -107,6 +107,8 @@ Current ownership ledger:
 - `render/PlanningOverlayRenderer.ts`: persistent construction/plot blueprint overlays.
 - `render/FieldRenderer.ts`: field ground meshes, crop/soil decoration and field selection.
 - `render/TreeRenderer.ts`: Manor-Lords-inspired forestry presentation: tree stands, felling/debranching, axes and heavy timber hauling.
+- `render/VillagePresentation.ts`: frame-local lookup index and renderer-independent worker/stock presentation projections.
+- `render/WorkerActivityRenderer.ts`: shared-batch cargo, builder hammers and delivered-site timber props.
 - `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
 - `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `ui/Hud.ts`: live HUD state/update orchestration and panel state.

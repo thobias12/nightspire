@@ -12,6 +12,8 @@ The playable game already has roads, residential plots, agriculture, physical ha
 
 **Current presentation:** the compact HUD has original manuscript-style building activity scenes, matching ink-and-cream emblems, worker portraits and parchment/slate framing. All 28 catalog entries have separately composed portrait cards and wide hover/building scenes, using a quiet grey-green medieval paint palette. See [art direction, assets and remaining limits](docs/MANUSCRIPT_ART.md). Final visual approval remains pending.
 
+**Village presentation:** Houses, Forester's Lodges and Stockpiles now share lightly weathered roof geometry. Occupied homes emit a little hearth smoke; the Forester's front timber shelter shows its actual stored Wood and assigned tool racks; open Stockpiles keep their resource stacks visible. Haulers carry sacks, barrels, baskets or timber bundles, and builders face their work with a hammer beside delivered timber. These are procedural, instanced visuals driven by existing state. See [verification, budgets and scale comparison](docs/VILLAGE_VISUALS.md).
+
 **Settlement/economy expansion:** deepen food storage and processing with Granary/Bakery-style chains; expand resource extraction with Quarry/Mine-style workplaces; add more agriculture and rural land uses; broaden Markets, trade, logistics, prosperity and upgrade paths.
 
 **Civic, faith and services:** add Well/Chapel/Manor-style civic progression, settlement prestige, policies and faith/service coverage; later grow Bathhouse, recreation, luxury and nightlife into a richer mature-city service economy.
