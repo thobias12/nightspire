@@ -12,6 +12,7 @@
 - [x] Development-only gallery covers every card, header, title thumbnail, portrait and emblem at the game's sizes
 - [x] Growing inspector content re-clamps above the dock; available height respects the status ribbons
 - [x] Circular output/service emblems across all 28 cards; configured producer outputs, retained hover costs and planned-state coverage tested
+- [x] Pleasure House card/wide pair revised with adult linen-underwear wardrobes; gallery fit and production card/hover verified
 - [ ] Final art-direction approval
 
 See [assets, direction brief, budgets and limits](MANUSCRIPT_ART.md). This pass adds no gameplay milestone or population/performance claim.

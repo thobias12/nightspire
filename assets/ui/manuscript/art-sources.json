@@ -27,7 +27,7 @@
     "brewery": "A simple plaster-and-timber brew house with dull grey roof; one brewer transfers ale between two wooden barrels. A restrained brass-colored vessel, no bright copper shine.",
     "campfire": "A modest tripod and iron cauldron above a small communal fire; one adult tends the pot and another sits nearby in the wide scene. A tiny muted orange ember accent only.",
     "tavern": "A humble medieval tavern with faded grey thatch; a clothed adult serves a clay mug at a rough wooden table. Warmth is restrained, simple plaster and timber.",
-    "pleasure-house": "A discreet medieval social inn with a grey roof and muted pale plaster; two fully clothed adult hosts converse by the doorway and a small bench. Refined social setting, no nudity or sexual acts.",
+    "pleasure-house": "A medieval recreation hall with muted plaster, dull grey roof, burgundy doorway curtain and copper lantern. Clearly adult female hosts wear opaque ivory linen undergarments beneath open burgundy/slate-blue robes. Friendly hospitality, non-explicit poses; use pleasureHousePrompts for the exact final edit prompts.",
     "blacksmith": "A plain thatched forge with a small dull ember glow; a blacksmith in faded ochre tunic strikes an anvil, with tongs and one simple tool rack. No bright orange glare.",
     "market": "A plain linen canvas market stall with a few broad shapes of vegetables and bread; one adult vendor arranges produce. Quiet pale canvas, muted red and green accents.",
     "trading-post": "A modest timber warehouse and covered handcart; one adult merchant checks a barrel and cargo sacks. Simple medieval clothing, no ornate architecture.",
@@ -49,6 +49,14 @@
     "card": "Image 1 is the exact style and palette authority: the isolated Manor Lords UI painting. Image 2 is an edit target for composition only. REPAINT it in precisely Image 1's medium. Use thin hesitant grey-brown outlines, pale elongated medieval figures in side profile, broad FLAT patchy grey-green paint washes, very simple foliage clumps, flat dull thatch, imperfect medieval perspective. Reference color palette: parchment/ground #b8b49d, roof #5f6054, leaves #7c8165, grey clothing #8b928a, ochre/rust clothing #9a7b58, pale faces #c6c2aa. LOW SATURATION, LOW CONTRAST. No yellow/orange parchment, no dense decorative vegetation or bark grain, no modern watercolor splatter, no thick outlines, no warm storybook aesthetic. There should be far less detail than Image 2, matching the reference exactly. Wear is a few small faded marks, not a noisy layer over every pixel. The reference is for STYLE, not copying its exact characters or layout. ORIGINAL Nightspire painting, no text/border/frame/seal/UI screenshot. All art fills canvas edges. Preserve the specified subject, but simplify and flatten its rendering substantially.\nForester's Lodge. Keep one TALL 9:16 scene with thatched hut above, one worker and large saplings below. Repaint the existing composition, removing excess tree/ground detail and all yellow grain. Palette must look grey, muted and quiet like Image 1."
   },
   "portraitSource": "exec-d5259934-6041-4ca4-ae6b-16f38839bb3d.png",
+  "pleasureHousePrompts": {
+    "card": "Use case: historical-scene. Edit target: the supplied Nightspire medieval manuscript portrait card. Keep the existing adult woman's face, auburn hair, wine cup, welcoming standing pose, whole rustic half-timbered building, lantern, muted flat grey-green/ochre gouache, thin uneven ink outlines, tall 9:16 composition and quiet painted ground. Change her wardrobe: she is clearly an adult woman around 30, wearing opaque medieval linen undergarments, a fitted sleeveless ivory linen camisole and short linen drawers, with a faded burgundy robe worn loose and open over them. The linen pieces fully cover her chest and pelvic area and remain solid opaque cloth. Bare shoulders, arms, midriff and legs make this more revealing than the previous long gown. Her expression remains friendly and confident; the pose is non-explicit and the focus stays on character and setting. This is an original tasteful adult game illustration, with no sexual activity or exposure of intimate anatomy. Retain the low-saturation hand-painted manuscript aesthetic instead of modern fashion photography. Preserve head and hands within the central 80% width, reserve the bottom 12% as subtle ground for the game's circular emblem. No words, frame, border, emblem or assembled collage. Only the outfit changes substantially; fill the entire portrait image.",
+    "wide": "Use case: historical-scene. Image 1 is the wide medieval game painting to edit. Image 2 is the approved portrait-card outfit and palette reference. Keep Image 1's ONE wide horizontal 8:3 scene, humble half-timbered recreation hall, dull grey roof, burgundy doorway curtain, copper lantern, wine cups, wooden bench, subdued ground and simple foliage. Keep the two clearly adult women around age 30 in their friendly standing/seated poses. Change their outfits to match Image 2: opaque ivory linen undergarments, fitted sleeveless linen camisoles and short linen drawers, each with a loose open draped robe. The standing auburn-haired woman has the burgundy robe and loose hair matching the portrait card; the seated blonde woman has a faded slate-blue robe. Bare shoulders, arms, midriffs and legs are visible, but the chest and pelvic areas remain completely covered by solid opaque linen. Show friendly adult hospitality, without sexual activity or explicit poses. Preserve thin uneven grey-brown manuscript ink outlines, FLAT patchy low-saturation gouache, quiet grey-green/ochre parchment colors and slightly elongated medieval figures. Do not add glossy shading, anatomical emphasis, photorealism or modern fashion details. Keep heads, hands, cups, clothes and doorway within central 90% of frame. Fill every edge, no text, border, frame, seal, grid, white strip or paired-panel layout. Main change is the two women's wardrobes, with Image 2 as the exact clothing authority.",
+    "references": {
+      "card": ["exec-d7f0caa4-8fae-4642-9493-972136e3058f.png"],
+      "wide": ["exec-df240370-75a3-46ed-bda4-8ee4de07b9f0.png", "exec-0d1143eb-da66-4e43-b3c6-8c11cf7bb235.png"]
+    }
+  },
   "images": [
     {
       "id": "bakery",
@@ -223,12 +231,12 @@
     {
       "id": "pleasure-house",
       "variant": "card",
-      "source": "exec-e102b321-f9d1-4b48-99ab-bee7725bb02c.png"
+      "source": "exec-0d1143eb-da66-4e43-b3c6-8c11cf7bb235.png"
     },
     {
       "id": "pleasure-house",
       "variant": "wide",
-      "source": "exec-488b41c5-2db8-446d-895d-407dbb8d92f5.png"
+      "source": "exec-d9bd1d2c-0979-4c81-a713-a438d223c4a1.png"
     },
     {
       "id": "quarry",
