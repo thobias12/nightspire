@@ -1,4 +1,5 @@
 import { worldHalf } from '../../world/MapGenerator'
+import { terrainBlocked } from '../../world/MapTerrain'
 import { regionalReachability } from '../../world/RegionalNavigation'
 import { BUILDINGS, type BuildingId } from '../../data/buildings'
 import { emptyInventory, RESOURCE_IDS, type ResourceId } from '../../data/resources'
@@ -77,6 +78,7 @@ export function placementError(s: WorldState, type: BuildingId, p: Point): strin
 
   const cells = footprint({ ...p, type })
   if (cells.some(c => !inBounds(c, worldHalf(s)))) return 'Outside the camp boundary.'
+  if (cells.some(c => terrainBlocked(s.map).has(cellKey(c)))) return 'Build on dry land, away from water.'
 
   const occupied = occupiedCells(s)
   if (cells.some(c => occupied.has(cellKey(c)))) return 'Overlaps a building or ruin.'

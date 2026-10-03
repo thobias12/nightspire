@@ -1,4 +1,5 @@
 import { worldHalf } from '../../world/MapGenerator'
+import { terrainBlocked } from '../../world/MapTerrain'
 import { BUILDINGS } from '../../data/buildings'
 import {
   blockedCells, cellKey, closestInteractionPoint,
@@ -60,6 +61,14 @@ function safeSpawn(state: WorldState, side: number, offset: number): Point {
       : side === 2 ? { x: start.x, z: start.z - inward }
       : { x: start.x + inward, z: start.z }
     if (inBounds(candidate, worldHalf(state)) && !blocked.has(cellKey(candidate))) return candidate
+  }
+  if (terrainBlocked(state.map).has(cellKey(start))) {
+    // New water layouts can put the usual approach point inside a lake/river.
+    // Find a dry bank without changing legacy raid approaches or wave rules.
+    for (let radius=1;radius<=64;radius++) for(const [dx,dz] of [[radius,0],[-radius,0],[0,radius],[0,-radius]]) {
+      const candidate={x:start.x+dx,z:start.z+dz}
+      if(inBounds(candidate,worldHalf(state))&&!blocked.has(cellKey(candidate)))return candidate
+    }
   }
   return start
 }

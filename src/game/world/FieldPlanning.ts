@@ -1,4 +1,6 @@
 import { BUILDINGS } from '../data/buildings'
+import type { MapDefinition } from '../data/map'
+import { terrainPolygonError } from './MapTerrain'
 import { inBounds } from './Navigation'
 import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from '../model/WorldState'
 
@@ -151,10 +153,13 @@ export function fieldPlacementError(
   nodes: ResourceNode[],
   roads: RoadPath[],
   half = 23,
+  map?: MapDefinition,
 ): string | null {
   if (points.length < 3) return 'Place at least 3 field corners.'
   if (points.length > 8) return 'Fields support up to 8 corners in this slice.'
   if (points.some(point => !inBounds(point, half))) return 'Keep the whole field inside the settlement boundary.'
+  const water = terrainPolygonError(points,map)
+  if (water) return water
   if (!simpleFieldPolygon(points)) return 'Field edges cannot cross and corners need at least 0.75m spacing.'
   const area = fieldArea(points)
   if (area < 12) return 'Field is too small. Draw at least 12m².'

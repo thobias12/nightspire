@@ -29,7 +29,7 @@ export function updatePlanningGhost(
   if (planning.tool === 'field') {
     const points = planning.fieldControlPoints.length ? planning.fieldDraft : []
     const error = points.length >= 3
-      ? fieldPlacementError(points, state.fields, state.buildings, state.residentialPlots, state.nodes, state.roads, worldHalf(state))
+      ? fieldPlacementError(points, state.fields, state.buildings, state.residentialPlots, state.nodes, state.roads, worldHalf(state),state.map)
       : null
     renderer.showFieldGhost(points, !error, planning.gridSnap)
     if (!planning.fieldControlPoints.length) return undefined
@@ -47,7 +47,7 @@ export function updatePlanningGhost(
 
   if (planning.tool === 'road') {
     const points = planning.roadControlPoints.length ? planning.roadDraft : []
-    const error = points.length >= 2 ? roadPlacementError(points, state.fields, worldHalf(state)) : null
+    const error = points.length >= 2 ? roadPlacementError(points, state.fields, worldHalf(state),state.map,planning.roadWidth) : null
     renderer.showRoadGhost(points, !error, planning.gridSnap, planning.roadWidth)
     if (!planning.roadControlPoints.length || !planning.rawPointer) return undefined
     return error ?? (
@@ -62,7 +62,7 @@ export function updatePlanningGhost(
 
   if (planning.tool === 'residential-plot') {
     const preview = planning.plotDraft
-    let error = residentialPlotError(preview, state.residentialPlots, worldHalf(state))
+    let error = residentialPlotError(preview, state.residentialPlots, worldHalf(state),state.map)
     if (!error) error = residentialPlotBuildingError(preview, state.buildings)
     if (!error) error = residentialPlotResourceError(preview, state.nodes)
     if (!error) error = residentialPlotFieldError(preview, state.fields)

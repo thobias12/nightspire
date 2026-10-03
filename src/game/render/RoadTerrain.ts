@@ -30,7 +30,7 @@ export class RoadTerrain {
     return i === this.snapshot.length
   }
   update(roads: readonly RoadPath[], map?: MapDefinition): void {
-    const key = map ? map.seed + ':' + map.size + ':' + map.landscape : ''
+    const key = map ? map.version + ':' + map.seed + ':' + map.size + ':' + map.landscape : ''
     if (key !== this.mapKey) {
       this.mapKey = key; this.extent = (map?.size ?? 47) + 20
       this.size = map ? 2048 : ROAD_SURFACE_SIZE; this.meadow = undefined; this.snapshot = []

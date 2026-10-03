@@ -1,4 +1,5 @@
 import { RegionalBackdrop } from './RegionalBackdrop'
+import { RegionalWater } from './RegionalWater'
 import * as THREE from 'three'
 import { BUILDINGS, type BuildingId, type BuildingDefinition } from '../data/buildings'
 import { RESOURCE_IDS } from '../data/resources'
@@ -42,6 +43,7 @@ export class SceneRenderer {
   private readonly grid = new THREE.GridHelper(46, 46, 0x829077, 0x68755d)
   private readonly groundMaterial = new THREE.MeshStandardMaterial({ color: 0x617248, roughness: 1 })
   private readonly regionBackdrop = new RegionalBackdrop()
+  private readonly regionWater = new RegionalWater()
   private readonly ground = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.groundMaterial)
   private regionSize = 47
   private readonly roadTerrain = new RoadTerrain(MAP_SIZE + 20)
@@ -120,6 +122,7 @@ export class SceneRenderer {
     const ground = this.ground
     ground.scale.set(MAP_SIZE + 20, MAP_SIZE + 20, 1)
     this.scene.add(this.regionBackdrop)
+    this.scene.add(this.regionWater)
     this.groundMaterial.map = this.roadTerrain.texture
     ground.rotation.x = -Math.PI / 2
     ground.receiveShadow = true
@@ -514,6 +517,7 @@ export class SceneRenderer {
     this.sun.castShadow = this.zoom < 150
     this.ground.scale.set(this.regionSize + 20, this.regionSize + 20, 1)
     this.regionBackdrop.update(state.map)
+    this.regionWater.update(state.map)
     this.grid.position.x = Math.round(this.focus.x); this.grid.position.z = Math.round(this.focus.z)
     this.roadTerrain.update(state.roads, state.map)
     this.renderRoadDressing()

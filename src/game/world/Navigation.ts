@@ -1,5 +1,6 @@
 import { worldHalf } from './MapGenerator'
 import { RegionalRouter } from './RegionalNavigation'
+import { terrainBlocked } from './MapTerrain'
 import { cellKey, distance, inBounds } from './Grid'
 import { BUILDINGS } from '../data/buildings'
 import { PATH_BUDGET } from '../data/jobs'
@@ -28,7 +29,9 @@ export function blockedCells(state: WorldState, hostile = false): Set<number> {
     const blocks = hostile ? building.complete : (!building.complete || !def.friendlyPassable)
     if (blocks) for (const p of footprint(building)) cells.push(cellKey(p))
   }
-  return new Set(cells)
+  const blocked = new Set(terrainBlocked(state.map))
+  for (const cell of cells) blocked.add(cell)
+  return blocked
 }
 
 export function interactionPoints(building: Building, half = MAP_MAX): Point[] {

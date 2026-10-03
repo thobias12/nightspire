@@ -1,4 +1,6 @@
 import { BUILDINGS, type BuildingId } from '../data/buildings'
+import type { MapDefinition } from '../data/map'
+import { terrainPolygonError, terrainRouteError } from './MapTerrain'
 import { pointInPolygon, segmentsIntersect } from './FieldPlanning'
 import { inBounds } from './Navigation'
 import type { Building, FieldPlot, Point, ResidentialPlot, ResourceNode, RoadPath } from '../model/WorldState'
@@ -233,10 +235,12 @@ export function roadLength(points: Point[]): number {
   return total
 }
 
-export function roadPlacementError(points: Point[], fields: FieldPlot[] = [], half = 23): string | null {
+export function roadPlacementError(points: Point[], fields: FieldPlot[] = [], half = 23, map?: MapDefinition, width = 1.7): string | null {
   if (points.length < 2 || roadLength(points) < 2) return 'Road needs at least 2m between its first and final points.'
   if (points.length > 120) return 'Road is too long for one stroke. Place it in another segment.'
   if (points.some(point => !inBounds(point, half))) return 'Keep the road inside the settlement boundary.'
+  const water = terrainRouteError(points,map,width)
+  if (water) return water
   for (const field of fields) {
     if (points.some(point => pointInPolygon(point, field.points))) return 'Road cannot run through a farm field.'
     for (let i = 1; i < points.length; i++) {
@@ -520,6 +524,7 @@ export function residentialPlotError(
   preview: ResidentialPlotPreview | null,
   existing: ResidentialPlot[],
   half = 23,
+  map?: MapDefinition,
 ): string | null {
   if (!preview) return 'Start the plot frontage close to a player road.'
   if (preview.width < 4) return 'Residential frontage must be at least 4m wide.'
@@ -527,6 +532,8 @@ export function residentialPlotError(
   if (preview.depth < 5) return 'Drag at least 5m back from the road for a usable backyard.'
   if (preview.depth > 13) return 'Residential plot depth cannot exceed 13m in this prototype.'
   if (plotCorners(preview).some(point => !inBounds(point, half))) return 'Keep the whole residential plot inside the settlement boundary.'
+  const water = terrainPolygonError(plotCorners(preview),map)
+  if (water) return water
   if (existing.some(plot => residentialPlotsOverlap(preview, plot))) return 'Residential plots cannot overlap.'
   return null
 }

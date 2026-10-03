@@ -2,7 +2,7 @@ import './style.css'
 import './game/ui/MedievalHud.css'
 import './game/ui/ManuscriptHud.css'
 import { BenchmarkApp } from './game/benchmark/BenchmarkApp'
-import { Game } from './game/app/Game'
+import { GameSession } from './game/app/GameSession'
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
@@ -11,4 +11,4 @@ if (!root) {
 }
 
 if (new URLSearchParams(location.search).has('benchmark')) new BenchmarkApp(root).start()
-else new Game(root).start()
+else new GameSession(root).start()

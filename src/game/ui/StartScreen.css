@@ -1,0 +1,42 @@
+.start-screen { height:100%; overflow:auto; color:#ddd1b2; font-family:'Nightspire Manuscript',Georgia,serif; background:radial-gradient(ellipse at 65% 40%,#4d5342 0%,#282e28 45%,#121715 100%); position:relative; box-sizing:border-box; padding:clamp(16px,3vh,38px) clamp(18px,4vw,70px); }
+.start-screen *, .start-screen *::before, .start-screen *::after { box-sizing:border-box; }
+.start-screen button { font-family:inherit; cursor:pointer; color:#e2d5b5; border:1px solid #86775a; border-radius:0; background:linear-gradient(#43483f,#282e2b); padding:10px 24px; font-size:20px; }
+.start-screen button:hover,.start-screen button:focus-visible { color:#fff2cf; border-color:#cfb780; background:#555448; outline:2px solid #c8b48a; outline-offset:3px; }
+.start-screen button:disabled { opacity:.4; cursor:default; }
+.menu-home { position:relative; width:min(600px,100%); text-align:center; margin:9vh auto; }
+.menu-home h1 { font-family:Georgia,serif; font-size:clamp(42px,6vw,84px); letter-spacing:.12em; margin:24px 0; color:#eee0be; text-shadow:0 4px 8px #000; }
+.menu-eyebrow { letter-spacing:.25em; font-family:Georgia,serif; font-size:12px; color:#b6ac90; }
+.menu-home button { display:block; margin:14px auto; width:85%; border:0; background:none; font-size:32px; padding:10px; }
+.menu-home p { color:#b5ac94; margin-top:40px; font-size:18px; }
+.menu-flourish { display:flex; align-items:center; gap:24px; justify-content:center; margin:34px 0; color:#b7a17c; }
+.menu-flourish::before,.menu-flourish::after { content:''; height:1px; width:34%; background:linear-gradient(90deg,transparent,#b7a17c,transparent); }
+.menu-vignette { position:absolute; inset:0; pointer-events:none; opacity:.1; background:repeating-linear-gradient(28deg,transparent 0 25px,#b09a6a 26px,transparent 27px 55px); }
+.setup-title { display:flex; align-items:center; justify-content:center; gap:25px; margin:0 auto 22px; }
+.setup-title h1 { margin:0; font-size:28px; color:#372f24; min-width:280px; text-align:center; padding:8px 40px; border:1px solid #8e7a54; background:linear-gradient(90deg,#b5a17a,#dfcda5 12%,#d7c29c 86%,#a59270); box-shadow:0 3px 14px #0008; }
+.setup-title span { color:#b59d71; }
+.setup-columns { display:grid; grid-template-columns:minmax(270px, .8fr) minmax(390px,1fr); gap:clamp(24px,4vw,70px); width:min(1250px,100%); margin:auto; align-items:start; }
+.setup-panel { background:linear-gradient(140deg,#222923ef,#171d1bed); border:2px solid #554e3d; outline:1px solid #938064; outline-offset:4px; box-shadow:0 8px 30px #0008; padding:16px 20px; }
+.setup-settings { max-height:calc(100dvh - 220px); overflow:auto; scrollbar-color:#897759 #252c26; }
+.setup-panel h2 { margin:-8px -12px 20px; padding:7px 10px; text-align:center; font-size:20px; font-weight:400; background:linear-gradient(90deg,#544538,#88694c 40%,#56483a); border:1px solid #a78962; }
+.setup-scenario { margin-bottom:28px; }
+.setup-scenario > div { height:90px; background:linear-gradient(0deg,#22292288,transparent),url('../../../assets/ui/manuscript/building/foresters-lodge.webp') center 40%/cover; border:1px solid #928062; }
+.setup-scenario h3 { margin:10px 0 4px; font-size:24px; font-weight:400; }
+.setup-scenario p,.setup-settings > p { color:#bdb39b; font-family:Georgia,serif; font-size:13px; line-height:1.5; }
+.setup-settings label { display:block; margin:14px 0; font-size:18px; }
+.setup-settings select,.setup-settings input { display:block; width:100%; margin-top:6px; padding:9px 12px; border:1px solid #8c7a5c; border-radius:0; color:#e2d7bf; background:#333b32; font:16px Georgia,serif; }
+.setup-settings select:focus,.setup-settings input:focus { outline:2px solid #bea578; outline-offset:2px; }
+.setup-seed-row { display:flex; gap:8px; align-items:end; }
+.setup-seed-row input { min-width:0; }
+.setup-seed-row button { font-size:16px; padding:9px 14px; }
+#setup-facts { display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; padding:14px 0; border-block:1px solid #665b47; font:13px Georgia,serif; }
+#setup-facts dt { color:#b9ad92; } #setup-facts dd { margin:0; text-align:right; }
+.setup-note { margin-bottom:0; }
+#setup-map-art { width:100%; aspect-ratio:1; max-width:calc(100dvh - 300px); margin:auto; background:#c9b88f; border:5px double #ab976d; box-shadow:inset 0 0 30px #4e4133; }
+.region-atlas { display:block; width:100%; height:100%; }
+.atlas-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 17px; margin-top:15px; color:#c7b99c; font:12px Georgia,serif; }
+.setup-footer { width:min(1250px,100%); margin:25px auto 0; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.setup-footer > span { color:#a99c82; text-align:center; font:12px Georgia,serif; }
+.setup-begin { min-width:210px; }
+.menu-error { color:#e0a689; font:14px Georgia,serif; margin-top:12px; }
+@media (min-width:1100px) and (max-height:820px) { .start-screen { padding-top:18px; } .setup-columns { width:min(1100px,100%); grid-template-columns:minmax(260px,.9fr) minmax(390px,1fr); gap:35px; } .setup-panel { padding:12px 16px; } .setup-scenario > div { height:54px; } .setup-scenario { margin-bottom:16px; } .setup-settings label { margin:9px 0; } .setup-settings select,.setup-settings input { padding:6px 10px; } .setup-settings > p { font-size:12px; margin:7px 0; } #setup-facts { padding:9px 0; } .setup-footer { margin-top:18px; } #setup-map-art { max-width:calc(100dvh - 315px); } }
+@media (max-width:760px) { .setup-columns { grid-template-columns:1fr; gap:26px; max-width:540px; } .setup-settings { max-height:none; } .setup-footer { flex-wrap:wrap; } .setup-footer > span { width:100%; order:3; } .setup-begin { min-width:0; } .setup-title h1 { min-width:0; padding-inline:28px; } #setup-map-art { max-width:100%; } }

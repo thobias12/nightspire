@@ -269,3 +269,11 @@ The village pass retains procedural shared batches. A single 26-triangle weather
 `VillageRenderIndex` rebuilds reusable job/node/building/plot maps, occupied-home membership and staff counts once per frame. This replaces repeated per-settler job/node searches and per-House plot searches while feeding the new activity presentation. It is renderer-owned, contains references only, clears after removal/load, and never participates in simulation or persistence. `WorkerActivityRenderer` emits cargo, hammers and delivered timber into existing batches. There is no individual controller, animation mixer, material, scene object or navigation request per NPC.
 
 The M4 browser presets provide before/after evidence on this branch. Their synthetic node-heavy worlds are a rendering regression check, not a larger playable-population promise; the normal cap remains ten. See [measurements and remaining limits](VILLAGE_VISUALS.md).
+
+## V2 landscapes: one terrain definition, one previewed world
+
+The generator, navigation, placement, save validation, parchment map and water renderer consume shared deterministic primitives in world/MapTerrain.ts. Water is real blocked terrain rather than decorative blue paint. Three dry river fords keep both banks reachable; no bridge-building system was introduced. Static water cells cache per immutable MapDefinition and are copied into existing topology blockers. The existing global two-solves-per-tick navigation budget remains.
+
+GameSession owns menu/game lifetime. Setup generates a WorldState only when options change, and Begin passes that exact object to Game; the preview cannot silently reroll at launch. Returning to the menu disposes gameplay input, observers and the frame loop, preserving the suspended world in memory. Save remains explicit. Normal population and entity caps stay unchanged.
+
+Map metadata version 2 separates new geography from V1 layouts without rewriting entity schemas. Existing V1 layouts remain readable at low implementation cost; migration work was not prioritized. The requested forests/meadows/water scope retains a level playable floor, with hills deferred. Original SVG cartography and one opaque bounded water mesh avoid new art dependencies or per-feature meshes. See [verification and tradeoffs](MAP_SETUP.md).
