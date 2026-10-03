@@ -5,8 +5,8 @@
   font-display: swap; src: url('../../../assets/ui/manuscript/font/Almendra-Regular.ttf') format('truetype');
 }
 
-/* Original manuscript artwork. All sizes reuse one canonical image per subject.
-   The two card windows cut the building and activity out of that SAME scene. */
+/* Original portrait cards and matched wide paintings. Keep each composition
+   intact; do not assemble card artwork from separate parts of a wide scene. */
 .medieval-hud {
   --paper: #c5ba9e;
   --parchment: radial-gradient(ellipse at 30% 10%, #eee7cf80, transparent 65%),
@@ -27,37 +27,22 @@
 .medieval-hud .settlement-summary::before { left: -30px; }
 .medieval-hud .time-block::after { right: -30px; transform: scaleX(-1); }
 .medieval-hud .build-card .build-art-slot {
-  position: relative; overflow: hidden; background-image: none;
-  container-type: size;
-  background-color: #ded0ae; filter: saturate(.58) brightness(.94);
+  position: relative; overflow: hidden;
+  background-image: var(--card-art); background-size: cover; background-position: center;
+  background-color: #b8b49d; filter: none;
   border-color: #79735d80;
 }
 .medieval-hud .build-card .build-art-slot::before,
 .medieval-hud .build-card .build-art-slot::after {
-  content: ''; position: absolute; left: 0; width: 100%;
-  background-image: var(--scene-art); background-repeat: no-repeat;
-  border: 0; opacity: 1; box-shadow: none; pointer-events: none;
+  content: none;
 }
-.medieval-hud .build-card .build-art-slot::before {
-  top: 0; height: var(--card-top-height, 58%);
-  --crop-render-width: max(calc(100cqw / var(--building-width)), calc(var(--card-top-frame, 58cqh) * var(--scene-aspect) / var(--building-height)));
-  background-size: var(--crop-render-width) auto;
-  background-position: calc(50cqw - var(--crop-render-width) * var(--building-center-x)) calc(var(--card-top-frame, 58cqh) / 2 - var(--crop-render-width) / var(--scene-aspect) * var(--building-center-y));
-}
-.medieval-hud .build-card .build-art-slot::after {
-  bottom: 0; height: 56%;
-  --crop-render-width: max(calc(100cqw / var(--activity-width)), calc(56cqh * var(--scene-aspect) / var(--activity-height)));
-  background-size: var(--crop-render-width) auto;
-  background-position: calc(50cqw - var(--crop-render-width) * var(--activity-center-x)) calc(28cqh - var(--crop-render-width) / var(--scene-aspect) * var(--activity-center-y));
-  mask-image: linear-gradient(transparent, #000 22%, #000);
-}
-.medieval-hud .build-card.is-planned .build-art-slot { filter: saturate(.42) brightness(.91); }
+.medieval-hud .build-card.is-planned .build-art-slot { background-size: cover; filter: saturate(.42) brightness(.91); }
 .medieval-hud .build-preview-art[data-art-slot],
 .medieval-hud .building-hero[data-ui-asset] {
   height: auto; min-height: 0; aspect-ratio: var(--scene-aspect);
   background-image: var(--scene-art); background-size: contain; background-position: center;
   background-repeat: no-repeat; background-color: #c4b99a;
-  filter: saturate(.58) brightness(.94); flex-shrink: 0;
+  filter: none; flex-shrink: 0;
 }
 .medieval-hud .settlement-stat [data-ui-asset] { background-size: contain; background-position: center; }
 .medieval-hud .build-preview-heading {
@@ -102,13 +87,13 @@
 .medieval-hud [data-ui-asset^="building-icon:"] {
   position: relative; container-type: size; overflow: hidden;
   background-image: none; background-color: #bdb197; border: 1px solid #b1a78b;
-  filter: saturate(.58); box-shadow: none;
+  filter: none; box-shadow: none;
 }
 .medieval-hud [data-ui-asset^="building-icon:"]::before {
   content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(100cqw, calc(100cqh * var(--building-ratio)));
   height: min(100cqh, calc(100cqw / var(--building-ratio)));
-  background: var(--scene-art) var(--building-position) / var(--building-size) no-repeat;
+  background: var(--card-art) var(--building-position) / var(--building-size) no-repeat;
 }
 .medieval-hud .inspector.is-building { background: #353930e6; }
 .medieval-hud .inspector.is-building .building-panel { background: #45473dbf; }

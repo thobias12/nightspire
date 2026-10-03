@@ -92,12 +92,17 @@ export class Hud {
 
   private placeFloatingPanel(panel: HTMLElement, left: number, top: number): void {
     const margin = 6
+    const headerBottom = this.element.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 70
+    const minTop = Math.max(78, headerBottom + 8)
+    if (panel.dataset.panelId === 'inspector') {
+      panel.style.maxHeight = Math.max(120, window.innerHeight - minTop - 74) + 'px'
+    }
     const rect = panel.getBoundingClientRect()
     const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin)
-    const maxTop = Math.max(78, window.innerHeight - rect.height - 74)
+    const maxTop = Math.max(minTop, window.innerHeight - rect.height - 74)
     panel.style.position = 'fixed'
     panel.style.left = Math.max(margin, Math.min(maxLeft, left)) + 'px'
-    panel.style.top = Math.max(78, Math.min(maxTop, top)) + 'px'
+    panel.style.top = Math.max(minTop, Math.min(maxTop, top)) + 'px'
     panel.style.right = 'auto'
     panel.style.bottom = 'auto'
     panel.style.margin = '0'
@@ -115,7 +120,7 @@ export class Hud {
     const panel = this.element.querySelector<HTMLElement>('.inspector')
     if (!panel) return
     panel.classList.remove('is-user-positioned', 'is-dragging', 'is-world-anchored')
-    for (const property of ['position', 'left', 'top', 'right', 'bottom', 'margin', 'transform']) {
+    for (const property of ['position', 'left', 'top', 'right', 'bottom', 'margin', 'transform', 'max-height']) {
       panel.style.removeProperty(property)
     }
     this.inspectorManuallyPositioned = false

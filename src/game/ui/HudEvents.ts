@@ -27,6 +27,12 @@ export function bindHudEvents(
 ): void {
   let draggedPanel: DraggedPanel | null = null
 
+  // Tabs, staffing rows and expanded details can grow an already positioned
+  // inspector. One HUD observer re-clamps on size changes, without frame polling.
+  const inspectorResize = new ResizeObserver(() => handlers.clampFloatingPanels())
+  inspectorResize.observe(element.querySelector('.inspector')!)
+  signal.addEventListener('abort', () => inspectorResize.disconnect(), { once: true })
+
   element.addEventListener('toggle', event => {
     const details = event.target as HTMLDetailsElement
     if (details.matches('.operation-details')) handlers.setOperationDetailsOpen(details.open)

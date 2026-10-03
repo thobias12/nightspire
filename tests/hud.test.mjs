@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const { Hud } = require('../.test-build/game/ui/Hud.js')
+const { bindHudEvents } = require('../.test-build/game/ui/HudEvents.js')
 
 test('unchanged HUD projection preserves focused controls despite boolean attribute serialization', () => {
   let serialized = ''
@@ -31,11 +32,11 @@ test('unchanged HUD projection preserves focused controls despite boolean attrib
 })
 
 test('resize clamps world-anchored inspectors as well as manually dragged panels', () => {
-  const inspector = { style: {}, getBoundingClientRect: () => ({ left: 1200, top: 600, width: 520, height: 300 }) }
+  const inspector = { dataset: { panelId: 'inspector' }, style: {}, getBoundingClientRect: () => ({ left: 1200, top: 600, width: 520, height: 300 }) }
   const previousWindow = globalThis.window
   globalThis.window = { innerWidth: 1000, innerHeight: 800 }
   const hud = {
-    element: { querySelectorAll: selector => selector.includes('.is-world-anchored') ? [inspector] : [] },
+    element: { querySelector: () => null, querySelectorAll: selector => selector.includes('.is-world-anchored') ? [inspector] : [] },
     placeFloatingPanel: Hud.prototype.placeFloatingPanel,
   }
   try {
@@ -46,5 +47,44 @@ test('resize clamps world-anchored inspectors as well as manually dragged panels
   } finally {
     if (previousWindow === undefined) delete globalThis.window
     else globalThis.window = previousWindow
+  }
+})
+
+test('growing inspector content stays above the dock and its observer disconnects on disposal', () => {
+  let height = 360
+  let resize
+  let observed
+  let disconnected = false
+  const inspector = { dataset: { panelId: 'inspector' }, style: {}, getBoundingClientRect: () => ({ left: 210, top: 181, width: 520, height: Math.min(height, Number.parseFloat(inspector.style.maxHeight) || Infinity) }) }
+  const previousWindow = globalThis.window
+  const previousObserver = globalThis.ResizeObserver
+  globalThis.window = { innerWidth: 1280, innerHeight: 720, addEventListener() {} }
+  globalThis.ResizeObserver = class {
+    constructor(callback) { resize = callback }
+    observe(element) { observed = element }
+    disconnect() { disconnected = true }
+  }
+  const element = {
+    addEventListener() {},
+    querySelector: selector => selector === '.inspector' ? inspector : { getBoundingClientRect: () => ({ bottom: 90 }) },
+    querySelectorAll: () => [inspector],
+  }
+  const hud = { element, placeFloatingPanel: Hud.prototype.placeFloatingPanel }
+  const abort = new AbortController()
+  try {
+    bindHudEvents(element, abort.signal, { clampFloatingPanels: () => Hud.prototype.clampFloatingPanels.call(hud) })
+    assert.equal(observed, inspector)
+    height = 555 // People tab / expanded operations grows after opening.
+    resize()
+    assert.equal(inspector.style.maxHeight, '548px')
+    assert.equal(inspector.style.top, '98px')
+    assert.equal(Number.parseFloat(inspector.style.top) + inspector.getBoundingClientRect().height, 646)
+    abort.abort()
+    assert.equal(disconnected, true)
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window
+    else globalThis.window = previousWindow
+    if (previousObserver === undefined) delete globalThis.ResizeObserver
+    else globalThis.ResizeObserver = previousObserver
   }
 })

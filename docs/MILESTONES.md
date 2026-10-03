@@ -2,14 +2,15 @@
 
 ## Manuscript UI artwork and fit correction — 2026-10-03
 
-- [x] Original activity scenes for all 28 existing/live and planned catalog entries; ten portraits
-- [x] Same canonical image reused for card crops, previews, title images and building windows
+- [x] 56 independently generated paintings: portrait card and wide scene for every one of the 28 existing/live and planned catalog entries; ten retained portraits
+- [x] Quiet grey-green paint, flat washes and restrained ink outlines directed from the supplied reference
 - [x] Coordinated resource/category/service/task/command emblems, slate frames, parchment trim and local heading font
-- [x] Nine additional regressions; all 206 tests, typecheck, architecture check and production build pass
+- [x] Ten additional regressions; all 207 tests, typecheck, architecture check and production build pass
 - [x] Production browser checks across all five categories, preview/title/source reuse, staffing add/remove, building tabs, responsive windows and save/reload/load
 - [x] QA town remains saveable when staging clears a claimed harvest node; carried deliveries preserved
-- [x] Full-frame small cards, proportional wide previews, explicit source-row crops with neighboring-art remnants removed
+- [x] Full-frame small cards and proportional wide previews; independent source files eliminate neighboring-art remnants
 - [x] Development-only gallery covers every card, header, title thumbnail, portrait and emblem at the game's sizes
+- [x] Growing inspector content re-clamps above the dock; available height respects the status ribbons
 - [ ] Final art-direction approval
 
 See [assets, direction brief, budgets and limits](MANUSCRIPT_ART.md). This pass adds no gameplay milestone or population/performance claim.
