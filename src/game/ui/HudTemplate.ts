@@ -80,12 +80,13 @@ export function createHudTemplate(): string {
             <div><span class="eyebrow">CONSTRUCTION</span><strong>Choose what to place</strong></div>
             <button class="catalog-close" data-hud-toggle="build-menu" title="Close construction menu">×</button>
           </div>
+          <div class="catalog-navigation">
           <div class="build-tabs" role="tablist" aria-label="Construction categories">
-            <button data-build-tab="planning" aria-pressed="true"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
-            <button data-build-tab="logistics" aria-pressed="false"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
-            <button data-build-tab="industry" aria-pressed="false"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
-            <button data-build-tab="services" aria-pressed="false"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
-            <button data-build-tab="defense" aria-pressed="false"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
+            <button data-build-tab="planning" aria-pressed="true" title="Planning"><span class="category-icon" data-ui-asset="category:planning" aria-hidden="true"></span><span>Planning</span></button>
+            <button data-build-tab="logistics" aria-pressed="false" title="Logistics"><span class="category-icon" data-ui-asset="category:logistics" aria-hidden="true"></span><span>Logistics</span></button>
+            <button data-build-tab="industry" aria-pressed="false" title="Industry"><span class="category-icon" data-ui-asset="category:industry" aria-hidden="true"></span><span>Industry</span></button>
+            <button data-build-tab="services" aria-pressed="false" title="Services"><span class="category-icon" data-ui-asset="category:services" aria-hidden="true"></span><span>Services</span></button>
+            <button data-build-tab="defense" aria-pressed="false" title="Defense"><span class="category-icon" data-ui-asset="category:defense" aria-hidden="true"></span><span>Defense</span></button>
           </div>
 
           <div class="catalog-tools" aria-label="Planning utilities">
@@ -95,6 +96,7 @@ export function createHudTemplate(): string {
               <small>[G]</small>
             </button>
             <span class="catalog-tool-note">Planning tools use the same 1m grid as roads and fields.</span>
+          </div>
           </div>
 
           <div id="build-preview" class="build-preview" aria-hidden="true"></div>
@@ -146,7 +148,7 @@ export function createHudTemplate(): string {
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-barracks" aria-hidden="true"></span><span class="build-name">Barracks</span><small>Planned · military</small></button>
           </div>
 
-          <div class="catalog-help">Hotkeys remain active while this menu is closed. Building artwork and icons intentionally use empty <code>data-art-slot</code> / <code>data-icon-slot</code> hooks.</div>
+          <div class="catalog-help">Hotkeys remain active while this menu is closed.</div>
         </div>
 
         <div class="road-context panel floating-panel" data-draggable-panel data-panel-id="road-context">

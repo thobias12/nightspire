@@ -1,0 +1,118 @@
+@import './ManuscriptAssets.css';
+
+@font-face {
+  font-family: 'Nightspire Manuscript'; font-style: normal; font-weight: 400;
+  font-display: swap; src: url('../../../assets/ui/manuscript/font/Almendra-Regular.ttf') format('truetype');
+}
+
+/* Original portrait cards and matched wide paintings. Keep each composition
+   intact; do not assemble card artwork from separate parts of a wide scene. */
+.medieval-hud {
+  --paper: #c5ba9e;
+  --parchment: radial-gradient(ellipse at 30% 10%, #eee7cf80, transparent 65%),
+    radial-gradient(ellipse at 90% 95%, #74644944, transparent 55%),
+    linear-gradient(100deg, #a9977d, #d3c7aa 9%, #cbbd9e 80%, #a28e6d);
+}
+.medieval-hud .settlement-copy > b,
+.medieval-hud .building-panel-title h2,
+.medieval-hud .build-preview-heading b,
+.medieval-hud .context-tabs button,
+.medieval-hud #inspection .context-tabs button { font-family: 'Nightspire Manuscript', Georgia, serif; font-weight: 400; }
+.medieval-hud .settlement-summary, .medieval-hud .time-block { position: relative; overflow: visible; }
+.medieval-hud .settlement-summary::before, .medieval-hud .time-block::after {
+  content: ''; position: absolute; width: 38px; height: 51px; top: -5px; z-index: -1;
+  background: url('../../../assets/ui/manuscript/ribbon-tail.svg') center / contain no-repeat;
+  pointer-events: none;
+}
+.medieval-hud .settlement-summary::before { left: -30px; }
+.medieval-hud .time-block::after { right: -30px; transform: scaleX(-1); }
+.medieval-hud .build-card .build-art-slot {
+  position: relative; overflow: hidden;
+  background-image: var(--card-art); background-size: cover; background-position: center;
+  background-color: #b8b49d; filter: none;
+  border-color: #79735d80;
+}
+.medieval-hud .build-card .build-art-slot::before,
+.medieval-hud .build-card .build-art-slot::after {
+  content: none;
+}
+.medieval-hud .build-card.is-planned .build-art-slot { background-size: cover; filter: saturate(.42) brightness(.91); }
+.medieval-hud .build-preview-art[data-art-slot],
+.medieval-hud .building-hero[data-ui-asset] {
+  height: auto; min-height: 0; aspect-ratio: var(--scene-aspect);
+  background-image: var(--scene-art); background-size: contain; background-position: center;
+  background-repeat: no-repeat; background-color: #c4b99a;
+  filter: none; flex-shrink: 0;
+}
+.medieval-hud .settlement-stat [data-ui-asset] { background-size: contain; background-position: center; }
+.medieval-hud .build-preview-heading {
+  position: relative; display: block; padding-right: 0; min-height: 36px;
+  background: url('../../../assets/ui/manuscript/flourish.svg') right center / 120px 36px no-repeat;
+}
+.medieval-hud .build-preview-heading > span:first-child { display: block; padding-right: 42px; }
+.medieval-hud .build-preview-heading b { display: block; white-space: normal; overflow: visible; font-weight: normal; }
+.medieval-hud .build-preview-heading .preview-state { position: absolute; right: 0; top: 0; font-size: 8px; }
+.medieval-hud .build-preview-copy {
+  margin-top: 7px; padding: 8px 10px;
+  border: 1px solid #806f4d66; border-radius: 5px;
+  box-shadow: inset 0 0 10px #86764b22;
+}
+.medieval-hud .build-preview-copy p { margin-top: 4px; }
+.medieval-hud .build-preview-requirement { font-style: italic; }
+.medieval-hud .build-preview-meta { text-align: center; padding-bottom: 6px; }
+.medieval-hud .ui-crest-slot { filter: none; background-size: contain; }
+.medieval-hud .card-seal {
+  border-color: #d2c3a0;
+  background: radial-gradient(circle at 35% 25%, #59604b, #30382d 75%);
+  box-shadow: inset 0 0 0 1px #84785a, 0 1px 3px #0008;
+}
+.medieval-hud .settlement-stat i { filter: sepia(.25) saturate(.45); }
+.medieval-hud .resource-chip .ui-icon-slot { filter: none; }
+.medieval-hud .dock-button, .medieval-hud .dock-utility {
+  border: 0; border-radius: 2px; padding: 7px;
+  background: url('../../../assets/ui/manuscript/enamel-frame.svg') center / 100% 100% no-repeat;
+  box-shadow: 0 2px 4px #0008;
+}
+.medieval-hud .dock-button:hover, .medieval-hud .dock-button[aria-pressed="true"],
+.medieval-hud .dock-utility:hover {
+  background: url('../../../assets/ui/manuscript/enamel-frame.svg') center / 100% 100% no-repeat;
+  filter: brightness(1.2);
+}
+.medieval-hud .dock-icon-slot { width: 30px; height: 30px; filter: drop-shadow(0 1px 1px #242722); }
+.medieval-hud .dock-button[aria-pressed="true"] .dock-icon-slot,
+.medieval-hud .dock-button:hover .dock-icon-slot {
+  background-size: contain; box-shadow: none; filter: drop-shadow(0 1px 1px #242722);
+}
+.medieval-hud .dock-utility .dock-icon-slot { width: 22px; height: 22px; }
+.medieval-hud .building-panel-title {
+  background: repeating-linear-gradient(45deg, #aeb7b308 0 2px, transparent 2px 14px),
+    repeating-linear-gradient(-45deg, #aeb7b308 0 2px, transparent 2px 14px), #515c61;
+}
+.medieval-hud [data-ui-asset^="building-icon:"] {
+  position: relative; container-type: size; overflow: hidden;
+  background-image: none; background-color: #bdb197; border: 1px solid #b1a78b;
+  filter: none; box-shadow: none;
+}
+.medieval-hud [data-ui-asset^="building-icon:"]::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(100cqw, calc(100cqh * var(--building-ratio)));
+  height: min(100cqh, calc(100cqw / var(--building-ratio)));
+  background: var(--card-art) var(--building-position) / var(--building-size) no-repeat;
+}
+.medieval-hud .inspector.is-building { background: #353930e6; }
+.medieval-hud .inspector.is-building .building-panel { background: #45473dbf; }
+.medieval-hud .inspector.is-building .context-content { background: #85857412; }
+.medieval-hud .portrait-slot[data-ui-asset^="portrait:"] {
+  position: relative; container-type: size; background-image: none;
+  background-color: #bdb197; filter: saturate(.65);
+}
+.medieval-hud .portrait-slot[data-ui-asset^="portrait:"]::before {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(100cqw, calc(100cqh * var(--portrait-ratio)));
+  height: min(100cqh, calc(100cqw / var(--portrait-ratio)));
+  background: var(--portrait-art) var(--portrait-position) / var(--portrait-size) no-repeat;
+}
+.medieval-hud .road-context { background: #30332bd9; border-color: #ab997655; }
+.medieval-hud .road-context button { background: transparent; color: #ded6bd; border-color: #ab997633; font: 12px Georgia, serif; }
+@media (max-height: 650px) { .medieval-hud .build-preview-heading { min-height: 28px; } }
+@media (max-width: 1300px) { .medieval-hud .settlement-summary::before, .medieval-hud .time-block::after { display: none; } }

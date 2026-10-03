@@ -1,5 +1,33 @@
 # Milestones
 
+## Manuscript UI artwork and fit correction — 2026-10-03
+
+- [x] 56 independently generated paintings: portrait card and wide scene for every one of the 28 existing/live and planned catalog entries; ten retained portraits
+- [x] Quiet grey-green paint, flat washes and restrained ink outlines directed from the supplied reference
+- [x] Coordinated resource/category/service/task/command emblems, slate frames, parchment trim and local heading font
+- [x] Thirteen additional regressions; all 210 tests, typecheck, architecture check and production build pass
+- [x] Production browser checks across all five categories, preview/title/source reuse, staffing add/remove, building tabs, responsive windows and save/reload/load
+- [x] QA town remains saveable when staging clears a claimed harvest node; carried deliveries preserved
+- [x] Full-frame small cards and proportional wide previews; independent source files eliminate neighboring-art remnants
+- [x] Development-only gallery covers every card, header, title thumbnail, portrait and emblem at the game's sizes
+- [x] Growing inspector content re-clamps above the dock; available height respects the status ribbons
+- [x] Circular output/service emblems across all 28 cards; configured producer outputs, retained hover costs and planned-state coverage tested
+- [x] Pleasure House card/wide pair revised with adult linen-underwear wardrobes; gallery fit and production card/hover verified
+- [ ] Final art-direction approval
+
+See [assets, direction brief, budgets and limits](MANUSCRIPT_ART.md). This pass adds no gameplay milestone or population/performance claim.
+
+## Medieval HUD reference correction — 2026-10-01
+
+- [x] Compact status ribbons, portrait cost seals, shared category/grid rail and original command glyphs
+- [x] Compact illustrated three-tab building window; existing staffing and policies retained
+- [x] Correct atlas proportions and short-window preview handling
+- [x] Inspector focus stability regression; 197 tests, typecheck, architecture check and build passing
+- [x] Production browser checks for tabs, assignment/removal, catalog previews and save/reload/load
+- [x] Dedicated original building scenes supplied by the subsequent manuscript pass; final art approval remains pending
+
+See [reference comparison and remaining limitations](MEDIEVAL_UI.md). This is a UI correction, not a new gameplay milestone.
+
 ## M0 — Foundation (complete)
 
 - [x] Vite + TypeScript + Three.js boots

@@ -1,5 +1,21 @@
 # Decisions — M1 settlement loop
 
+## Catalog output and service seals — 2026-10-03
+
+Replace wood-cost badges with one readable output/category pictograph in each construction card's circle. Derive live producer emblems from the existing production/resource-operation definitions; show storage, housing, trade or service functions for buildings that do not produce resources. Fishing uses a fish pictograph while retaining Food as its actual output. Planned-only symbols are UI presentation data and remain explicitly planned. Costs still appear in hover previews. Build the static seals once with the catalog; no simulation fields or per-frame processing are added. Reuse the same original wood/tool/grain icons in resource and service readouts so their meanings stay consistent. See [art budgets and browser checks](MANUSCRIPT_ART.md).
+
+## Dedicated portrait and wide manuscript artwork — 2026-10-03
+
+Use two checked-in WebP paintings per catalog entry: a tall construction card and a wide scene shared by hover and building windows. The user explicitly changed the earlier shared-image requirement. Independent composition keeps the building, worker and activity readable in both aspect ratios, without stitching two crops or cutting a roof off a landscape scene. Each painting is generated independently, eliminating atlas-row bleed. A manifest owns dimensions, title crops and House aliases; a source map records the selected generation and exact prompt recipe.
+
+Cards use proportion-preserving cover scaling; wide views retain their 8:3 aspect even in short windows. Tiny title images crop the upper building area of the portrait card. A development-only gallery uses the real catalog and production styles without simulation or save mutations. No runtime generation, dependencies, Three.js objects or per-agent work are introduced. Almendra is locally hosted with its OFL license; body copy remains Georgia. Artwork payload has an explicit test budget; see [measurements and regeneration](MANUSCRIPT_ART.md).
+
+Keep art rules in a focused ManuscriptHud stylesheet layered over the existing layout. Asset tests enforce logical-slot coverage, identical sources across sizes, deterministic generation and payload bounds. Browser QA revealed that resizing skipped automatically anchored inspectors and that the town fixture could exhaust active harvest claims. Clamp both positioning modes; use the existing finishJob helper only for unfinished gather claims invalidated by QA staging. Preserve jobs already carrying resources. See [art direction and verification](MANUSCRIPT_ART.md).
+
+## Medieval HUD reference correction — 2026-10-01
+
+Keep this correction in the existing UI domain on current main, preserving the architecture/forestry patches. Original simple inline SVG command symbols and existing illustrated assets provide the reference composition without new dependencies or changes to gameplay. Static cost seals read building definitions once. HUD HTML comparisons cache the previous source string instead of browser-serialized HTML: expanded boolean attributes otherwise caused unchanged inspectors to rebuild and lose focus. A regression verifies stable controls and changed-content updates. See [comparison, checks and art limitations](MEDIEVAL_UI.md).
+
 ## Preserve the foundation and isolate ownership
 
 Keep the original Vite / strict TypeScript / Three.js stack and pinned versions. Game owns lifecycle and coordinates simulation, input, renderer and HUD. Renderer owns every Three.js object; simulation imports no Three.js, DOM, or renderer modules. Content definitions contain only current M1 content. The broader future catalog remains in design documents.

@@ -10,7 +10,7 @@ The image below is the current **north-star UI / presentation concept** for Nigh
 
 The playable game already has roads, residential plots, agriculture, physical hauling, Markets, Brewery → Ale → Tavern, Ore → Tools, Gold trade, households, Happiness, immigration, guards, wooden fortifications, raids, day/night and save/load. The roadmap now grows outward from that foundation rather than replacing it.
 
-**Near-term presentation work:** finish the compact Manor Lords-inspired HUD shell; replace placeholders with original Nightspire medieval-illustration icons/cards; add richer contextual building panels, worker portraits, tasks/messages, notifications, minimap/readability tools and consistent placement feedback.
+**Current presentation:** the compact HUD has original manuscript-style building activity scenes, matching ink-and-cream emblems, worker portraits and parchment/slate framing. All 28 catalog entries have separately composed portrait cards and wide hover/building scenes, using a quiet grey-green medieval paint palette. See [art direction, assets and remaining limits](docs/MANUSCRIPT_ART.md). Final visual approval remains pending.
 
 **Settlement/economy expansion:** deepen food storage and processing with Granary/Bakery-style chains; expand resource extraction with Quarry/Mine-style workplaces; add more agriculture and rural land uses; broaden Markets, trade, logistics, prosperity and upgrade paths.
 
@@ -44,6 +44,8 @@ These mature-service concepts remain art-direction references. The gameplay buil
 **Direction pivot:** [Grounded medieval world, organic settlement and mature-city roadmap](docs/DIRECTION_PIVOT.md)
 
 ## Seeded regional maps
+
+The [medieval HUD](docs/MEDIEVAL_UI.md) uses compact icon/count ribbons, portrait construction cards with output/service emblems, one category/grid rail and compact illustrated building windows. The round seals show logs for Foresters, ore for Mines, fish for Fishers, Tools for Blacksmiths and Ale for Breweries; other cards show their service or storage category. [Original manuscript artwork](docs/MANUSCRIPT_ART.md) covers all 28 live/planned catalog entries; planned art does not unlock additional buildings. Dedicated tall paintings fill the small cards; hover previews and building headers share a separate wide scene. For artwork fit QA, run the development server and open `/ui-art-fit.html`; it compares every artwork slot without starting gameplay. Hover or focus a card for its name, construction costs and description. Assign workers below the building illustration, expand Operation & storage under General, and find demolition under Advanced.
 
 New settlements now start on a seeded 257-cell region. Use **Settlement overview → New region** to choose a seed, Meadows/Woodland, and **129, 257 or 513 cells per side** (one metre per cell). Region view, zoom/pan and the clickable minimap let you explore the expanded playable land. Starting another region first saves your current settlement. The playable valley floor remains flat; distant hills are scenery. See [controls, measured timings, verification and limits](docs/REGIONAL_MAPS.md).
 

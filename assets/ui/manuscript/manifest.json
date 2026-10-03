@@ -1,0 +1,53 @@
+{
+  "scenes": [
+    "road",
+    "residential-plot",
+    "field",
+    "stockpile",
+    "ore-yard",
+    "farmhouse",
+    "foresters-lodge",
+    "mine",
+    "fishing-hut",
+    "brewery",
+    "campfire",
+    "tavern",
+    "pleasure-house",
+    "blacksmith",
+    "market",
+    "trading-post",
+    "guard-post",
+    "wood-wall",
+    "wood-gate",
+    "granary",
+    "bakery",
+    "quarry",
+    "well",
+    "chapel",
+    "bathhouse",
+    "manor",
+    "watchtower",
+    "barracks"
+  ],
+  "portraits": [
+    "settler-1",
+    "settler-2",
+    "settler-3",
+    "settler-4",
+    "settler-5",
+    "settler-6",
+    "settler-7",
+    "settler-8",
+    "worker-empty",
+    "raider"
+  ],
+  "aliases": {
+    "house": "residential-plot"
+  },
+  "imageSizes": {
+    "card": [192, 352],
+    "wide": [640, 240]
+  },
+  "titleCrop": [0, 0.1, 1, 0.52],
+  "portraitCrop": [0, 0.14, 1, 0.61]
+}

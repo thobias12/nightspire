@@ -1,0 +1,342 @@
+{
+  "styleReference": {
+    "file": "Building hud.png",
+    "crop": [
+      228,
+      262,
+      886,
+      496
+    ],
+    "usage": "Style reference only; not shipped in the game"
+  },
+  "stylePrompt": "Image 1 is the exact style and palette authority: the isolated Manor Lords UI painting. Image 2 is an edit target and a matched-palette example. REPAINT it in precisely Image 1's medium. Use thin hesitant grey-brown outlines, pale elongated medieval figures in side profile, broad FLAT patchy grey-green paint washes, very simple foliage clumps, flat dull thatch, imperfect medieval perspective. Reference color palette: parchment/ground #b8b49d, roof #5f6054, leaves #7c8165, grey clothing #8b928a, ochre/rust clothing #9a7b58, pale faces #c6c2aa. LOW SATURATION, LOW CONTRAST. No yellow/orange parchment, no dense decorative vegetation or bark grain, no modern watercolor splatter, no thick outlines, no warm storybook aesthetic. There should be far less detail than Image 2, matching the reference exactly. Wear is a few small faded marks, not a noisy layer over every pixel. The reference is for STYLE, not copying its exact characters or layout. ORIGINAL Nightspire painting, no text/border/frame/seal/UI screenshot. All art fills canvas edges. Change the scene to the specified Nightspire subject while preserving the quiet flat painting style. Buildings are functional and humble; avoid decorative additions.",
+  "variants": {
+    "wide": "WIDE building hover/inspector painting, horizontal 8:3 canvas, approximately 2048x768. One uninterrupted scene, building behind or at right and one or two workers/activity in the foreground at left. Simple large readable silhouettes. Keep all subjects inside central 90% of frame. Fill the entire rectangle; no grid, no paired panels.",
+    "card": "SMALL construction HUD artwork, ONE independently composed tall portrait painting, 9:16 canvas approximately 864x1536. Put the relevant whole building or primary structure in the upper 55%, and a single worker or large activity/tool motif in the lower 45%. ONE coherent composition, not pasted crops and no repeated figures. Keep key roof, head and hands inside central 80% width. Fill all four edges, no blank band. Bottom 12% should be subdued painted ground so the game's resource seal can overlay it."
+  },
+  "subjects": {
+    "road": "A worn winding dirt path between subdued meadow patches; one adult traveler with walking staff. Road curve is the main readable motif.",
+    "residential-plot": "A humble half-timbered thatched cottage and low wattle fence; one clothed adult tending a small vegetable patch, a chicken and a wooden tub. A modest household parcel.",
+    "field": "A crop parcel with three broad rows of muted straw-colored grain; one slender adult reaping with a sickle. Few grain sheaves, no golden sunset.",
+    "stockpile": "A simple low timber lean-to sheltering stacked cut logs; one adult hauler carrying a log and a small two-wheel cart. The readable motif is the timber stack.",
+    "ore-yard": "A dedicated storage yard with a wooden bin and piles of dull blue-grey ore; one adult pushes a wheelbarrow of ore. Plain earth, no dramatic cliff.",
+    "farmhouse": "A plain timber farmhouse and barn with dull grey thatch; a farmer bundles cut grain beside two sheaves. Humble medieval agriculture.",
+    "foresters-lodge": "A humble grey-thatched timber hut in a woodland clearing; a worker kneels to plant a sapling, another waters a young tree in the wide scene. Few rounded foliage clumps and large simple sapling leaves.",
+    "mine": "A small timber-framed mine opening in a simply drawn grey rock outcrop; a miner in a faded brown tunic works with a pick beside a small ore cart. Flat rock washes, no dramatic realism.",
+    "fishing-hut": "A simple grey-thatched timber hut at the edge of a muted grey-blue pond; a fisher in faded slate clothing handles a fishing net, with a small basket of fish. Only a few reeds.",
+    "brewery": "A simple plaster-and-timber brew house with dull grey roof; one brewer transfers ale between two wooden barrels. A restrained brass-colored vessel, no bright copper shine.",
+    "campfire": "A modest tripod and iron cauldron above a small communal fire; one adult tends the pot and another sits nearby in the wide scene. A tiny muted orange ember accent only.",
+    "tavern": "A humble medieval tavern with faded grey thatch; a clothed adult serves a clay mug at a rough wooden table. Warmth is restrained, simple plaster and timber.",
+    "pleasure-house": "A medieval recreation hall with muted plaster, dull grey roof, burgundy doorway curtain and copper lantern. Clearly adult female hosts wear opaque ivory linen undergarments beneath open burgundy/slate-blue robes. Friendly hospitality, non-explicit poses; use pleasureHousePrompts for the exact final edit prompts.",
+    "blacksmith": "A plain thatched forge with a small dull ember glow; a blacksmith in faded ochre tunic strikes an anvil, with tongs and one simple tool rack. No bright orange glare.",
+    "market": "A plain linen canvas market stall with a few broad shapes of vegetables and bread; one adult vendor arranges produce. Quiet pale canvas, muted red and green accents.",
+    "trading-post": "A modest timber warehouse and covered handcart; one adult merchant checks a barrel and cargo sacks. Simple medieval clothing, no ornate architecture.",
+    "guard-post": "A small wooden guard shelter and low lookout platform; one adult guard in a muted tunic holds a spear and plain shield. Modest wooden defense.",
+    "wood-wall": "A rough timber palisade with large irregular pointed stakes; a builder in a faded tunic works with a wooden mallet. Only a few logs, plain earth.",
+    "wood-gate": "A simple wooden palisade gate between two timber posts; a guard holds a spear beside the opening. No monumental stone fortress.",
+    "granary": "A raised timber granary with dull thatch and a short ladder; an adult moves sacks of grain beside a simple basket. The building stands on short wooden supports.",
+    "bakery": "A modest masonry bread oven beside a thatched bakehouse; a baker uses a long wooden bread paddle, with a few round loaves. Muted warm clay accent, no saturated fire.",
+    "quarry": "A low grey stone outcrop with a few squared stone blocks; an adult stoneworker uses a hammer and chisel beside a very simple wooden lifting frame. No mountains.",
+    "well": "A simple stone well under a small grey-thatched timber canopy; an adult with linen headcloth lifts a wooden bucket. Spare meadow and a wooden tub.",
+    "chapel": "A small plain medieval stone chapel with dull grey roof and modest bell opening; a robed adult carries a small book near the doorway. No elaborate cathedral or gold ornament.",
+    "bathhouse": "A modest plaster-and-timber bathhouse with grey roof; a fully clothed attendant carries a water bucket beside wooden washing tubs. No nude people.",
+    "manor": "A modest half-timbered medieval hall with grey roofs and a plain muted banner; a steward holds a rolled document near the entrance. Humble administration, no ornate fantasy palace.",
+    "watchtower": "A tall rough wooden watchtower with dull grey canopy; one guard stands on the platform with a spear. The entire tower is the clear motif in the tall card.",
+    "barracks": "A plain timber guard hall with grey thatch; a clothed guard checks a small rack of spears and two plain shields. Quiet earth courtyard."
+  },
+  "foresterPrompts": {
+    "wide": "Image 1 is the exact style and palette authority: the isolated Manor Lords UI painting. Image 2 is an edit target for composition only. REPAINT it in precisely Image 1's medium. Use thin hesitant grey-brown outlines, pale elongated medieval figures in side profile, broad FLAT patchy grey-green paint washes, very simple foliage clumps, flat dull thatch, imperfect medieval perspective. Reference color palette: parchment/ground #b8b49d, roof #5f6054, leaves #7c8165, grey clothing #8b928a, ochre/rust clothing #9a7b58, pale faces #c6c2aa. LOW SATURATION, LOW CONTRAST. No yellow/orange parchment, no dense decorative vegetation or bark grain, no modern watercolor splatter, no thick outlines, no warm storybook aesthetic. There should be far less detail than Image 2, matching the reference exactly. Wear is a few small faded marks, not a noisy layer over every pixel. The reference is for STYLE, not copying its exact characters or layout. ORIGINAL Nightspire painting, no text/border/frame/seal/UI screenshot. All art fills canvas edges. Preserve the specified subject, but simplify and flatten its rendering substantially.\nForester's Lodge. Keep one WIDE 8:3 landscape scene with workers planting, a few saplings and humble thatched hut. Repaint the existing composition, removing excess tree/ground detail and all yellow grain. Palette must look grey, muted and quiet like Image 1.",
+    "card": "Image 1 is the exact style and palette authority: the isolated Manor Lords UI painting. Image 2 is an edit target for composition only. REPAINT it in precisely Image 1's medium. Use thin hesitant grey-brown outlines, pale elongated medieval figures in side profile, broad FLAT patchy grey-green paint washes, very simple foliage clumps, flat dull thatch, imperfect medieval perspective. Reference color palette: parchment/ground #b8b49d, roof #5f6054, leaves #7c8165, grey clothing #8b928a, ochre/rust clothing #9a7b58, pale faces #c6c2aa. LOW SATURATION, LOW CONTRAST. No yellow/orange parchment, no dense decorative vegetation or bark grain, no modern watercolor splatter, no thick outlines, no warm storybook aesthetic. There should be far less detail than Image 2, matching the reference exactly. Wear is a few small faded marks, not a noisy layer over every pixel. The reference is for STYLE, not copying its exact characters or layout. ORIGINAL Nightspire painting, no text/border/frame/seal/UI screenshot. All art fills canvas edges. Preserve the specified subject, but simplify and flatten its rendering substantially.\nForester's Lodge. Keep one TALL 9:16 scene with thatched hut above, one worker and large saplings below. Repaint the existing composition, removing excess tree/ground detail and all yellow grain. Palette must look grey, muted and quiet like Image 1."
+  },
+  "portraitSource": "exec-d5259934-6041-4ca4-ae6b-16f38839bb3d.png",
+  "pleasureHousePrompts": {
+    "card": "Use case: historical-scene. Edit target: the supplied Nightspire medieval manuscript portrait card. Keep the existing adult woman's face, auburn hair, wine cup, welcoming standing pose, whole rustic half-timbered building, lantern, muted flat grey-green/ochre gouache, thin uneven ink outlines, tall 9:16 composition and quiet painted ground. Change her wardrobe: she is clearly an adult woman around 30, wearing opaque medieval linen undergarments, a fitted sleeveless ivory linen camisole and short linen drawers, with a faded burgundy robe worn loose and open over them. The linen pieces fully cover her chest and pelvic area and remain solid opaque cloth. Bare shoulders, arms, midriff and legs make this more revealing than the previous long gown. Her expression remains friendly and confident; the pose is non-explicit and the focus stays on character and setting. This is an original tasteful adult game illustration, with no sexual activity or exposure of intimate anatomy. Retain the low-saturation hand-painted manuscript aesthetic instead of modern fashion photography. Preserve head and hands within the central 80% width, reserve the bottom 12% as subtle ground for the game's circular emblem. No words, frame, border, emblem or assembled collage. Only the outfit changes substantially; fill the entire portrait image.",
+    "wide": "Use case: historical-scene. Image 1 is the wide medieval game painting to edit. Image 2 is the approved portrait-card outfit and palette reference. Keep Image 1's ONE wide horizontal 8:3 scene, humble half-timbered recreation hall, dull grey roof, burgundy doorway curtain, copper lantern, wine cups, wooden bench, subdued ground and simple foliage. Keep the two clearly adult women around age 30 in their friendly standing/seated poses. Change their outfits to match Image 2: opaque ivory linen undergarments, fitted sleeveless linen camisoles and short linen drawers, each with a loose open draped robe. The standing auburn-haired woman has the burgundy robe and loose hair matching the portrait card; the seated blonde woman has a faded slate-blue robe. Bare shoulders, arms, midriffs and legs are visible, but the chest and pelvic areas remain completely covered by solid opaque linen. Show friendly adult hospitality, without sexual activity or explicit poses. Preserve thin uneven grey-brown manuscript ink outlines, FLAT patchy low-saturation gouache, quiet grey-green/ochre parchment colors and slightly elongated medieval figures. Do not add glossy shading, anatomical emphasis, photorealism or modern fashion details. Keep heads, hands, cups, clothes and doorway within central 90% of frame. Fill every edge, no text, border, frame, seal, grid, white strip or paired-panel layout. Main change is the two women's wardrobes, with Image 2 as the exact clothing authority.",
+    "references": {
+      "card": ["exec-d7f0caa4-8fae-4642-9493-972136e3058f.png"],
+      "wide": ["exec-df240370-75a3-46ed-bda4-8ee4de07b9f0.png", "exec-0d1143eb-da66-4e43-b3c6-8c11cf7bb235.png"]
+    }
+  },
+  "images": [
+    {
+      "id": "bakery",
+      "variant": "card",
+      "source": "exec-6b1f1353-e5bb-49c2-82ae-fba421f85f7b.png"
+    },
+    {
+      "id": "bakery",
+      "variant": "wide",
+      "source": "exec-157d57b7-15a1-4325-9771-081d1246dddb.png"
+    },
+    {
+      "id": "barracks",
+      "variant": "card",
+      "source": "exec-d61067e3-59cf-4026-8dfb-dcebfc3263c8.png"
+    },
+    {
+      "id": "barracks",
+      "variant": "wide",
+      "source": "exec-c33e59db-c9e9-478f-90c0-a10fad59872c.png"
+    },
+    {
+      "id": "bathhouse",
+      "variant": "card",
+      "source": "exec-e103c717-4b5b-4dee-9168-11f81c4005eb.png"
+    },
+    {
+      "id": "bathhouse",
+      "variant": "wide",
+      "source": "exec-f0190c02-246c-4c31-ba46-d9a8f8e60e2f.png"
+    },
+    {
+      "id": "blacksmith",
+      "variant": "card",
+      "source": "exec-af0b7960-5ff6-4ae5-814c-ac8a2eb52e45.png"
+    },
+    {
+      "id": "blacksmith",
+      "variant": "wide",
+      "source": "exec-b4ef5469-8ec7-4988-ab52-6add9d7f8912.png"
+    },
+    {
+      "id": "brewery",
+      "variant": "card",
+      "source": "exec-16b8bc13-4cf2-4dd7-88f2-65974e371045.png"
+    },
+    {
+      "id": "brewery",
+      "variant": "wide",
+      "source": "exec-842b7d62-6914-4263-b299-4bdc9a70d92f.png"
+    },
+    {
+      "id": "campfire",
+      "variant": "card",
+      "source": "exec-2db18e77-4cce-4f84-88aa-d79c31b5bdfc.png"
+    },
+    {
+      "id": "campfire",
+      "variant": "wide",
+      "source": "exec-38993910-b489-4e47-af75-1e3cd860e790.png"
+    },
+    {
+      "id": "chapel",
+      "variant": "card",
+      "source": "exec-dc27c7fa-95fe-4259-a5e0-59a6d6100574.png"
+    },
+    {
+      "id": "chapel",
+      "variant": "wide",
+      "source": "exec-b2c363e9-a903-46c4-848b-7bec00ce647b.png"
+    },
+    {
+      "id": "farmhouse",
+      "variant": "card",
+      "source": "exec-c74448f2-d043-44b7-bf01-03402e265e62.png"
+    },
+    {
+      "id": "farmhouse",
+      "variant": "wide",
+      "source": "exec-594c1042-9a68-4390-aff7-4ae32b95d29c.png"
+    },
+    {
+      "id": "field",
+      "variant": "card",
+      "source": "exec-aed7e37f-d5cd-4625-a74e-57cb3697734d.png"
+    },
+    {
+      "id": "field",
+      "variant": "wide",
+      "source": "exec-522e92f5-029d-46a0-8cc0-076e4b3141b8.png"
+    },
+    {
+      "id": "fishing-hut",
+      "variant": "card",
+      "source": "exec-a3debb0b-9c8a-48ba-8860-34158464917e.png"
+    },
+    {
+      "id": "fishing-hut",
+      "variant": "wide",
+      "source": "exec-346e59f8-b2d7-49e0-b8ee-41f9b36b82cc.png"
+    },
+    {
+      "id": "foresters-lodge",
+      "variant": "card",
+      "source": "exec-ef6c0c39-f429-4c9e-9195-7146c933e326.png"
+    },
+    {
+      "id": "foresters-lodge",
+      "variant": "wide",
+      "source": "exec-5f90236e-d421-45ce-b0aa-db243ceb57ba.png"
+    },
+    {
+      "id": "granary",
+      "variant": "card",
+      "source": "exec-626d96b6-d4d3-4a73-bcf6-0a28539e13bd.png"
+    },
+    {
+      "id": "granary",
+      "variant": "wide",
+      "source": "exec-98ad2492-abe0-4d07-b3a3-9e42e925a311.png"
+    },
+    {
+      "id": "guard-post",
+      "variant": "card",
+      "source": "exec-b9377ec7-d6f4-45e5-936d-75ddc1c81c9a.png"
+    },
+    {
+      "id": "guard-post",
+      "variant": "wide",
+      "source": "exec-d2d4ba62-6cb4-43e7-8985-a5f15b598348.png"
+    },
+    {
+      "id": "manor",
+      "variant": "card",
+      "source": "exec-e03b196f-3479-4186-bbfe-667d264f6393.png"
+    },
+    {
+      "id": "manor",
+      "variant": "wide",
+      "source": "exec-ed1cf392-771c-4074-941f-2d867723351e.png"
+    },
+    {
+      "id": "market",
+      "variant": "card",
+      "source": "exec-d5df009c-91ae-4421-9112-6ff690694b3b.png"
+    },
+    {
+      "id": "market",
+      "variant": "wide",
+      "source": "exec-022ffcb3-e1b1-4d11-8804-933f5fc84f49.png"
+    },
+    {
+      "id": "mine",
+      "variant": "card",
+      "source": "exec-981ddb5a-0408-4ef2-a576-d82254d3eb60.png"
+    },
+    {
+      "id": "mine",
+      "variant": "wide",
+      "source": "exec-b7b7cc9b-2f5c-4e11-8d40-8149abfdb9b3.png"
+    },
+    {
+      "id": "ore-yard",
+      "variant": "card",
+      "source": "exec-d6ea1423-a4ab-4217-bd9d-8d91aa9b105a.png"
+    },
+    {
+      "id": "ore-yard",
+      "variant": "wide",
+      "source": "exec-4ab4087f-872a-4555-9473-ba43cb206cd3.png"
+    },
+    {
+      "id": "pleasure-house",
+      "variant": "card",
+      "source": "exec-0d1143eb-da66-4e43-b3c6-8c11cf7bb235.png"
+    },
+    {
+      "id": "pleasure-house",
+      "variant": "wide",
+      "source": "exec-d9bd1d2c-0979-4c81-a713-a438d223c4a1.png"
+    },
+    {
+      "id": "quarry",
+      "variant": "card",
+      "source": "exec-ef2b288b-5963-44f5-be3a-3821de3e7d76.png"
+    },
+    {
+      "id": "quarry",
+      "variant": "wide",
+      "source": "exec-43830783-82ef-42b1-8326-c5d4a91eaeab.png"
+    },
+    {
+      "id": "residential-plot",
+      "variant": "card",
+      "source": "exec-7bb2b9a7-a36d-431c-8bc4-1d14ea3fe957.png"
+    },
+    {
+      "id": "residential-plot",
+      "variant": "wide",
+      "source": "exec-87ebbbd0-2996-4025-a1ed-607f04fa22f8.png"
+    },
+    {
+      "id": "road",
+      "variant": "card",
+      "source": "exec-3b847549-cd1e-4323-a569-120a7a841ab8.png"
+    },
+    {
+      "id": "road",
+      "variant": "wide",
+      "source": "exec-5aafb554-4fea-4c6a-a4ef-51e7c670e6d4.png"
+    },
+    {
+      "id": "stockpile",
+      "variant": "card",
+      "source": "exec-576182f0-9ab0-4f29-ba52-f605102fca8c.png"
+    },
+    {
+      "id": "stockpile",
+      "variant": "wide",
+      "source": "exec-0ff58068-ac86-4e88-8f15-78fc057e86ca.png"
+    },
+    {
+      "id": "tavern",
+      "variant": "card",
+      "source": "exec-733fbc4f-edbd-4700-95c2-5811ddd2585d.png"
+    },
+    {
+      "id": "tavern",
+      "variant": "wide",
+      "source": "exec-e7e46ba5-62df-4d72-9d3b-e133e802b31d.png"
+    },
+    {
+      "id": "trading-post",
+      "variant": "card",
+      "source": "exec-865f4ddb-95f3-459b-89c7-e532d38fa60f.png"
+    },
+    {
+      "id": "trading-post",
+      "variant": "wide",
+      "source": "exec-53d1b05d-f4e8-4a0a-8ad4-61cc91dea14a.png"
+    },
+    {
+      "id": "watchtower",
+      "variant": "card",
+      "source": "exec-ea96326c-09e3-43f3-8ed0-2e94fcb00c2a.png"
+    },
+    {
+      "id": "watchtower",
+      "variant": "wide",
+      "source": "exec-08e63584-52bc-4f9f-9f30-625152ea763b.png"
+    },
+    {
+      "id": "well",
+      "variant": "card",
+      "source": "exec-ca64e68e-af5f-454f-8c06-df6b5efeedf7.png"
+    },
+    {
+      "id": "well",
+      "variant": "wide",
+      "source": "exec-e18d8338-671e-44fa-86ee-335e5f22dbc8.png"
+    },
+    {
+      "id": "wood-gate",
+      "variant": "card",
+      "source": "exec-61fa295b-147a-4598-add6-0e95f6eb195c.png"
+    },
+    {
+      "id": "wood-gate",
+      "variant": "wide",
+      "source": "exec-49a11922-7f05-48f4-a133-902a47e76456.png"
+    },
+    {
+      "id": "wood-wall",
+      "variant": "card",
+      "source": "exec-5e7c6d6f-9fe9-480c-b48c-189e83aa1fd3.png"
+    },
+    {
+      "id": "wood-wall",
+      "variant": "wide",
+      "source": "exec-c7ddebd0-2d5f-4c76-82ef-5f4c9bf6a4da.png"
+    }
+  ]
+}

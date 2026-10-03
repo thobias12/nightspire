@@ -7,6 +7,7 @@ export interface HudEventHandlers {
   selectContextTab(tab: string): void
   showBuildPreview(card: HTMLButtonElement): void
   hideBuildPreview(): void
+  syncBuildMenu(): void
   markInspectorPositioned(): void
   placeFloatingPanel(panel: HTMLElement, left: number, top: number): void
   clampFloatingPanels(): void
@@ -25,6 +26,12 @@ export function bindHudEvents(
   handlers: HudEventHandlers,
 ): void {
   let draggedPanel: DraggedPanel | null = null
+
+  // Tabs, staffing rows and expanded details can grow an already positioned
+  // inspector. One HUD observer re-clamps on size changes, without frame polling.
+  const inspectorResize = new ResizeObserver(() => handlers.clampFloatingPanels())
+  inspectorResize.observe(element.querySelector('.inspector')!)
+  signal.addEventListener('abort', () => inspectorResize.disconnect(), { once: true })
 
   element.addEventListener('toggle', event => {
     const details = event.target as HTMLDetailsElement
@@ -99,9 +106,15 @@ export function bindHudEvents(
 
   element.addEventListener('pointerout', event => {
     const card = (event.target as HTMLElement).closest<HTMLButtonElement>('.build-card')
-    if (!card) return
     const next = event.relatedTarget as Node | null
+    const preview = element.querySelector('#build-preview')!
+    if (preview.contains(event.target as Node)) {
+      if (!next || (!preview.contains(next) && !(next instanceof Element && next.closest('.build-card')))) handlers.hideBuildPreview()
+      return
+    }
+    if (!card) return
     if (next && card.contains(next)) return
+    if (next && preview.contains(next)) return
     handlers.hideBuildPreview()
   }, { signal })
 
@@ -175,5 +188,9 @@ export function bindHudEvents(
   }
   window.addEventListener('pointerup', endPanelDrag, { signal })
   window.addEventListener('pointercancel', endPanelDrag, { signal })
-  window.addEventListener('resize', handlers.clampFloatingPanels, { signal })
+  window.addEventListener('resize', () => {
+    handlers.syncBuildMenu()
+    handlers.clampFloatingPanels()
+    handlers.hideBuildPreview()
+  }, { signal })
 }

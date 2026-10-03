@@ -25,7 +25,16 @@
   box-shadow: inset 0 0 0 3px #65503933, 0 3px 7px #0008;
   align-items: center; justify-content: center; pointer-events: auto;
 }
-.medieval-hud .settlement-summary { gap: 5px 12px; flex-wrap: wrap; align-content: center; font-size: 11px; }
+.medieval-hud .settlement-summary { gap: 0; flex-wrap: nowrap; font-size: 14px; overflow: hidden; }
+.medieval-hud .settlement-stat { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; white-space: nowrap; }
+.medieval-hud .settlement-stat + .settlement-stat { border-left: 1px solid #96774870; }
+.medieval-hud .settlement-stat i { width: 24px; height: 24px; background-size: contain; background-position: center; background-repeat: no-repeat; filter: saturate(.45); }
+.medieval-hud .settlement-stat b { font-weight: normal; }
+.medieval-hud .settlement-stat [data-ui-asset^="portrait:"] { background-size: 1000% 100%; }
+.medieval-hud .settlement-stat [data-ui-asset^="service:"] { background-size: 500% 100%; }
+.medieval-hud .settlement-stat [data-ui-asset="portrait:worker-empty"] { background-position: 88.8889% center; }
+.medieval-hud .settlement-stat [data-ui-asset="service:housing"] { background-position: 25% center; }
+.medieval-hud .settlement-stat [data-ui-asset="service:recreation"] { background-position: 75% center; }
 .medieval-hud .settlement-summary span + span::before { content: none; }
 .medieval-hud .settlement-brand {
   justify-content: center; position: relative; height: 42px; padding: 0 10px;
@@ -51,7 +60,7 @@
 .medieval-hud .resource-chip small { display: none; }
 .medieval-hud .resource-chip.is-critical strong { color: #efbca5; }
 .medieval-hud .time-block { gap: 10px; border-left: 0; }
-.medieval-hud .time-readout { min-width: 0; }
+.medieval-hud .time-readout { min-width: 0; white-space: nowrap; }
 .medieval-hud .time-readout strong, .medieval-hud .time-readout { color: var(--ink); font-size: 12px; }
 .medieval-hud .time-readout small { display: none; }
 .medieval-hud .time-readout em { color: #832f29; }
@@ -79,7 +88,7 @@
 .medieval-hud .build-catalog.is-open { display: flex; }
 .medieval-hud .catalog-header { display: none; }
 .medieval-hud .build-panel { order: 1; padding: 12px 6px 10px; gap: 10px; min-height: 0; max-height: none; }
-.medieval-hud .build-panel.is-active { display: flex; justify-content: flex-start; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #a08c66 #292c27; }
+.medieval-hud .build-panel.is-active { display: flex; justify-content: safe center; overflow-x: auto; scrollbar-width: thin; scrollbar-color: #a08c66 #292c27; }
 .medieval-hud .build-card {
   position: relative; flex: 0 0 102px; width: 102px; min-width: 102px; height: 174px;
   display: flex; flex-direction: column; gap: 0; padding: 5px; overflow: hidden;
@@ -93,24 +102,26 @@
   background: var(--parchment); box-shadow: inset 0 0 0 2px #fff0c0, 0 5px 10px #0009;
 }
 .medieval-hud .build-card .build-art-slot {
-  height: 128px; min-height: 128px; margin: 0; border: 1px solid #7e715860; border-radius: 7px 5px 0 0;
+  height: 100%; min-height: 0; margin: 0; border: 1px solid #7e715860; border-radius: 7px 5px;
   background-size: auto 100%; background-position: center; box-shadow: none;
   filter: saturate(.68) sepia(.13); flex: 1;
 }
-.medieval-hud .build-card.is-planned .build-art-slot { background-size: 1100% 100%; filter: saturate(.3) brightness(.85); }
-.medieval-hud .build-card [data-art-slot="build-granary"] { background-position: 0% center; }
-.medieval-hud .build-card [data-art-slot="build-bakery"] { background-position: 10% center; }
-.medieval-hud .build-card [data-art-slot="build-quarry"] { background-position: 20% center; }
-.medieval-hud .build-card [data-art-slot="build-mine"] { background-position: 30% center; }
-.medieval-hud .build-card [data-art-slot="build-well"] { background-position: 40% center; }
+.medieval-hud .build-card.is-planned .build-art-slot { background-size: auto 100%; filter: saturate(.5) brightness(.95); }
+/* Each landscape sprite cell is 768×320. Preserve that aspect, then crop its
+   center into the portrait instead of squeezing the complete atlas into it. */
+.medieval-hud .build-card [data-art-slot="build-granary"] { background-position: 3.5% center; }
+.medieval-hud .build-card [data-art-slot="build-bakery"] { background-position: 12.8% center; }
+.medieval-hud .build-card [data-art-slot="build-quarry"] { background-position: 22.1% center; }
+.medieval-hud .build-card [data-art-slot="build-mine"] { background-position: 31.4% center; }
+.medieval-hud .build-card [data-art-slot="build-well"] { background-position: 40.7% center; }
 .medieval-hud .build-card [data-art-slot="build-chapel"] { background-position: 50% center; }
-.medieval-hud .build-card [data-art-slot="build-bathhouse"] { background-position: 60% center; }
-.medieval-hud .build-card [data-art-slot="build-pleasure-house"] { background-position: 70% center; }
-.medieval-hud .build-card [data-art-slot="build-manor"] { background-position: 80% center; }
-.medieval-hud .build-card [data-art-slot="build-watchtower"] { background-position: 90% center; }
-.medieval-hud .build-card [data-art-slot="build-barracks"] { background-position: 100% center; }
+.medieval-hud .build-card [data-art-slot="build-bathhouse"] { background-position: 59.3% center; }
+.medieval-hud .build-card [data-art-slot="build-pleasure-house"] { background-position: 68.6% center; }
+.medieval-hud .build-card [data-art-slot="build-manor"] { background-position: 77.9% center; }
+.medieval-hud .build-card [data-art-slot="build-watchtower"] { background-position: 87.2% center; }
+.medieval-hud .build-card [data-art-slot="build-barracks"] { background-position: 96.5% center; }
 .medieval-hud .build-card [data-art-slot="build-mine"],
-.medieval-hud .build-card [data-art-slot="build-pleasure-house"] { background-size: 1100% 100%; }
+.medieval-hud .build-card [data-art-slot="build-pleasure-house"] { background-size: auto 100%; }
 /* Newly integrated economy buildings reuse related artwork until dedicated art exists. */
 .medieval-hud [data-art-slot="build-foresters-lodge"],
 .medieval-hud [data-ui-asset="building-header:foresters-lodge"] { background-image: url('../../../assets/ui/building-card/farmhouse.webp'); background-size: cover; }
@@ -119,11 +130,13 @@
 .medieval-hud [data-art-slot="build-ore-yard"],
 .medieval-hud [data-ui-asset="building-header:ore-yard"] { background-image: url('../../../assets/ui/building-card/stockpile.webp'); background-size: cover; }
 .medieval-hud [data-ui-asset="building-header:mine"],
-.medieval-hud [data-ui-asset="building-header:pleasure-house"] { background-image: url('../../../assets/ui/building-card/planned-buildings.svg'); background-size: 1100% 100%; }
+.medieval-hud [data-ui-asset="building-header:pleasure-house"] { background-image: url('../../../assets/ui/building-card/planned-buildings.svg'); background-size: 1100% auto; }
 .medieval-hud [data-ui-asset="building-header:mine"] { background-position: 30% center; }
 .medieval-hud [data-ui-asset="building-header:pleasure-house"] { background-position: 70% center; }
 .medieval-hud .build-card.is-unaffordable:not(.is-planned)::before { content: none; }
-.medieval-hud .build-name { font-size: 11px; line-height: 1.05; color: #3b3528; text-align: center; padding: 6px 0 0; white-space: normal; }
+.medieval-hud .build-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); padding: 0; }
+.medieval-hud .card-seal { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 2px; border: 2px solid #b59d70; border-radius: 50%; background: #30352b; box-shadow: 0 1px 3px #0008; }
+.medieval-hud .card-seal span { flex: none; width: 26px; height: 26px; background-size: contain; background-repeat: no-repeat; background-position: center; }
 .medieval-hud .build-card small { display: none; }
 .medieval-hud .build-card::after { content: none; }
 .medieval-hud .build-card.is-planned { opacity: .65; }
@@ -131,15 +144,18 @@
 .medieval-hud .planned-divider { flex: 0 0 10px; width: 10px; min-width: 10px; border: 0; align-self: center; }
 .medieval-hud .planned-divider span { font-size: 0; }
 .medieval-hud .planned-divider span::after { content: '◆'; font-size: 10px; color: #c5b690; }
+.medieval-hud .catalog-navigation { order: 2; display: flex; align-items: center; justify-content: center; min-height: 36px; border-bottom: 2px solid #99825d; background: linear-gradient(90deg, #24262133, #2b2c27ed 15% 85%, #24262133); }
 .medieval-hud .build-tabs {
   order: 2; justify-content: center; gap: 0; min-height: 34px; padding: 0;
-  border: 0; border-bottom: 2px solid #99825d; background: linear-gradient(90deg, #24262133, #2b2c27ed 15% 85%, #24262133);
+  border: 0; margin: 0; background: none; flex: 1; overflow: visible;
 }
 .medieval-hud .build-tabs button { min-width: 0; flex: 1; max-width: 130px; height: 34px; padding: 3px 9px; border: 0; border-radius: 0; font-size: 11px; background: none; color: #d2c5a7; }
 .medieval-hud .build-tabs button[aria-pressed="true"] { background: linear-gradient(#bfa77b66, #bfa77b11); color: #f1e2bf; box-shadow: inset 0 -2px #dcc394; }
 .medieval-hud .category-icon { width: 24px; height: 24px; background-size: contain; }
+.medieval-hud .build-tabs button > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.medieval-hud .build-tabs button { display: flex; align-items: center; justify-content: center; }
 .medieval-hud .catalog-tools { order: 3; padding: 0; min-height: 0; justify-content: flex-end; border: 0; background: none; }
-.medieval-hud .catalog-tool { padding: 2px 6px; min-height: 25px; border: 0; background: #242923c9; font-size: 11px; }
+.medieval-hud .catalog-tool { padding: 2px 8px; min-height: 30px; border: 0; background: transparent; font-size: 11px; }
 .medieval-hud .catalog-tool-note, .medieval-hud .catalog-tool small { display: none; }
 .medieval-hud .catalog-tool .category-icon { width: 16px; height: 16px; }
 
@@ -157,7 +173,12 @@
 .medieval-hud .build-preview-art[data-art-slot="build-farmhouse"] { background-image: url('../../../assets/ui/building-card/farmhouse.webp'); }
 .medieval-hud .build-preview-art[data-art-slot="build-brewery"] { background-image: url('../../../assets/ui/building-card/brewery.webp'); }
 .medieval-hud .build-preview-art[data-art-slot="build-tavern"] { background-image: url('../../../assets/ui/building-card/tavern.webp'); }
+.medieval-hud .build-preview-art:is([data-art-slot="build-granary"], [data-art-slot="build-bakery"], [data-art-slot="build-quarry"], [data-art-slot="build-mine"], [data-art-slot="build-well"], [data-art-slot="build-chapel"], [data-art-slot="build-bathhouse"], [data-art-slot="build-pleasure-house"], [data-art-slot="build-manor"], [data-art-slot="build-watchtower"], [data-art-slot="build-barracks"]) { background-size: 1100% auto; }
 .medieval-hud .build-preview-copy { padding: 10px 5px 5px; }
+.medieval-hud .build-preview-copy { min-height: 0; overflow-y: auto; }
+.medieval-hud .build-preview { min-height: 0; grid-template-rows: auto auto minmax(0, 1fr); pointer-events: auto; }
+.medieval-hud .build-preview::after { content: ''; position: absolute; left: 0; right: 0; bottom: -14px; height: 14px; }
+.medieval-hud .build-preview-heading { padding: 3px 5px 9px; }
 .medieval-hud .build-preview-heading b { font-size: 21px; color: #423a2c; }
 .medieval-hud .build-preview-heading small { color: #776145; font-size: 10px; }
 .medieval-hud .build-preview-copy p { font-size: 13px; line-height: 1.4; color: #443d30; margin: 8px 0; }
@@ -177,6 +198,8 @@
 }
 .medieval-hud .dock-button:hover, .medieval-hud .dock-button[aria-pressed="true"] { background: #697276; border-color: #eddbb5; }
 .medieval-hud .dock-icon-slot { display: block; width: 34px; height: 34px; border: 0; border-radius: 0; box-shadow: none; background-color: transparent; background-size: contain; background-repeat: no-repeat; background-position: center; }
+.medieval-hud .command-glyph { color: #e0d1af; padding: 2px; filter: drop-shadow(1px 2px 1px #111); }
+.medieval-hud .command-glyph svg { width: 100%; height: 100%; }
 .medieval-hud [data-icon-slot="command-build"] { background-image: url('../../../assets/ui/command/build.webp'); }
 .medieval-hud [data-icon-slot="command-rotate"] { background-image: url('../../../assets/ui/command/rotate.webp'); }
 .medieval-hud [data-icon-slot="command-inspect"] { background-image: url('../../../assets/ui/command/inspect.webp'); }
@@ -186,15 +209,17 @@
 .medieval-hud [data-icon-slot="command-save"], .medieval-hud [data-icon-slot="command-load"] { background-image: url('../../../assets/ui/command/ledger.webp'); }
 .medieval-hud .dock-utility { width: 39px; min-width: 39px; height: 39px; min-height: 39px; align-self: end; }
 .medieval-hud .dock-utility .dock-icon-slot { width: 25px; height: 25px; }
-.medieval-hud .status { font-size: 12px; max-width: min(650px, calc(100vw - 30px)); }
+.medieval-hud .status { position: fixed; left: 14px; bottom: 18px; margin: 0; font-size: 11px; line-height: 1.4; max-width: min(260px, calc(50vw - 180px)); padding: 7px 10px; text-align: left; background: #272b22b0; border-color: #9e886345; }
 
 /* Context windows retain drag positioning and all existing economy controls. */
-.medieval-hud .inspector.is-building { width: min(440px, calc(100vw - 20px)); padding: 0; background: #2f332fef; border: 1px solid #a49b81; color: #e0dbcc; max-height: calc(100vh - 125px); }
+.medieval-hud .inspector.is-building { width: min(520px, calc(100vw - 20px)); padding: 0; background: #2f332fef; border: 1px solid #a49b81; color: #e0dbcc; max-height: calc(100vh - 125px); }
 .medieval-hud .building-panel-title { min-height: 43px; padding: 6px 12px; background: linear-gradient(115deg, #677175ec, #444d51f2); border-bottom: 1px solid #aaa48e; }
 .medieval-hud .building-panel-title h2 { color: #ebe1c7; font-size: 23px; font-weight: normal; }
 .medieval-hud .building-panel-title .eyebrow, .medieval-hud .building-panel-title h2 small { display: none; }
-.medieval-hud .building-hero { height: 168px; min-height: 168px; border: 0; filter: saturate(.6) sepia(.12); }
-.medieval-hud .context-tabs { padding: 0 18px; gap: 8px; background: #4e50464d; border: 0; }
+.medieval-hud .building-hero { height: 182px; min-height: 182px; border: 0; filter: saturate(.6) sepia(.12); }
+.medieval-hud .building-hero > span { display: none; }
+.medieval-hud .building-hero::after { content: none; }
+.medieval-hud .context-tabs { grid-template-columns: repeat(3, 1fr); padding: 0 18px; gap: 8px; background: #4e50464d; border: 0; }
 .medieval-hud .context-tabs button { flex: 1; padding: 10px 5px; color: #c5c2b4; font: bold 16px Georgia, serif; border: 0; background: none; }
 .medieval-hud .context-tabs button[aria-pressed="true"] { color: #e3c99d; box-shadow: inset 0 -2px #b69a69; }
 .medieval-hud .inspector.is-building .building-panel { background: #363b35f5; color: #e0dbcc; }
@@ -206,7 +231,7 @@
 .medieval-hud .inspector.is-building .context-content p { color: #dfd8c7; }
 .medieval-hud .inspector.is-building .context-content small { color: #babba9; }
 .medieval-hud .inspector.is-building .building-status-banner { color: #dcd5bf; background: #93998612; }
-.medieval-hud .context-content { padding: 12px 16px; max-height: 235px; overflow-y: auto; }
+.medieval-hud .inspector.is-building .context-content { min-height: 0; padding: 10px 16px 12px; max-height: 235px; overflow-y: auto; }
 .medieval-hud .context-content p, .medieval-hud .context-status, .medieval-hud .context-content small { font-size: 12px; line-height: 1.45; }
 .medieval-hud .context-close { border-radius: 50%; min-width: 24px; width: 24px; height: 24px; padding: 0; font-size: 18px; color: #ddd6c1; background: transparent; border: 1px solid #cec6ad; }
 .medieval-hud .staff-ribbon { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 12px; background: #20262280; border-bottom: 1px solid #c2b79522; }
@@ -229,7 +254,7 @@
 
 @media (min-width: 1600px) {
   .medieval-hud .build-card { flex-basis: 116px; width: 116px; min-width: 116px; height: 205px; }
-  .medieval-hud .build-card .build-art-slot { min-height: 158px; }
+  .medieval-hud .build-card .build-art-slot { min-height: 0; }
   .medieval-hud .build-preview { width: 365px; }
   .medieval-hud .build-preview-art { height: 160px; }
 }
@@ -237,20 +262,52 @@
   .medieval-hud .topbar { grid-template-columns: 1fr 195px 1fr; }
   .medieval-hud .settlement-copy > b { font-size: 17px; }
   .medieval-hud .settlement-summary { font-size: 9px; gap: 3px 7px; padding: 3px 8px; }
-  .medieval-hud .settlement-summary span { display: inline; }
+  .medieval-hud .settlement-summary .settlement-stat { display: flex; }
   .medieval-hud .time-block { gap: 4px; padding: 3px 6px; }
   .medieval-hud .speed-control { font-size: 0; }
   .medieval-hud .tasks-panel { width: 185px; }
   .medieval-hud .settlement-drawer { width: 185px; }
   .medieval-hud .build-card { flex-basis: 89px; width: 89px; min-width: 89px; height: 148px; }
-  .medieval-hud .build-card .build-art-slot { min-height: 101px; height: 101px; }
+  .medieval-hud .build-card .build-art-slot { min-height: 0; height: 100%; }
   .medieval-hud .build-tabs button { font-size: 10px; padding: 3px; }
   .medieval-hud .build-preview-art { height: 105px; }
 }
+@media (max-width: 1100px) {
+  .medieval-hud .status { top: 102px; bottom: auto; left: 50%; transform: translateX(-50%); max-width: 250px; }
+}
+@media (max-width: 760px) {
+  .medieval-hud .topbar { top: 6px; grid-template-columns: 1fr 1fr; width: calc(100% - 16px); }
+  .medieval-hud .settlement-brand { display: flex; grid-column: 1 / -1; grid-row: 1; justify-self: center; width: 210px; height: 34px; }
+  .medieval-hud .settlement-summary { grid-row: 2; padding: 0 6px; font-size: 11px; }
+  .medieval-hud .settlement-stat { gap: 3px; }
+  .medieval-hud .settlement-stat i { width: 17px; height: 17px; }
+  .medieval-hud .time-block { grid-row: 2; min-width: 0; padding: 0 5px; gap: 3px; }
+  .medieval-hud .time-readout > div { gap: 3px; }
+  .medieval-hud .time-readout, .medieval-hud .time-readout strong { font-size: 10px; }
+  .medieval-hud .resource-strip { grid-row: 3; margin-top: 4px; padding: 0 3px; max-width: 100%; }
+  .medieval-hud .resource-chip { min-width: 43px; padding: 0 3px; gap: 3px; }
+  .medieval-hud .resource-chip .ui-icon-slot { width: 20px; height: 20px; }
+  .medieval-hud .resource-chip strong { font-size: 12px; }
+  .medieval-hud .settlement-drawer, .medieval-hud .tasks-panel { top: 128px; }
+  .medieval-hud .status { top: 168px; }
+  .medieval-hud .build-catalog { min-width: 0; }
+  .medieval-hud .build-tabs button { max-width: 55px; padding: 3px; }
+  .medieval-hud .dock-button:nth-last-child(-n+3) { display: grid; }
+  .medieval-hud .dock-utility-group { display: flex; }
+  .medieval-hud .dock-button { width: 43px; min-width: 43px; height: 43px; min-height: 43px; }
+  .medieval-hud .command-dock { gap: 7px; }
+  .medieval-hud .dock-utility { width: 30px; min-width: 30px; height: 30px; min-height: 30px; }
+  .medieval-hud .inspector.is-building { top: 128px; max-height: calc(100vh - 188px); }
+}
 @media (max-height: 650px) {
   .medieval-hud .build-card { height: 125px; }
-  .medieval-hud .build-card .build-art-slot { min-height: 80px; height: 80px; }
-  .medieval-hud .build-preview-art { height: 75px; }
+  .medieval-hud .build-card .build-art-slot { min-height: 0; height: 100%; }
+  .medieval-hud .build-preview-art { height: 45px; }
+  .medieval-hud .build-preview-heading { padding: 0 5px 5px; }
+  .medieval-hud .build-preview-heading b { font-size: 18px; }
+  .medieval-hud .build-preview-heading small { display: none; }
+  .medieval-hud .build-preview-copy { padding: 4px 5px; }
+  .medieval-hud .build-preview-copy p, .medieval-hud .build-preview-meta { font-size: 11px; margin: 4px 0; }
   .medieval-hud .building-hero { height: 100px; min-height: 100px; }
   .medieval-hud .context-content { max-height: 145px; }
 }
