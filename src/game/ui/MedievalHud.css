@@ -135,9 +135,8 @@
 .medieval-hud [data-ui-asset="building-header:pleasure-house"] { background-position: 70% center; }
 .medieval-hud .build-card.is-unaffordable:not(.is-planned)::before { content: none; }
 .medieval-hud .build-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); padding: 0; }
-.medieval-hud .card-seal { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); min-width: 32px; height: 29px; display: flex; align-items: center; justify-content: center; gap: 1px; padding: 2px 5px; border: 2px solid #b59d70; border-radius: 50%; background: #30352b; color: #eee0bc; box-shadow: 0 1px 3px #0008; }
-.medieval-hud .card-seal span { width: 19px; height: 19px; background-size: contain; background-repeat: no-repeat; background-position: center; }
-.medieval-hud .card-seal b { font: normal 11px Georgia, serif; }
+.medieval-hud .card-seal { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; padding: 2px; border: 2px solid #b59d70; border-radius: 50%; background: #30352b; box-shadow: 0 1px 3px #0008; }
+.medieval-hud .card-seal span { flex: none; width: 26px; height: 26px; background-size: contain; background-repeat: no-repeat; background-position: center; }
 .medieval-hud .build-card small { display: none; }
 .medieval-hud .build-card::after { content: none; }
 .medieval-hud .build-card.is-planned { opacity: .65; }

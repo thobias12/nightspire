@@ -5,12 +5,13 @@
 - [x] 56 independently generated paintings: portrait card and wide scene for every one of the 28 existing/live and planned catalog entries; ten retained portraits
 - [x] Quiet grey-green paint, flat washes and restrained ink outlines directed from the supplied reference
 - [x] Coordinated resource/category/service/task/command emblems, slate frames, parchment trim and local heading font
-- [x] Ten additional regressions; all 207 tests, typecheck, architecture check and production build pass
+- [x] Thirteen additional regressions; all 210 tests, typecheck, architecture check and production build pass
 - [x] Production browser checks across all five categories, preview/title/source reuse, staffing add/remove, building tabs, responsive windows and save/reload/load
 - [x] QA town remains saveable when staging clears a claimed harvest node; carried deliveries preserved
 - [x] Full-frame small cards and proportional wide previews; independent source files eliminate neighboring-art remnants
 - [x] Development-only gallery covers every card, header, title thumbnail, portrait and emblem at the game's sizes
 - [x] Growing inspector content re-clamps above the dock; available height respects the status ribbons
+- [x] Circular output/service emblems across all 28 cards; configured producer outputs, retained hover costs and planned-state coverage tested
 - [ ] Final art-direction approval
 
 See [assets, direction brief, budgets and limits](MANUSCRIPT_ART.md). This pass adds no gameplay milestone or population/performance claim.

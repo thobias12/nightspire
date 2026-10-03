@@ -7,6 +7,10 @@ import { ICONS, iconSvg } from '../scripts/manuscript-icons.mjs'
 
 const require = createRequire(import.meta.url)
 const { CURRENT_UI_ASSETS } = require('../.test-build/game/ui/UiAssets.js')
+const { BUILDINGS } = require('../.test-build/game/data/buildings.js')
+const { RESOURCES } = require('../.test-build/game/data/resources.js')
+const { catalogSealFor, catalogPreviewFor } = require('../.test-build/game/ui/HudCatalog.js')
+const { createHudTemplate } = require('../.test-build/game/ui/HudTemplate.js')
 const { createInitialWorldState } = require('../.test-build/game/model/WorldState.js')
 const { runQaAction } = require('../.test-build/game/qa/QaActions.js')
 const { serializeWorld, deserializeWorld } = require('../.test-build/game/persistence/SaveLoad.js')
@@ -109,6 +113,49 @@ test('resource, category, command, service and task hooks resolve to determinist
   }
   for (const name of Object.keys(ICONS)) assert.equal(readText(new URL(`icon/${name}.svg`, root)), iconSvg(name))
   assert.throws(() => iconSvg('missing'), /Unknown manuscript icon/)
+})
+
+test('producer seals follow configured output rather than input or wood construction cost', () => {
+  for (const def of Object.values(BUILDINGS)) {
+    const output = def.production?.outputResource ?? def.resourceOperation?.resource
+    if (!output) continue
+    const seal = catalogSealFor('build-' + def.id, def.id)
+    assert.equal(seal.icon, def.id === 'fishing-hut' ? 'fish' : output)
+    assert.ok(seal.label.startsWith('Produces ' + RESOURCES[output].label))
+    const preview = catalogPreviewFor({ dataset: { buildingType: def.id }, querySelector: () => null })
+    assert.ok(preview.detail.includes(def.buildCost.wood + ' Wood'), 'hover still reports construction cost')
+  }
+  const production = BUILDINGS.blacksmith.production
+  const previous = production.outputResource
+  try {
+    production.outputResource = 'ale'
+    assert.deepEqual(catalogSealFor('build-blacksmith', 'blacksmith'), { icon: 'ale', label: 'Produces Ale' })
+  } finally {
+    production.outputResource = previous
+  }
+})
+
+test('every actual catalog card has a bound output/category emblem and retains planned semantics', () => {
+  const cards = [...createHudTemplate().matchAll(/<button class="build-card[^"]*"([^>]*)><span class="build-art-slot" data-art-slot="([^"]+)"/g)]
+  assert.equal(cards.length, 28)
+  for (const [, attrs, art] of cards) {
+    const buildingType = attrs.match(/data-building-type="([^"]+)"/)?.[1]
+    const seal = catalogSealFor(art, buildingType)
+    assert.ok(seal, art)
+    assert.ok(ICONS[iconBindings[`[data-icon-slot="catalog-${seal.icon}"]`]], art)
+    const planned = attrs.includes('aria-disabled="true"')
+    assert.equal(seal.label.includes('(planned)'), planned, art)
+  }
+  assert.equal(catalogSealFor('build-unrecognized'), null)
+})
+
+test('storage and service seals describe their function without claiming resource production', () => {
+  assert.deepEqual(catalogSealFor('build-ore-yard', 'ore-yard'), { icon: 'ore', label: 'Iron Ore storage' })
+  assert.deepEqual(catalogSealFor('build-stockpile', 'stockpile'), { icon: 'storage', label: 'Resource storage' })
+  assert.deepEqual(catalogSealFor('build-house', 'house'), { icon: 'housing', label: 'Housing' })
+  assert.deepEqual(catalogSealFor('build-tavern', 'tavern'), { icon: 'ale', label: 'Recreation service' })
+  assert.deepEqual(catalogSealFor('build-market', 'market'), { icon: 'food', label: 'Food distribution' })
+  assert.deepEqual(catalogSealFor('build-wood-wall', 'wood-wall'), { icon: 'safety', label: 'Defense' })
 })
 
 test('two-format compressed art stays within the documented 2 MiB payload budget', () => {

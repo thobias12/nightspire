@@ -38,6 +38,7 @@ export const iconBindings = {
   ...Object.fromEntries(['planning', 'logistics', 'industry', 'services', 'defense'].map(name => [`[data-ui-asset="category:${name}"]`, name])),
   ...Object.fromEntries(['build', 'rotate', 'inspect', 'camera', 'street-view', 'center', 'save', 'load'].map(name => [`[data-icon-slot="command-${name}"]`, name])),
   ...Object.fromEntries(['food', 'housing', 'safety', 'recreation', 'agriculture'].map(name => [`[data-ui-asset="service:${name}"]`, name])),
+  ...Object.fromEntries(['wood', 'food', 'ale', 'ore', 'tools', 'fish', 'agriculture', 'housing', 'storage', 'trade', 'recreation', 'fire', 'safety', 'defense', 'road', 'stone', 'water', 'faith', 'hygiene', 'civic', 'military'].map(name => [`[data-icon-slot="catalog-${name}"]`, name])),
   ...Object.fromEntries(Object.entries({ raid: 'raid', housing: 'housing', food: 'food', storage: 'storage', repair: 'repair', trade: 'trade', arrival: 'arrival', event: 'event' }).map(([name, icon]) => [`[data-ui-asset="notification:task-${name}"]`, icon])),
   '[data-icon-slot="settlement-overview"]': 'overview',
   '[data-icon-slot="selection"]': 'selection',

@@ -1,5 +1,9 @@
 # Decisions — M1 settlement loop
 
+## Catalog output and service seals — 2026-10-03
+
+Replace wood-cost badges with one readable output/category pictograph in each construction card's circle. Derive live producer emblems from the existing production/resource-operation definitions; show storage, housing, trade or service functions for buildings that do not produce resources. Fishing uses a fish pictograph while retaining Food as its actual output. Planned-only symbols are UI presentation data and remain explicitly planned. Costs still appear in hover previews. Build the static seals once with the catalog; no simulation fields or per-frame processing are added. Reuse the same original wood/tool/grain icons in resource and service readouts so their meanings stay consistent. See [art budgets and browser checks](MANUSCRIPT_ART.md).
+
 ## Dedicated portrait and wide manuscript artwork — 2026-10-03
 
 Use two checked-in WebP paintings per catalog entry: a tall construction card and a wide scene shared by hover and building windows. The user explicitly changed the earlier shared-image requirement. Independent composition keeps the building, worker and activity readable in both aspect ratios, without stitching two crops or cutting a roof off a landscape scene. Each painting is generated independently, eliminating atlas-row bleed. A manifest owns dimensions, title crops and House aliases; a source map records the selected generation and exact prompt recipe.

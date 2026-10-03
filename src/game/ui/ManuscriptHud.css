@@ -61,7 +61,11 @@
 .medieval-hud .build-preview-requirement { font-style: italic; }
 .medieval-hud .build-preview-meta { text-align: center; padding-bottom: 6px; }
 .medieval-hud .ui-crest-slot { filter: none; background-size: contain; }
-.medieval-hud .card-seal { border-color: #ab9976; background-color: #383a31; }
+.medieval-hud .card-seal {
+  border-color: #d2c3a0;
+  background: radial-gradient(circle at 35% 25%, #59604b, #30382d 75%);
+  box-shadow: inset 0 0 0 1px #84785a, 0 1px 3px #0008;
+}
 .medieval-hud .settlement-stat i { filter: sepia(.25) saturate(.45); }
 .medieval-hud .resource-chip .ui-icon-slot { filter: none; }
 .medieval-hud .dock-button, .medieval-hud .dock-utility {
