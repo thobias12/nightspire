@@ -1,4 +1,3 @@
-import type { Landscape, MapSize } from '../data/map'
 import { createGeneratedWorld, worldHalf } from '../world/MapGenerator'
 import { FIXED_STEP } from '../data/jobs'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
@@ -30,6 +29,7 @@ import {
 } from '../world/TownPlanning'
 import { pointInField, residentialPlotFieldError } from '../world/FieldPlanning'
 import { createInitialWorldState } from '../model/WorldState'
+import type { WorldState } from '../model/WorldState'
 import { assignWorkerToWorkplace, unassignWorkerFromWorkplace } from '../systems/population/Workforce'
 import { nextStockpilePriority, stockpilePriorityLabel } from '../systems/economy/StockpileLogistics'
 import { haulPriorityLabel, nextHaulPriority } from '../systems/economy/WorkplaceLogistics'
@@ -52,7 +52,7 @@ import { updatePlanningGhost } from './PlanningPresentation'
 
 export class Game {
   private readonly renderer = new SceneRenderer()
-  private readonly simulation = new Simulation(createGeneratedWorld())
+  private readonly simulation: Simulation
   private readonly hud: Hud
   private readonly input: InputController
   private readonly resizeObserver: ResizeObserver
@@ -68,7 +68,8 @@ export class Game {
   private hudTime = 0
   private metrics: Metrics = { frame: 16.7, simulation: 0, render: 0, calls: 0, triangles: 0, paths: 0, requests: 0, queue: 0, failures: 0, dropped: 0 }
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(private readonly root: HTMLElement, initialWorld = createGeneratedWorld(), private readonly onMenu?: (state: WorldState, setup: boolean) => void) {
+    this.simulation = new Simulation(initialWorld)
     root.className = 'game-shell'; root.append(this.renderer.canvas)
     this.hud = new Hud(root, this.action)
     this.input = new InputController(this.renderer, this.simulation, () => this.action('cancel'), () => this.action('attack'))
@@ -225,7 +226,7 @@ export class Game {
 
         {
           const preview = residentialPlotPreview(s.roads, this.planning.start, rawEnd, 2.2, this.planning.gridSnap, s.residentialPlots)
-          let error = residentialPlotError(preview, s.residentialPlots, worldHalf(s))
+          let error = residentialPlotError(preview, s.residentialPlots, worldHalf(s),s.map)
           if (!error) error = residentialPlotBuildingError(preview, s.buildings)
           if (!error) error = residentialPlotResourceError(preview, s.nodes)
           if (!error) error = residentialPlotFieldError(preview, s.fields)
@@ -461,6 +462,9 @@ export class Game {
       }
 
       switch (action) {
+        case 'main-menu': case 'map-setup':
+          this.onMenu?.(s,action === 'map-setup')
+          return
         case 'road':
           this.planning.buildType = null
           this.planning.tool = 'road'
@@ -727,17 +731,6 @@ export class Game {
           if (this.renderer.cinematic) this.renderer.zoom = Math.min(this.renderer.zoom, 24)
           this.message = this.renderer.cinematic ? 'Street-oblique camera enabled. Pan and rotate normally; press V to return.' : 'Settlement overview camera restored.'
           break
-        case 'new-region': {
-          const settings = JSON.parse(value ?? '{}') as { seed: number; size: MapSize; landscape: Landscape }
-          const next = createGeneratedWorld(settings.seed, settings.size, settings.landscape)
-          const text = serializeWorld(next)
-          this.storePrimary(serializeWorld(s))
-          this.replaceWorld(text)
-          this.renderer.focus.x = 0; this.renderer.focus.z = -1
-          this.renderer.zoom = 55; this.renderer.mode = 'settlement'; this.renderer.cinematic = false
-          this.message = 'Created ' + settings.size + 'm region, seed ' + settings.seed + '. Previous settlement saved: Load restores it.'
-          break
-        }
         case 'region-view':
           this.renderer.mode = 'settlement'; this.renderer.cinematic = false
           this.renderer.focus.x = 0; this.renderer.focus.z = 0; this.renderer.zoom = (s.map?.size ?? 47) * 1.18

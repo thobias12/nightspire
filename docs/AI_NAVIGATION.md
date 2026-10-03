@@ -129,3 +129,17 @@ Current ownership ledger:
 
 The architecture check rejects every TypeScript module above 80 KiB. HUD and SceneRenderer no longer have exceptions.
 
+
+## Map setup and shared terrain ownership
+
+- `app/GameSession.ts`: one active menu/game lifecycle; stops input/render loops before replacement.
+- `ui/StartScreen.ts` + `StartScreen.css`: setup UI; previews generate on settings changes.
+- `ui/MapIllustration.ts`: bounded original cartography, shared by setup and optional HUD map.
+- `data/map.ts`: landscape configurations and map metadata versions.
+- `world/MapNoise.ts`: dependency-free deterministic noise/hash primitives.
+- `world/MapGenerator.ts`: saved resource entities and protected camp composition.
+- `world/MapTerrain.ts`: shared forest/water geometry, cached blockers and water placement checks.
+- `render/RegionalWater.ts`: one batched water mesh using the shared geometry; no gameplay rules.
+- `tests/map-setup.test.mjs`: V2 terrain, navigation, save, cartography and fresh-camp regressions.
+
+Read [MAP_SETUP.md](MAP_SETUP.md) for scope, validation and unmeasured performance limits.

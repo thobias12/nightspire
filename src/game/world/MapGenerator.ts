@@ -1,24 +1,14 @@
-import { MAP_SIZES, type Landscape, type MapDefinition, type MapSize } from '../data/map'
+import { LANDSCAPES, MAP_SIZES, type Landscape, type MapDefinition, type MapSize } from '../data/map'
 import { createInitialWorldState, type WorldState } from '../model/WorldState'
+import { landscapeNoise, mapHash } from './MapNoise'
+import { regionalForest, terrainWater, waterDistance } from './MapTerrain'
+export { landscapeNoise, mapHash } from './MapNoise'
 export const MAX_MAP_NODES = 4096
 export const worldHalf = (s: Pick<WorldState, 'map'>): number => ((s.map?.size ?? 47) - 1) / 2
 
-export function mapHash(x: number, z: number, seed: number): number {
-  let h = Math.imul(x, 374761393) ^ Math.imul(z, 668265263) ^ Math.imul(seed, 1274126177)
-  h = Math.imul(h ^ h >>> 13, 1274126177)
-  return ((h ^ h >>> 16) >>> 0) / 4294967296
-}
-export function landscapeNoise(x: number, z: number, seed: number): number {
-  const ix = Math.floor(x), iz = Math.floor(z)
-  const smooth = (t: number) => t * t * (3 - 2 * t)
-  const tx = smooth(x - ix), tz = smooth(z - iz)
-  const a = mapHash(ix, iz, seed), b = mapHash(ix + 1, iz, seed)
-  const c = mapHash(ix, iz + 1, seed), d = mapHash(ix + 1, iz + 1, seed)
-  return (a + (b - a) * tx) * (1 - tz) + (c + (d - c) * tx) * tz
-}
-
 /** Continuous woodland masses, with a guaranteed spacious starting clearing. */
 export function forestDensity(x: number, z: number, map: MapDefinition): number {
+  if (map.version === 2) return regionalForest(x,z,map)
   const clearing = Math.min(1, Math.max(0, (Math.hypot(x, z) - 16) / 14))
   const broad = landscapeNoise(x / 42, z / 42, map.seed)
   const edge = landscapeNoise(x / 11, z / 11, map.seed + 17)
@@ -33,17 +23,19 @@ export function horizonHeight(x: number, z: number, map: MapDefinition): number 
   return ramp * ramp * (8 + landscapeNoise(x / 65, z / 65, map.seed + 41) * 35)
 }
 
-export function createGeneratedWorld(seed = 137, size: MapSize = 257, landscape: Landscape = 'meadows'): WorldState {
+export function createGeneratedWorld(seed = 137, size: MapSize = 257, landscape: Landscape = 'meadows', version: 1 | 2 = 1): WorldState {
   if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff || !MAP_SIZES.includes(size)
-    || !['meadows', 'woodland'].includes(landscape)) throw new Error('Invalid map settings.')
+    || !Object.hasOwn(LANDSCAPES, landscape) || ![1,2].includes(version)
+    || version === 1 && !['meadows','woodland'].includes(landscape)) throw new Error('Invalid map settings.')
   const state = createInitialWorldState()
-  state.map = { version: 1, seed, size, landscape }
+  state.map = { version, seed, size, landscape }
   state.nodes = []
   const used = new Set<string>(), half = (size - 1) / 2
   const add = (x: number, z: number, resource: 'wood' | 'food' | 'ore') => {
     x = Math.round(x) || 0; z = Math.round(z) || 0
     const key = x + ',' + z
-    if (used.has(key) || Math.abs(x) > half - 3 || Math.abs(z) > half - 3 || Math.hypot(x, z) < 9) return false
+    if (used.has(key) || Math.abs(x) > half - 3 || Math.abs(z) > half - 3 || Math.hypot(x, z) < 9 || terrainWater(x,z,state.map)) return false
+    if (resource === 'wood' && waterDistance(x,z,state.map) < 4) return false
     used.add(key)
     state.nodes.push({ id: state.nextId++, x, z, resource, remaining: resource === 'ore' ? 30 : 40 })
     return true
@@ -59,6 +51,17 @@ export function createGeneratedWorld(seed = 137, size: MapSize = 257, landscape:
       if (add(cx + Math.cos(i * 2.399) * spread, cz + Math.sin(i * 2.399) * spread, resource)) placed++
     }
   }
+  if (version === 2) {
+    // Regional food/mineral deposits are legible clusters, not isolated confetti.
+    for (let site=0;site<10;site++) {
+      const a=angle+site*Math.PI*0.2, radius=half*(0.53+mapHash(site,40,seed)*0.24)
+      const cx=Math.cos(a)*radius,cz=Math.sin(a)*radius,resource=site%2?'ore':'food'
+      for(let i=0;i<18;i++) {
+        const r=1+Math.sqrt(mapHash(site,i,seed+88))*6, t=i*2.399
+        add(cx+Math.cos(t)*r,cz+Math.sin(t)*r,resource)
+      }
+    }
+  }
   // Bounded candidates and output, independent of population. Blue-noise-like
   // jitter avoids rows; coherent density leaves linked expanses of open meadow.
   const candidates: { x: number; z: number; resource: 'wood' | 'food' | 'ore'; rank: number }[] = []
@@ -71,14 +74,14 @@ export function createGeneratedWorld(seed = 137, size: MapSize = 257, landscape:
     const density = forestDensity(px, pz, state.map)
     const roll = mapHash(x, z, seed + 9)
     if (roll < density * 0.9) candidate(px, pz, 'wood')
-    else if (density > 0.08 && density < 0.45 && roll > 0.93) candidate(px, pz, 'food')
-    else if (landscapeNoise(px / 19, pz / 19, seed + 71) > 0.8 && roll > 0.88) candidate(px, pz, 'ore')
+    else if (version === 1 && density > 0.08 && density < 0.45 && roll > 0.93) candidate(px, pz, 'food')
+    else if (version === 1 && landscapeNoise(px / 19, pz / 19, seed + 71) > 0.8 && roll > 0.88) candidate(px, pz, 'ore')
   }
   candidates.sort((a, b) => a.rank - b.rank)
   for (const p of candidates) {
     if (state.nodes.length >= MAX_MAP_NODES) break
     add(p.x, p.z, p.resource)
   }
-  state.events = ['New ' + size + 'm region · seed ' + seed + '. The camp clearing has nearby wood, food and ore.']
+  state.events = ['New ' + LANDSCAPES[landscape].name + ' · ' + size + 'm · seed ' + seed + '. Nearby wood, food and ore surround the camp clearing.']
   return state
 }

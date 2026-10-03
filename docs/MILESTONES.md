@@ -596,6 +596,9 @@ The mature layer becomes a first-class part of Nightspire's identity after the c
 - [x] instanced woodland, distance detail reduction and scenic horizon hills
 - [x] regression coverage and browser generation/road/gather/save/load checks
 - [ ] foreground GPU/frame-pacing soak and dense large-town stress test
-- [ ] buildable slopes, terrain editing, water and regional economic balance
+- [x] V2 rivers/lakes, dry fords and shared water boundaries for navigation/placement
+- [x] Start/Continue menu and four-landscape seeded setup with an actual parchment preview
+- [ ] user visual approval and extended new-map playtest
+- [ ] buildable slopes, terrain editing and regional economic balance
 
-See [verified scope and CPU measurements](REGIONAL_MAPS.md). This is not a claim of full Manor Lords map scale or hundreds of supported citizens.
+See [current setup/water verification](MAP_SETUP.md) and [regional budgets / historical V1 CPU measurements](REGIONAL_MAPS.md). This is not a claim of full Manor Lords map scale or hundreds of supported citizens.

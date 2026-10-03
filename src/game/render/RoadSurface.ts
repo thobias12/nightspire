@@ -1,5 +1,6 @@
 import type { MapDefinition } from '../data/map'
 import { forestDensity, landscapeNoise } from '../world/MapGenerator'
+import { isFord, waterDistance } from '../world/MapTerrain'
 import type { RoadPath } from '../model/WorldState'
 
 export const ROAD_SURFACE_SIZE = 1024
@@ -40,14 +41,35 @@ export function roadWearProfile(width: number): { compaction: number; wheelTrack
 export function createMeadowField(extent: number, size: number, map?: MapDefinition): MeadowField {
   const coarse = new Uint8Array(size * size), fine = new Uint8Array(size * size)
   const pixels = new Uint8Array(size * size * 4), unit = extent / size, half = extent / 2
-  const rgb = [97, 114, 72]
+  const rgb = [97, 114, 72], bankRGB = [100, 104, 75], waterRGB = [101, 133, 139]
+  // Coherent regional color is sampled once on a small lattice and interpolated;
+  // the 2048² terrain texture does not evaluate forest noise per texel in V2.
+  const lattice = new Float32Array(65*65*3)
+  if(map?.version===2)for(let z=0;z<=64;z++)for(let x=0;x<=64;x++){
+    const wx=x/64*extent-half,wz=z/64*extent-half,i=(z*65+x)*3
+    const forest=forestDensity(wx,wz,map),dry=landscapeNoise(wx/37,wz/37,map.seed+101)
+    const patch=landscapeNoise(wx/13,wz/13,map.seed+117)
+    lattice[i]=10+dry*16-forest*22+patch*4
+    lattice[i+1]=6+dry*5-forest*20+patch*6
+    lattice[i+2]=2+dry*7-forest*9+patch*3
+  }
   for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) {
     const i = z * size + x, wx = (x + 0.5) * unit - half, wz = (z + 0.5) * unit - half
     coarse[i] = Math.round(noise(wx * 0.65, wz * 0.65, 9) * 255)
     fine[i] = Math.round(noise(wx * 3.1, wz * 3.1, 17) * 255)
-    const regional = map ? (landscapeNoise(wx / 27, wz / 27, map.seed + 101) - 0.5) * 18 - forestDensity(wx, wz, map) * 10 : 0
+    const regional = map && map.version!==2 ? (landscapeNoise(wx / 27, wz / 27, map.seed + 101) - 0.5) * 18 - forestDensity(wx, wz, map) * 10 : 0
     const tint = regional + (coarse[i] / 255 - 0.5) * 9 + (fine[i] / 255 - 0.5) * 3
-    for (let c = 0; c < 3; c++) pixels[i * 4 + c] = Math.round(rgb[c] + tint)
+    const u=(x+0.5)/size*64,v=(z+0.5)/size*64,ix=Math.min(63,Math.floor(u)),iz=Math.min(63,Math.floor(v)),tx=u-ix,tz=v-iz
+    const wet=map?.version===2?waterDistance(wx,wz,map):Infinity
+    const water=wet<0&&!(map?.landscape==='riverlands'&&isFord(wz,map))
+    for (let c = 0; c < 3; c++) {
+      const a=lattice[(iz*65+ix)*3+c],b=lattice[(iz*65+ix+1)*3+c]
+      const d=lattice[((iz+1)*65+ix)*3+c],e=lattice[((iz+1)*65+ix+1)*3+c]
+      const color=rgb[c]+tint+(a+(b-a)*tx)*(1-tz)+(d+(e-d)*tx)*tz
+      const shore=map?.version===2?Math.max(0,1-Math.max(0,wet)/3):0
+      const bank=bankRGB[c],lake=waterRGB[c]
+      pixels[i*4+c]=Math.round(water?lake+(fine[i]/255-0.5)*3:color*(1-shore*0.8)+bank*shore*0.8)
+    }
     pixels[i * 4 + 3] = 255
   }
   return { coarse, fine, pixels }

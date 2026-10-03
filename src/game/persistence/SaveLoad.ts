@@ -1,4 +1,5 @@
-import { MAP_SIZES } from '../data/map'
+import { LANDSCAPES, MAP_SIZES } from '../data/map'
+import { terrainBlocked, terrainPolygonError, terrainRouteError } from '../world/MapTerrain'
 import { MAX_MAP_NODES, worldHalf } from '../world/MapGenerator'
 import { regionalReachability } from '../world/RegionalNavigation'
 import { BUILDINGS } from '../data/buildings'
@@ -8,7 +9,7 @@ import { available, freeStorage, readyToBuild, resourceCapacity, stockpiles, sup
 import { fieldArea, fieldCentroid, polygonsOverlap, simpleFieldPolygon } from '../world/FieldPlanning'
 import { houseBedCapacity } from '../systems/population/HouseProgression'
 import { blockedCells, cellKey, entrance, footprint, inBounds } from '../world/Navigation'
-import { residentialPlotsOverlap } from '../world/TownPlanning'
+import { plotCorners, residentialPlotsOverlap } from '../world/TownPlanning'
 import { MAX_ENEMIES, MAX_SETTLERS, NEED_IDS, type WorldState } from '../model/WorldState'
 import { migrateWorldCandidate } from './SaveMigrations'
 
@@ -32,8 +33,9 @@ const combatant = (v: any, tick: number): boolean =>
 export function validateWorld(value: unknown): asserts value is WorldState {
   const s = value as WorldState
   check(s && s.version === 1, 'unsupported version')
-  check(s.map === undefined || s.map && s.map.version === 1 && integer(s.map.seed) && s.map.seed <= 0xffffffff
-    && MAP_SIZES.includes(s.map.size) && ['meadows', 'woodland'].includes(s.map.landscape), 'map definition')
+  check(s.map === undefined || s.map && [1,2].includes(s.map.version) && integer(s.map.seed) && s.map.seed <= 0xffffffff
+    && MAP_SIZES.includes(s.map.size) && Object.hasOwn(LANDSCAPES,s.map.landscape)
+    && (s.map.version === 2 || ['meadows','woodland'].includes(s.map.landscape)), 'map definition')
   const point = (v: any): boolean => v && Number.isFinite(v.x) && Number.isFinite(v.z) && inBounds(v, worldHalf(s))
   const gridPoint = (v: any): boolean => point(v) && Number.isInteger(v.x) && Number.isInteger(v.z)
   check(integer(s.nextId) && integer(s.tick) && integer(s.topology) && number(s.elapsedSeconds), 'clock/identity')
@@ -334,6 +336,11 @@ export function validateWorld(value: unknown): asserts value is WorldState {
     }
   }
 
+  const terrain = terrainBlocked(s.map)
+  check(s.buildings.every(b => footprint(b).every(p => !terrain.has(cellKey(p)))), 'building on water')
+  check(s.roads.every(r => !terrainRouteError(r.points,s.map,r.width)), 'road on water')
+  check(s.fields.every(f => !terrainPolygonError(f.points,s.map)), 'field on water')
+  check(s.residentialPlots.every(p => !terrainPolygonError(plotCorners(p),s.map)), 'residential plot on water')
   const reachable = regionalReachability({ x: 0, z: 2 }, blockedCells(s, false), worldHalf(s))
   check(
     [...s.settlers, s.player, ...s.buildings.map(entrance), ...s.nodes.filter(n => n.remaining > 0)]

@@ -25,12 +25,9 @@ export function createHudTemplate(): string {
         <div class="drawer-body">
           <div id="objective"></div>
           <div id="workforce"></div>
-          <details><summary>New region</summary>
-            <p>Start a seeded landscape. Your current settlement is saved before replacement.</p>
-            <label>Map seed <input id="map-seed" aria-label="Map seed" type="number" min="0" max="4294967295" value="137"></label>
-            <label>Region size <select id="map-size" aria-label="Region size"><option value="129">129 × 129 m</option><option value="257" selected>257 × 257 m</option><option value="513">513 × 513 m</option></select></label>
-            <label>Landscape <select id="map-landscape" aria-label="Landscape"><option value="meadows">Meadows & copses</option><option value="woodland">Woodland clearings</option></select></label>
-            <button data-action="new-region">Start new region (save current)</button>
+          <details><summary>Region map</summary>
+            <p>Choose a landscape and preview a fresh settlement before starting.</p>
+            <button data-action="map-setup">Choose landscape</button>
 <div><span id="region-label">Nightspire</span> <button data-action="region-view">Region view</button></div>
 <div id="minimap-map" class="minimap-map" style="height:150px"></div>
           </details>
@@ -182,6 +179,7 @@ export function createHudTemplate(): string {
             </button>
           </div>
           <div class="dock-utility-group" aria-label="Game utilities">
+            <button class="dock-utility" data-action="main-menu" title="Return to start screen"><span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Menu</span></button>
             <button class="dock-utility" data-action="save" title="Save game">
               <span class="dock-icon-slot" data-icon-slot="command-save" aria-hidden="true"></span><span>Save</span>
             </button>

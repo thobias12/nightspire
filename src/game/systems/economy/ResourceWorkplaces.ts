@@ -1,4 +1,5 @@
 import { BUILDINGS } from '../../data/buildings'
+import { waterDistance } from '../../world/MapTerrain'
 import { WOODCUTTING } from '../../data/resources'
 import type { DayPhase } from '../../runtime/DayNight'
 import { MAX_MAP_NODES, mapHash, worldHalf } from '../../world/MapGenerator'
@@ -61,6 +62,7 @@ export function updateResourceWorkplaces(state: WorldState, delta: number, phase
 }
 
 function clearForSapling(state: WorldState, x: number, z: number): boolean {
+  if (waterDistance(x,z,state.map) < 4) return false
   if (Math.abs(x) >= worldHalf(state) - 2 || Math.abs(z) >= worldHalf(state) - 2) return false
   if (state.nodes.some(node => Math.hypot(node.x - x, node.z - z) < 2.2 && (node.remaining > 0 || (node.planted && (node.growth ?? 0) > 0)))) return false
   if (state.buildings.some(building => !building.destroyed && Math.hypot(building.x - x, building.z - z) < 3.2)) return false

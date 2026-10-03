@@ -87,14 +87,7 @@ export function bindHudEvents(
     }
 
     const button = target.closest<HTMLButtonElement>('button[data-action]')
-    if (button?.dataset.action === 'new-region') {
-      const input = (id: string) => element.querySelector<HTMLInputElement>('#' + id)!.value
-      handlers.action('new-region', JSON.stringify({
-        seed: Number(input('map-seed')),
-        size: Number(input('map-size')),
-        landscape: input('map-landscape'),
-      }))
-    } else if (button) {
+    if (button) {
       handlers.action(button.dataset.action!, button.dataset.value)
     }
   }, { signal })

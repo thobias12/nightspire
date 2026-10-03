@@ -51,7 +51,7 @@ export function adjustRoadWidth(planning: PlanningState, direction: -1 | 1): str
 export function finalizeRoadDraft(planning: PlanningState, state: WorldState): string | null {
   if (planning.tool !== 'road') return null
   const points = sampleRoadCurve(planning.roadControlPoints, planning.roadCurve)
-  const error = roadPlacementError(points, state.fields, worldHalf(state))
+  const error = roadPlacementError(points, state.fields, worldHalf(state),state.map,planning.roadWidth)
   if (error) return error
   for (const control of planning.roadControlPoints) insertRoadJunctionPoint(state.roads, control)
   state.roads.push({ id: state.nextId++, points, width: planning.roadWidth })
@@ -67,7 +67,7 @@ export function finalizeRoadDraft(planning: PlanningState, state: WorldState): s
 export function finalizeFieldDraft(planning: PlanningState, state: WorldState): { message: string; selectedId?: number } | null {
   if (planning.tool !== 'field') return null
   const points = planning.fieldControlPoints.map(point => ({ ...point }))
-  const error = fieldPlacementError(points, state.fields, state.buildings, state.residentialPlots, state.nodes, state.roads, worldHalf(state))
+  const error = fieldPlacementError(points, state.fields, state.buildings, state.residentialPlots, state.nodes, state.roads, worldHalf(state),state.map)
   if (error) return { message: error }
   const farmhouse = nearestFarmhouseForField(points, state.buildings)
   if (!farmhouse) return { message: 'Field needs a Farmhouse within 18m.' }

@@ -1,4 +1,5 @@
-import { forestDensity, worldHalf } from '../world/MapGenerator'
+import { worldHalf } from '../world/MapGenerator'
+import { mapIllustration } from './MapIllustration'
 import { BUILDINGS, type BuildingId } from '../data/buildings'
 import { RESOURCE_IDS, RESOURCES } from '../data/resources'
 import { agricultureSummary, fieldHarvestWork, fieldSowWork, fieldsForFarmhouse } from '../systems/economy/Agriculture'
@@ -830,9 +831,9 @@ export class Hud {
     const half = worldHalf(s), mapKey = JSON.stringify(s.map)
     if (mapKey !== this.mapBackgroundKey) {
       this.mapBackgroundKey = mapKey; this.mapBackground = ''
-      if (s.map) for (let z = -half; z < half; z += half / 20) for (let x = -half; x < half; x += half / 20) {
-        const density = forestDensity(x, z, s.map)
-        if (density > 0.15) this.mapBackground += '<rect x="' + x + '" y="' + z + '" width="' + half / 20 + '" height="' + half / 20 + '" fill="#344c35" opacity="' + density + '"/>'
+      if (s.map) {
+        const scale=half*2/560,offset=-half-20*scale
+        this.mapBackground=mapIllustration(s).replace(/^<svg[^>]*>/,'<g transform="translate('+offset+' '+offset+') scale('+scale+')">').replace(/<\/svg>$/,'</g>')
       }
       this.set('minimap-map', '<svg viewBox="' + [-half, -half, half * 2, half * 2].join(' ') + '" preserveAspectRatio="none" role="img" aria-label="Settlement overview">' + this.mapBackground + '<g id="minimap-live"></g></svg>')
     }
