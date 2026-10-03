@@ -1,0 +1,181 @@
+{
+  "sceneGrid": [4, 7],
+  "portraitGrid": [5, 2],
+  "scenes": [
+    "road",
+    "residential-plot",
+    "field",
+    "stockpile",
+    "ore-yard",
+    "farmhouse",
+    "foresters-lodge",
+    "mine",
+    "fishing-hut",
+    "brewery",
+    "campfire",
+    "tavern",
+    "pleasure-house",
+    "blacksmith",
+    "market",
+    "trading-post",
+    "guard-post",
+    "wood-wall",
+    "wood-gate",
+    "granary",
+    "bakery",
+    "quarry",
+    "well",
+    "chapel",
+    "bathhouse",
+    "manor",
+    "watchtower",
+    "barracks"
+  ],
+  "portraits": [
+    "settler-1",
+    "settler-2",
+    "settler-3",
+    "settler-4",
+    "settler-5",
+    "settler-6",
+    "settler-7",
+    "settler-8",
+    "worker-empty",
+    "raider"
+  ],
+  "aliases": {
+    "house": "residential-plot"
+  },
+  "sceneSheetSize": [1536, 1024],
+  "sceneSheetInset": [2, 3],
+  "portraitCrop": [0, 0.14, 1, 0.61],
+  "singleCardCrops": {
+    "market": [0.20, 0, 0.60, 1],
+    "trading-post": [0.36, 0, 0.44, 1],
+    "tavern": [0.11, 0, 0.52, 1],
+    "watchtower": [0.45, 0, 0.38, 1]
+  },
+  "cardCrops": {
+    "road": {
+      "building": [0.55, 0, 0.37, 0.627586],
+      "activity": [0.24, 0.154483, 0.29, 0.811034]
+    },
+    "residential-plot": {
+      "building": [0.27, 0, 0.46, 0.695172],
+      "activity": [0.07, 0.328276, 0.25, 0.637241]
+    },
+    "field": {
+      "building": [0.52, 0, 0.48, 0.868966],
+      "activity": [0.17, 0.173793, 0.4, 0.791724]
+    },
+    "stockpile": {
+      "building": [0.37, 0.009655, 0.63, 0.946207],
+      "activity": [0.15, 0.135172, 0.3, 0.830345]
+    },
+    "ore-yard": {
+      "building": [0.5, 0, 0.5, 0.829078],
+      "activity": [0.18, 0.189078, 0.43, 0.7]
+    },
+    "farmhouse": {
+      "building": [0.51, 0, 0.47, 0.629078],
+      "activity": [0.13, 0.069078, 0.43, 0.85]
+    },
+    "foresters-lodge": {
+      "building": [0.51, 0, 0.49, 0.839078],
+      "activity": [0.19, 0.229078, 0.3, 0.7]
+    },
+    "mine": {
+      "building": [0.51, 0, 0.49, 0.929078],
+      "activity": [0.1, 0.129078, 0.49, 0.8]
+    },
+    "fishing-hut": {
+      "building": [0.56, 0, 0.44, 0.719718],
+      "activity": [0.22, 0.088732, 0.29, 0.798592]
+    },
+    "brewery": {
+      "building": [0.52, 0, 0.48, 0.788732],
+      "activity": [0.26, 0.098592, 0.35, 0.788732]
+    },
+    "campfire": {
+      "building": [0.36, 0, 0.21, 0.690141],
+      "activity": [0.54, 0.177465, 0.33, 0.670423]
+    },
+    "tavern": {
+      "building": [0.14, 0, 0.85, 0.857746],
+      "activity": [0.24, 0.207042, 0.5, 0.680282]
+    },
+    "pleasure-house": {
+      "building": [0.5, 0, 0.5, 0.766197],
+      "activity": [0.08, 0.15493, 0.24, 0.660563]
+    },
+    "blacksmith": {
+      "building": [0.39, 0, 0.61, 0.815493],
+      "activity": [0.08, 0, 0.41, 0.825352]
+    },
+    "market": {
+      "building": [0.18, 0, 0.68, 0.825352],
+      "activity": [0.31, 0.174648, 0.42, 0.670423]
+    },
+    "trading-post": {
+      "building": [0.1, 0, 0.56, 0.726761],
+      "activity": [0.48, 0.095775, 0.5, 0.729577]
+    },
+    "guard-post": {
+      "building": [0.12, 0, 0.21, 0.724638],
+      "activity": [0.31, 0.055072, 0.18, 0.750725]
+    },
+    "wood-wall": {
+      "building": [0.44, 0, 0.56, 0.765217],
+      "activity": [0.17, 0.024638, 0.3, 0.781159]
+    },
+    "wood-gate": {
+      "building": [0.16, 0, 0.6, 0.785507],
+      "activity": [0.63, 0.044928, 0.15, 0.76087]
+    },
+    "granary": {
+      "building": [0.44, 0, 0.46, 0.826087],
+      "activity": [0.23, 0.176812, 0.61, 0.628986]
+    },
+    "bakery": {
+      "building": [0.3, 0, 0.66, 0.849624],
+      "activity": [0.27, 0.11812, 0.24, 0.720902]
+    },
+    "quarry": {
+      "building": [0.56, 0, 0.43, 0.722406],
+      "activity": [0.23, 0.054511, 0.4, 0.742105]
+    },
+    "well": {
+      "building": [0.3, 0, 0.26, 0.81782],
+      "activity": [0.6, 0, 0.16, 0.81782]
+    },
+    "chapel": {
+      "building": [0.15, 0, 0.6, 0.81782],
+      "activity": [0.66, 0.04391, 0.23, 0.795113]
+    },
+    "bathhouse": {
+      "building": [0.31, 0, 0.6, 0.891379],
+      "activity": [0.07, 0.191379, 0.2, 0.784483]
+    },
+    "manor": {
+      "building": [0.17, 0, 0.65, 0.855172],
+      "activity": [0.21, 0.167241, 0.19, 0.82069]
+    },
+    "watchtower": {
+      "building": [0.46, 0, 0.34, 1],
+      "activity": [0.51, 0, 0.23, 0.432759]
+    },
+    "barracks": {
+      "building": [0.17, 0, 0.73, 0.927586],
+      "activity": [0.71, 0.07069, 0.22, 0.905172]
+    }
+  },
+  "sceneRowBounds": [
+    [0, 151],
+    [156, 303],
+    [307, 455],
+    [459, 607],
+    [611, 755],
+    [759, 898],
+    [902, 1024]
+  ]
+}

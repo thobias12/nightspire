@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nightspire — UI artwork fit QA</title>
+</head>
+<body class="medieval-hud">
+  <main class="art-fit-qa">
+    <h1>UI artwork fit</h1>
+    <p>Same source, different windows. Uses the game's styles; no simulation or save changes.</p>
+    <label>View <select id="art-group"><option value="all">All artwork</option><option value="planning">Planning</option><option value="logistics">Logistics</option><option value="industry">Industry</option><option value="services">Services</option><option value="defense">Defense</option><option value="portraits">Portraits & icons</option></select></label>
+    <label>Layout <select id="art-layout"><option value="comparison">Compare sizes</option><option value="cards">All cards</option></select></label>
+    <div id="art-fit-scenes"></div>
+    <section id="art-fit-portraits"><h2>People — 40px and 24px</h2><div class="art-fit-people"></div><h2>Emblems — 24px</h2><div class="art-fit-icons"></div></section>
+  </main>
+  <script type="module" src="/scripts/ui-art-fit.mjs"></script>
+</body>
+</html>

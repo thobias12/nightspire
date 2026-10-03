@@ -1,5 +1,3 @@
-import { commandIcon } from './HudIcons'
-
 export function createHudTemplate(): string {
   return `
       <header class="topbar">
@@ -150,7 +148,7 @@ export function createHudTemplate(): string {
             <button class="build-card is-planned" aria-disabled="true" title="Planned feature"><span class="build-art-slot" data-art-slot="build-barracks" aria-hidden="true"></span><span class="build-name">Barracks</span><small>Planned · military</small></button>
           </div>
 
-          <div class="catalog-help">Hotkeys remain active while this menu is closed. Building artwork and icons intentionally use empty <code>data-art-slot</code> / <code>data-icon-slot</code> hooks.</div>
+          <div class="catalog-help">Hotkeys remain active while this menu is closed.</div>
         </div>
 
         <div class="road-context panel floating-panel" data-draggable-panel data-panel-id="road-context">
@@ -165,22 +163,22 @@ export function createHudTemplate(): string {
         <div class="command-dock" aria-label="Primary controls">
           <div class="dock-main-group">
             <button class="dock-button primary" data-hud-toggle="build-menu" aria-pressed="false" title="Construction menu">
-              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('build')}</span><span>Build</span><small></small>
+              <span class="dock-icon-slot" data-icon-slot="command-build" aria-hidden="true"></span><span>Build</span><small></small>
             </button>
             <button class="dock-button" data-action="rotate-build" title="Rotate selected blueprint [R]">
-              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('rotate')}</span><span>Rotate</span><small>R</small>
+              <span class="dock-icon-slot" data-icon-slot="command-rotate" aria-hidden="true"></span><span>Rotate</span><small>R</small>
             </button>
             <button class="dock-button" data-action="cancel" title="Leave placement / inspect [Esc]">
-              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('inspect')}</span><span>Inspect</span><small>Esc</small>
+              <span class="dock-icon-slot" data-icon-slot="command-inspect" aria-hidden="true"></span><span>Inspect</span><small>Esc</small>
             </button>
             <button class="dock-button" data-action="camera" title="Toggle settlement/player camera">
-              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('camera')}</span><span class="dock-label">Follow player</span><small></small>
+              <span class="dock-icon-slot" data-icon-slot="command-camera" aria-hidden="true"></span><span class="dock-label">Follow player</span><small></small>
             </button>
             <button class="dock-button" data-action="cinematic" title="Street view [V]">
-              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('street')}</span><span class="dock-label">Street view</span><small>V</small>
+              <span class="dock-icon-slot" data-icon-slot="command-street-view" aria-hidden="true"></span><span class="dock-label">Street view</span><small>V</small>
             </button>
             <button class="dock-button" data-action="center" title="Center settlement">
-              <span class="dock-icon-slot command-glyph" aria-hidden="true">${commandIcon('center')}</span><span>Center</span><small></small>
+              <span class="dock-icon-slot" data-icon-slot="command-center" aria-hidden="true"></span><span>Center</span><small></small>
             </button>
           </div>
           <div class="dock-utility-group" aria-label="Game utilities">

@@ -105,7 +105,7 @@ export class Hud {
   }
 
   private clampFloatingPanels(): void {
-    for (const panel of this.element.querySelectorAll<HTMLElement>('[data-draggable-panel].is-user-positioned')) {
+    for (const panel of this.element.querySelectorAll<HTMLElement>('[data-draggable-panel].is-user-positioned, [data-draggable-panel].is-world-anchored')) {
       const rect = panel.getBoundingClientRect()
       this.placeFloatingPanel(panel, rect.left, rect.top)
     }

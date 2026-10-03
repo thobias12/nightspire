@@ -5,6 +5,7 @@ import { forceImmigrationIfEligible } from '../systems/population/Population'
 import { createBuilding, spawnSettler, type WorldState } from '../model/WorldState'
 import { validateWorld } from '../persistence/SaveLoad'
 import { backyardForPlot } from '../world/TownPlanning'
+import { finishJob } from '../systems/jobs/Jobs'
 
 interface QaSimulation {
   setTimeOfDay(value: number): void
@@ -179,6 +180,14 @@ export function runQaAction(action: string, value: string | undefined, context: 
       const clearSites = [{ x: 0, z: 0 }, ...built.map(building => ({ x: building.x, z: building.z }))]
       for (const node of s.nodes) {
         if (clearSites.some(site => Math.hypot(site.x - node.x, site.z - node.z) < 3.1)) node.remaining = 0
+      }
+      // Staging can clear a resource already claimed by a working settler.
+      // Release only unfinished harvests; carried resources still get deposited.
+      for (const job of [...s.jobs]) {
+        if (job.kind !== 'gather' || job.stage === 'target') continue
+        if (s.nodes.find(node => node.id === job.sourceId)?.remaining !== 0) continue
+        const settler = s.settlers.find(settler => settler.id === job.settlerId)
+        if (settler) finishJob(s, settler, job)
       }
       s.topology++
       assignHousing(s)

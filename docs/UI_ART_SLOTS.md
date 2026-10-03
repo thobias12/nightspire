@@ -1,6 +1,6 @@
 # Nightspire UI art slots
 
-The M3.11.7 UI shell intentionally separates layout from final artwork. Astra can replace these placeholders without changing HUD structure or gameplay wiring.
+The UI shell separates layout from artwork through stable logical slots. The active [manuscript set](MANUSCRIPT_ART.md) binds those slots through a manifest and generated stylesheet. Every building's card, preview, title image and inspector reuse one canonical WebP; change its crop/scale for smaller surfaces rather than generating a different painting. The legacy directories described below remain historical fallback assets.
 
 ## Resource icons
 

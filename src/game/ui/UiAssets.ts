@@ -20,9 +20,9 @@ export interface UiAssetDescriptor {
 }
 
 /**
- * Stable path contract for future Astra-generated UI artwork.
- * Missing files are intentional during the shell phase: the HUD renders
- * styled placeholders from data-ui-asset / data-art-slot attributes.
+ * Logical HUD asset inventory. The active manuscript stylesheet binds these
+ * slots to canonical scenes/portraits and reusable SVG emblems. uiAsset() keeps
+ * the legacy path helper for tooling; it does not choose the live HUD artwork.
  */
 export function uiAsset(kind: UiAssetKind, name: string, extension = 'webp'): UiAssetDescriptor {
   return { kind, name, path: `${UI_ASSET_ROOT}/${kind}/${name}.${extension}` }

@@ -1,5 +1,6 @@
 import './style.css'
 import './game/ui/MedievalHud.css'
+import './game/ui/ManuscriptHud.css'
 import { BenchmarkApp } from './game/benchmark/BenchmarkApp'
 import { Game } from './game/app/Game'
 

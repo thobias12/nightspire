@@ -1,5 +1,13 @@
 # Decisions — M1 settlement loop
 
+## Canonical manuscript artwork at every UI size — 2026-10-02
+
+Use one checked-in WebP per building, not separately generated paintings for card/header/icon sizes. A generated activity-scene sheet is cut once; cards select building and worker crops from that same file, while previews/inspectors show the wide scene. Crop rectangles and House aliases live in a small manifest; CSS bindings and the original SVG emblems are prepared with developer scripts. No runtime generation, per-agent assets, dependencies or world-renderer changes are introduced. Almendra is locally hosted with its OFL license; body copy remains readable Georgia.
+
+The October 3 fit correction uses cover scaling and overlapping crops to fill portrait cards completely. Four compositions use a single tall crop to prevent repeated figures. Wide views retain the canonical aspect ratio, including short windows; tiny title images and portraits use contained subject crops. Explicit row boundaries are required because the generated sheet's actual rows drift from an equal grid. Recut the canonical files once, then verify image dimensions against CSS geometry. A development-only gallery uses the real catalog and styles without simulation or save mutations.
+
+Keep art rules in a focused ManuscriptHud stylesheet layered over the existing layout. Asset tests enforce logical-slot coverage, identical sources across sizes, deterministic generation and payload bounds. Browser QA revealed that resizing skipped automatically anchored inspectors and that the town fixture could exhaust active harvest claims. Clamp both positioning modes; use the existing finishJob helper only for unfinished gather claims invalidated by QA staging. Preserve jobs already carrying resources. See [art direction and verification](MANUSCRIPT_ART.md).
+
 ## Medieval HUD reference correction — 2026-10-01
 
 Keep this correction in the existing UI domain on current main, preserving the architecture/forestry patches. Original simple inline SVG command symbols and existing illustrated assets provide the reference composition without new dependencies or changes to gameplay. Static cost seals read building definitions once. HUD HTML comparisons cache the previous source string instead of browser-serialized HTML: expanded boolean attributes otherwise caused unchanged inspectors to rebuild and lose focus. A regression verifies stable controls and changed-content updates. See [comparison, checks and art limitations](MEDIEVAL_UI.md).

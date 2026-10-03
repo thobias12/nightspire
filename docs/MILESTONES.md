@@ -1,5 +1,19 @@
 # Milestones
 
+## Manuscript UI artwork and fit correction — 2026-10-03
+
+- [x] Original activity scenes for all 28 existing/live and planned catalog entries; ten portraits
+- [x] Same canonical image reused for card crops, previews, title images and building windows
+- [x] Coordinated resource/category/service/task/command emblems, slate frames, parchment trim and local heading font
+- [x] Nine additional regressions; all 206 tests, typecheck, architecture check and production build pass
+- [x] Production browser checks across all five categories, preview/title/source reuse, staffing add/remove, building tabs, responsive windows and save/reload/load
+- [x] QA town remains saveable when staging clears a claimed harvest node; carried deliveries preserved
+- [x] Full-frame small cards, proportional wide previews, explicit source-row crops with neighboring-art remnants removed
+- [x] Development-only gallery covers every card, header, title thumbnail, portrait and emblem at the game's sizes
+- [ ] Final art-direction approval
+
+See [assets, direction brief, budgets and limits](MANUSCRIPT_ART.md). This pass adds no gameplay milestone or population/performance claim.
+
 ## Medieval HUD reference correction — 2026-10-01
 
 - [x] Compact status ribbons, portrait cost seals, shared category/grid rail and original command glyphs
@@ -7,7 +21,7 @@
 - [x] Correct atlas proportions and short-window preview handling
 - [x] Inspector focus stability regression; 197 tests, typecheck, architecture check and build passing
 - [x] Production browser checks for tabs, assignment/removal, catalog previews and save/reload/load
-- [ ] Final dedicated illustrations for reused/placeholder building artwork
+- [x] Dedicated original building scenes supplied by the subsequent manuscript pass; final art approval remains pending
 
 See [reference comparison and remaining limitations](MEDIEVAL_UI.md). This is a UI correction, not a new gameplay milestone.
 
