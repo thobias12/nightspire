@@ -110,6 +110,11 @@ Current ownership ledger:
 - `render/VillagePresentation.ts`: frame-local lookup index and renderer-independent worker/stock presentation projections.
 - `render/WorkerActivityRenderer.ts`: shared-batch cargo, builder hammers and delivered-site timber props.
 - `render/TownBuildingRenderer.ts`: procedural buildings, props, nightlife and fortifications.
+- `render/BuildingConstructionPresentation.ts`: renderer-only work-to-part staging; completed assemblies remain the source of truth.
+- `render/GroundedModels.ts` + `GroundedMaterials.ts`: bounded shared imported meshes/surface maps and their scene-owned loading/disposal.
+- `render/GroundedGeometry.ts` + `LeafCutout.ts`: reusable garment/UV geometry and matching color/shadow foliage masks.
+- `render/TradeBuildingRenderer.ts`: existing Market/Trading Post shared-batch assemblies.
+- `qa/ModelShowcase.ts`: isolated `?models=1` model/progress review; no saves or simulation.
 - `render/ResidentialRenderer.ts`: residential plots, boundaries, street thresholds and backyard compounds.
 - `ui/Hud.ts`: live HUD state/update orchestration and panel state.
 - `ui/HudEvents.ts`: delegated DOM/window event wiring and transient drag gesture state.

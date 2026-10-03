@@ -14,6 +14,8 @@ The playable game already has roads, residential plots, agriculture, physical ha
 
 **Village presentation:** Houses, Forester's Lodges and Stockpiles now share lightly weathered roof geometry. Occupied homes emit a little hearth smoke; the Forester's front timber shelter shows its actual stored Wood and assigned tool racks; open Stockpiles keep their resource stacks visible. Haulers carry sacks, barrels, baskets or timber bundles, and builders face their work with a hammer beside delivered timber. These are procedural, instanced visuals driven by existing state. See [verification, budgets and scale comparison](docs/VILLAGE_VISUALS.md).
 
+**Model/construction foundation:** unfinished buildings reveal their actual foundations, posts, infill, rafters, roof and finishing parts according to work progress. Shared timber/plaster/roof/cloth maps, bounded tree/barrel/rock models and revised figure silhouettes move toward grounded medieval art. Market/Trading Post have functional assemblies. Open `/?models=1` to choose a building and scrub construction in elevated/Street View without touching saves. This is an initial model pass; distant vegetation and some geometry remain procedural. See [sources, budgets, verification and limits](docs/GROUNDED_MODELS.md).
+
 **Settlement/economy expansion:** deepen food storage and processing with Granary/Bakery-style chains; expand resource extraction with Quarry/Mine-style workplaces; add more agriculture and rural land uses; broaden Markets, trade, logistics, prosperity and upgrade paths.
 
 **Civic, faith and services:** add Well/Chapel/Manor-style civic progression, settlement prestige, policies and faith/service coverage; later grow Bathhouse, recreation, luxury and nightlife into a richer mature-city service economy.

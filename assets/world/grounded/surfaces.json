@@ -1,0 +1,26 @@
+[
+  {
+    "name": "timber",
+    "source": "https://polyhaven.com/a/medieval_wood",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  },
+  {
+    "name": "plaster",
+    "source": "https://polyhaven.com/a/grey_plaster",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  },
+  {
+    "name": "roof",
+    "source": "https://polyhaven.com/a/grey_roof_01",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  },
+  {
+    "name": "cloth",
+    "source": "https://polyhaven.com/a/fabric_pattern_07",
+    "license": "CC0-1.0",
+    "textureMax": 512
+  }
+]

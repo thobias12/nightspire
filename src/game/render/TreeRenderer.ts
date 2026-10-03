@@ -41,7 +41,10 @@ const bark = [0x49372a, 0x543d2d, 0x403126, 0x5a4230]
 const leaves = [0x365039, 0x405a3f, 0x496244, 0x304a35, 0x52694a]
 
 export class TreeRenderer {
-  constructor(private readonly instance: TreeInstanceFn) {}
+  constructor(
+    private readonly instance: TreeInstanceFn,
+    private readonly detailedTree?: (x: number, z: number, width: number, height: number, yaw: number, pitch: number) => boolean,
+  ) {}
 
   private pose(node: ResourceNode, treeIndex: number, regional: boolean): TreePose {
     const p = woodTreePoint(node, treeIndex)
@@ -201,6 +204,7 @@ export class TreeRenderer {
   private renderStanding(node: ResourceNode, pose: TreePose, far: boolean, night: number, treeIndex: number): void {
     const trunkColor = bark[(node.id + treeIndex) % bark.length]
     const height = (3.6 + ((node.id + treeIndex) % 4) * 0.18) * pose.scale
+    if (!far && this.detailedTree?.(pose.x,pose.z,pose.scale,height,pose.fallYaw,0)) return
     const lower = height * 0.58
     const upper = height * 0.49
 
@@ -263,6 +267,10 @@ export class TreeRenderer {
   private renderFalling(node: ResourceNode, pose: TreePose, progress: number, far: boolean, treeIndex: number): void {
     const height = (3.6 + ((node.id + treeIndex) % 4) * 0.18) * pose.scale
     const angle = progress * Math.PI * 0.49
+    if (!far && this.detailedTree?.(pose.x,pose.z,pose.scale,height,pose.fallYaw,angle)) {
+      this.renderStump(pose,node.id+treeIndex,0.58)
+      return
+    }
     const horizontal = Math.sin(angle)
     const vertical = Math.cos(angle)
     const dirX = Math.sin(pose.fallYaw)

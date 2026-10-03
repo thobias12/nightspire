@@ -6,7 +6,7 @@ import { RESOURCE_IDS } from '../data/resources'
 import { MAP_SIZE } from '../world/Navigation'
 import type { ResidentialPlotPreview } from '../world/TownPlanning'
 import type { Building, FieldPlot, Point, ResidentialPlot, WorldState } from '../model/WorldState'
-import { atmosphereForTime, constructionVisualStage, damageVisualStage, type DamageVisualStage } from './VisualState'
+import { atmosphereForTime, buildingDamageVisualStage, type DamageVisualStage } from './VisualState'
 import { TOWN_PALETTE } from './TownPresentation'
 import { RoadTerrain } from './RoadTerrain'
 import { roadCoverageAt, ROAD_GRASS_LIMIT, ROAD_STONE_LIMIT } from './RoadSurface'
@@ -19,6 +19,11 @@ import { TreeRenderer } from './TreeRenderer'
 import { activeWoodTreePoint } from '../systems/economy/Woodcutting'
 import { VillageRenderIndex, workerActivity } from './VillagePresentation'
 import { WorkerActivityRenderer } from './WorkerActivityRenderer'
+import { ConstructionAssembly, constructionRatio } from './BuildingConstructionPresentation'
+import { GroundedMaterials } from './GroundedMaterials'
+import { GroundedModels } from './GroundedModels'
+import { addRoofUvs, createGarmentGeometry, createLimbGeometry } from './GroundedGeometry'
+import { TradeBuildingRenderer } from './TradeBuildingRenderer'
 
 export type CameraMode = 'settlement' | 'follow'
 
@@ -54,7 +59,7 @@ export class SceneRenderer {
   private readonly settlementLitBatches = new Set([
     'buildings', 'fortifications', 'campfireFire', 'roofs', 'gableRoofs', 'villageRoofs', 'doors', 'trim', 'props',
     'stone', 'plaster', 'timber', 'metal', 'cloth', 'barrels', 'sacks', 'logs', 'baskets',
-    'braceL', 'braceR', 'cartWheel',
+    'braceL', 'braceR', 'cartWheel', 'roofFrame', 'adultHelmet', 'adultBoot', 'adultHand',
     'adultTorso', 'adultSkirt', 'adultHead', 'adultHair', 'adultHairLong', 'adultArm', 'adultLeg', 'adultBodice',
     'guardCoat', 'entertainer',
     'treeBole', 'treeBranch', 'treeCrown', 'treeStump', 'treeCut', 'treeLog', 'axeHandle', 'axeHead',
@@ -70,6 +75,10 @@ export class SceneRenderer {
   private readonly townRenderer: TownBuildingRenderer
   private readonly treeRenderer: TreeRenderer
   private readonly workerRenderer: WorkerActivityRenderer
+  private readonly constructionAssembly = new ConstructionAssembly()
+  private readonly groundedMaterials = new GroundedMaterials()
+  private readonly groundedModels = new GroundedModels(this.scene)
+  private readonly tradeRenderer: TradeBuildingRenderer
   private readonly villageIndex = new VillageRenderIndex()
   private readonly ray = new THREE.Raycaster()
   private readonly groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
@@ -152,10 +161,16 @@ export class SceneRenderer {
       (x, z, angle) => this.rotatedOffset(x, z, angle),
       this.planningOverlays,
     )
+    this.tradeRenderer = new TradeBuildingRenderer(
+      (name, x, y, z, sx, sy, sz, color, yaw) => this.instance(name, x, y, z, sx, sy, sz, color, yaw),
+      (x, z, angle) => this.rotatedOffset(x, z, angle),
+    )
 
     this.treeRenderer = new TreeRenderer(
       (name, x, y, z, sx, sy, sz, color, yaw, pitch, roll) =>
         this.instance(name, x, y, z, sx, sy, sz, color, yaw, pitch, roll),
+      (x,z,width,height,yaw,pitch) => this.zoom < 80 && (x-this.focus.x)**2+(z-this.focus.z)**2 < 32**2
+        && this.groundedModels.emit('tree',x,0.18,z,width*0.3,height/6.5,width*0.3,yaw,pitch),
     )
     this.workerRenderer = new WorkerActivityRenderer(
       (name, x, y, z, sx, sy, sz, color, yaw, pitch, roll) =>
@@ -209,8 +224,8 @@ export class SceneRenderer {
     this.addBatch('sacks', new THREE.SphereGeometry(0.5, 8, 6), 0x9a865e, 620 + Math.max(0, agentCapacity - 10))
     this.addBatch('baskets', new THREE.CylinderGeometry(0.34, 0.28, 0.42, 8), 0x9a7447, 420 + Math.max(0, agentCapacity - 10))
     this.addBatch('logs', new THREE.CylinderGeometry(0.18, 0.22, 1, 8).rotateZ(Math.PI / 2), 0x725037, 1100 + 3 * Math.max(0, agentCapacity - 10))
-    this.addBatch('gableRoofs', createGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
-    this.addBatch('villageRoofs', createWeatheredGableRoofGeometry(), TOWN_PALETTE.roofBrown, 520)
+    this.addBatch('gableRoofs', addRoofUvs(createGableRoofGeometry()), TOWN_PALETTE.roofBrown, 520)
+    this.addBatch('villageRoofs', addRoofUvs(createWeatheredGableRoofGeometry()), TOWN_PALETTE.roofBrown, 520)
     for (const name of ['gableRoofs', 'villageRoofs']) {
       const roofMaterial = this.batches[name].material as THREE.MeshStandardMaterial
       roofMaterial.flatShading = true
@@ -221,16 +236,20 @@ export class SceneRenderer {
     }
     this.addBatch('braceL', createRoofCourseGeometry(0.68), TOWN_PALETTE.timberDark, 900)
     this.addBatch('braceR', createRoofCourseGeometry(-0.68), TOWN_PALETTE.timberDark, 900)
+    this.addBatch('roofFrame', this.geometry, TOWN_PALETTE.timberMid, 3120)
     this.addBatch('cartWheel', createCartWheelGeometry(), 0x4d3728, 160)
-    this.addBatch('adultTorso', new THREE.CapsuleGeometry(0.2, 0.34, 3, 6), 0x8b6a51, agentCapacity + 90)
-    this.addBatch('adultSkirt', new THREE.ConeGeometry(0.32, 0.65, 8), 0x77535a, agentCapacity + 90)
-    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 8, 6), 0xd6ad8b, agentCapacity + 110)
+    this.addBatch('adultTorso', createGarmentGeometry('tunic'), 0x8b6a51, agentCapacity + 90)
+    this.addBatch('adultSkirt', createGarmentGeometry('skirt'), 0x77535a, agentCapacity + 90)
+    this.addBatch('adultHead', new THREE.SphereGeometry(0.18, 12, 8).scale(0.78, 1.08, 0.84), 0xd6ad8b, agentCapacity + 110)
     this.addBatch('adultHair', new THREE.SphereGeometry(0.19, 8, 6), 0x4a3528, agentCapacity + 110)
     this.addBatch('adultHairLong', new THREE.CapsuleGeometry(0.16, 0.38, 3, 6), 0x4a3528, agentCapacity + 70)
-    this.addBatch('adultArm', new THREE.CapsuleGeometry(0.055, 0.34, 2, 5), 0xd6ad8b, 2 * agentCapacity + 200)
-    this.addBatch('adultLeg', new THREE.CapsuleGeometry(0.075, 0.35, 2, 5), 0x463a32, 2 * agentCapacity + 140)
-    this.addBatch('adultBodice', new THREE.CapsuleGeometry(0.19, 0.22, 3, 6), TOWN_PALETTE.clothWine, agentCapacity + 70)
-    this.addBatch('guardCoat', new THREE.CapsuleGeometry(0.23, 0.38, 3, 6), 0x6a5149, agentCapacity + 20)
+    this.addBatch('adultArm', createLimbGeometry(false), 0xd6ad8b, 2 * agentCapacity + 200)
+    this.addBatch('adultLeg', createLimbGeometry(true), 0x463a32, 2 * agentCapacity + 140)
+    this.addBatch('adultBodice', createGarmentGeometry('bodice'), TOWN_PALETTE.clothWine, agentCapacity + 70)
+    this.addBatch('guardCoat', createGarmentGeometry('coat'), 0x6a5149, agentCapacity + 84)
+    this.addBatch('adultHelmet', new THREE.SphereGeometry(0.16, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), 0x787b78, agentCapacity + 84)
+    this.addBatch('adultBoot', new THREE.BoxGeometry(0.13,0.12,0.23), 0x493a2c, 2 * agentCapacity + 200)
+    this.addBatch('adultHand', new THREE.SphereGeometry(0.048,6,4), 0xcfa17c, 2 * agentCapacity + 200)
     this.addBatch('entertainer', new THREE.ConeGeometry(0.34, 0.78, 10), TOWN_PALETTE.clothWine, 40)
     this.addBatch('settlers', new THREE.CapsuleGeometry(0.22, 0.45, 3, 5), 0xe6ce9c, agentCapacity)
     this.addBatch('guards', new THREE.CapsuleGeometry(0.24, 0.5, 3, 5), 0xa96f52, agentCapacity)
@@ -262,6 +281,17 @@ export class SceneRenderer {
     this.addBatch('player', new THREE.CapsuleGeometry(0.3, 0.65, 4, 6), 0x73d9dd, 1)
     this.addBatch('healthBack', this.geometry, 0x2b211f, agentCapacity + 246)
     this.addBatch('healthFill', this.geometry, 0x76b56e, agentCapacity + 246)
+
+    for (const [surface,names] of Object.entries({
+      timber: ['timber','doors','trim','scaffold','fortifications','logs','treeLog','treeBole','roofFrame'],
+      plaster: ['plaster','stone','foundation'], roof: ['gableRoofs','villageRoofs','roofs'],
+      cloth: ['cloth','sacks','adultTorso','adultSkirt','adultBodice','guardCoat'],
+    }) as [Parameters<GroundedMaterials['apply']>[1], string[]][]) {
+      for (const name of names) this.groundedMaterials.apply(this.batches[name].material as THREE.MeshStandardMaterial,surface)
+    }
+    for (const name of ['adultHead','adultHair','adultHairLong','adultArm','adultLeg','adultHelmet','adultHand','adultBoot']) {
+      (this.batches[name].material as THREE.MeshStandardMaterial).color.setHex(0xffffff)
+    }
 
     this.selection = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
@@ -337,6 +367,13 @@ export class SceneRenderer {
     name: string, x: number, y: number, z: number,
     sx = 1, sy = 1, sz = 1, color?: number, rotation = 0, pitch = 0, roll = 0,
   ): void {
+    if (this.constructionAssembly.ratio < 1) {
+      const assembly = this.constructionAssembly
+      if (!assembly.project(name,x,y,z,sx,sy,sz,rotation)) return
+      x = assembly.x; y = assembly.y; z = assembly.z; sy = assembly.sy; sz = assembly.sz
+    }
+    if (name === 'barrels' && this.groundedModels.emit('barrel',x,y,z,sx,sy,sz,rotation,pitch)) return
+    if (name === 'ore' && this.groundedModels.emit('rock',x,y,z,sx,sy,sz,rotation,pitch)) return
     // Decorative resource undergrowth may encroach on shoulders, but not cover
     // the worn corridor. Resource trunks/bushes themselves remain inspectable.
     if (name === 'underbrush' && this.roadTerrain.surface
@@ -388,34 +425,15 @@ export class SceneRenderer {
   }
 
   private constructionVisual(b: Building, def: BuildingDefinition, rotation: number): void {
-    const stage = constructionVisualStage(b.work, def.constructionWork, b.complete)
-    const size = def.fortification ? 0.9 : Math.max(1, def.footprint * 0.86)
-    this.instance('foundation', b.x, 0.07, b.z, size, 0.14, size, 0x746b57, rotation)
-    if (stage === 'foundation') return
-
-    const half = def.fortification ? 0.32 : Math.max(0.35, def.footprint * 0.34)
-    const postHeight = stage === 'frame' ? 1.35 : 1.9
-    for (const [lx, lz] of [[-half, -half], [half, -half], [-half, half], [half, half]] as const) {
-      const o = this.rotatedOffset(lx, lz, rotation)
-      this.instance('scaffold', b.x + o.x, postHeight / 2, b.z + o.z, 0.12, postHeight, 0.12, 0x9b7750, rotation)
+    if (b.work <= 0 || def.fortification || b.type === 'campfire') return
+    // Temporary scaffold stands beside the actual assembly, never replaces it.
+    const half = Math.max(1.6,def.footprint * 0.56)
+    for (const lx of [-half,half]) {
+      const o = this.rotatedOffset(lx,-half-0.32,rotation)
+      this.instance('scaffold',b.x+o.x,0.9,b.z+o.z,0.09,1.8,0.09,0x9b7750,rotation)
     }
-    this.instance('scaffold', b.x, postHeight, b.z, Math.max(0.7, half * 2.25), 0.12, 0.12, 0xa07a4f, rotation)
-    this.instance('scaffold', b.x, postHeight, b.z, 0.12, 0.12, Math.max(0.7, half * 2.25), 0xa07a4f, rotation)
-
-    if (stage === 'shell') {
-      const shellHeight = def.fortification ? 0.9 : 1.15
-      this.instance(
-        def.fortification ? 'fortifications' : 'buildings',
-        b.x,
-        shellHeight / 2,
-        b.z,
-        def.fortification ? 0.78 : Math.max(1, def.footprint * 0.68),
-        shellHeight,
-        def.fortification ? 0.66 : Math.max(1, def.footprint * 0.68),
-        0x7b7468,
-        rotation,
-      )
-    }
+    const o = this.rotatedOffset(0,-half-0.32,rotation)
+    this.instance('scaffold',b.x+o.x,1.55,b.z+o.z,half*2+0.18,0.09,0.25,0x9b7750,rotation)
   }
 
   private ruinVisual(b: Building, rotation: number): void {
@@ -502,6 +520,7 @@ export class SceneRenderer {
 
   sync(state: WorldState, selectedId: number | null): void {
     this.overflowInstances = 0
+    this.groundedModels.begin()
     for (const mesh of Object.values(this.batches)) mesh.count = 0
     const index = this.villageIndex
     index.refresh(state)
@@ -599,16 +618,15 @@ export class SceneRenderer {
     for (const e of state.enemies) {
       const hit = this.recentlyHit(e.lastHitTick, state.tick)
       const color = hit ? 0xff6558 : e.health <= e.maxHealth * 0.5 ? 0x8f3333 : undefined
-      this.instance('enemies', e.x, 0.56, e.z, 1, 1, 1, color)
-      this.healthBar(e.x, 1.3, e.z, e.health, e.maxHealth, 0.9)
+      const facing = Math.atan2(state.player.x-e.x,state.player.z-e.z)
+      this.townRenderer.renderAdultFigure(e.x,e.z,e.id,true,time,color ?? 0x774d43,facing,'walk',e.path.length > 0)
+      this.healthBar(e.x, 1.7, e.z, e.health, e.maxHealth, 0.9)
     }
 
     const playerHit = this.recentlyHit(state.player.lastHitTick, state.tick)
-    this.instance(
-      'player', state.player.x, 0.7, state.player.z, 1, 1, 1,
-      playerHit ? 0xff7868 : state.player.health <= 0 ? 0x456064 : undefined,
-    )
-    this.healthBar(state.player.x, 1.55, state.player.z, state.player.health, state.player.maxHealth, 1.05)
+    this.townRenderer.renderAdultFigure(state.player.x,state.player.z,9999999,false,time,
+      playerHit ? 0xff7868 : state.player.health <= 0 ? 0x456064 : 0x58686b)
+    this.healthBar(state.player.x, 1.7, state.player.z, state.player.health, state.player.maxHealth, 1.05)
 
     let glowX = 0
     let glowZ = 0
@@ -621,7 +639,7 @@ export class SceneRenderer {
       const hit = this.recentlyHit(b.lastHitTick, state.tick)
       const plot = b.type === 'house' ? index.plots.get(b.id) : undefined
       const rotation = plot?.angle ?? b.facingAngle ?? (b.rotation ?? 0) * Math.PI / 2
-      const damage = damageVisualStage(b.health, b.maxHealth, b.destroyed)
+      const damage = buildingDamageVisualStage(b)
       const intactColor = this.damagedColor(def.color, damage)
       const baseColor = hit ? 0xff705e : this.townRenderer.readableNightColor(intactColor, night)
 
@@ -644,11 +662,14 @@ export class SceneRenderer {
         )
       }
 
-      if (damage === 'ruin') {
-        this.ruinVisual(b, rotation)
-      } else if (!b.complete) {
+      if (!b.complete && damage !== 'ruin') {
         this.constructionVisual(b, def, rotation)
         this.workerRenderer.renderDeliveredTimber(b, rotation)
+      }
+      this.constructionAssembly.ratio = constructionRatio(b.work,def.constructionWork,b.complete)
+      if (damage === 'ruin') {
+        this.constructionAssembly.ratio = 1
+        this.ruinVisual(b, rotation)
       } else if (def.fortification) {
         this.townRenderer.renderFortification(b, rotation, baseColor)
       } else if (b.type === 'campfire') {
@@ -664,15 +685,13 @@ export class SceneRenderer {
         this.instance('campfireCore', b.x, 0.66, b.z, flicker * 0.82, 0.95 + flicker * 0.16, flicker * 0.82, 0xffd06a)
         this.instance('glow', b.x, 0.56, b.z, 0.9 + night * 0.35, 0.64, 0.9 + night * 0.35, 0xffa34d)
         this.townRenderer.campfireGroundPool(b.x, b.z, 4.25, Math.max(night, atmosphere.twilight * 0.85))
-        glowX += b.x * 1.4
-        glowZ += b.z * 1.4
-        glowWeight += 1.4
+        if (b.complete) { glowX += b.x * 1.4; glowZ += b.z * 1.4; glowWeight += 1.4 }
       } else if (b.type === 'stockpile') {
         this.townRenderer.renderStockpile(b, rotation, baseColor, night)
       } else if (b.type === 'house') {
         const occupiedNight = occupiedHomes.has(b.id) ? night : night * 0.18
         this.townRenderer.renderHouse(b, rotation, baseColor, occupiedNight, plot, occupiedHomes.has(b.id), time)
-        if (occupiedHomes.has(b.id)) {
+        if (b.complete && occupiedHomes.has(b.id)) {
           const houseLight = this.rotatedOffset(0, 1.15, rotation)
           this.townRenderer.warmGroundPool(b.x + houseLight.x, b.z + houseLight.z, 4.15, 0.34, occupiedNight)
           glowX += b.x + houseLight.x * 0.35
@@ -685,7 +704,7 @@ export class SceneRenderer {
         const serviceNight = b.inventory.ale > 0 ? night : night * 0.35
         const activity = state.enemies.length === 0 ? Math.max(atmosphere.twilight, night * 0.46) : 0
         this.townRenderer.renderTavern(b, rotation, baseColor, serviceNight, time, activity)
-        if (b.inventory.ale > 0) {
+        if (b.complete && b.inventory.ale > 0) {
           const tavernLight = this.rotatedOffset(0, 1.25, rotation)
           this.townRenderer.warmGroundPool(b.x + tavernLight.x, b.z + tavernLight.z, 5.1, 0.42, serviceNight)
           glowX += (b.x + tavernLight.x * 0.45) * 1.8
@@ -706,12 +725,15 @@ export class SceneRenderer {
         this.townRenderer.renderOreYard(b, rotation, baseColor)
       } else if (b.type === 'fishing-hut') {
         this.townRenderer.renderFishingHut(b, rotation, baseColor, night)
+      } else if (b.type === 'market' || b.type === 'trading-post') {
+        this.tradeRenderer.render(b,rotation)
       } else if (b.type === 'pleasure-house') {
         const activity = state.enemies.length === 0 && b.inventory.ale > 0 ? Math.max(atmosphere.twilight, night * 0.78) : 0
         this.townRenderer.renderPleasureHouse(b, rotation, baseColor, night, time, activity)
       } else {
         this.instance('buildings', b.x, 0.4, b.z, 2.8, 0.8, 2.8, baseColor, rotation)
       }
+      this.constructionAssembly.ratio = 1
 
       if (b.complete && !b.destroyed && (damage === 'damaged' || damage === 'critical')) {
         const o = this.rotatedOffset(1.0, -1.0, rotation)
@@ -737,6 +759,7 @@ export class SceneRenderer {
       mesh.instanceMatrix.needsUpdate = true
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     }
+    this.groundedModels.finish()
 
     const selected = [...state.settlers, ...state.enemies, ...state.nodes, ...state.buildings].find(e => e.id === selectedId)
     const selectedField = state.fields.find(field => field.id === selectedId)
@@ -872,10 +895,14 @@ export class SceneRenderer {
   }
 
   get stats() {
-    return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }
+    return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles,
+      modelsLoaded: this.groundedModels.loaded, modelErrors: this.groundedModels.errors.length + this.groundedMaterials.errors,
+      assetsReady: this.groundedModels.loaded === 3 && this.groundedMaterials.loaded === 12 }
   }
 
   dispose(): void {
+    this.groundedModels.dispose()
+    this.groundedMaterials.dispose()
     const geometries = new Set<THREE.BufferGeometry>()
     const materials = new Set<THREE.Material>()
 
